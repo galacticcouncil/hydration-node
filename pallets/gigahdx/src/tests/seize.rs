@@ -332,3 +332,183 @@ fn on_seize_should_clamp_in_release_when_seize_gigahdx_exceeds_snapshot() {
 		assert_eq!(recipient.gigahdx, orig_gigahdx + 50 * ONE);
 	});
 }
+
+/// With the backing held in `reserved` and `free = 0`, the seize falls back to
+/// `slash_reserved` and credits the recipient in full.
+#[test]
+fn finalise_seize_should_reach_backing_held_in_reserved_when_free_is_zero() {
+	use frame_support::traits::ReservableCurrency;
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+
+		// Move the 100 of backing into `reserved`, leaving `free` at 0 behind the lock.
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			200 * ONE
+		));
+		assert_ok!(<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserve(
+			&ALICE,
+			100 * ONE
+		));
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			0
+		));
+		assert_eq!(pallet_balances::Pallet::<Test>::free_balance(ALICE), 0);
+		assert_eq!(
+			<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserved_balance(&ALICE),
+			100 * ONE
+		);
+
+		let treasury_before = pallet_balances::Pallet::<Test>::free_balance(TREASURY);
+
+		// Nothing in free, so the seize is drawn from reserved.
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			100 * ONE,
+			orig_g,
+			orig_g,
+		));
+
+		assert_eq!(
+			pallet_balances::Pallet::<Test>::free_balance(TREASURY) - treasury_before,
+			100 * ONE,
+			"recipient credited in full"
+		);
+		assert_eq!(
+			<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserved_balance(&ALICE),
+			0,
+			"borrower's reserved fully seized"
+		);
+		assert_eq!(Stakes::<Test>::get(ALICE).unwrap().hdx, 0);
+		assert_eq!(Stakes::<Test>::get(TREASURY).unwrap().hdx, 100 * ONE);
+	});
+}
+
+/// Backing split across free and reserved: the seize takes what free can cover,
+/// then the remainder from reserved, and credits the recipient in full.
+#[test]
+fn finalise_seize_should_split_between_free_and_reserved() {
+	use frame_support::traits::ReservableCurrency;
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+
+		// 40 in free, 60 in reserved.
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			200 * ONE
+		));
+		assert_ok!(<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserve(
+			&ALICE,
+			60 * ONE
+		));
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			40 * ONE
+		));
+
+		let treasury_before = pallet_balances::Pallet::<Test>::free_balance(TREASURY);
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			100 * ONE,
+			orig_g,
+			orig_g,
+		));
+
+		assert_eq!(
+			pallet_balances::Pallet::<Test>::free_balance(TREASURY) - treasury_before,
+			100 * ONE
+		);
+		assert_eq!(pallet_balances::Pallet::<Test>::free_balance(ALICE), 0);
+		assert_eq!(
+			<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserved_balance(&ALICE),
+			0
+		);
+	});
+}
+
+/// Partial seize (close factor < 100%) still reaches reserved backing.
+#[test]
+fn finalise_seize_should_reach_reserved_on_partial_seize() {
+	use frame_support::traits::ReservableCurrency;
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			200 * ONE
+		));
+		assert_ok!(<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserve(
+			&ALICE,
+			100 * ONE
+		));
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			0
+		));
+
+		let treasury_before = pallet_balances::Pallet::<Test>::free_balance(TREASURY);
+		assert_ok!(<GigaHdxSeize as Seize<AccountId>>::on_seize(
+			&ALICE,
+			&TREASURY,
+			50 * ONE,
+			50 * ONE,
+			orig_g,
+		));
+
+		assert_eq!(
+			pallet_balances::Pallet::<Test>::free_balance(TREASURY) - treasury_before,
+			50 * ONE
+		);
+		assert_eq!(
+			<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserved_balance(&ALICE),
+			50 * ONE
+		);
+		let alice = Stakes::<Test>::get(ALICE).unwrap();
+		assert_eq!(alice.hdx, 50 * ONE);
+		assert_eq!(alice.gigahdx, orig_g - 50 * ONE);
+	});
+}
+
+/// When free + reserved fall short by more than ED, the seize fails loud even
+/// with a nonzero reserved balance.
+#[test]
+fn finalise_seize_should_fail_when_free_plus_reserved_short_by_more_than_ed() {
+	use frame_support::traits::ReservableCurrency;
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(GigaHdx::giga_stake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		let orig_g = <GigaHdxSeize as Seize<AccountId>>::on_pre_seize(&ALICE).unwrap();
+
+		// free 0, reserved 30 -> total 30, well below the 100 seize.
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			200 * ONE
+		));
+		assert_ok!(<pallet_balances::Pallet<Test> as ReservableCurrency<_>>::reserve(
+			&ALICE,
+			30 * ONE
+		));
+		assert_ok!(pallet_balances::Pallet::<Test>::force_set_balance(
+			RawOrigin::Root.into(),
+			ALICE,
+			0
+		));
+
+		assert_noop!(
+			<GigaHdxSeize as Seize<AccountId>>::on_seize(&ALICE, &TREASURY, 100 * ONE, orig_g, orig_g),
+			Error::<Test>::SeizeFailed
+		);
+	});
+}
