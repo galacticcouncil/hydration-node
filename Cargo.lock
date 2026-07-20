@@ -9506,7 +9506,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.6.1"
+version = "1.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10844,7 +10844,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.6.0"
+version = "10.6.1"
 dependencies = [
  "frame-support",
  "frame-system",

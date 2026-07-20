@@ -164,4 +164,18 @@ impl<T: frame_system::Config> pallet_evm_accounts::WeightInfo for HydraWeight<T>
 			.saturating_add(T::DbWeight::get().reads(16_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
+	/// Storage: `EVMAccounts::NttMinters` (r:0 w:1)
+	/// Proof: `EVMAccounts::NttMinters` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	fn set_ntt_minter() -> Weight {
+		// Values copied from `approve_contract` (same shape: single map write).
+		Weight::from_parts(23_297_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	/// Storage: `EVMAccounts::NttMinters` (r:0 w:1)
+	/// Proof: `EVMAccounts::NttMinters` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	fn clear_ntt_minter() -> Weight {
+		// Values copied from `disapprove_contract` (same shape: single map write).
+		Weight::from_parts(23_245_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

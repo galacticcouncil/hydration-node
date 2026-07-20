@@ -221,6 +221,84 @@ fn renounce_contract_deployer_should_remove_address_from_the_storage() {
 }
 
 #[test]
+fn set_ntt_minter_should_store_minter_in_the_storage() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let minter = EVMAccounts::evm_address(&ALICE);
+		assert_eq!(EVMAccounts::ntt_minter(HDX), None);
+
+		// Act
+		assert_ok!(EVMAccounts::set_ntt_minter(RuntimeOrigin::root(), HDX, minter));
+
+		// Assert
+		assert_eq!(EVMAccounts::ntt_minter(HDX), Some(minter));
+		expect_events(vec![Event::NttMinterSet { asset_id: HDX, minter }.into()]);
+
+		// replacing the minter should be ok
+		let new_minter = EvmAddress::from_slice(&[0x42; 20]);
+		assert_ok!(EVMAccounts::set_ntt_minter(RuntimeOrigin::root(), HDX, new_minter));
+		assert_eq!(EVMAccounts::ntt_minter(HDX), Some(new_minter));
+	});
+}
+
+#[test]
+fn set_ntt_minter_should_fail_when_origin_is_not_controller_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let minter = EVMAccounts::evm_address(&ALICE);
+
+		assert_noop!(
+			EVMAccounts::set_ntt_minter(RuntimeOrigin::signed(ALICE), HDX, minter),
+			DispatchError::BadOrigin
+		);
+		assert_eq!(EVMAccounts::ntt_minter(HDX), None);
+	});
+}
+
+#[test]
+fn set_ntt_minter_should_fail_for_zero_address() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			EVMAccounts::set_ntt_minter(RuntimeOrigin::root(), HDX, EvmAddress::zero()),
+			Error::<Test>::InvalidMinterAddress
+		);
+	});
+}
+
+#[test]
+fn clear_ntt_minter_should_remove_minter_from_the_storage() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange
+		let minter = EVMAccounts::evm_address(&ALICE);
+		assert_ok!(EVMAccounts::set_ntt_minter(RuntimeOrigin::root(), HDX, minter));
+		assert_eq!(EVMAccounts::ntt_minter(HDX), Some(minter));
+
+		// Act
+		assert_ok!(EVMAccounts::clear_ntt_minter(RuntimeOrigin::root(), HDX));
+
+		// Assert
+		assert_eq!(EVMAccounts::ntt_minter(HDX), None);
+		expect_events(vec![Event::NttMinterCleared { asset_id: HDX }.into()]);
+
+		// clearing the minter again should be ok
+		assert_ok!(EVMAccounts::clear_ntt_minter(RuntimeOrigin::root(), HDX));
+	});
+}
+
+#[test]
+fn clear_ntt_minter_should_fail_when_origin_is_not_emergency_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		let minter = EVMAccounts::evm_address(&ALICE);
+		assert_ok!(EVMAccounts::set_ntt_minter(RuntimeOrigin::root(), HDX, minter));
+
+		assert_noop!(
+			EVMAccounts::clear_ntt_minter(RuntimeOrigin::signed(ALICE), HDX),
+			DispatchError::BadOrigin
+		);
+		assert_eq!(EVMAccounts::ntt_minter(HDX), Some(minter));
+	});
+}
+
+#[test]
 fn verify_signed_message_should_work_if_message_not_wrapped() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange & Act
