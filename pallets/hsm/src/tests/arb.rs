@@ -352,3 +352,66 @@ fn find_opportunity() {
 			assert_eq!(opportunity, Some(Arbitrage::HollarOut(78321364099875978581618)));
 		});
 }
+
+#[test]
+fn execute_arbitrage_should_emit_event_profit_matching_receiver_balance_gain() {
+	let pool_id = 100u32;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 1_000 * ONE)])
+		.with_registered_assets(vec![(DAI, 18), (HOLLAR, 18), (pool_id, 18)])
+		.with_pool(
+			pool_id,
+			vec![DAI, HOLLAR],
+			22,
+			Permill::from_percent(0),
+			vec![PegSource::Value((1, 1)), PegSource::Value((1, 1))],
+		)
+		.with_initial_pool_liquidity(
+			100,
+			vec![
+				AssetAmount {
+					asset_id: HOLLAR,
+					amount: 999_000 * ONE,
+				},
+				AssetAmount {
+					asset_id: DAI,
+					amount: 1_000_000 * ONE,
+				},
+			],
+		)
+		.with_collateral_buyback_limit(
+			DAI,
+			pool_id,
+			Permill::from_float(0.),
+			FixedU128::from_rational(99, 100),
+			Permill::from_float(0.),
+			Perbill::from_float(0.0001),
+		)
+		.build()
+		.execute_with(|| {
+			move_block();
+			let flash_minter: EvmAddress = hex!["8F3aC7f6482ABc1A5c48a95D97F7A235186dBb68"].into();
+			assert_ok!(HSM::set_flash_minter(RuntimeOrigin::root(), flash_minter,));
+
+			let opportunity = HSM::find_arbitrage_opportunity(DAI);
+
+			let receiver_balance_before = Tokens::free_balance(DAI, &HsmArbProfitReceiver::get());
+			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, opportunity));
+			let receiver_balance_gain = Tokens::free_balance(DAI, &HsmArbProfitReceiver::get()) - receiver_balance_before;
+			assert_eq!(receiver_balance_gain, 10_875_005_266_593_893);
+
+			let emitted_profit = System::events()
+				.into_iter()
+				.filter_map(|record| {
+					if let RuntimeEvent::HSM(crate::Event::ArbitrageExecuted { profit, .. }) = record.event {
+						Some(profit)
+					} else {
+						None
+					}
+				})
+				.last()
+				.expect("ArbitrageExecuted event must have been emitted");
+
+			assert_eq!(emitted_profit, receiver_balance_gain);
+		});
+}
