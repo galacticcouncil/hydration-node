@@ -35,7 +35,7 @@ use frame_support::{
 	dispatch::RawOrigin,
 	parameter_types,
 	sp_runtime::traits::One,
-	traits::{Defensive, EitherOf, FindAuthor},
+	traits::{ConstBool, Defensive, EitherOf, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
@@ -87,6 +87,8 @@ pub const DEFAULT_BASE_FEE_PER_GAS: u128 = 15_000_000;
 parameter_types! {
 	// We allow for a 75% fullness of a 0.5s block
 	pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
+	// Fallback to BlockGasLimit
+	pub TransactionGasLimit: Option<U256> = None;
 
 	pub PrecompilesValue: precompiles::HydraDXPrecompiles<Runtime> = precompiles::HydraDXPrecompiles::<_>::new();
 	pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
@@ -189,6 +191,7 @@ impl pallet_evm::Config for Runtime {
 	type PrecompilesValue = PrecompilesValue;
 	type ChainId = crate::EVMChainId;
 	type BlockGasLimit = BlockGasLimit;
+	type TransactionGasLimit = TransactionGasLimit;
 	type Runner = WrapRunner<
 		Self,
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
@@ -225,6 +228,7 @@ impl pallet_ethereum::Config for Runtime {
 	type StateRoot = pallet_ethereum::IntermediateStateRoot<Self::Version>;
 	type PostLogContent = PostLogContent;
 	type ExtraDataLength = sp_core::ConstU32<1>;
+	type AllowUnprotectedTxs = ConstBool<false>;
 }
 
 pub struct EvmNonceProvider;

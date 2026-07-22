@@ -12,7 +12,6 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethereum::EIP1559Transaction;
 use ethereum_types::{Bloom, BloomInput, H160, H256, U256};
-use frame_support::pallet_prelude::RuntimeDebug;
 use pallet_broadcast::types::ExecutionType;
 use pallet_ethereum::{Receipt, Transaction, TransactionAction, TransactionStatus};
 use scale_info::TypeInfo;
@@ -31,13 +30,13 @@ pub const SYNTH_SIG_RS: H256 = H256([
 	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 ]);
 
-#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
+#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Eq)]
 pub enum HookPhase {
 	Initialization,
 	Finalization,
 }
 
-#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
+#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Eq)]
 pub enum Bucket {
 	Extrinsic(u32),
 	Hook {

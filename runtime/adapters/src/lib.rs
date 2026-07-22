@@ -51,6 +51,7 @@ use primitive_types::{U128, U512};
 use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
+use sp_std::boxed::Box;
 use sp_std::vec;
 use sp_std::vec::Vec;
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, marker::PhantomData};
@@ -87,6 +88,7 @@ pub struct MultiCurrencyTrader<
 > {
 	weight: Weight,
 	paid_assets: BTreeMap<(Location, Price), u128>,
+	holding: AssetsInHolding,
 	_phantom: PhantomData<(
 		AssetId,
 		Balance,
@@ -136,6 +138,7 @@ impl<
 		Self {
 			weight: Default::default(),
 			paid_assets: Default::default(),
+			holding: AssetsInHolding::new(),
 			_phantom: PhantomData,
 		}
 	}
@@ -149,18 +152,31 @@ impl<
 	fn buy_weight(
 		&mut self,
 		weight: Weight,
-		payment: AssetsInHolding,
+		mut payment: AssetsInHolding,
 		_context: &XcmContext,
-	) -> Result<AssetsInHolding, XcmError> {
+	) -> Result<AssetsInHolding, (AssetsInHolding, XcmError)> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {weight:?}, payment: {payment:?}",
 		);
-		let (asset_loc, price) = self.get_asset_and_price(&payment).ok_or(XcmError::AssetNotFound)?;
+		let (asset_loc, price) = match self.get_asset_and_price(&payment) {
+			Some(asset_and_price) => asset_and_price,
+			None => return Err((payment, XcmError::AssetNotFound)),
+		};
 		let fee = ConvertWeightToFee::weight_to_fee(&weight);
-		let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
-		let amount: u128 = converted_fee.try_into().map_err(|_| XcmError::Overflow)?;
-		let required = (asset_loc.clone(), amount).into();
-		let unused = payment.checked_sub(required).map_err(|_| XcmError::TooExpensive)?;
+		let converted_fee = match price.checked_mul_int(fee) {
+			Some(converted_fee) => converted_fee,
+			None => return Err((payment, XcmError::Overflow)),
+		};
+		let amount: u128 = match converted_fee.try_into() {
+			Ok(amount) => amount,
+			Err(_) => return Err((payment, XcmError::Overflow)),
+		};
+		let required: Asset = (asset_loc.clone(), amount).into();
+		let taken = match payment.try_take(required.into()) {
+			Ok(taken) => taken,
+			Err(_) => return Err((payment, XcmError::TooExpensive)),
+		};
+		self.holding.subsume_assets(taken);
 		self.weight = self.weight.saturating_add(weight);
 		let key = (asset_loc, price);
 		match self.paid_assets.get_mut(&key) {
@@ -169,11 +185,11 @@ impl<
 				self.paid_assets.insert(key, amount);
 			}
 		}
-		Ok(unused)
+		Ok(payment)
 	}
 
 	/// Will refund up to `weight` from the first asset tracked by the trader.
-	fn refund_weight(&mut self, weight: Weight, _context: &XcmContext) -> Option<Asset> {
+	fn refund_weight(&mut self, weight: Weight, _context: &XcmContext) -> Option<AssetsInHolding> {
 		log::trace!(
 			target: "xcm::weight", "MultiCurrencyTrader::refund_weight weight: {:?}, paid_assets: {:?}",
 			weight, self.paid_assets
@@ -186,12 +202,22 @@ impl<
 			let refund = converted_fee.min(*amount);
 			*amount -= refund; // Will not underflow because of `min()` above.
 
-			let refund_asset = asset_loc.clone();
-			if amount.is_zero() {
-				let key = (asset_loc.clone(), *price);
+			let refund_loc = asset_loc.clone();
+			let remove_key = if amount.is_zero() {
+				Some((asset_loc.clone(), *price))
+			} else {
+				None
+			};
+			if let Some(key) = remove_key {
 				self.paid_assets.remove(&key);
 			}
-			Some((refund_asset, refund).into())
+			let refund_asset: Asset = (refund_loc, refund).into();
+			let refunded = self.holding.saturating_take(refund_asset.into());
+			if refunded.is_empty() {
+				None
+			} else {
+				Some(refunded)
+			}
 		} else {
 			None
 		}
@@ -212,8 +238,10 @@ impl<
 	for MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
 {
 	fn drop(&mut self) {
-		for ((asset_loc, _), amount) in self.paid_assets.iter() {
-			Revenue::take_revenue((asset_loc.clone(), *amount).into());
+		if !self.holding.is_empty() {
+			let mut taken = AssetsInHolding::new();
+			core::mem::swap(&mut self.holding, &mut taken);
+			Revenue::take_revenue(taken);
 		}
 	}
 }
@@ -235,22 +263,24 @@ impl<
 		F: Get<AccountId>,
 	> TakeRevenue for ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>
 {
-	fn take_revenue(asset: Asset) {
-		match asset.clone() {
-			Asset {
-				id: _asset_id,
-				fun: Fungibility::Fungible(amount),
-			} => {
-				C::convert(asset).and_then(|id| {
-					let receiver = F::get();
-					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
-						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {e:?}"))
-						.ok()
-				});
-			}
-			_ => {
-				debug_assert!(false, "Can only accept concrete fungible tokens as revenue.");
-				log::trace!(target: "xcm::take_revenue", "Can only accept concrete fungible tokens as revenue.");
+	fn take_revenue(revenue: AssetsInHolding) {
+		for asset in revenue.into_assets_iter() {
+			match asset.clone() {
+				Asset {
+					id: _asset_id,
+					fun: Fungibility::Fungible(amount),
+				} => {
+					C::convert(asset).and_then(|id| {
+						let receiver = F::get();
+						D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
+							.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {e:?}"))
+							.ok()
+					});
+				}
+				_ => {
+					debug_assert!(false, "Can only accept concrete fungible tokens as revenue.");
+					log::trace!(target: "xcm::take_revenue", "Can only accept concrete fungible tokens as revenue.");
+				}
 			}
 		}
 	}
@@ -800,11 +830,18 @@ impl<
 		RerouteDestination,
 	>
 {
-	fn deposit_asset(asset: &Asset, location: &Location, _context: Option<&XcmContext>) -> Result<(), XcmError> {
-		match (
+	fn deposit_asset(
+		what: AssetsInHolding,
+		location: &Location,
+		_context: Option<&XcmContext>,
+	) -> Result<(), (AssetsInHolding, XcmError)> {
+		let Some(asset) = what.fungible_assets_iter().next() else {
+			return Err((what, XcmError::FailedToTransactAsset("empty holding")));
+		};
+		let res = match (
 			AccountIdConvert::convert_location(location),
 			CurrencyIdConvert::convert(asset.clone()),
-			Match::matches_fungible(asset),
+			Match::matches_fungible(&asset),
 		) {
 			// known asset
 			(Some(who), Some(currency_id), Some(amount)) => {
@@ -817,9 +854,10 @@ impl<
 				}
 			}
 			// unknown asset
-			_ => UnknownAsset::deposit(asset, location)
-				.or_else(|err| DepositFailureHandler::on_deposit_unknown_asset_fail(err, asset, location)),
-		}
+			_ => UnknownAsset::deposit(&asset, location)
+				.or_else(|err| DepositFailureHandler::on_deposit_unknown_asset_fail(err, &asset, location)),
+		};
+		res.map_err(|e| (what, e))
 	}
 
 	fn withdraw_asset(
@@ -839,15 +877,21 @@ impl<
 				.map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 		})?;
 
-		Ok(asset.clone().into())
+		Ok(match asset.fun {
+			Fungible(amount) => AssetsInHolding::new_from_fungible_credit(
+				asset.id.clone(),
+				Box::new(orml_xcm_support::AmountCredit(amount)),
+			),
+			NonFungible(instance) => AssetsInHolding::new_from_non_fungible(asset.id.clone(), instance),
+		})
 	}
 
-	fn transfer_asset(
+	fn internal_transfer_asset(
 		asset: &Asset,
 		from: &Location,
 		to: &Location,
 		_context: &XcmContext,
-	) -> Result<AssetsInHolding, XcmError> {
+	) -> Result<Asset, XcmError> {
 		let from_account =
 			AccountIdConvert::convert_location(from).ok_or_else(|| XcmError::from(Error::AccountIdConversionFailed))?;
 		let to_account =
@@ -871,7 +915,7 @@ impl<
 		)
 		.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
-		Ok(asset.clone().into())
+		Ok(asset.clone())
 	}
 }
 

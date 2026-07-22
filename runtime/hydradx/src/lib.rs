@@ -391,32 +391,6 @@ mod benches {
 	);
 }
 
-struct CheckInherents;
-
-#[allow(deprecated)]
-#[allow(dead_code)]
-// There is some controversy around this deprecation. We can keep it as it is for now.
-// See issue: https://github.com/paritytech/polkadot-sdk/issues/2841
-impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
-	fn check_inherents(
-		block: &Block,
-		relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
-	) -> sp_inherents::CheckInherentsResult {
-		let relay_chain_slot = relay_state_proof
-			.read_slot()
-			.expect("Could not read the relay chain slot from the proof");
-
-		let inherent_data = cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
-			relay_chain_slot,
-			sp_std::time::Duration::from_secs(6),
-		)
-		.create_inherent_data()
-		.expect("Could not create the timestamp inherent data");
-
-		inherent_data.check_extrinsics(block)
-	}
-}
-
 cumulus_pallet_parachain_system::register_validate_block! {
 	Runtime = Runtime,
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
@@ -529,7 +503,7 @@ impl_runtime_apis! {
 			VERSION
 		}
 
-		fn execute_block(block: Block) {
+		fn execute_block(block: <Block as BlockT>::LazyBlock) {
 			Executive::execute_block(block)
 		}
 
@@ -566,7 +540,7 @@ impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			block: Block,
+			block: <Block as BlockT>::LazyBlock,
 			data: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			data.check_extrinsics(&block)
@@ -596,8 +570,11 @@ impl_runtime_apis! {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 
-		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-			opaque::SessionKeys::generate(seed)
+		fn generate_session_keys(
+			owner: Vec<u8>,
+			seed: Option<Vec<u8>>,
+		) -> sp_session::OpaqueGeneratedSessionKeys {
+			opaque::SessionKeys::generate(&owner, seed).into()
 		}
 	}
 
@@ -617,12 +594,9 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl cumulus_primitives_core::GetCoreSelectorApi<Block> for Runtime {
-		fn core_selector() -> (
-			cumulus_primitives_core::CoreSelector,
-			cumulus_primitives_core::ClaimQueueOffset,
-		) {
-			ParachainSystem::core_selector()
+	impl cumulus_primitives_core::KeyToIncludeInRelayProof<Block> for Runtime {
+		fn keys_to_prove() -> cumulus_primitives_core::RelayProofRequest {
+			Default::default()
 		}
 	}
 
@@ -635,7 +609,7 @@ impl_runtime_apis! {
 		}
 
 		fn execute_block(
-			block: Block,
+			block: <Block as BlockT>::LazyBlock,
 			state_root_check: bool,
 			signature_check: bool,
 			select: frame_try_runtime::TryStateSelect,
@@ -813,6 +787,7 @@ impl_runtime_apis! {
 			estimate: bool,
 			access_list: Option<Vec<(H160, Vec<H256>)>>,
 			authorization_list: Option<AuthorizationList>,
+			state_override: fp_evm::StateOverride,
 		) -> Result<pallet_evm::CallInfo, sp_runtime::DispatchError> {
 			let mut config = <Runtime as pallet_evm::Config>::config().clone();
 			config.estimate = estimate;
@@ -871,6 +846,7 @@ impl_runtime_apis! {
 				validate,
 				weight_limit,
 				proof_size_base_cost,
+				state_override,
 				&config,
 			)
 			.map_err(|err| err.error.into())
@@ -1108,8 +1084,9 @@ impl_runtime_apis! {
 			PolkadotXcm::query_xcm_weight(message)
 		}
 
-		fn query_delivery_fees(destination: VersionedLocation, message: VersionedXcm<()>) -> Result<VersionedAssets, XcmPaymentApiError> {
-			PolkadotXcm::query_delivery_fees(destination, message)
+		fn query_delivery_fees(destination: VersionedLocation, message: VersionedXcm<()>, asset_id: VersionedAssetId) -> Result<VersionedAssets, XcmPaymentApiError> {
+			type AssetExchanger = <xcm::XcmConfig as xcm_executor::Config>::AssetExchanger;
+			PolkadotXcm::query_delivery_fees::<AssetExchanger>(destination, message, asset_id)
 		}
 	}
 
@@ -1145,7 +1122,7 @@ impl_runtime_apis! {
 						origin_location: VersionedLocation,
 						xcm: VersionedXcm<RuntimeCall>
 					) -> Result<XcmDryRunEffects<RuntimeEvent>, XcmDryRunApiError> {
-						PolkadotXcm::dry_run_xcm::<Runtime, xcm::XcmRouter, RuntimeCall, xcm::XcmConfig>(origin_location, xcm)
+						PolkadotXcm::dry_run_xcm::<xcm::XcmRouter>(origin_location, xcm)
 					}
 				}
 

@@ -19,7 +19,7 @@ use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::{InPoolTransaction, TransactionPool};
 use sp_api::{ApiError, ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::{RuntimeDebug, H160, H256};
+use sp_core::{H160, H256};
 use sp_offchain::OffchainWorkerApi;
 use sp_runtime::{traits::Header, transaction_validity::TransactionSource, Percent};
 use std::{
@@ -145,6 +145,7 @@ where
 			true,
 			None,
 			None, // authorization_list
+			None, // state_override
 		)
 	}
 
@@ -172,7 +173,7 @@ type Price = U256;
 pub type AssetSymbol = Vec<u8>;
 
 /// Messages that are sent to the liquidation worker.
-#[derive(Clone, RuntimeDebug)]
+#[derive(Clone, Debug)]
 enum MessageType<B: BlockT> {
 	Block(
 		sc_client_api::client::BlockImportNotification<B>,
@@ -183,13 +184,13 @@ enum MessageType<B: BlockT> {
 }
 
 /// Messages that are sent to the liquidation worker.
-#[derive(Clone, RuntimeDebug)]
+#[derive(Clone, Debug)]
 enum TransactionType {
 	OracleUpdate(Vec<(AssetAddress, Option<Price>)>),
 }
 
 /// State of the liquidation worker.
-#[derive(Clone, RuntimeDebug)]
+#[derive(Clone, Debug)]
 enum LiquidationWorkerTask {
 	LiquidateAll,
 	OracleUpdate(Vec<(AssetAddress, Option<Price>)>),
@@ -1152,7 +1153,7 @@ where
 }
 
 /// The data from DIA oracle update transaction.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 struct OracleUpdataData {
 	base_asset_name: AssetSymbol,
 	quote_asset: AssetSymbol,
