@@ -60,6 +60,7 @@ pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const DOT: AssetId = 5;
+pub const RETRY_ON_ERROR_ASSET: AssetId = 6;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
@@ -454,6 +455,12 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			return Err(ExecutorError::Error(pallet_omnipool::Error::<Test>::NotAllowed.into()));
 		}
 
+		if asset_in == RETRY_ON_ERROR_ASSET {
+			return Err(ExecutorError::Error(
+				pallet_route_executor::Error::<Test>::TradingLimitReached.into(),
+			));
+		}
+
 		SELL_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.push(SellExecution {
@@ -696,11 +703,19 @@ impl Config for Test {
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
-	type RetryOnError = ();
+	type RetryOnError = RetryOnErrorMock;
 	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
 	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
 	type ExtraGasSupport = ExtraGasSetterMock;
 	type GasWeightMapping = MockGasWeightMapping;
+}
+
+pub struct RetryOnErrorMock;
+
+impl frame_support::traits::Contains<DispatchError> for RetryOnErrorMock {
+	fn contains(t: &DispatchError) -> bool {
+		*t == pallet_route_executor::Error::<Test>::TradingLimitReached.into()
+	}
 }
 
 pub struct ExtraGasSetterMock;
