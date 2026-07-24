@@ -4944,6 +4944,14 @@ mod aave_atoken {
 		});
 	}
 
+	#[test]
+	fn router_trading_limit_reached_should_be_retriable() {
+		use frame_support::traits::Contains;
+		assert!(hydradx_runtime::RetryOnErrorForDca::contains(
+			&pallet_route_executor::Error::<Runtime>::TradingLimitReached.into()
+		));
+	}
+
 	fn assert_trade_failed_with_omnipool_insufficient_balance(schedule_id: u32) {
 		let expected: sp_runtime::DispatchError = pallet_omnipool::Error::<Runtime>::InsufficientBalance.into();
 		let events = last_hydra_events(20);

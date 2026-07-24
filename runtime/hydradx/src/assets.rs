@@ -942,6 +942,9 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			// liquidity index is timestamp-dependent, so the rounding boundary
 			// shifts and a later attempt may pass.
 			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
+			// same class as dca's own retriable TradeLimitReached — erc20/aToken rounding
+			// can undershoot the dry-run output passed as router min limit
+			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
