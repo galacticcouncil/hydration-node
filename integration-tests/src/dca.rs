@@ -4944,6 +4944,95 @@ mod aave_atoken {
 		});
 	}
 
+	#[test]
+	fn router_trading_limit_reached_should_be_retriable() {
+		use frame_support::traits::Contains;
+		assert!(hydradx_runtime::RetryOnErrorForDca::contains(
+			&pallet_route_executor::Error::<Runtime>::TradingLimitReached.into()
+		));
+	}
+
+	// Snapshot at block 13260776, produced with the same scraper command as above,
+	// --at 0x798bc20aeb759a30dd97aafdab03346ff463cbc17e776216d171a8b3ad6411d6
+	const PATH_TO_HSM_WINDDOWN_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT_13260776";
+
+	// replays mainnet block 13260777: hsm wind-down schedule 33794 (sUSDe->HOLLAR->aUSDT) failed
+	// with router TradingLimitReached and was terminated instead of retried
+	#[test]
+	fn dca_should_retry_when_router_trading_limit_reached() {
+		TestNet::reset();
+
+		hydra_live_ext(PATH_TO_HSM_WINDDOWN_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 13260776);
+			let schedule_id = 33794;
+			assert!(DCA::schedules(schedule_id).is_some());
+			// on mainnet the timestamp inherent runs after on_initialize — keep the parent timestamp
+			hydradx_runtime::System::set_block_number(13260777);
+
+			// the slim snapshot strips schedule 33812's owner, so replay its trade by hand:
+			// the aave hop moves pool-111 shares out of the aHUSDT contract account, then the
+			// stableswap hop removes liquidity from pool 111 right before 33794 executes
+			let ahusdt: sp_runtime::AccountId32 =
+				hex_literal::hex!("455448001806860d27ee903c1ec7586d4f7d598d7591f1240000000000000000").into();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				ahusdt,
+				111,
+				-22_133_969_015_170_432_881i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				BOB.into(),
+				111,
+				22_133_969_015_170_432_881i128,
+			));
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				111,
+				222,
+				22_133_969_015_170_432_881u128,
+				0,
+				vec![Trade {
+					pool: PoolType::Stableswap(111),
+					asset_in: 111,
+					asset_out: 222,
+				}]
+				.try_into()
+				.unwrap(),
+			));
+			// exact hollar amount of the mainnet swap — the replayed state matches
+			assert_eq!(Currencies::free_balance(222, &BOB.into()), 22_567_968_483_370_805_906);
+
+			//Act
+			DCA::on_initialize(13260777);
+
+			//Assert: trade failed exactly like mainnet, but got retried instead of terminated
+			assert_trade_failed_with_router_trading_limit_reached(schedule_id);
+			assert!(
+				DCA::schedules(schedule_id).is_some(),
+				"schedule must be retried, not terminated"
+			);
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+		});
+	}
+
+	fn assert_trade_failed_with_router_trading_limit_reached(schedule_id: u32) {
+		let expected: sp_runtime::DispatchError = pallet_route_executor::Error::<Runtime>::TradingLimitReached.into();
+		let events = last_hydra_events(20);
+		let found = events.iter().any(|e| {
+			matches!(
+				e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. })
+				if *id == schedule_id && *error == expected
+			)
+		});
+		assert!(
+			found,
+			"expected TradeFailed event with router::TradingLimitReached for schedule {schedule_id}"
+		);
+	}
+
 	fn assert_trade_failed_with_omnipool_insufficient_balance(schedule_id: u32) {
 		let expected: sp_runtime::DispatchError = pallet_omnipool::Error::<Runtime>::InsufficientBalance.into();
 		let events = last_hydra_events(20);
