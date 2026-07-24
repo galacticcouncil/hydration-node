@@ -17,6 +17,8 @@ pub trait WeightInfo {
 	fn approve_contract() -> Weight;
 	fn disapprove_contract() -> Weight;
 	fn claim_account() -> Weight;
+	fn set_ntt_minter() -> Weight;
+	fn clear_ntt_minter() -> Weight;
 }
 
 /// Weights for `pallet_evm_accounts` using the HydraDX node and recommended hardware.
@@ -126,5 +128,19 @@ impl WeightInfo for () {
 		Weight::from_parts(230_456_000, 10741)
 			.saturating_add(RocksDbWeight::get().reads(17_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	/// Storage: `EVMAccounts::NttMinters` (r:0 w:1)
+	/// Proof: `EVMAccounts::NttMinters` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	fn set_ntt_minter() -> Weight {
+		// Values copied from `approve_contract` (same shape: single map write).
+		Weight::from_parts(30_515_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: `EVMAccounts::NttMinters` (r:0 w:1)
+	/// Proof: `EVMAccounts::NttMinters` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
+	fn clear_ntt_minter() -> Weight {
+		// Values copied from `disapprove_contract` (same shape: single map write).
+		Weight::from_parts(25_334_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

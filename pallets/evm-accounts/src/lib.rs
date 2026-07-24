@@ -115,6 +115,10 @@ pub mod pallet {
 		/// Origin that can whitelist addresses for smart contract deployment.
 		type ControllerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		/// Origin that can clear an NTT minter. Meant to be faster than `ControllerOrigin`
+		/// so it can act as an emergency stop for NTT mint/burn.
+		type NttEmergencyOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		/// Asset id type.
 		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + AtLeast32BitUnsigned;
 
@@ -170,6 +174,12 @@ pub mod pallet {
 		ValueQuery, // default 0
 	>;
 
+	/// NTT spoke manager allowed to mint/burn an asset via the MultiCurrency precompile.
+	/// asset_id -> minter (H160)
+	#[pallet::storage]
+	#[pallet::getter(fn ntt_minter)]
+	pub type NttMinters<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, EvmAddress, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -188,6 +198,10 @@ pub mod pallet {
 			account: T::AccountId,
 			asset_id: T::AssetId,
 		},
+		/// NTT minter was set for an asset.
+		NttMinterSet { asset_id: T::AssetId, minter: EvmAddress },
+		/// NTT minter was cleared for an asset.
+		NttMinterCleared { asset_id: T::AssetId },
 	}
 
 	#[pallet::error]
@@ -207,6 +221,8 @@ pub mod pallet {
 		AccountAlreadyExists,
 		/// Insufficient asset balance of the claimed asset
 		InsufficientAssetBalance,
+		/// Zero address cannot be used as a minter
+		InvalidMinterAddress,
 	}
 
 	#[pallet::hooks]
@@ -415,6 +431,49 @@ pub mod pallet {
 			T::FeeCurrency::set(&account, asset_id)?;
 
 			Self::deposit_event(Event::AccountClaimed { account, asset_id });
+
+			Ok(())
+		}
+
+		/// Sets the NTT minter for an asset. The minter is the only EVM address allowed to
+		/// mint/burn the asset via the MultiCurrency precompile.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `ControllerOrigin`.
+		/// - `asset_id`: Asset whose minter is set.
+		/// - `minter`: EVM address of the NTT spoke manager.
+		///
+		/// Emits `NttMinterSet` event when successful.
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_ntt_minter())]
+		pub fn set_ntt_minter(origin: OriginFor<T>, asset_id: T::AssetId, minter: EvmAddress) -> DispatchResult {
+			T::ControllerOrigin::ensure_origin(origin)?;
+
+			ensure!(!minter.is_zero(), Error::<T>::InvalidMinterAddress);
+
+			<NttMinters<T>>::insert(asset_id, minter);
+
+			Self::deposit_event(Event::NttMinterSet { asset_id, minter });
+
+			Ok(())
+		}
+
+		/// Clears the NTT minter for an asset, stopping all mint/burn via the precompile.
+		/// Acts as an emergency stop, therefore it is gated by the faster `NttEmergencyOrigin`.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `NttEmergencyOrigin`.
+		/// - `asset_id`: Asset whose minter is cleared.
+		///
+		/// Emits `NttMinterCleared` event when successful.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::clear_ntt_minter())]
+		pub fn clear_ntt_minter(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			T::NttEmergencyOrigin::ensure_origin(origin)?;
+
+			<NttMinters<T>>::remove(asset_id);
+
+			Self::deposit_event(Event::NttMinterCleared { asset_id });
 
 			Ok(())
 		}

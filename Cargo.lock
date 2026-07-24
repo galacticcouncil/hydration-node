@@ -5784,7 +5784,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "432.0.0"
+version = "433.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9506,7 +9506,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.6.1"
+version = "1.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9729,7 +9729,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10844,7 +10844,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.6.0"
+version = "10.6.1"
 dependencies = [
  "frame-support",
  "frame-system",
