@@ -2960,6 +2960,152 @@ mod sponsored_paymaster {
 	}
 
 	#[test]
+	fn signed_dispatch_permit_should_sponsor_entire_cost_when_signer_has_zero_balance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			let user_acc = MockAccount::new(alith_truncated_account());
+			for asset in [HDX, WETH, DAI] {
+				let held = user_acc.balance(asset);
+				if held > 0 {
+					assert_ok!(Currencies::update_balance(
+						RuntimeOrigin::root(),
+						user_acc.address(),
+						asset,
+						-(held as i128),
+					));
+				}
+				assert_eq!(user_acc.balance(asset), 0, "user must start with nothing");
+			}
+
+			let initial_paymaster_hdx = Currencies::free_balance(HDX, &paymaster);
+
+			let inner_call = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
+				remark: b"sponsored".to_vec(),
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster.clone()),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert_ok!(result);
+
+			let events = frame_system::Pallet::<Runtime>::events();
+
+			let executed_as_user = events.iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::System(frame_system::Event::Remarked { sender, .. })
+						if *sender == user_acc.address()
+				)
+			});
+			assert!(
+				executed_as_user,
+				"inner call MUST execute under the zero-balance signer's own origin"
+			);
+
+			let alith = alith_evm_address();
+			let sponsored = events.iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::MultiTransactionPayment(pallet_transaction_multi_payment::Event::FeeSponsored {
+						from,
+						fee_payer,
+						..
+					}) if *from == alith && *fee_payer == paymaster
+				)
+			});
+			assert!(sponsored, "FeeSponsored MUST name the paymaster as fee payer");
+
+			assert_eq!(user_acc.balance(HDX), 0, "signer MUST NOT be charged in HDX");
+			assert_eq!(user_acc.balance(WETH), 0, "signer MUST NOT be charged in WETH");
+			assert!(
+				Currencies::free_balance(HDX, &paymaster) < initial_paymaster_hdx,
+				"paymaster MUST bear the whole cost"
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_fail_without_executing_when_paymaster_cannot_cover_gas() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let paymaster: AccountId = [9u8; 32].into();
+			assert_eq!(
+				Currencies::free_balance(HDX, &paymaster),
+				0,
+				"control requires a paymaster with nothing"
+			);
+
+			let user_acc = MockAccount::new(alith_truncated_account());
+			for asset in [HDX, WETH, DAI] {
+				let held = user_acc.balance(asset);
+				if held > 0 {
+					assert_ok!(Currencies::update_balance(
+						RuntimeOrigin::root(),
+						user_acc.address(),
+						asset,
+						-(held as i128),
+					));
+				}
+			}
+
+			let inner_call = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
+				remark: b"sponsored".to_vec(),
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let err = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			)
+			.expect_err("an unfunded paymaster must not be able to sponsor");
+
+			assert_eq!(
+				err.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError.into(),
+				"insufficient fee-payer balance surfaces as a pre-execution runner error"
+			);
+
+			let executed = frame_system::Pallet::<Runtime>::events().iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::System(frame_system::Event::Remarked { .. })
+				)
+			});
+			assert!(!executed, "inner call MUST NOT execute when sponsorship cannot be paid");
+		});
+	}
+
+	#[test]
 	fn signed_dispatch_permit_should_emit_fee_sponsored_event_on_success() {
 		TestNet::reset();
 
