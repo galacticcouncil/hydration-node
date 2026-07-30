@@ -58,7 +58,7 @@ mod erc20_currency;
 pub mod event_logs;
 pub mod evm_error_decoder;
 mod evm_fee;
-mod executor;
+pub mod executor;
 mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;

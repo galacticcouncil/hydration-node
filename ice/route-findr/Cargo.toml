@@ -1,0 +1,22 @@
+[package]
+name = "route-findr"
+version = "0.1.0"
+edition = "2021"
+description = "Route discovery for Hydration DEX — enumerates all valid multi-hop trading routes for a given asset pair"
+license = "Apache-2.0"
+
+[dependencies]
+hydradx-traits = { workspace = true }
+primitives = { workspace = true }
+sp-runtime = { workspace = true }
+frame-support = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "hydradx-traits/std",
+    "primitives/std",
+    "sp-runtime/std",
+    "frame-support/std",
+]
+local-logs = ["std"]
