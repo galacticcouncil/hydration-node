@@ -19,10 +19,14 @@ use scale_info::TypeInfo;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 
-/// `from`/`to` for synthetic txs. logs inside carry their own emitter address.
+/// `from`/`to` for synthetic txs — ascii `hydration-synth`, zero padded:
+/// `0x687964726174696f6e2d73796e74680000000000`. Self-describing in a block
+/// explorer, in the same spirit as substrate's ascii account ids (`modlpy/trsry`,
+/// `sibl`), and outside the `0x..01` asset-precompile range so it can never be
+/// mistaken for an asset. The logs inside carry their own real emitter addresses.
 pub const SENTINEL_ADDRESS: H160 = H160([
-	0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe,
-	0xef,
+	0x68, 0x79, 0x64, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2d, 0x73, 0x79, 0x6e, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00,
+	0x00,
 ]);
 
 /// Constant fake `r`/`s`. Inside ECDSA range so the envelope decodes; never recovered.
@@ -46,15 +50,35 @@ pub enum Bucket {
 	},
 }
 
-/// Per-block domain-separation seed folded into each synth tx's `input`, so
-/// envelope hashes are unique per block (frontier indexes txs by hash; without
-/// this, `Extrinsic(2)` in block N and N+1 would hash identically).
-fn block_domain(parent_hash: &[u8], block_number: u64) -> Vec<u8> {
-	let mut seed = Vec::with_capacity(18 + parent_hash.len() + 8);
+/// Domain-separation seed folded into each synth tx's `input`, so envelope hashes
+/// are unique chain-wide — frontier indexes txs by hash, and without this
+/// `Extrinsic(2)` in two different blocks would hash identically.
+///
+/// `block_hash` is the block's OWN hash, never its parent's: sibling blocks at the
+/// same height share a parent, so a parent-based domain collides on every fork —
+/// and this chain forks often enough that cutting the fork rate warranted an
+/// emergency release. The block hash also commits to the height, so no separate
+/// block number is needed.
+///
+/// `extrinsic_hash` is the substrate extrinsic this bucket came from, zero for hook
+/// phases. It is not what provides uniqueness — the block hash already does — it is
+/// here so an indexer can join a synth tx straight back to its extrinsic instead of
+/// re-deriving it from `nonce` plus the block height.
+fn tx_domain(block_hash: &[u8], extrinsic_hash: &[u8]) -> Vec<u8> {
+	let mut seed = Vec::with_capacity(18 + block_hash.len() + extrinsic_hash.len());
 	seed.extend_from_slice(b"hydration-synth-v1");
-	seed.extend_from_slice(parent_hash);
-	seed.extend_from_slice(&block_number.to_le_bytes());
+	seed.extend_from_slice(block_hash);
+	seed.extend_from_slice(extrinsic_hash);
 	seed
+}
+
+/// The substrate extrinsic a bucket originated from; zero when there is none —
+/// `on_initialize`/`on_finalize` run outside any extrinsic.
+fn bucket_extrinsic_hash(bucket: &Bucket, extrinsic_hashes: &[[u8; 32]]) -> [u8; 32] {
+	match bucket {
+		Bucket::Extrinsic(i) => extrinsic_hashes.get(*i as usize).copied().unwrap_or_default(),
+		Bucket::Hook { .. } => [0u8; 32],
+	}
 }
 
 fn logs_bloom(logs: &[ethereum::Log]) -> Bloom {
@@ -79,8 +103,8 @@ fn logs_bloom(logs: &[ethereum::Log]) -> Bloom {
 pub fn assemble_synth_txs(
 	entries: Vec<(Bucket, H160, ethereum::Log)>,
 	chain_id: u64,
-	parent_hash: &[u8],
-	block_number: u64,
+	block_hash: &[u8],
+	extrinsic_hashes: &[[u8; 32]],
 	base_tx_index: u32,
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
 	let mut groups: BTreeMap<(u8, u64), (Bucket, Vec<ethereum::Log>)> = BTreeMap::new();
@@ -92,15 +116,16 @@ pub fn assemble_synth_txs(
 			.push(log);
 	}
 
-	let input = block_domain(parent_hash, block_number);
 	let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 		.expect("synthetic signature constants are within valid ECDSA range; qed");
 
 	let mut out = Vec::with_capacity(groups.len());
 	for (group_index, (_key, (bucket, logs))) in groups.into_iter().enumerate() {
 		let group_index = group_index as u32;
-		// `value = group_index` keeps hashes distinct within a block; `input`
-		// (block domain) keeps them distinct across blocks.
+		// `input` (block hash + extrinsic hash) keeps hashes distinct across blocks and
+		// extrinsics; `value = group_index` separates hook buckets, which share the zero
+		// extrinsic hash, within one block.
+		let input = tx_domain(block_hash, &bucket_extrinsic_hash(&bucket, extrinsic_hashes));
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
 			nonce: U256::from(bucket_nonce(bucket)),
@@ -109,7 +134,7 @@ pub fn assemble_synth_txs(
 			gas_limit: U256::zero(),
 			action: TransactionAction::Call(SENTINEL_ADDRESS),
 			value: U256::from(group_index),
-			input: input.clone(),
+			input,
 			access_list: Vec::new(),
 			signature: signature.clone(),
 		});
@@ -476,7 +501,7 @@ mod tests {
 	// The same bucket + group_index recurs every block (nonce is bucket-derived,
 	// group_index resets per block), so without per-block entropy the envelope
 	// hash would collide across blocks and frontier could only resolve one of
-	// them. The flusher folds parent_hash + block number into `input`; assert that
+	// them. `input` folds in the block's own hash + the extrinsic hash; assert that
 	// distinguishes otherwise-identical envelopes.
 	#[test]
 	fn synth_envelope_hash_is_unique_per_block() {
@@ -499,8 +524,8 @@ mod tests {
 			})
 		};
 
-		let block_n = b"hydration-synth-v1\x00block-n-parent-hash\x00\x64";
-		let block_n1 = b"hydration-synth-v1\x00block-n1-parent-hash\x00\x65";
+		let block_n = b"hydration-synth-v1\x00block-n-own-hash\x00zero-extrinsic";
+		let block_n1 = b"hydration-synth-v1\x00block-n1-own-hash\x00zero-extrinsic";
 		assert_ne!(
 			mk(block_n).hash(),
 			mk(block_n1).hash(),
@@ -635,7 +660,13 @@ mod tests {
 			(Bucket::Extrinsic(0), H160::repeat_byte(0xBB), log(2)),
 			(Bucket::Extrinsic(2), H160::repeat_byte(0xCC), log(3)),
 		];
-		let txs = assemble_synth_txs(entries, 222_222, &[0x42u8; 32], 100, 5);
+		let txs = assemble_synth_txs(
+			entries,
+			222_222,
+			&[0x42u8; 32],
+			&[[0xA0u8; 32], [0xA1u8; 32], [0xA2u8; 32]],
+			5,
+		);
 
 		// two distinct buckets → two synth txs, sorted Extrinsic(0) < Extrinsic(2)
 		assert_eq!(txs.len(), 2);
@@ -667,17 +698,69 @@ mod tests {
 	}
 
 	#[test]
-	fn assemble_synth_txs_hash_differs_across_blocks() {
-		let mk = |parent: &[u8], bn: u64| {
+	fn assemble_synth_txs_hash_differs_across_blocks_and_extrinsics() {
+		let mk = |block_hash: &[u8], xts: &[[u8; 32]]| {
 			let entries = vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))];
-			assemble_synth_txs(entries, 222_222, parent, bn, 0)[0]
+			assemble_synth_txs(entries, 222_222, block_hash, xts, 0)[0]
 				.1
 				.transaction_hash
 		};
-		// same bucket + base index, different block identity → different synth-tx hash
-		assert_ne!(mk(&[0x11u8; 32], 100), mk(&[0x22u8; 32], 101));
+		let xt_a = [[0xAAu8; 32]];
+		let xt_b = [[0xBBu8; 32]];
+
+		// Sibling blocks at the same height share a parent, so only the block's OWN
+		// hash separates them — keying the domain on the parent collided here, and
+		// this chain forks often.
+		assert_ne!(mk(&[0x11u8; 32], &xt_a), mk(&[0x22u8; 32], &xt_a));
+		// same block, different extrinsic
+		assert_ne!(mk(&[0x11u8; 32], &xt_a), mk(&[0x11u8; 32], &xt_b));
 		// determinism
-		assert_eq!(mk(&[0x11u8; 32], 100), mk(&[0x11u8; 32], 100));
+		assert_eq!(mk(&[0x11u8; 32], &xt_a), mk(&[0x11u8; 32], &xt_a));
+	}
+
+	// Hook buckets have no extrinsic, so every one of them carries the zero
+	// extrinsic hash. Within a block only `nonce` and `value` separate them.
+	#[test]
+	fn hook_buckets_stay_distinct_despite_zero_extrinsic_hash() {
+		use pallet_broadcast::types::ExecutionType;
+
+		let entries = vec![
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: None,
+				},
+				H160::repeat_byte(0x01),
+				log(1),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: None,
+				},
+				H160::repeat_byte(0x02),
+				log(2),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: Some(ExecutionType::DCA(7, 1)),
+				},
+				H160::repeat_byte(0x03),
+				log(3),
+			),
+		];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x33u8; 32], &[], 0);
+		assert_eq!(txs.len(), 3, "three distinct hook buckets");
+
+		let mut hashes: Vec<_> = txs.iter().map(|(_, s, _)| s.transaction_hash).collect();
+		hashes.sort();
+		hashes.dedup();
+		assert_eq!(
+			hashes.len(),
+			3,
+			"hook buckets must not collide on the zero extrinsic hash"
+		);
 	}
 
 	fn log(tag: u8) -> ethereum::Log {

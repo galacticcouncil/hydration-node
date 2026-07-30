@@ -27,10 +27,10 @@ use hydradx_runtime::evm::event_logs::synthetic_txs_from_records;
 use lru::LruCache;
 use pallet_ethereum::{Block as EthBlock, Receipt as EthReceipt, Transaction as EthTransaction};
 use primitives::Block;
-use sc_client_api::{backend::Backend, StorageProvider};
+use sc_client_api::{backend::Backend, BlockBackend, StorageProvider};
 use sp_blockchain::HeaderBackend;
 use sp_core::{hashing::twox_128, H160, H256, U256};
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT, UniqueSaturatedInto};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash as HashT};
 use sp_storage::StorageKey;
 
 type Hash = <Block as BlockT>::Hash;
@@ -72,7 +72,7 @@ fn storage_key(pallet: &[u8], item: &[u8]) -> StorageKey {
 
 impl<C, BE> SyntheticStorageOverride<C, BE>
 where
-	C: StorageProvider<Block, BE> + HeaderBackend<Block> + Send + Sync + 'static,
+	C: StorageProvider<Block, BE> + HeaderBackend<Block> + BlockBackend<Block> + Send + Sync + 'static,
 	BE: Backend<Block> + Send + Sync + 'static,
 {
 	fn read_decode<T: Decode>(&self, at: Hash, key: &StorageKey) -> Option<T> {
@@ -138,24 +138,32 @@ where
 		if records.is_empty() {
 			return Vec::new();
 		}
-		let header = match self.client.header(at) {
-			Ok(Some(h)) => h,
-			_ => return Vec::new(),
-		};
-		let parent_hash = *header.parent_hash();
-		let block_number: u64 = (*header.number()).unique_saturated_into();
 		let chain_id: u64 = self
 			.read_decode(at, &storage_key(b"EVMChainId", b"ChainId"))
 			.unwrap_or_default();
 		let real_statuses = self.inner.current_transaction_statuses(at).unwrap_or_default();
+		// The extrinsic hashes go into each synth tx's `input` so an indexer can join it
+		// back to its extrinsic. `Block::Extrinsic` is `OpaqueExtrinsic`, so this hashes
+		// raw bytes and decodes no `RuntimeCall` — it cannot break on the sdk skew that
+		// `compat_events` exists for. An unavailable body degrades to the zero hash,
+		// which is still unique because `at` is folded in.
+		let extrinsic_hashes: Vec<[u8; 32]> = self
+			.client
+			.block_body(at)
+			.ok()
+			.flatten()
+			.map(|body| body.iter().map(|xt| BlakeTwo256::hash_of(xt).0).collect())
+			.unwrap_or_default();
 
-		synthetic_txs_from_records(&records, chain_id, parent_hash.as_ref(), block_number, &real_statuses)
+		// `at` is the block's OWN hash: sibling blocks share a parent, so a parent-based
+		// domain gave colliding synth tx hashes on every fork.
+		synthetic_txs_from_records(&records, chain_id, at.as_ref(), &extrinsic_hashes, &real_statuses)
 	}
 }
 
 impl<C, BE> StorageOverride<Block> for SyntheticStorageOverride<C, BE>
 where
-	C: StorageProvider<Block, BE> + HeaderBackend<Block> + Send + Sync + 'static,
+	C: StorageProvider<Block, BE> + HeaderBackend<Block> + BlockBackend<Block> + Send + Sync + 'static,
 	BE: Backend<Block> + Send + Sync + 'static,
 {
 	fn account_code_at(&self, at: Hash, address: H160) -> Option<Vec<u8>> {

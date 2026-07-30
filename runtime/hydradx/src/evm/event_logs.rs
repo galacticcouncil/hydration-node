@@ -294,16 +294,21 @@ fn log_key(address: H160, topics: &[H256], data: &[u8]) -> LogKey {
 	(address, topics.to_vec(), data.to_vec())
 }
 
-/// PURE: assemble a block's synthetic txs from its event records. Shared by the
-/// runtime API and the node's client-side indexer. `real_statuses` are the
-/// block's real eth-tx statuses — used both to index synth txs after them
-/// (`base_tx_index`) and to dedup `EVM::Log` events that already appear in a
-/// real tx's receipt.
+/// PURE: assemble a block's synthetic txs from its event records. `real_statuses`
+/// are the block's real eth-tx statuses — used both to index synth txs after them
+/// (`base_tx_index`) and to dedup `EVM::Log` events that already appear in a real
+/// tx's receipt.
+///
+/// `block_hash` is the block's own hash and `extrinsic_hashes` are its extrinsic
+/// hashes in order; together they domain-separate the synth tx envelopes and give
+/// an indexer a direct join back to the originating extrinsic. Pass an empty slice
+/// when the body is unavailable — extrinsic buckets then fall back to the zero
+/// hash, which stays unique because the block hash is still folded in.
 pub fn synthetic_txs_from_records(
 	records: &[EventRecord<RuntimeEvent, H256>],
 	chain_id: u64,
-	parent_hash: &[u8],
-	block_number: u64,
+	block_hash: &[u8],
+	extrinsic_hashes: &[[u8; 32]],
 	real_statuses: &[TransactionStatus],
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
 	let base_tx_index = real_statuses.len() as u32;
@@ -363,7 +368,7 @@ pub fn synthetic_txs_from_records(
 	if entries.is_empty() {
 		return Vec::new();
 	}
-	assemble_synth_txs(entries, chain_id, parent_hash, block_number, base_tx_index)
+	assemble_synth_txs(entries, chain_id, block_hash, extrinsic_hashes, base_tx_index)
 }
 
 #[cfg(test)]
@@ -603,7 +608,7 @@ mod tests {
 			logs: sp_std::vec![receipt_dup],
 			logs_bloom: Default::default(),
 		}];
-		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], 1, &real);
+		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], &[], &real);
 		let synth_logs: Vec<ethereum::Log> = out.iter().flat_map(|(_, s, _)| s.logs.clone()).collect();
 		assert!(
 			synth_logs.iter().any(|l| l.address == internal_addr),
