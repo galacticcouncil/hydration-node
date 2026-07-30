@@ -5706,6 +5706,7 @@ dependencies = [
  "log",
  "lru 0.12.5",
  "num_cpus",
+ "pallet-balances",
  "pallet-claims",
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",

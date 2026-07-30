@@ -16,14 +16,14 @@
 use std::{
 	marker::PhantomData,
 	num::NonZeroUsize,
-	sync::{Arc, Mutex},
+	sync::{Arc, Mutex, Once},
 };
 
+use super::compat_events;
 use codec::Decode;
 use fc_rpc::StorageOverride;
 use fp_rpc::TransactionStatus;
-use frame_system::EventRecord;
-use hydradx_runtime::{evm::event_logs::synthetic_txs_from_records, RuntimeEvent};
+use hydradx_runtime::evm::event_logs::synthetic_txs_from_records;
 use lru::LruCache;
 use pallet_ethereum::{Block as EthBlock, Receipt as EthReceipt, Transaction as EthTransaction};
 use primitives::Block;
@@ -35,6 +35,11 @@ use sp_storage::StorageKey;
 
 type Hash = <Block as BlockT>::Hash;
 type SynthTxs = Vec<(EthTransaction, TransactionStatus, EthReceipt)>;
+
+// node/runtime sdk skew is a persistent condition, so report it once instead of
+// once per block.
+static SKEW_WARNED: Once = Once::new();
+static DECODE_FAILED: Once = Once::new();
 
 // `synthetic()` is invoked once each by `current_block`/`current_receipts`/
 // `current_transaction_statuses`, so a range `eth_getLogs` would re-read and
@@ -85,11 +90,51 @@ where
 	}
 
 	fn compute_synthetic(&self, at: Hash) -> SynthTxs {
-		let records: Vec<EventRecord<RuntimeEvent, H256>> =
-			match self.read_decode(at, &storage_key(b"System", b"Events")) {
-				Some(r) => r,
-				None => return Vec::new(),
-			};
+		let raw = match self.client.storage(at, &storage_key(b"System", b"Events")) {
+			Ok(Some(data)) => data.0,
+			_ => return Vec::new(),
+		};
+		let records = match compat_events::read_events(&raw) {
+			Some((records, compat_events::Source::Native)) => records,
+			Some((records, compat_events::Source::Compat)) => {
+				SKEW_WARNED.call_once(|| {
+					log::warn!(
+						target: "synthetic-logs",
+						"System::Events read through a compat balances layout: this node's polkadot-sdk \
+						 differs from the on-chain runtime's. synth logs are being recovered, but deploy a \
+						 node built against the live runtime's sdk."
+					)
+				});
+				records
+			}
+			Some((records, compat_events::Source::Partial { skipped, trailing })) => {
+				SKEW_WARNED.call_once(|| {
+					log::error!(
+						target: "synthetic-logs",
+						"System::Events only partially decodable by this node — synth logs are \
+						 INCOMPLETE (first affected block dropped {skipped} event(s), {trailing} \
+						 trailing byte(s)). the node's RuntimeEvent does not match the on-chain \
+						 runtime's; add its pallet_balances layout to compat_events.rs or deploy a \
+						 node built against the live runtime's sdk."
+					)
+				});
+				records
+			}
+			// never silent: an undecodable block otherwise looks event-free and drops every
+			// synth log in it — that is how v49.2.0 hid wormhole LogMessagePublished.
+			None => {
+				DECODE_FAILED.call_once(|| {
+					log::error!(
+						target: "synthetic-logs",
+						"cannot decode System::Events with any known layout — synthetic eth logs are \
+						 INCOMPLETE. this node's RuntimeEvent does not match the on-chain runtime's; see \
+						 node/src/synthetic_logs/compat_events.rs."
+					)
+				});
+				log::debug!(target: "synthetic-logs", "System::Events undecodable at {at:?}");
+				return Vec::new();
+			}
+		};
 		if records.is_empty() {
 			return Vec::new();
 		}
