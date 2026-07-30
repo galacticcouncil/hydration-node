@@ -412,6 +412,7 @@ impl pallet_evm_accounts::Config for Test {
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = frame_support::traits::ConstU32<10>;
 	type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
+	type NttEmergencyOrigin = frame_system::EnsureRoot<AccountId>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Test>;
 	type ExistentialDeposits = ExistentialDeposits;

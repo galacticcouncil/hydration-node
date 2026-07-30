@@ -41,7 +41,7 @@ use frame_support::{
 	pallet_prelude::*,
 	traits::{
 		fungibles::{Inspect, Mutate},
-		tokens::{Fortitude, Precision, Preservation},
+		tokens::Preservation,
 	},
 	transactional, PalletId,
 };
@@ -328,47 +328,39 @@ impl<T: Config> Pallet<T> {
 		let asset_a_balance_before = <T as Config>::Currency::balance(asset_a, &pallet_acc);
 		let asset_b_balance_before = <T as Config>::Currency::balance(asset_b, &pallet_acc);
 
-		<T as Config>::Currency::mint_into(asset_a, &pallet_acc, amount)?;
-
 		// get initial otc price
 		let otc_price = Self::otc_price(&otc)?;
 
-		// Router trade is disabled in the benchmarks, so disable this one as well.
-		// Without disabling it, the requirements for the extrinsic cannot be met (e.g. profit).
+		// Fill the order by first taking the maker's reserved `asset_b`, buying `asset_a` from the pool
+		// with it, and delivering those shares back to the maker. The router trade is disabled in the
+		// benchmarks, so disable this whole step there as well; the OTC fill and router weights are
+		// accounted separately.
 		#[cfg(not(feature = "runtime-benchmarks"))]
-		if otc.partially_fillable && amount != otc.amount_in {
+		pallet_otc::Pallet::<T>::fill_order_with_deferred_delivery(otc_id, &pallet_acc, amount, |otc_amount_out| {
 			log::debug!(
-			target: "offchain_worker::settle_otc",
-				"calling partial fill order: amount {amount:?} ");
-			pallet_otc::Pallet::<T>::partial_fill_order(RawOrigin::Signed(pallet_acc.clone()).into(), otc_id, amount)?;
-		} else {
-			log::debug!(
-			target: "offchain_worker::settle_otc",
-				"calling fill order");
-			pallet_otc::Pallet::<T>::fill_order(RawOrigin::Signed(pallet_acc.clone()).into(), otc_id)?;
-		};
+					target: "offchain_worker::settle_otc",
+					"calling router sell: amount_in {otc_amount_out:?} ");
+			T::Router::sell(
+				RawOrigin::Signed(pallet_acc.clone()).into(),
+				asset_b,
+				asset_a,
+				otc_amount_out,
+				1,
+				route.clone(),
+			)
+			// This can fail for different reasons, but because we start with the largest possible
+			// amount, all we can do is to return `TradeAmountTooHigh` to tell the binary search
+			// algorithm to try again with a smaller amount.
+			.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
 
-		let otc_amount_out =
-			<T as Config>::Currency::balance(asset_b, &pallet_acc).saturating_sub(asset_b_balance_before);
+			// We must be able to hand `amount` of asset_a back to the maker out of what we just
+			// bought. If the purchase fell short, the fill amount is too high for the arb to
+			// self-fund, so tell the binary search to try a smaller amount.
+			let bought = <T as Config>::Currency::balance(asset_a, &pallet_acc).saturating_sub(asset_a_balance_before);
+			ensure!(bought >= amount, Error::<T>::TradeAmountTooHigh);
 
-		log::debug!(
-			target: "offchain_worker::settle_otc",
-			"calling router sell: amount_in {otc_amount_out:?} ");
-
-		// Disable in the benchmarks and use existing weight from the router pallet.
-		#[cfg(not(feature = "runtime-benchmarks"))]
-		T::Router::sell(
-			RawOrigin::Signed(pallet_acc.clone()).into(),
-			asset_b,
-			asset_a,
-			otc_amount_out,
-			1,
-			route.clone(),
-		)
-		// This can fail for different reason, but because we start with the largest possible amount,
-		// all we can do is to return `TradeAmountTooHigh` to tell the binary search algorithm to
-		// try again with smaller amount.
-		.map_err(|_| Error::<T>::TradeAmountTooHigh)?;
+			Ok(())
+		})?;
 
 		let router_price_after = T::Router::spot_price_with_fee(&route).ok_or(Error::<T>::PriceNotAvailable)?;
 		log::debug!(
@@ -399,12 +391,12 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 
-		let asset_a_balance_after_router_trade = <T as Config>::Currency::balance(asset_a, &pallet_acc);
+		let asset_a_balance_after_fill = <T as Config>::Currency::balance(asset_a, &pallet_acc);
 
-		let profit = asset_a_balance_after_router_trade
-			// subtract the initial balance
+		// The shares bought to fill the order were already delivered to the maker, so whatever we hold
+		// above the initial balance is the arbitrage profit.
+		let profit = asset_a_balance_after_fill
 			.checked_sub(asset_a_balance_before)
-			.and_then(|value| value.checked_sub(amount))
 			.ok_or(ArithmeticError::Overflow)?;
 
 		Self::ensure_min_profit(otc.amount_in, profit)?;
@@ -415,15 +407,6 @@ impl<T: Config> Pallet<T> {
 			&T::ProfitReceiver::get(),
 			profit,
 			Preservation::Expendable,
-		)?;
-
-		<T as Config>::Currency::burn_from(
-			asset_a,
-			&pallet_acc,
-			amount,
-			Preservation::Expendable,
-			Precision::Exact,
-			Fortitude::Force,
 		)?;
 
 		let asset_a_balance_after = <T as Config>::Currency::balance(asset_a, &pallet_acc);

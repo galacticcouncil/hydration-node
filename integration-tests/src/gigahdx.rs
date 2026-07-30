@@ -3980,6 +3980,84 @@ fn gigahdx_liquidation_e2e_should_seize_when_normal_staker() {
 	});
 }
 
+/// Full flow when the borrower's stake backing sits in `reserved` (free 0): the
+/// seize draws from reserved via `slash_reserved`, so the liquidation lands and
+/// the recipient is credited from the borrower's reserved balance.
+#[test]
+fn gigahdx_liquidation_e2e_should_seize_from_reserved_backing() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		use crate::liquidation::{borrow, get_user_account_data};
+		use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
+
+		reset_giga_state_for_fixture();
+		let (alice, bob, alice_evm, pool, oracle, hollar_addr) = liquidation_test_setup();
+		let st_hdx_evm = HydraErc20Mapping::asset_address(ST_HDX);
+		let liq_account = hydradx_runtime::TreasuryAccount::get();
+		let main_mm = Liquidation::borrowing_contract();
+
+		let stake_amount = 10_000 * UNITS;
+		assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), stake_amount));
+		assert_rate_eq(GigaHdx::exchange_rate(), 1, 1);
+
+		let borrow_amount: Balance = 5 * HOLLAR_DECIMALS_18;
+		borrow(pool, alice_evm, hollar_addr, borrow_amount);
+		let liq_evm = e2e_provision_liq_account(&liq_account, main_mm);
+
+		// Move the stake backing into `reserved`, leaving free at 0 behind the lock.
+		assert_ok!(Currencies::reserve_named(
+			&hydradx_runtime::NamedReserveId::get(),
+			HDX,
+			&alice,
+			stake_amount
+		));
+		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 0));
+		assert_eq!(Balances::free_balance(&alice), 0);
+		assert_eq!(Currencies::reserved_balance(HDX, &alice), stake_amount);
+
+		crash_st_hdx_price(oracle, st_hdx_evm);
+
+		let pre = get_user_account_data(pool, alice_evm).unwrap();
+		assert!(pre.health_factor < U256::from(1_000_000_000_000_000_000u128));
+		let debt_before = pre.total_debt_base;
+		let alice_gigahdx_before = Currencies::free_balance(GIGAHDX, &alice);
+		let alice_reserved_before = Currencies::reserved_balance(HDX, &alice);
+
+		set_liquidation_protocol_fee(pool, st_hdx_evm, 0);
+		let collector_before = Currencies::free_balance(GIGAHDX, &gigahdx_atoken_collector());
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(bob),
+			GIGAHDX,
+			HOLLAR_ASSET_ID,
+			alice_evm,
+			borrow_amount / 2,
+			hydradx_traits::router::Route::default(),
+		));
+
+		assert!(Currencies::free_balance(GIGAHDX, &alice) < alice_gigahdx_before);
+		e2e_assert_consolidated(
+			&alice,
+			alice_evm,
+			pool,
+			&liq_account,
+			liq_evm,
+			main_mm,
+			debt_before,
+			stake_amount,
+			collector_before,
+		);
+
+		// The seized HDX came out of reserved, not free.
+		let seized_hdx = pallet_gigahdx::Stakes::<Runtime>::get(&liq_account).unwrap().hdx;
+		assert_eq!(Balances::free_balance(&alice), 0, "free stays 0");
+		assert_eq!(
+			Currencies::reserved_balance(HDX, &alice),
+			alice_reserved_before - seized_hdx,
+			"reserved dropped by the seized amount"
+		);
+	});
+}
+
 /// Borrower has an active full-stake conviction vote. After the seize the
 /// stake backing it is gone, so the extrinsic must remove the vote (clearing
 /// the gigahdx vote record) and the referendum tally must drop — the protocol
@@ -4704,4 +4782,276 @@ fn full_unstake_should_reap_record_when_rate_causes_rounding() {
 			"ghdxlock fully released — no permanent lock dust",
 		);
 	});
+}
+
+// Reserve-vs-lock interaction against a real `giga_stake` (not a synthetic
+// `set_lock`).
+mod reserve_leak {
+	use super::*;
+	use hydradx_runtime::NamedReserveId;
+	use orml_traits::NamedMultiReservableCurrency;
+
+	// With a reserve of X parked, a plain `transfer_allow_death` moves the whole
+	// staked X out; the stake record and aToken stay in place.
+	#[test]
+	fn reserve_lets_the_backing_hdx_be_moved_out_from_under_a_real_gigahdx_stake() {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+			let x = 100 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+			let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+			let bob_before = Balances::free_balance(&bob);
+
+			// Stake X: HDX stays in the account but locked; X aToken minted.
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+			let atoken = Currencies::free_balance(GIGAHDX, &alice);
+			assert!(atoken > 0, "Alice holds the aToken after staking");
+			assert_eq!(locked_under_ghdx(&alice), x);
+			assert_eq!(
+				Balances::free_balance(&alice),
+				2 * x,
+				"HDX stays in the account (lock model)"
+			);
+			let total_locked_before = pallet_gigahdx::TotalLocked::<Runtime>::get();
+
+			// Park a reserve of X (as DCA::schedule does).
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			assert_eq!(Balances::free_balance(&alice), x);
+
+			assert_ok!(Balances::transfer_allow_death(
+				RuntimeOrigin::signed(alice.clone()),
+				bob.clone(),
+				x
+			));
+
+			// Free HDX moved out; the stake record and aToken are unchanged.
+			assert_eq!(Balances::free_balance(&alice), 0, "free HDX moved out");
+			assert_eq!(Balances::free_balance(&bob), bob_before + x, "Bob received it");
+			assert_eq!(
+				Currencies::free_balance(GIGAHDX, &alice),
+				atoken,
+				"aToken still held by Alice"
+			);
+			let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("stake persists");
+			assert_eq!(stake.hdx, x, "stake record unchanged");
+			assert_eq!(
+				pallet_gigahdx::TotalLocked::<Runtime>::get(),
+				total_locked_before,
+				"TotalLocked unchanged"
+			);
+			assert_eq!(locked_under_ghdx(&alice), x, "lock still X with 0 free behind it");
+		});
+	}
+
+	// `ensure_stakeable` reads raw `free - own_claim`, and the reserve only reduces
+	// raw free, so a second stake on top of a parked reserve is refused.
+	#[test]
+	fn reserve_does_not_let_a_single_hdx_back_two_gigahdx_stakes() {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let alice: AccountId = ALICE.into();
+			let x = 100 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+			let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+			let atoken_after_first = Currencies::free_balance(GIGAHDX, &alice);
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+
+			// Raw free is now X, but the existing stake already claims X.
+			assert_noop!(
+				GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x),
+				pallet_gigahdx::Error::<Runtime>::InsufficientFreeBalance
+			);
+			assert_eq!(
+				Currencies::free_balance(GIGAHDX, &alice),
+				atoken_after_first,
+				"no extra aToken minted"
+			);
+		});
+	}
+
+	// With free 0, reserved X, frozen X, `giga_unstake` still succeeds. It does
+	// not double-recover: the principal already left, so free HDX stays 0.
+	#[test]
+	fn unstake_still_succeeds_after_the_backing_hdx_is_moved_out() {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+			let x = 100 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+			let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+			let atoken = Currencies::free_balance(GIGAHDX, &alice);
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			assert_ok!(Balances::transfer_allow_death(
+				RuntimeOrigin::signed(alice.clone()),
+				bob.clone(),
+				x
+			));
+			assert_eq!(Balances::free_balance(&alice), 0);
+
+			assert_ok!(GigaHdx::giga_unstake(RuntimeOrigin::signed(alice.clone()), atoken));
+
+			let stake = pallet_gigahdx::Stakes::<Runtime>::get(&alice).expect("record persists until unlock");
+			assert_eq!(stake.hdx, 0);
+			assert_eq!(stake.gigahdx, 0);
+			assert_eq!(pending_count(&alice), 1);
+			assert_eq!(only_pending_position(&alice).amount, x);
+			assert_eq!(Currencies::free_balance(GIGAHDX, &alice), 0, "aToken burned");
+			assert_eq!(locked_under_ghdx(&alice), x, "lock now backs the pending unstake");
+			// Not paid twice: the principal already left.
+			assert_eq!(Balances::free_balance(&alice), 0);
+		});
+	}
+}
+
+// Trace every balance field per step to show that unreserving the budget just
+// re-freezes it behind the still-live lock (reducible stays 0).
+mod reserve_recovery_trace {
+	use super::*;
+	use frame_support::traits::tokens::fungible::Inspect as FungibleInspect;
+	use frame_support::traits::tokens::{Fortitude, Preservation};
+	use hydradx_runtime::NamedReserveId;
+	use orml_traits::NamedMultiReservableCurrency;
+
+	fn snap(who: &AccountId) -> (Balance, Balance, Balance, Balance, Balance) {
+		let d = frame_system::Account::<Runtime>::get(who).data;
+		let ghdx = locked_under_ghdx(who);
+		let reducible = <Balances as FungibleInspect<AccountId>>::reducible_balance(
+			who,
+			Preservation::Expendable,
+			Fortitude::Polite,
+		);
+		(d.free, d.reserved, d.frozen, ghdx, reducible)
+	}
+
+	#[test]
+	fn reserve_cannot_be_recovered_as_spendable_because_the_ghdxlock_re_traps_it() {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+			let x = 100 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 2 * x));
+			let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+			assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), bob.clone(), 0));
+
+			let dump = |label: &str, a: (Balance, Balance, Balance, Balance, Balance), b: (Balance, Balance, Balance, Balance, Balance)| {
+				let u = UNITS;
+				eprintln!(
+					"\n[{label}]\n  ALICE  free={} reserved={} frozen={} ghdxlock={} spendable(reducible)={}\n  BOB    free={} reserved={} frozen={} ghdxlock={} spendable(reducible)={}",
+					a.0 / u, a.1 / u, a.2 / u, a.3 / u, a.4 / u,
+					b.0 / u, b.1 / u, b.2 / u, b.3 / u, b.4 / u,
+				);
+			};
+
+			// Step 1: real giga_stake(X). Locks X in place; mints X aToken.
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+			let a1 = snap(&alice);
+			dump("step 1: giga_stake(100)", a1, snap(&bob));
+			assert_eq!(a1, (2 * x, 0, x, x, x)); // free 200, reserved 0, frozen 100, lock 100, spendable 100
+
+			// Step 2: reserve X (exactly what DCA::schedule does).
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			let a2 = snap(&alice);
+			dump("step 2: reserve 100 (DCA budget)", a2, snap(&bob));
+			assert_eq!(a2, (x, x, x, x, x)); // free 100, reserved 100, frozen 100, lock 100, spendable 100 (!)
+
+			// Step 3: move the entire (locked) stake HDX out to Bob.
+			assert_ok!(Balances::transfer_allow_death(RuntimeOrigin::signed(alice.clone()), bob.clone(), x));
+			let a3 = snap(&alice);
+			let b3 = snap(&bob);
+			dump("step 3: transfer 100 -> Bob", a3, b3);
+			assert_eq!(a3, (0, x, x, x, 0)); // free 0, reserved 100, frozen 100, lock 100, spendable 0
+			assert_eq!(b3.0, x); // Bob got the 100 backing, fully spendable
+
+			// Step 4: unreserve -> back to free, but the lock (still 100) re-freezes it.
+			let leftover = Currencies::unreserve_named(&NamedReserveId::get(), HDX, &alice, x);
+			assert_eq!(leftover, 0, "whole reserve returned to free");
+			let a4 = snap(&alice);
+			dump("step 4: unreserve 100", a4, snap(&bob));
+			assert_eq!(a4, (x, 0, x, x, 0)); // free 100, frozen 100, reserved 0 -> spendable 0
+
+			// With the reserve gone, the lock is the sole constraint -> `Frozen`.
+			assert_noop!(
+				Balances::transfer_allow_death(RuntimeOrigin::signed(alice.clone()), bob.clone(), UNITS),
+				sp_runtime::TokenError::Frozen
+			);
+		});
+	}
+}
+
+// Seize (`Seize::on_seize`) must reach stake backing held in `reserved`, not
+// just `free`.
+mod liquidation_seize {
+	use super::*;
+	use crate::assert_reserved_balance;
+	use hydradx_runtime::NamedReserveId;
+	use hydradx_traits::gigahdx::Seize;
+	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
+
+	#[test]
+	fn liquidation_seize_should_reach_stake_backing_held_in_reserved() {
+		TestNet::reset();
+		hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+			// Stand-in for the liquidation account that should receive the seized HDX.
+			let recipient: AccountId = CHARLIE.into();
+			let x = 100 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+			let _ = EVMAccounts::bind_evm_address(RuntimeOrigin::signed(alice.clone()));
+
+			// Stake X, reserve X, then move the free (locked) X out, so the backing
+			// ends up entirely in `reserved`.
+			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
+			let atoken = Currencies::free_balance(GIGAHDX, &alice);
+			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			assert_ok!(Balances::transfer_allow_death(
+				RuntimeOrigin::signed(alice.clone()),
+				bob.clone(),
+				x
+			));
+			assert_eq!(Balances::free_balance(&alice), 0);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			let recipient_before = Balances::free_balance(&recipient);
+
+			assert_ok!(<GigaHdx as Seize<AccountId>>::on_seize(
+				&alice, &recipient, x, atoken, atoken
+			));
+
+			assert_reserved_balance!(alice.clone(), HDX, 0);
+			assert_eq!(
+				Balances::free_balance(&recipient),
+				recipient_before + x,
+				"recipient receives the seized backing"
+			);
+		});
+	}
 }
