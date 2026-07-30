@@ -298,19 +298,45 @@ mod tests {
 	/// new layout to `read_events`.
 	#[test]
 	fn node_balances_layout_is_known() {
-		let who = AccountId::new([0u8; 32]);
-		// (name, index) for every variant synth reads or has to step over.
+		let who = || AccountId::new([0u8; 32]);
+		// one index per variant synth reads or has to step over.
+		let transfer = NodeBalancesEvent::Transfer {
+			from: who(),
+			to: who(),
+			amount: 0,
+		};
 		let fingerprint = [
-			("Transfer", variant_index(NodeBalancesEvent::Transfer { from: who.clone(), to: who.clone(), amount: 0 })),
-			("Deposit", variant_index(NodeBalancesEvent::Deposit { who: who.clone(), amount: 0 })),
-			("Withdraw", variant_index(NodeBalancesEvent::Withdraw { who: who.clone(), amount: 0 })),
-			("Slashed", variant_index(NodeBalancesEvent::Slashed { who: who.clone(), amount: 0 })),
-			("Minted", variant_index(NodeBalancesEvent::Minted { who: who.clone(), amount: 0 })),
-			("Burned", variant_index(NodeBalancesEvent::Burned { who: who.clone(), amount: 0 })),
+			("Transfer", variant_index(transfer)),
+			(
+				"Deposit",
+				variant_index(NodeBalancesEvent::Deposit { who: who(), amount: 0 }),
+			),
+			(
+				"Withdraw",
+				variant_index(NodeBalancesEvent::Withdraw { who: who(), amount: 0 }),
+			),
+			(
+				"Slashed",
+				variant_index(NodeBalancesEvent::Slashed { who: who(), amount: 0 }),
+			),
+			(
+				"Minted",
+				variant_index(NodeBalancesEvent::Minted { who: who(), amount: 0 }),
+			),
+			(
+				"Burned",
+				variant_index(NodeBalancesEvent::Burned { who: who(), amount: 0 }),
+			),
 			("Issued", variant_index(NodeBalancesEvent::Issued { amount: 0 })),
 			("Rescinded", variant_index(NodeBalancesEvent::Rescinded { amount: 0 })),
-			("Locked", variant_index(NodeBalancesEvent::Locked { who: who.clone(), amount: 0 })),
-			("Frozen", variant_index(NodeBalancesEvent::Frozen { who, amount: 0 })),
+			(
+				"Locked",
+				variant_index(NodeBalancesEvent::Locked { who: who(), amount: 0 }),
+			),
+			(
+				"Frozen",
+				variant_index(NodeBalancesEvent::Frozen { who: who(), amount: 0 }),
+			),
 		];
 
 		// layouts `read_events` can decode. add an entry (and a mirror enum) when a
@@ -346,7 +372,11 @@ mod tests {
 			})
 			.collect();
 		// the batch_all alone raises 6 (approve, core bridge, 2x transceiver, 2x manager).
-		assert!(evm_logs.len() >= 6, "expected the EVM.call logs, got {}", evm_logs.len());
+		assert!(
+			evm_logs.len() >= 6,
+			"expected the EVM.call logs, got {}",
+			evm_logs.len()
+		);
 
 		// the whole point: the wormhole message must survive the read.
 		let published = evm_logs
