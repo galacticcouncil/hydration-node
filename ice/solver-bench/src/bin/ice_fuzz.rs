@@ -61,7 +61,9 @@ fn main() {
 
 	// Replay one exact scenario from a worst-list seed (forces a single verbose
 	// solver iteration so it works regardless of FUZZ_SECONDS/FUZZ_ITERS).
-	let scenario_seed = std::env::var("FUZZ_SCENARIO_SEED").ok().and_then(|v| v.parse::<u64>().ok());
+	let scenario_seed = std::env::var("FUZZ_SCENARIO_SEED")
+		.ok()
+		.and_then(|v| v.parse::<u64>().ok());
 	let replay = scenario_seed.is_some();
 
 	let cfg = Config {

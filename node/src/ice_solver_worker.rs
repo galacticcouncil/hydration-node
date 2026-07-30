@@ -125,7 +125,10 @@ pub(crate) fn build_extrinsic(input: SolverInput) -> Option<(sp_runtime::OpaqueE
 	let decode_ms = t_decode.elapsed().as_millis();
 
 	let t_solve = Instant::now();
-	let solution = Solver::<HydrationSimulator<NodeSimulatorConfig>>::solve(input.intents, state, input.fee).ok()?;
+	let min_outs = input.min_amount_out.into_iter().collect();
+	let solution =
+		Solver::<HydrationSimulator<NodeSimulatorConfig>>::solve_with_limits(input.intents, min_outs, state, input.fee)
+			.ok()?;
 	let solve_ms = t_solve.elapsed().as_millis();
 
 	if solution.resolved_intents.is_empty() {
@@ -316,6 +319,7 @@ mod tests {
 			intents: Vec::new(),
 			state: vec![0xff, 0xff, 0xff],
 			existential_deposits: Vec::new(),
+			min_amount_out: Vec::new(),
 			fee: Permill::zero(),
 		};
 		assert!(build_extrinsic(input).is_none());

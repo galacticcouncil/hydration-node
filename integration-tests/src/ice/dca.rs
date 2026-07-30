@@ -113,8 +113,16 @@ fn run_solver_and_submit() -> Solution {
 	let block = hydradx_runtime::System::block_number();
 	let call = pallet_ice::Pallet::<Runtime>::run(
 		block,
-		|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+		|intents: Vec<ice_support::Intent>,
+		 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+		 state: CombinedSimulatorState| {
+			Solver::solve_with_limits(
+				intents,
+				limits.into_iter().collect(),
+				state,
+				pallet_ice::ProtocolFee::<Runtime>::get(),
+			)
+			.ok()
 		},
 	)
 	.expect("Solver should produce a solution");
@@ -1467,9 +1475,16 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 
 		// Solver operates off-chain (no circuit breaker there) so it produces a solution;
 		// on-chain dispatch rejects it because of the lockdown. Intent must stay untouched.
-		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, state| {
-			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
-		});
+		let call =
+			pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, limits, state| {
+				Solver::solve_with_limits(
+					intents,
+					limits.into_iter().collect(),
+					state,
+					pallet_ice::ProtocolFee::<Runtime>::get(),
+				)
+				.ok()
+			});
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
 			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
@@ -1673,9 +1688,16 @@ fn dca_retries_every_block_until_success() {
 			hydradx_run_to_next_block();
 		}
 
-		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, state| {
-			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
-		});
+		let call =
+			pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), |intents, limits, state| {
+				Solver::solve_with_limits(
+					intents,
+					limits.into_iter().collect(),
+					state,
+					pallet_ice::ProtocolFee::<Runtime>::get(),
+				)
+				.ok()
+			});
 		if let Some(pallet_ice::Call::submit_solution { solution, .. }) = call {
 			hydradx_run_to_next_block();
 			let res = pallet_ice::Pallet::<Runtime>::submit_solution(RuntimeOrigin::none(), solution);
@@ -1930,8 +1952,14 @@ fn dca_slippage_not_enforced_at_resolve_time() {
 			}
 
 			let block = hydradx_runtime::System::block_number();
-			let call = pallet_ice::Pallet::<Runtime>::run(block, |intents, state| {
-				Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+			let call = pallet_ice::Pallet::<Runtime>::run(block, |intents, limits, state| {
+				Solver::solve_with_limits(
+					intents,
+					limits.into_iter().collect(),
+					state,
+					pallet_ice::ProtocolFee::<Runtime>::get(),
+				)
+				.ok()
 			})
 			.expect("solver should produce a solution");
 			let pallet_ice::Call::submit_solution { solution, .. } = call else {

@@ -58,8 +58,9 @@ fn node_path_solution_should_equal_runtime_path_solution() {
 		.submit_swap_intent(alice.clone(), asset_a, asset_b, amount_in, min_amount_out, Some(10))
 		.execute(|| {
 			// Node-path inputs come from the real runtime-API building function.
-			let (intents, encoded_state, eds, fee) =
+			let (intents, encoded_state, eds, min_outs, fee) =
 				pallet_ice::Pallet::<Runtime>::solver_input().expect("solver_input should be Some");
+			let min_outs: std::collections::BTreeMap<u128, u128> = min_outs.into_iter().collect();
 			assert_eq!(intents.len(), 1, "snapshot intent should be valid");
 
 			// Runtime path: fresh snapshot, ED from storage.
@@ -72,7 +73,8 @@ fn node_path_solution_should_equal_runtime_path_solution() {
 				"shipped snapshot must match a fresh initial_state"
 			);
 			let runtime_solution =
-				RuntimeSolver::solve(intents.clone(), runtime_state, fee).expect("runtime solve should succeed");
+				RuntimeSolver::solve_with_limits(intents.clone(), min_outs.clone(), runtime_state, fee)
+					.expect("runtime solve should succeed");
 
 			// Node path: decode shipped snapshot, seed thread-local ED, solve.
 			let node_state: CombinedSimulatorState =
@@ -82,7 +84,8 @@ fn node_path_solution_should_equal_runtime_path_solution() {
 				m.clear();
 				m.extend(eds.iter().copied());
 			});
-			let node_solution = NodeSolver::solve(intents.clone(), node_state, fee).expect("node solve should succeed");
+			let node_solution = NodeSolver::solve_with_limits(intents.clone(), min_outs, node_state, fee)
+				.expect("node solve should succeed");
 
 			// Byte-identical solutions.
 			assert_eq!(node_solution, runtime_solution);

@@ -513,7 +513,7 @@ impl HydrationTestDriver {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: <<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State|
+				|intents: Vec<ice_support::Intent>, _limits: Vec<(ice_support::IntentId, ice_support::Balance)>, state: <<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State|
 					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
 			)
 				.expect("Solver must produce a solution");

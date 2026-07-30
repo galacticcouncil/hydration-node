@@ -49,7 +49,7 @@ fn solver_input_should_collect_intents_eds_and_fee_when_intents_exist() {
 		])
 		.build()
 		.execute_with(|| {
-			let (intents, state, eds, fee) =
+			let (intents, state, eds, min_outs, fee) =
 				Pallet::<Test>::solver_input().expect("solver_input should be Some when valid intents exist");
 
 			// Exactly the two submitted intents.
@@ -67,6 +67,9 @@ fn solver_input_should_collect_intents_eds_and_fee_when_intents_exist() {
 			// ED universe = snapshot pool assets (none in the mock) ∪ intent assets,
 			// sorted; the mock SimulatorConfig uses the default ED of 0.
 			assert_eq!(eds, vec![(HDX, 0), (DOT, 0), (ETH, 0)]);
+
+			// Swap intents are bound by their own `amount_out` — no floors shipped.
+			assert_eq!(min_outs, vec![]);
 
 			// Fee = mock MatchedFee = 0%.
 			assert_eq!(fee, Permill::from_percent(0));

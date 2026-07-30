@@ -447,8 +447,16 @@ fn stableswap_intent() {
 		let block = hydradx_runtime::System::block_number();
 		let call = pallet_ice::Pallet::<Runtime>::run(
 			block,
-			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-				Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+			|intents: Vec<ice_support::Intent>,
+			 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+			 state: CombinedSimulatorState| {
+				Solver::solve_with_limits(
+					intents,
+					limits.into_iter().collect(),
+					state,
+					pallet_ice::ProtocolFee::<Runtime>::get(),
+				)
+				.ok()
 			},
 		)
 		.expect("Solver should produce a solution for mixed intents");
@@ -520,8 +528,16 @@ fn solver_two_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				block,
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution for mixed intents");
@@ -585,8 +601,16 @@ fn solver_execute_solution1() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				block,
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -797,8 +821,16 @@ fn solver_execute_solution_with_buy_intents() {
 			let mut captured_solution: Option<Solution> = None;
 			let _result = pallet_ice::Pallet::<Runtime>::run(
 				block,
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					let solution = Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()?;
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					let solution = Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()?;
 					captured_solution = Some(solution.clone());
 					Some(solution)
 				},
@@ -946,8 +978,16 @@ fn solver_mixed_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution for mixed intents");
@@ -1114,8 +1154,16 @@ fn solver_v1_single_intent() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -1251,8 +1299,16 @@ fn solver_v1_two_intents_partial_match() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("V1 Solver should produce a solution");
@@ -1387,8 +1443,16 @@ fn solver_v1_five_mixed_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("V1 Solver should produce a solution");
@@ -1536,8 +1600,16 @@ fn solver_v1_uniform_price_all_sells() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("V1 Solver should produce a solution");
@@ -1696,8 +1768,16 @@ fn solver_v1_uniform_price_opposite_sells() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("V1 Solver should produce a solution");
@@ -1833,8 +1913,16 @@ fn usdt_weth_single_intent() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution for USDT->WETH");
@@ -1976,8 +2064,16 @@ fn usdt_weth_solver_vs_router() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -2103,8 +2199,16 @@ fn usdt_weth_two_opposing_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -2251,8 +2355,16 @@ fn eth_3pool_single_intent() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					HollarSolver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					HollarSolver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -2343,8 +2455,16 @@ fn eth_3pool_solver_vs_router() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					HollarSolver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					HollarSolver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -2477,8 +2597,16 @@ fn _eth_3pool_two_opposing_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					HollarSolver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					HollarSolver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");
@@ -2584,8 +2712,16 @@ fn solver_ring_trade_triangle_execute() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution for ring trade");
@@ -2842,8 +2978,16 @@ fn solver_ring_trade_vs_direct_trades() {
 
 				let call = pallet_ice::Pallet::<Runtime>::run(
 					hydradx_runtime::System::block_number(),
-					|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-						Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+					|intents: Vec<ice_support::Intent>,
+					 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+					 state: CombinedSimulatorState| {
+						Solver::solve_with_limits(
+							intents,
+							limits.into_iter().collect(),
+							state,
+							pallet_ice::ProtocolFee::<Runtime>::get(),
+						)
+						.ok()
 					},
 				)
 				.expect("Solver should produce a solution");
@@ -2988,8 +3132,16 @@ fn solver_mixed_batch_12_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution for 12 intents");
@@ -3352,8 +3504,16 @@ fn solver_mixed_batch_vs_direct_trades() {
 
 				let call = pallet_ice::Pallet::<Runtime>::run(
 					hydradx_runtime::System::block_number(),
-					|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-						Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+					|intents: Vec<ice_support::Intent>,
+					 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+					 state: CombinedSimulatorState| {
+						Solver::solve_with_limits(
+							intents,
+							limits.into_iter().collect(),
+							state,
+							pallet_ice::ProtocolFee::<Runtime>::get(),
+						)
+						.ok()
 					},
 				)
 				.expect("Solver should produce a solution");
@@ -3567,8 +3727,16 @@ fn solver_near_perfect_cancel_ed_remainder() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution for near-perfect cancel");
@@ -3677,8 +3845,16 @@ fn solver_existential_deposit_amounts() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must handle near-ED AMM remainder");
@@ -3813,8 +3989,16 @@ fn solver_amm_remainder_below_ed() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -3904,8 +4088,16 @@ fn solver_amm_remainder_dust() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution for dust-level remainder");
@@ -4000,8 +4192,16 @@ fn solver_three_intent_dust_remainder() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution for 3-intent dust remainder");
@@ -4112,8 +4312,16 @@ fn solver_ice_fee_lands_in_fee_receiver() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -4338,8 +4546,16 @@ fn solver_v2_partial_fill_whale() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -4548,8 +4764,16 @@ fn solver_v2_single_partial_whale() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -4716,8 +4940,16 @@ fn solver_v2_single_partial_whale() {
 
 			let call2 = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			);
 
@@ -4842,8 +5074,16 @@ fn solver_v2_all_partial_same_direction() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -5020,8 +5260,16 @@ fn solver_v2_small_partial_fully_filled() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -5172,8 +5420,16 @@ fn solver_v2_mixed_small_partial_and_non_partial() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -5335,8 +5591,16 @@ fn solver_v2_all_partial_opposing_directions() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -5519,8 +5783,16 @@ fn solver_v2_competing_partial_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -5729,8 +6001,16 @@ fn solver_v2_partial_with_non_partial_opposing() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -5916,8 +6196,16 @@ fn solver_v2_cancel_after_partial_fill() {
 			// --- Block 1: Solver partially fills Dave ---
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -6086,8 +6374,16 @@ fn solver_v2_partial_loose_limit_full_fill() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -6215,8 +6511,16 @@ fn solver_v2_single_intent_hdx_to_hydrated_tether() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution for HDX → hUSDT");
@@ -6446,8 +6750,16 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 			// Run solver
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -6835,8 +7147,16 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver must produce a solution");
@@ -7116,8 +7436,16 @@ fn ice_intent_with_evm_gas_eater_token() {
 
 		let call = pallet_ice::Pallet::<Runtime>::run(
 			hydradx_runtime::System::block_number(),
-			|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-				Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+			|intents: Vec<ice_support::Intent>,
+			 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+			 state: CombinedSimulatorState| {
+				Solver::solve_with_limits(
+					intents,
+					limits.into_iter().collect(),
+					state,
+					pallet_ice::ProtocolFee::<Runtime>::get(),
+				)
+				.ok()
 			},
 		)
 		.expect("Solver must produce a solution for the gas-eater ERC20 token");
@@ -7280,8 +7608,16 @@ fn solver_caps_at_max_resolved_intents() {
 
 			let call = pallet_ice::Pallet::<Runtime>::run(
 				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-					Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
 				},
 			)
 			.expect("Solver should produce a solution");

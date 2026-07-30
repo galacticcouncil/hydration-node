@@ -44,7 +44,9 @@ fn enable_slip_fees() {
 fn solve_current() -> Solution {
 	let call = pallet_ice::Pallet::<Runtime>::run(
 		System::block_number(),
-		|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
+		|intents: Vec<ice_support::Intent>,
+		 _limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+		 state: CombinedSimulatorState| {
 			CurrentSolver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
 		},
 	)
@@ -59,8 +61,16 @@ fn solve_current() -> Solution {
 fn solve_v4() -> Solution {
 	let call = pallet_ice::Pallet::<Runtime>::run(
 		System::block_number(),
-		|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-			NettingSolver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+		|intents: Vec<ice_support::Intent>,
+		 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+		 state: CombinedSimulatorState| {
+			NettingSolver::solve_with_limits(
+				intents,
+				limits.into_iter().collect(),
+				state,
+				pallet_ice::ProtocolFee::<Runtime>::get(),
+			)
+			.ok()
 		},
 	)
 	.expect("v4 solver must produce a solution");
