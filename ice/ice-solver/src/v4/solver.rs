@@ -72,6 +72,20 @@ impl FeeCtx {
 /// Unordered pair key.
 type AssetPair = (AssetId, AssetId);
 
+/// Minimum output the chain enforces at resolution, for the intents where it is
+/// stricter than their own `amount_out`.
+///
+/// Admission only. `amount_out` remains the sole basis for `surplus`, because the
+/// chain re-derives the score from storage and any divergence is a `ScoreMismatch`.
+/// These floors are recomputed from an oracle and must never reach the score.
+type MinOuts = BTreeMap<IntentId, Balance>;
+
+/// Numerator of the rate an intent must clear to be admitted: its floor when one
+/// is supplied, otherwise its own `amount_out`.
+fn admission_n(id: IntentId, swap: &SwapData, min_outs: &MinOuts) -> Balance {
+	min_outs.get(&id).copied().unwrap_or(swap.amount_out)
+}
+
 /// Intents grouped by direction: (forward A→B, backward B→A).
 type DirectionGroups<T> = (Vec<T>, Vec<T>);
 
@@ -244,6 +258,18 @@ pub struct Solver<A: AMMInterface> {
 
 impl<A: AMMInterface> Solver<A> {
 	pub fn solve(intents: Vec<Intent>, initial_state: A::State, matched_fee: Permill) -> Result<Solution, A::Error> {
+		Self::solve_with_limits(intents, MinOuts::new(), initial_state, matched_fee)
+	}
+
+	/// As `solve`, with per-intent admission floors (see `MinOuts`). An intent
+	/// that cannot be paid its floor at the batch's uniform rate is excluded,
+	/// exactly as one whose own `amount_out` cannot be met.
+	pub fn solve_with_limits(
+		intents: Vec<Intent>,
+		min_outs: MinOuts,
+		initial_state: A::State,
+		matched_fee: Permill,
+	) -> Result<Solution, A::Error> {
 		if intents.is_empty() {
 			return Ok(empty_solution());
 		}
@@ -266,7 +292,7 @@ impl<A: AMMInterface> Solver<A> {
 			return Ok(empty_solution());
 		}
 		if candidates.len() == 1 {
-			return Self::solve_single_intent(candidates[0], &initial_state, &mut cache);
+			return Self::solve_single_intent(candidates[0], &min_outs, &initial_state, &mut cache);
 		}
 
 		// Group candidates per unordered pair, split by direction.
@@ -280,7 +306,9 @@ impl<A: AMMInterface> Solver<A> {
 				intent,
 				remaining,
 				fill: remaining,
-				limit_n: swap.amount_out,
+				// The crossing engine must sort and trim on the limit the chain
+				// enforces, not the one stored on the intent.
+				limit_n: admission_n(intent.id, swap, &min_outs),
 				limit_d: swap.amount_in,
 				partial: swap.partial.is_partial(),
 			};
@@ -334,7 +362,7 @@ impl<A: AMMInterface> Solver<A> {
 		if included.len() == 1 {
 			let intent = included[0];
 			let fill = fills.get(&intent.id).copied().unwrap_or(0);
-			return Self::solve_single_intent_with_fill(intent, fill, &initial_state, &mut cache);
+			return Self::solve_single_intent_with_fill(intent, fill, &min_outs, &initial_state, &mut cache);
 		}
 
 		// Stabilization rounds: rings → trades → unified rates → resolution.
@@ -344,8 +372,15 @@ impl<A: AMMInterface> Solver<A> {
 		for round in 0..MAX_STABILIZATION_ROUNDS {
 			log::debug!(target: LOG_TARGET, "stabilization round {}, {} included intents", round, included.len());
 
-			let (resolved_intents, executed_trades, total_score) =
-				Self::netting_round(&included, &fills, &spot_prices, &initial_state, &mut cache, fee_ctx);
+			let (resolved_intents, executed_trades, total_score) = Self::netting_round(
+				&included,
+				&fills,
+				&min_outs,
+				&spot_prices,
+				&initial_state,
+				&mut cache,
+				fee_ctx,
+			);
 
 			log::debug!(target: LOG_TARGET, "round {}: {} resolved, {} trades, score: {} (from {} included)",
 				round, resolved_intents.len(), executed_trades.len(), total_score, included.len());
@@ -367,7 +402,7 @@ impl<A: AMMInterface> Solver<A> {
 			if included.len() == 1 {
 				let intent = included[0];
 				let fill = fills.get(&intent.id).copied().unwrap_or(0);
-				return Self::solve_single_intent_with_fill(intent, fill, &initial_state, &mut cache);
+				return Self::solve_single_intent_with_fill(intent, fill, &min_outs, &initial_state, &mut cache);
 			}
 		}
 
@@ -382,7 +417,7 @@ impl<A: AMMInterface> Solver<A> {
 				continue;
 			};
 			let fill = fills.get(&intent.id).copied().unwrap_or_else(|| swap.remaining());
-			let solution = Self::solve_single_intent_with_fill(intent, fill, &initial_state, &mut cache)?;
+			let solution = Self::solve_single_intent_with_fill(intent, fill, &min_outs, &initial_state, &mut cache)?;
 			if !solution.resolved_intents.is_empty() {
 				return Ok(solution);
 			}
@@ -808,6 +843,7 @@ impl<A: AMMInterface> Solver<A> {
 	fn netting_round(
 		included: &[&Intent],
 		fills: &BTreeMap<IntentId, Balance>,
+		min_outs: &MinOuts,
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		initial_state: &A::State,
 		cache: &mut QuoteCache<A>,
@@ -844,7 +880,7 @@ impl<A: AMMInterface> Solver<A> {
 			}
 			let (Some(v), true) = (to_hdx(fill, swap.asset_in), spot_prices.contains_key(&swap.asset_out)) else {
 				// Unpriced asset — fall back to the v3 per-pair engine for the batch.
-				return Self::run_round(included, fills, spot_prices, initial_state, cache, fee_ctx);
+				return Self::run_round(included, fills, min_outs, spot_prices, initial_state, cache, fee_ctx);
 			};
 			let si = sold_native.entry(swap.asset_in).or_insert(0);
 			*si = si.saturating_add(fill);
@@ -1015,8 +1051,15 @@ impl<A: AMMInterface> Solver<A> {
 					continue;
 				}
 
+				// Admission on the enforced floor, score on the stored `amount_out`
+				// — the chain re-derives the score from storage.
+				let admission = apply_rate(
+					fill,
+					U256::from(admission_n(intent.id, swap, min_outs)),
+					U256::from(swap.amount_in),
+				);
 				let min_required = apply_rate(fill, U256::from(swap.amount_out), U256::from(swap.amount_in));
-				if total_out < min_required {
+				if total_out < admission || total_out < min_required {
 					continue;
 				}
 
@@ -1046,6 +1089,7 @@ impl<A: AMMInterface> Solver<A> {
 	fn run_round(
 		included: &[&Intent],
 		fills: &BTreeMap<IntentId, Balance>,
+		min_outs: &MinOuts,
 		spot_prices: &BTreeMap<AssetId, Ratio>,
 		initial_state: &A::State,
 		cache: &mut QuoteCache<A>,
@@ -1320,10 +1364,15 @@ impl<A: AMMInterface> Solver<A> {
 					continue;
 				}
 
+				let admission = apply_rate(
+					fill,
+					U256::from(admission_n(intent.id, swap, min_outs)),
+					U256::from(swap.amount_in),
+				);
 				let min_required = apply_rate(fill, U256::from(swap.amount_out), U256::from(swap.amount_in));
-				if total_out < min_required {
-					log::debug!(target: LOG_TARGET, "intent {}: skipped — output {} < pro_rata_min {} for fill {}",
-						intent.id, total_out, min_required, fill);
+				if total_out < admission || total_out < min_required {
+					log::debug!(target: LOG_TARGET, "intent {}: skipped — output {} < pro_rata_min {} (admission {}) for fill {}",
+						intent.id, total_out, min_required, admission, fill);
 					continue;
 				}
 
@@ -1349,13 +1398,14 @@ impl<A: AMMInterface> Solver<A> {
 	/// Single intent path, supporting partial fills.
 	fn solve_single_intent(
 		intent: &Intent,
+		min_outs: &MinOuts,
 		initial_state: &A::State,
 		cache: &mut QuoteCache<A>,
 	) -> Result<Solution, A::Error> {
 		let IntentData::Swap(swap) = &intent.data else {
 			return Ok(empty_solution());
 		};
-		Self::solve_single_intent_with_fill(intent, swap.remaining(), initial_state, cache)
+		Self::solve_single_intent_with_fill(intent, swap.remaining(), min_outs, initial_state, cache)
 	}
 
 	/// Single intent with a specific fill amount.
@@ -1367,6 +1417,7 @@ impl<A: AMMInterface> Solver<A> {
 	fn solve_single_intent_with_fill(
 		intent: &Intent,
 		fill: Balance,
+		min_outs: &MinOuts,
 		initial_state: &A::State,
 		cache: &mut QuoteCache<A>,
 	) -> Result<Solution, A::Error> {
@@ -1380,7 +1431,9 @@ impl<A: AMMInterface> Solver<A> {
 		log::debug!(target: LOG_TARGET, "solving single intent {}: {} -> {}, fill: {}, min_rate: {}/{}",
 			intent.id, swap.asset_in, swap.asset_out, fill, swap.amount_out, swap.amount_in);
 
-		let min_n = U256::from(swap.amount_out);
+		// Admission clears the enforced floor; the score below stays on `amount_out`.
+		let min_n = U256::from(admission_n(intent.id, swap, min_outs));
+		let score_n = U256::from(swap.amount_out);
 		let min_d = U256::from(swap.amount_in);
 		let ed_in = A::existential_deposit(swap.asset_in);
 		let ed_out = A::existential_deposit(swap.asset_out);
@@ -1442,8 +1495,7 @@ impl<A: AMMInterface> Solver<A> {
 			return Ok(empty_solution());
 		}
 
-		let pro_rata_min = apply_rate(actual_fill, min_n, min_d);
-		let surplus = net_out.saturating_sub(pro_rata_min);
+		let surplus = net_out.saturating_sub(apply_rate(actual_fill, score_n, min_d));
 
 		let resolved = ResolvedIntent {
 			id: intent.id,

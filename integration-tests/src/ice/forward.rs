@@ -40,8 +40,16 @@ fn run_solver_and_submit() -> Solution {
 	let block = hydradx_runtime::System::block_number();
 	let call = pallet_ice::Pallet::<Runtime>::run(
 		block,
-		|intents: Vec<ice_support::Intent>, state: CombinedSimulatorState| {
-			Solver::solve(intents, state, pallet_ice::ProtocolFee::<Runtime>::get()).ok()
+		|intents: Vec<ice_support::Intent>,
+		 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+		 state: CombinedSimulatorState| {
+			Solver::solve_with_limits(
+				intents,
+				limits.into_iter().collect(),
+				state,
+				pallet_ice::ProtocolFee::<Runtime>::get(),
+			)
+			.ok()
 		},
 	)
 	.expect("Solver should produce a solution");

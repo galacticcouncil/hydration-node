@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use ice_support::{AssetId, Balance, Intent};
+use ice_support::{AssetId, Balance, Intent, IntentId};
 use scale_info::TypeInfo;
 use sp_runtime::Permill;
 use sp_std::vec::Vec;
@@ -16,6 +16,12 @@ pub struct SolverInput {
 	pub state: Vec<u8>,
 	/// ED for every asset the solver may query (snapshot pool assets ∪ intent assets).
 	pub existential_deposits: Vec<(AssetId, Balance)>,
+	/// Minimum output the chain enforces at resolution, for the intents where it
+	/// differs from their own `amount_out` — today the oracle-derived floor on DCA
+	/// intents. Admission only: the score is still derived from `amount_out`, which
+	/// is stored on-chain and therefore exactly reproducible. An intent absent here
+	/// is bound by its own `amount_out`.
+	pub min_amount_out: Vec<(IntentId, Balance)>,
 	pub fee: Permill,
 }
 

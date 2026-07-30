@@ -119,6 +119,26 @@ fn create_funded_account(name: &'static str, index: u32, balance: Balance, asset
 	account.clone()
 }
 
+// Stableswap share tokens cannot be minted externally (the pallet tracks its own issuance),
+// so share balances are transferred from `source`, an LP that added real liquidity.
+fn create_share_funded_account(
+	name: &'static str,
+	index: u32,
+	balance: Balance,
+	share_asset: AssetId,
+	source: &AccountId,
+) -> AccountId {
+	let account = create_funded_account(name, index, 0, DAI);
+	assert_ok!(<Currencies as orml_traits::MultiCurrency<AccountId>>::transfer(
+		share_asset,
+		source,
+		&account,
+		balance,
+		frame_support::traits::ExistenceRequirement::AllowDeath,
+	));
+	account
+}
+
 fn initialize_global_farm(owner: AccountId) -> DispatchResult {
 	OmnipoolLiquidityMining::create_global_farm(
 		RawOrigin::Root.into(),
@@ -139,7 +159,7 @@ fn initialize_yield_farm(owner: AccountId, id: GlobalFarmId, asset: AssetId) -> 
 	OmnipoolLiquidityMining::create_yield_farm(RawOrigin::Signed(owner).into(), id, asset, FixedU128::one(), None)
 }
 
-pub fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult {
+pub fn initialize_omnipool(additional_asset: Option<(AssetId, AccountId)>) -> DispatchResult {
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
@@ -266,12 +286,15 @@ pub fn initialize_omnipool(additional_asset: Option<AssetId>) -> DispatchResult 
 		owner.clone(),
 	)?;
 
-	if let Some(asset_id) = additional_asset {
-		Currencies::update_balance(
-			RawOrigin::Root.into(),
-			acc.clone(),
+	if let Some((asset_id, share_source)) = additional_asset {
+		// Stableswap share tokens cannot be minted externally - the omnipool reserve is
+		// transferred from an account that acquired shares via add_liquidity.
+		<Currencies as orml_traits::MultiCurrency<AccountId>>::transfer(
 			asset_id,
-			(token_amount * 100) as Amount,
+			&share_source,
+			&acc,
+			token_amount * 100,
+			frame_support::traits::ExistenceRequirement::AllowDeath,
 		)?;
 		Omnipool::add_token(
 			RawOrigin::Root.into(),
@@ -873,6 +896,18 @@ runtime_benchmarks! {
 			0u128,
 		)?;
 
+		// lp_provider adds real liquidity and serves as the share source for every account
+		// that needs a share balance - shares cannot be minted externally anymore.
+		let share_source_liquidity: Vec<AssetAmount<AssetId>> = added_liquidity
+			.iter()
+			.map(|a| AssetAmount::new(a.asset_id, 30_000_000_000_000_000u128))
+			.collect();
+		Stableswap::add_assets_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
+			pool_id,
+			share_source_liquidity.try_into().unwrap(),
+			0u128,
+		)?;
+
 		let lp1 = create_funded_account("lp_1", 1, 10 * BTC_ONE, BTC);
 		let deposit_id = 1;
 
@@ -885,49 +920,49 @@ runtime_benchmarks! {
 
 		let deposit_id = 1;
 
-		initialize_omnipool(Some(pool_id))?;
+		initialize_omnipool(Some((pool_id, lp_provider.clone())))?;
 
 		CircuitBreaker::set_add_liquidity_limit(RuntimeOrigin::root(), pool_id, Some((99, 100))).unwrap();
 		let liquidity_added = 100_000_000_000_000_u128;
-		let omni_lp_provider: AccountId = create_funded_account("provider", 1, liquidity_added * 10, pool_id);
+		let omni_lp_provider: AccountId = create_share_funded_account("provider", 1, liquidity_added * 10, pool_id, &lp_provider);
 		Omnipool::add_liquidity(RawOrigin::Signed(omni_lp_provider.clone()).into(), pool_id, liquidity_added)?;
 
 		//gId: 1, yId: 2
 		initialize_global_farm(owner.clone())?;
 		initialize_yield_farm(owner, 1, pool_id)?;
-		let lp1 = create_funded_account("lp_1", 1, 10 * ONE, pool_id);
+		let lp1 = create_share_funded_account("lp_1", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp1_position_id = omnipool_add_liquidity(lp1.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp1, 1, 2, lp1_position_id)?;
 
 		//gId: 3, yId: 4
 		initialize_global_farm(owner2.clone())?;
 		initialize_yield_farm(owner2, 3, pool_id)?;
-		let lp2 = create_funded_account("lp_2", 1, 10 * ONE, pool_id);
+		let lp2 = create_share_funded_account("lp_2", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp2_position_id = omnipool_add_liquidity(lp2.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp2, 3, 4, lp2_position_id)?;
 
 		//gId: 5, yId: 6
 		initialize_global_farm(owner3.clone())?;
 		initialize_yield_farm(owner3, 5, pool_id)?;
-		let lp3 = create_funded_account("lp_3", 1, 10 * ONE, pool_id);
+		let lp3 = create_share_funded_account("lp_3", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp3_position_id = omnipool_add_liquidity(lp3.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp3, 5, 6, lp3_position_id)?;
 
 		//gId: 7, yId: 8
 		initialize_global_farm(owner4.clone())?;
 		initialize_yield_farm(owner4, 7, pool_id)?;
-		let lp4 = create_funded_account("lp_4", 1, 10 * ONE, pool_id);
+		let lp4 = create_share_funded_account("lp_4", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp4_position_id = omnipool_add_liquidity(lp4.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp4, 7, 8, lp4_position_id)?;
 
 		//gId: 9, yId: 10
 		initialize_global_farm(owner5.clone())?;
 		initialize_yield_farm(owner5, 9, pool_id)?;
-		let lp5 = create_funded_account("lp_5", 1, 10 * ONE, pool_id);
+		let lp5 = create_share_funded_account("lp_5", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp5_position_id = omnipool_add_liquidity(lp5.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp5, 9, 10, lp5_position_id)?;
 
-		let lp6 = create_funded_account("lp_6", 5, 10 * ONE, pool_id);
+		let lp6 = create_share_funded_account("lp_6", 5, 10 * ONE, pool_id, &lp_provider);
 
 		set_period(200);
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
@@ -935,7 +970,6 @@ runtime_benchmarks! {
 
 
 		CircuitBreaker::set_add_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
-		let _ = Tokens::deposit(pool_id, &lp_provider, 50000000000000000);//We mint some share token so it wont fail with insufficience balance in adding liqudity to omnipool
 		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 	}: _(RawOrigin::Signed(lp_provider),pool_id, added_liquidity.try_into().unwrap(), Some(farms.try_into().unwrap()), None)
@@ -993,6 +1027,18 @@ runtime_benchmarks! {
 			0u128,
 		)?;
 
+		// lp_provider adds real liquidity and serves as the share source for every account
+		// that needs a share balance - shares cannot be minted externally anymore.
+		let share_source_liquidity: Vec<AssetAmount<AssetId>> = added_liquidity
+			.iter()
+			.map(|a| AssetAmount::new(a.asset_id, 30_000_000_000_000_000u128))
+			.collect();
+		Stableswap::add_assets_liquidity(RawOrigin::Signed(lp_provider.clone()).into(),
+			pool_id,
+			share_source_liquidity.try_into().unwrap(),
+			0u128,
+		)?;
+
 		let lp1 = create_funded_account("lp_1", 1, 10 * BTC_ONE, BTC);
 		let deposit_id = 1;
 
@@ -1005,49 +1051,49 @@ runtime_benchmarks! {
 
 		let deposit_id = 1;
 
-		initialize_omnipool(Some(pool_id))?;
+		initialize_omnipool(Some((pool_id, lp_provider.clone())))?;
 
 		CircuitBreaker::set_add_liquidity_limit(RuntimeOrigin::root(), pool_id, Some((99, 100))).unwrap();
 		let liquidity_added = 100_000_000_000_000_u128;
-		let omni_lp_provider: AccountId = create_funded_account("provider", 1, liquidity_added * 10, pool_id);
+		let omni_lp_provider: AccountId = create_share_funded_account("provider", 1, liquidity_added * 10, pool_id, &lp_provider);
 		Omnipool::add_liquidity(RawOrigin::Signed(omni_lp_provider.clone()).into(), pool_id, liquidity_added)?;
 
 		//gId: 1, yId: 2
 		initialize_global_farm(owner.clone())?;
 		initialize_yield_farm(owner, 1, pool_id)?;
-		let lp1 = create_funded_account("lp_1", 1, 10 * ONE, pool_id);
+		let lp1 = create_share_funded_account("lp_1", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp1_position_id = omnipool_add_liquidity(lp1.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp1, 1, 2, lp1_position_id)?;
 
 		//gId: 3, yId: 4
 		initialize_global_farm(owner2.clone())?;
 		initialize_yield_farm(owner2, 3, pool_id)?;
-		let lp2 = create_funded_account("lp_2", 1, 10 * ONE, pool_id);
+		let lp2 = create_share_funded_account("lp_2", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp2_position_id = omnipool_add_liquidity(lp2.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp2, 3, 4, lp2_position_id)?;
 
 		//gId: 5, yId: 6
 		initialize_global_farm(owner3.clone())?;
 		initialize_yield_farm(owner3, 5, pool_id)?;
-		let lp3 = create_funded_account("lp_3", 1, 10 * ONE, pool_id);
+		let lp3 = create_share_funded_account("lp_3", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp3_position_id = omnipool_add_liquidity(lp3.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp3, 5, 6, lp3_position_id)?;
 
 		//gId: 7, yId: 8
 		initialize_global_farm(owner4.clone())?;
 		initialize_yield_farm(owner4, 7, pool_id)?;
-		let lp4 = create_funded_account("lp_4", 1, 10 * ONE, pool_id);
+		let lp4 = create_share_funded_account("lp_4", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp4_position_id = omnipool_add_liquidity(lp4.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp4, 7, 8, lp4_position_id)?;
 
 		//gId: 9, yId: 10
 		initialize_global_farm(owner5.clone())?;
 		initialize_yield_farm(owner5, 9, pool_id)?;
-		let lp5 = create_funded_account("lp_5", 1, 10 * ONE, pool_id);
+		let lp5 = create_share_funded_account("lp_5", 1, 10 * ONE, pool_id, &lp_provider);
 		let lp5_position_id = omnipool_add_liquidity(lp5.clone(), pool_id, 10 * ONE)?;
 		lm_deposit_shares(lp5, 9, 10, lp5_position_id)?;
 
-		let lp6 = create_funded_account("lp_6", 5, 10 * ONE, pool_id);
+		let lp6 = create_share_funded_account("lp_6", 5, 10 * ONE, pool_id, &lp_provider);
 
 		set_period(200);
 		let farms_entries = [(1,2), (3,4), (5,6), (7,8), (9, 10)];
@@ -1055,7 +1101,6 @@ runtime_benchmarks! {
 
 
 		CircuitBreaker::set_add_liquidity_limit(RawOrigin::Root.into(),pool_id, None).unwrap();
-		let _ = Tokens::deposit(pool_id, &lp_provider, 50000000000000000);//We mint some share token so it wont fail with insufficience balance in adding liqudity to omnipool
 		update_deposit_limit(pool_id, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 		update_deposit_limit(LRNA, 1_000u128).expect("Failed to update deposit limit");//To trigger circuit breaker, leading to worst case
 

@@ -22,16 +22,7 @@ pub mod scheduler;
 pub mod stableswap;
 
 // New migrations which need to be cleaned up after every Runtime upgrade
-pub type UnreleasedSingleBlockMigrations = (
-	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
-	pallet_gigahdx::migrations::SetTwoSecBlocksSince<Runtime>,
-	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
-	circuit_breaker::MigrateCircuitBreakerLimitsTo2sBlocks<Runtime>,
-	stableswap::MigrateStableswapMaxPegUpdateTo2sBlocks<Runtime>,
-	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
-	referenda::MigrateReferendaTo2sBlocks<Runtime>,
-	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
-);
+pub type UnreleasedSingleBlockMigrations = pallet_stableswap::migrations::v2::MigrateV1ToV2<Runtime>;
 
 // These migrations can run on every runtime upgrade
 pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>;

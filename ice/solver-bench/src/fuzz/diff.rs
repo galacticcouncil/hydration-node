@@ -99,7 +99,10 @@ impl DiffReport {
 		println!("\n========== v3-vs-v4 DIFFERENTIAL ==========");
 		if n == 0 {
 			println!("no scenarios where both solvers produced a solution");
-			println!("coverage: v3-only {} | v4-only {} | both-none {}", self.v3_only, self.v4_only, self.both_none);
+			println!(
+				"coverage: v3-only {} | v4-only {} | both-none {}",
+				self.v3_only, self.v4_only, self.both_none
+			);
 			return;
 		}
 
@@ -137,7 +140,10 @@ impl DiffReport {
 		let mean = sum_bps / n as i128;
 
 		println!("compared scenarios (both solved): {n}");
-		println!("coverage: v3-only {} | v4-only {} | both-none {}", self.v3_only, self.v4_only, self.both_none);
+		println!(
+			"coverage: v3-only {} | v4-only {} | both-none {}",
+			self.v3_only, self.v4_only, self.both_none
+		);
 		println!(
 			"SCORE   v4 wins {} ({:.1}%) | v4 loses {} ({:.1}%) | tie {} ({:.1}%)",
 			wins,
@@ -185,8 +191,17 @@ impl DiffReport {
 }
 
 /// Verbose side-by-side dump of one scenario (for replaying a worst-case seed).
-pub fn dump_scenario_detail(seed: u64, archetype: &str, intents: &[SolverIntent], v3: Option<&Solution>, v4: Option<&Solution>) {
-	println!("\n----- scenario seed={seed} archetype={archetype} ({} intents) -----", intents.len());
+pub fn dump_scenario_detail(
+	seed: u64,
+	archetype: &str,
+	intents: &[SolverIntent],
+	v3: Option<&Solution>,
+	v4: Option<&Solution>,
+) {
+	println!(
+		"\n----- scenario seed={seed} archetype={archetype} ({} intents) -----",
+		intents.len()
+	);
 	for (i, it) in intents.iter().enumerate() {
 		if let IntentData::Swap(s) = &it.data {
 			println!(
@@ -199,16 +214,28 @@ pub fn dump_scenario_detail(seed: u64, archetype: &str, intents: &[SolverIntent]
 		match sol {
 			None => println!("  {label}: NO SOLUTION"),
 			Some(s) => {
-				println!("  {label}: score={} resolved={} trades={}", s.score, s.resolved_intents.len(), s.trades.len());
+				println!(
+					"  {label}: score={} resolved={} trades={}",
+					s.score,
+					s.resolved_intents.len(),
+					s.trades.len()
+				);
 				for r in s.resolved_intents.iter() {
 					if let IntentData::Swap(sd) = &r.data {
-						println!("       id={} {}->{} in={} out={}", r.id, sd.asset_in, sd.asset_out, sd.amount_in, sd.amount_out);
+						println!(
+							"       id={} {}->{} in={} out={}",
+							r.id, sd.asset_in, sd.asset_out, sd.amount_in, sd.amount_out
+						);
 					}
 				}
 			}
 		}
 	}
 	if let (Some(a), Some(b)) = (v3, v4) {
-		println!("  delta: v4-v3 score = {} ({} bps)", b.score as i128 - a.score as i128, rel_bps(a.score, b.score));
+		println!(
+			"  delta: v4-v3 score = {} ({} bps)",
+			b.score as i128 - a.score as i128,
+			rel_bps(a.score, b.score)
+		);
 	}
 }

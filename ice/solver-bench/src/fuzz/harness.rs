@@ -414,11 +414,14 @@ fn tier2_scenario(
 		// Solver panics are swallowed here (Tier 1 is the panic oracle) — a
 		// panic just yields no solution and a clean rollback.
 		let fee = cfg.fee;
-		let call = pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), move |ints, st| {
-			std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| SolverV4::solve(ints, st, fee).ok()))
+		let call =
+			pallet_ice::Pallet::<Runtime>::run(hydradx_runtime::System::block_number(), move |ints, limits, st| {
+				std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+					SolverV4::solve_with_limits(ints, limits.into_iter().collect(), st, fee).ok()
+				}))
 				.ok()
 				.flatten()
-		});
+			});
 
 		let Some(pallet_ice::Call::submit_solution { solution, .. }) = call else {
 			stats.no_solution += 1;

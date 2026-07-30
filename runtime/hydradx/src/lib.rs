@@ -132,7 +132,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 431,
+	spec_version: 436,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1219,11 +1219,12 @@ impl_runtime_apis! {
 
 	impl pallet_ice_runtime_api::IceSolverApi<Block> for Runtime {
 		fn solver_input() -> Option<pallet_ice_runtime_api::SolverInput> {
-			pallet_ice::Pallet::<Runtime>::solver_input().map(|(intents, state, eds, fee)| {
+			pallet_ice::Pallet::<Runtime>::solver_input().map(|(intents, state, eds, min_amount_out, fee)| {
 				pallet_ice_runtime_api::SolverInput {
 					intents,
 					state,
 					existential_deposits: eds,
+					min_amount_out,
 					fee,
 				}
 			})

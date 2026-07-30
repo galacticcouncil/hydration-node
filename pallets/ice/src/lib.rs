@@ -78,8 +78,15 @@ pub(crate) const OCW_TAG_PREFIX: &str = "ice-solution";
 pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 
 /// Parts returned by `solver_input`: valid intents, the SCALE-encoded simulator
-/// snapshot, the ED map for every asset the solver may query, and the matched fee.
-pub type SolverInputParts = (Vec<Intent>, Vec<u8>, Vec<(AssetId, Balance)>, Permill);
+/// snapshot, the ED map for every asset the solver may query, the per-intent
+/// admission floors (DCA only), and the matched fee.
+pub type SolverInputParts = (
+	Vec<Intent>,
+	Vec<u8>,
+	Vec<(AssetId, Balance)>,
+	Vec<(IntentId, Balance)>,
+	Permill,
+);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -646,10 +653,12 @@ impl<T: Config> Pallet<T> {
 
 	/// Build the side-effect-free inputs for the node-side solver: the valid
 	/// intents, the SCALE-encoded simulator snapshot, the ED map for every asset
-	/// the solver may query, and the matched-volume fee. Returns `None` on an
-	/// empty intent set (the cheap empty-block path — no snapshot/EVM work).
+	/// the solver may query, the per-intent admission floors and the
+	/// matched-volume fee. Returns `None` on an empty intent set (the cheap
+	/// empty-block path — no snapshot/EVM work).
 	pub fn solver_input() -> Option<SolverInputParts> {
-		let intents: Vec<Intent> = pallet_intent::Pallet::<T>::get_valid_intents()
+		let (valid, min_amounts_out) = pallet_intent::Pallet::<T>::solver_intents();
+		let intents: Vec<Intent> = valid
 			.iter()
 			.map(|x| Intent {
 				id: x.0,
@@ -684,17 +693,28 @@ impl<T: Config> Pallet<T> {
 			})
 			.collect();
 
-		Some((intents, state.encode(), existential_deposits, Self::protocol_fee()))
+		Some((
+			intents,
+			state.encode(),
+			existential_deposits,
+			min_amounts_out,
+			Self::protocol_fee(),
+		))
 	}
 
+	/// Solve-and-validate, mirroring what the node worker does with
+	/// `solver_input`. `solve` receives the intents, the per-intent admission
+	/// floors and the simulator snapshot.
 	pub fn run<F>(block_no: BlockNumberFor<T>, solve: F) -> Option<Call<T>>
 	where
 		F: FnOnce(
 			Vec<Intent>,
+			Vec<(IntentId, Balance)>,
 			<<T::Simulator as SimulatorConfig>::Simulators as SimulatorSet>::State,
 		) -> Option<Solution>,
 	{
-		let intents: Vec<Intent> = pallet_intent::Pallet::<T>::get_valid_intents()
+		let (valid, min_amounts_out) = pallet_intent::Pallet::<T>::solver_intents();
+		let intents: Vec<Intent> = valid
 			.iter()
 			.map(|x| Intent {
 				id: x.0,
@@ -710,7 +730,7 @@ impl<T: Config> Pallet<T> {
 
 		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
 
-		let Some(solution) = solve(intents, state) else {
+		let Some(solution) = solve(intents, min_amounts_out, state) else {
 			log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver returned no solution, block: {block_no:?}");
 			return None;
 		};

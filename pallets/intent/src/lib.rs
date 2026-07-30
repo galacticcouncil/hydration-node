@@ -76,6 +76,10 @@ pub use weights::WeightInfo;
 pub type NamedReserveIdentifier = [u8; 8];
 pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 
+/// Solver-facing intent set: the eligible intents, plus the admission floor for
+/// each intent whose enforced minimum output differs from its own `amount_out`.
+pub type SolverIntents = (Vec<(IntentId, Intent)>, Vec<(IntentId, Balance)>);
+
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 const OCW_LOG_TARGET: &str = "intent::offchain_worker";
 const LOG_PREFIX: &str = "ICE#pallet_intent";
@@ -532,37 +536,56 @@ impl<T: Config> Pallet<T> {
 	/// and oracle price indicates the trade is feasible (pre-filter).
 	/// They are transformed into `IntentData::Swap` with the hard limit as `amount_out`,
 	/// so the solver treats them as regular one-shot swaps.
-	/// The oracle effective limit is used only as a pre-filter gate — if the oracle-derived
-	/// minimum exceeds what the solver could reasonably fill, the intent is skipped for this block.
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
+		Self::solver_intents().0
+	}
+
+	/// Solver-facing view: the valid intents plus, for DCA intents only, the
+	/// oracle-derived floor that `validate_dca_intent_resolve` enforces at
+	/// resolution.
+	///
+	/// The floor is deliberately *not* folded into the returned `SwapData`.
+	/// `amount_out` stays the stored hard limit so `compute_surplus` — and hence
+	/// the solution score the chain re-derives in `submit_solution` — remains
+	/// reproducible from storage alone. The floor is recomputed from the oracle on
+	/// every read and must never reach the score.
+	///
+	/// An intent absent from the second vector is bound by its own `amount_out`.
+	pub fn solver_intents() -> SolverIntents {
 		let current_block: u32 = T::BlockNumberProvider::current_block_number()
 			.try_into()
 			.unwrap_or(u32::MAX);
 
-		let mut intents: Vec<(IntentId, Intent)> = Intents::<T>::iter()
+		let mut intents: Vec<(IntentId, Intent, Option<Balance>)> = Intents::<T>::iter()
 			.filter_map(|(id, intent)| {
 				match &intent.data {
-					IntentData::Swap(_) => Some((id, intent)),
+					IntentData::Swap(_) => Some((id, intent, None)),
 					IntentData::Dca(dca) => {
 						// Period eligibility
 						let next_eligible = dca.last_execution_block.saturating_add(dca.period);
 						if current_block < next_eligible {
-							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: get_valid_intents(), DCA intent {id:?} skipped: period not elapsed (current_block: {current_block}, next_eligible: {next_eligible})");
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), DCA intent {id:?} skipped: period not elapsed (current_block: {current_block}, next_eligible: {next_eligible})");
 							return None;
 						}
 						// Budget sufficient for a trade
 						if dca.remaining_budget < dca.amount_in {
-							log::debug!(target: OCW_LOG_TARGET, "{:?}: get_valid_intents(), DCA intent {:?} skipped: insufficient budget (remaining: {}, required: {})",
+							log::debug!(target: OCW_LOG_TARGET, "{:?}: solver_intents(), DCA intent {:?} skipped: insufficient budget (remaining: {}, required: {})",
 								LOG_PREFIX, id, dca.remaining_budget, dca.amount_in);
 							return None;
 						}
-						// Oracle pre-filter
+						// Oracle pre-filter. The floor computed here is exactly what
+						// `validate_dca_intent_resolve` enforces, so it is handed to the
+						// solver rather than discarded — otherwise the solver optimises
+						// against the hard limit and the chain rejects the whole solution.
+						let mut floor = None;
 						if let Some(oracle_min) = Self::compute_dca_oracle_limit(dca) {
 							if oracle_min > 0 && dca.amount_out > oracle_min {
-								log::debug!(target: OCW_LOG_TARGET, "{:?}: get_valid_intents(), DCA intent {:?} skipped: oracle pre-filter (hard_limit: {} > oracle_min: {} for {} -> {})",
+								log::debug!(target: OCW_LOG_TARGET, "{:?}: solver_intents(), DCA intent {:?} skipped: oracle pre-filter (hard_limit: {} > oracle_min: {} for {} -> {})",
 									LOG_PREFIX, id, dca.amount_out, oracle_min, dca.asset_in, dca.asset_out);
 								return None;
 							}
+							// Mirrors `compute_dca_effective_limit` without a second oracle read.
+							floor = Some(cmp::max(oracle_min, dca.amount_out));
 						}
 						// Transform to Swap with hard limit for solver
 						let swap = dca.to_swap_data(dca.amount_out);
@@ -571,13 +594,19 @@ impl<T: Config> Pallet<T> {
 							deadline: intent.deadline,
 							on_resolved: intent.on_resolved.clone(),
 						};
-						Some((id, transformed))
+						Some((id, transformed, floor))
 					}
 				}
 			})
 			.collect();
-		intents.sort_by_key(|(id, _)| Reverse(*id));
-		intents
+		intents.sort_by_key(|(id, _, _)| Reverse(*id));
+
+		let limits = intents
+			.iter()
+			.filter_map(|(id, _, floor)| floor.map(|f| (*id, f)))
+			.collect();
+		let intents = intents.into_iter().map(|(id, intent, _)| (id, intent)).collect();
+		(intents, limits)
 	}
 
 	/// Function validates if intent was resolved correctly

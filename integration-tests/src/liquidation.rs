@@ -310,6 +310,176 @@ fn liquidation_should_work() {
 	});
 }
 
+/// Sets up the money market from the snapshot, registers the pool as the borrowing
+/// contract and pushes ALICE's WETH-collateral/DOT-debt position under HF < 1.
+/// Returns the pool contract, ALICE's EVM address and the borrowed DOT amount.
+fn arrange_unhealthy_mm_position() -> (EvmAddress, EvmAddress, Balance) {
+	deposit_hdx_to_protocol_account();
+
+	let pallet_acc = Liquidation::account_id();
+	let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+	let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
+	assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
+	assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
+
+	assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into()),));
+	assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(BOB.into()),));
+	assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(pallet_acc),));
+
+	let alice_evm_address = EVMAccounts::evm_address(&AccountId::from(ALICE));
+
+	// get Pool contract address
+	let block_number = hydradx_runtime::System::block_number();
+	let hash = hydradx_runtime::System::block_hash(block_number);
+	let pool_contract = MoneyMarketData::<Block, OriginCaller, RuntimeCall, RuntimeEvent>::fetch_pool::<
+		ApiProvider<Runtime>,
+	>(&ApiProvider::<Runtime>(Runtime), hash, PAP_CONTRACT, alice_evm_address)
+	.unwrap();
+	assert_ok!(Liquidation::set_borrowing_contract(
+		RuntimeOrigin::root(),
+		pool_contract
+	));
+
+	assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+	let collateral_weth_amount: Balance = 10 * WETH_UNIT;
+	let collateral_dot_amount = 5_000 * DOT_UNIT;
+	supply(
+		pool_contract,
+		alice_evm_address,
+		weth_asset_address,
+		collateral_weth_amount,
+	);
+	supply(
+		pool_contract,
+		alice_evm_address,
+		dot_asset_address,
+		collateral_dot_amount,
+	);
+
+	let borrow_dot_amount: Balance = 5_000 * DOT_UNIT;
+	borrow(pool_contract, alice_evm_address, dot_asset_address, borrow_dot_amount);
+
+	let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
+	let price = price.as_u128() * 5;
+	let timestamp = timestamp.as_u128() + 6;
+	let mut data = price.to_be_bytes().to_vec();
+	data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+	update_oracle_price(
+		vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
+		ORACLE_ADDRESS,
+		ORACLE_CALLER,
+	);
+
+	let (price, timestamp) = get_oracle_price("WETH/USD").unwrap();
+	let price = price.as_u128() / 5;
+	let timestamp = timestamp.as_u128() + 6;
+	let mut data = price.to_be_bytes().to_vec();
+	data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+	update_oracle_price(
+		vec![("WETH/USD", U256::from_big_endian(&data[0..32]))],
+		ORACLE_ADDRESS,
+		ORACLE_CALLER,
+	);
+
+	// ensure that the health_factor < 1
+	let user_data = get_user_account_data(pool_contract, alice_evm_address).unwrap();
+	assert!(user_data.health_factor < U256::from(1_000_000_000_000_000_000u128));
+
+	(pool_contract, alice_evm_address, borrow_dot_amount)
+}
+
+// `liquidate_with_pool` must behave exactly like `liquidate` when the provided pool is
+// the borrowing contract the liquidation executes against.
+#[test]
+fn liquidate_with_pool_should_work_when_pool_matches_borrowing_contract() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		let (pool_contract, alice_evm_address, borrow_dot_amount) = arrange_unhealthy_mm_position();
+
+		let pallet_acc = Liquidation::account_id();
+		let treasury_dot_initial_balance = Currencies::free_balance(DOT, &BorrowingTreasuryAccount::get());
+
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		});
+
+		// Act
+		assert_ok!(Liquidation::liquidate_with_pool(
+			RuntimeOrigin::none(),
+			pool_contract,
+			WETH,
+			DOT,
+			alice_evm_address,
+			borrow_dot_amount,
+			route,
+			None,
+		));
+
+		// Assert
+		assert_eq!(Currencies::free_balance(DOT, &pallet_acc), 0);
+		assert_eq!(Currencies::free_balance(WETH, &pallet_acc), 0);
+
+		assert!(Currencies::free_balance(DOT, &BorrowingTreasuryAccount::get()) > treasury_dot_initial_balance);
+	});
+}
+
+// A pool that is not the borrowing contract must be rejected before any liquidation
+// work — the on-chain execution gate a worker bug cannot get past.
+#[test]
+fn liquidate_with_pool_should_fail_when_pool_does_not_match_borrowing_contract() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		let (_pool_contract, alice_evm_address, borrow_dot_amount) = arrange_unhealthy_mm_position();
+
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		});
+
+		// Act & Assert
+		assert_noop!(
+			Liquidation::liquidate_with_pool(
+				RuntimeOrigin::none(),
+				EvmAddress::from_slice(&[0x42; 20]),
+				WETH,
+				DOT,
+				alice_evm_address,
+				borrow_dot_amount,
+				route,
+				None,
+			),
+			pallet_liquidation::Error::<Runtime>::PoolAddressMismatch
+		);
+	});
+}
+
+// `liquidate_with_pool` is the worker-only channel — signed submissions are rejected
+// before any liquidation logic runs. The public permissionless path is `liquidate`.
+#[test]
+fn liquidate_with_pool_should_fail_when_origin_is_signed() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		assert_noop!(
+			Liquidation::liquidate_with_pool(
+				RuntimeOrigin::signed(BOB.into()),
+				EvmAddress::from_slice(&[0x42; 20]),
+				WETH,
+				DOT,
+				EvmAddress::default(),
+				1_000,
+				BoundedVec::new(),
+				None,
+			),
+			sp_runtime::traits::BadOrigin
+		);
+	});
+}
+
 #[test]
 fn liquidation_should_fail_when_debt_asset_is_under_deposit_lockdown() {
 	TestNet::reset();

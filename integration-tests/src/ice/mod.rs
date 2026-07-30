@@ -7,3 +7,4 @@ mod netting;
 mod node_solver;
 mod recorder;
 mod solver;
+mod stuck_intents;
