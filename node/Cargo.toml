@@ -113,6 +113,7 @@ fp-consensus = { workspace = true }
 fp-self-contained = { workspace = true }
 fp-evm = { workspace = true }
 pallet-ethereum = { workspace = true }
+pallet-balances = { workspace = true }
 pallet-evm = { workspace = true }
 
 [features]
