@@ -14,11 +14,13 @@
 //! fees in native hdx — and dropped that block's synth logs entirely, including
 //! the wormhole `LogMessagePublished` raised by substrate-dispatched `EVM.call`.
 //!
-//! `read_events` decodes with the compiled types first (zero cost when the
-//! versions agree) and otherwise re-reads the balances events in an explicit
-//! per-sdk layout, so a skew degrades into a slower path instead of silence.
-//! the caller is expected to log which path was taken.
+//! the fix is [`super::metadata_events`]: decode against the *chain's* own runtime
+//! metadata, which describes its encoding exactly. this module chooses a reader per
+//! block and keeps the pre-metadata tiers as a fallback for when metadata cannot be
+//! read at all — a pruned block, or a runtime whose metadata version this node does
+//! not know. the caller is expected to log which path was taken.
 
+use super::metadata_events::{EventLayout, Fault, Verdict};
 use codec::{Decode, Input};
 use frame_support::traits::{tokens::BalanceStatus, PalletInfoAccess};
 use frame_system::{EventRecord, Phase};
@@ -33,10 +35,22 @@ type LogKey = (sp_core::H160, Vec<H256>, Vec<u8>);
 type Balance = u128;
 type NodeBalancesEvent = BalancesEvent<Runtime>;
 
-/// how a block's events were read.
+/// how a block's events were read, best fidelity first.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Source {
-	/// the node's compiled `RuntimeEvent` matched the chain's encoding.
+	/// the chain's own metadata proves this node's compiled `RuntimeEvent` encodes events
+	/// exactly as the chain does, and the decode agreed. nothing can be missing.
+	Verified,
+	/// transcoded record by record against the chain's metadata. `dropped` names every event
+	/// this node has no type to hold — empty means nothing was lost. `trailing` bytes are
+	/// past the last record that could even be measured.
+	Metadata {
+		dropped: Vec<(String, Fault)>,
+		recovered: usize,
+		trailing: usize,
+	},
+	/// decoded with the node's compiled `RuntimeEvent`, with no metadata to prove the two
+	/// layouts agree. correct whenever the node's sdk matches the runtime's.
 	Native,
 	/// read through a compat balances layout — the node and the on-chain runtime
 	/// are on different polkadot-sdk versions, but nothing was lost.
@@ -51,17 +65,18 @@ pub enum Source {
 	},
 }
 
-/// Decode `System::Events` without letting one undecodable record cost the whole
-/// block. Three tiers, in order of fidelity:
+/// Decode `System::Events` without letting one undecodable record cost the whole block.
 ///
-/// 1. the node's compiled `RuntimeEvent` — free, and exact when node and runtime
-///    agree;
-/// 2. an explicit per-sdk `pallet_balances::Event` layout — exact for skews we
-///    know about;
-/// 3. resync scan — drops only the records that cannot be decoded.
+/// `layout` is the chain's own description of its event encoding, read from its runtime
+/// metadata. With it, a record either transcodes or is measured and stepped over exactly.
+/// Without it (metadata unreadable at this block) the pre-metadata tiers apply: compiled
+/// types, then a hand-written per-sdk balances layout, then a resync scan.
 ///
 /// `None` means not even one record was readable.
-pub fn read_events(raw: &[u8]) -> Option<(Records, Source)> {
+pub fn read_events(raw: &[u8], layout: Option<&EventLayout>) -> Option<(Records, Source)> {
+	if let Some(result) = layout.and_then(|layout| read_with_metadata(raw, layout)) {
+		return Some(result);
+	}
 	if let Ok(records) = Records::decode(&mut &raw[..]) {
 		return Some((records, Source::Native));
 	}
@@ -80,6 +95,42 @@ pub fn read_events(raw: &[u8]) -> Option<(Records, Source)> {
 			skipped,
 			recovered,
 			trailing,
+		},
+	))
+}
+
+/// The metadata path. `None` hands the block back to the hand-written tiers, which only
+/// happens when the chain's own description of the blob yields nothing at all.
+fn read_with_metadata(raw: &[u8], layout: &EventLayout) -> Option<(Records, Source)> {
+	// `Identical` rests on an optimistic assumption about cyclic types (xcm nests itself),
+	// so it is confirmed rather than trusted: the plain decode has to consume the blob.
+	if layout.verdict() == Verdict::Identical {
+		if let Ok(records) = Records::decode(&mut &raw[..]) {
+			return Some((records, Source::Verified));
+		}
+	}
+	let decoded = layout.decode(raw);
+	if decoded.records.is_empty() && decoded.expected > 0 {
+		return None;
+	}
+	// The transcoder measures every record against the chain's own metadata, so the records
+	// tile the blob and one that is dropped cannot have eaten its neighbours. That leaves two
+	// ways an `EVM.Log` could still be missing: the record stream broke partway, or the
+	// dropped record was itself an evm event. In either case sweep the blob, so "never lose a
+	// wormhole event" does not rest on a single decoder being right.
+	let suspect = decoded.trailing > 0
+		|| decoded
+			.dropped
+			.iter()
+			.any(|(name, _)| name.starts_with("EVM.") || name.starts_with('<'));
+	let mut records = decoded.records;
+	let recovered = if suspect { merge_evm_logs(raw, &mut records) } else { 0 };
+	Some((
+		records,
+		Source::Metadata {
+			dropped: decoded.dropped,
+			recovered,
+			trailing: decoded.trailing,
 		},
 	))
 }
@@ -178,12 +229,10 @@ fn salvage_evm_logs(region: &[u8], evm_index: u8, out: &mut Records) -> usize {
 /// cleanly from the candidate offset; a mis-landing costs extra skipped records,
 /// never a wrong record.
 fn read_resilient(raw: &[u8]) -> Option<(Records, usize, usize, usize)> {
-	let evm_index = <hydradx_runtime::EVM as PalletInfoAccess>::index() as u8;
 	let mut input = raw;
 	let count = codec::Compact::<u32>::decode(&mut input).ok()?.0 as usize;
 	let mut records = Records::new();
 	let mut skipped = 0usize;
-	let mut recovered = 0usize;
 
 	while !input.is_empty() && records.len() + skipped < count {
 		if let Some(record) = decode_record(&mut input) {
@@ -208,21 +257,30 @@ fn read_resilient(raw: &[u8]) -> Option<(Records, usize, usize, usize)> {
 			None => break,
 		}
 	}
-	// A record whose layout this node gets wrong can still "decode" while consuming the
-	// wrong byte count, swallowing whatever followed it — so the sequential walk above can
-	// lose an EVM.Log without ever reporting a skip. Sweep the whole blob independently and
-	// merge back anything missing. This is what makes "never lose a wormhole event" hold.
+	let recovered = merge_evm_logs(raw, &mut records);
+	Some((records, skipped, recovered, input.len()))
+}
+
+/// Sweep the whole blob for `EVM.Log` records and merge back any this node does not already
+/// have. Returns how many were recovered.
+///
+/// A record whose layout this node gets wrong can still "decode" while consuming the wrong
+/// byte count, swallowing whatever followed it — so a sequential walk can lose an `EVM.Log`
+/// without ever reporting a skip. This is what makes "never lose a wormhole event" hold
+/// independently of whichever decoder produced `records`.
+fn merge_evm_logs(raw: &[u8], records: &mut Records) -> usize {
+	let evm_index = <hydradx_runtime::EVM as PalletInfoAccess>::index() as u8;
 	let mut swept = Records::new();
 	salvage_evm_logs(raw, evm_index, &mut swept);
 	let have: BTreeSet<LogKey> = records.iter().filter_map(evm_log_key).collect();
+	let mut recovered = 0;
 	for record in swept {
 		if evm_log_key(&record).map(|k| !have.contains(&k)).unwrap_or(false) {
 			records.push(record);
 			recovered += 1;
 		}
 	}
-
-	Some((records, skipped, recovered, input.len()))
+	recovered
 }
 
 /// Identity of an `EVM.Log` record, for merging a sweep without duplicating.
@@ -461,12 +519,55 @@ mod tests {
 		);
 	}
 
+	/// End to end through the reader the node actually calls: given the chain's metadata, both
+	/// fixtures come back on any node sdk, with every event synth reads intact and the wormhole
+	/// message present. This is the tier the node runs in production; the ones below cover the
+	/// fallbacks for when metadata cannot be read.
+	#[test]
+	fn metadata_path_keeps_everything_synth_reads() {
+		let layout = EventLayout::new(super::super::metadata_events::TEST_CHAIN_METADATA).expect("layout");
+		for (label, raw, sequence) in [("13386492", MAINNET_EVENTS, 5u64), ("13384676", MAINNET_EVENTS_SEQ2, 2)] {
+			let (records, source) = read_events(raw, Some(&layout)).expect("must be readable");
+			println!("block {label} read via {source:?}, {} records", records.len());
+			match &source {
+				Source::Verified => {}
+				Source::Metadata {
+					dropped,
+					recovered,
+					trailing,
+				} => {
+					assert_eq!(*trailing, 0, "block {label} left bytes unread");
+					assert_eq!(*recovered, 0, "block {label} needed the salvage scan");
+					for (name, fault) in dropped {
+						assert!(
+							!super::super::metadata_events::feeds_synth(name),
+							"block {label} dropped {name} ({fault:?}), which synth reads"
+						);
+					}
+				}
+				other => panic!("block {label} must go through the metadata path, got {other:?}"),
+			}
+			let published = records
+				.iter()
+				.filter_map(|r| match &r.event {
+					RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => Some(log),
+					_ => None,
+				})
+				.find(|log| {
+					log.address.0 == CORE_BRIDGE && log.topics.first().map(|t| t.0) == Some(LOG_MESSAGE_PUBLISHED)
+				})
+				.expect("core-bridge LogMessagePublished");
+			assert_eq!(u64::from_be_bytes(published.data[24..32].try_into().unwrap()), sequence);
+		}
+	}
+
 	/// The reader must recover mainnet-encoded events whatever sdk the node was
 	/// built on — natively when the layouts agree, through the compat path when
-	/// they don't.
+	/// they don't. No metadata here: this is the fallback for a block whose runtime
+	/// this node cannot ask.
 	#[test]
 	fn reads_mainnet_events_on_any_node_sdk() {
-		let (records, _source) = read_events(MAINNET_EVENTS).expect("mainnet events must be readable");
+		let (records, _source) = read_events(MAINNET_EVENTS, None).expect("mainnet events must be readable");
 		assert_eq!(records.len(), 84, "block 13386492 has 84 events");
 
 		let evm_logs: Vec<_> = records
@@ -500,7 +601,7 @@ mod tests {
 	#[test]
 	fn skewed_node_recovers_exactly_not_partially() {
 		let native_ok = Records::decode(&mut &MAINNET_EVENTS[..]).is_ok();
-		let (records, source) = read_events(MAINNET_EVENTS).expect("must be readable");
+		let (records, source) = read_events(MAINNET_EVENTS, None).expect("must be readable");
 		println!("mainnet fixture read via {source:?} (native decode ok: {native_ok})");
 		assert_eq!(records.len(), 84);
 		if native_ok {
@@ -535,13 +636,13 @@ mod tests {
 		);
 	}
 
-	/// The hard guarantee: whatever this node cannot decode, a wormhole core-bridge
-	/// `LogMessagePublished` must still come out. Block 13384676 defeats both the typed
-	/// path and the balances compat layout on a skewed node, so this exercises the salvage
-	/// scan on real data.
+	/// The hard guarantee, with metadata taken away: whatever this node cannot decode, a
+	/// wormhole core-bridge `LogMessagePublished` must still come out. Block 13384676 defeats
+	/// both the typed path and the balances compat layout on a skewed node, so this exercises
+	/// the salvage scan on real data.
 	#[test]
 	fn wormhole_event_survives_undecodable_neighbours() {
-		let (records, source) = read_events(MAINNET_EVENTS_SEQ2).expect("must be readable");
+		let (records, source) = read_events(MAINNET_EVENTS_SEQ2, None).expect("must be readable");
 		println!("seq2 fixture read via {source:?}, {} records", records.len());
 
 		let published = records
@@ -567,5 +668,88 @@ mod tests {
 			decode_records::<BalancesEvent2506>(&padded).is_none(),
 			"trailing bytes must invalidate the decode"
 		);
+	}
+
+	/// What the metadata path costs, measured rather than assumed: the one-off layout build
+	/// against the per-block read, next to the pre-metadata tiers on the same blobs. Reports
+	/// only — a timing test that fails is a flaky test.
+	///
+	/// `HYDRA_FULL_METADATA=<blob>` measures the layout build against real 535 kB metadata
+	/// instead of the trimmed fixture.
+	#[test]
+	#[ignore = "timing, not correctness"]
+	fn cost_of_the_metadata_path() {
+		use std::time::Instant;
+
+		fn bench(label: &str, iters: u32, mut f: impl FnMut() -> usize) {
+			let out = f();
+			let start = Instant::now();
+			for _ in 0..iters {
+				f();
+			}
+			let each = start.elapsed() / iters;
+			println!("  {label:<46} {each:>12.2?}   ({out} records)");
+		}
+
+		let full = std::env::var("HYDRA_FULL_METADATA")
+			.ok()
+			.and_then(|p| std::fs::read(p).ok());
+		let blob = full
+			.as_deref()
+			.unwrap_or(super::super::metadata_events::TEST_CHAIN_METADATA);
+		println!(
+			"\n== one-off, per runtime version ({} kB metadata) ==",
+			blob.len() / 1024
+		);
+		let start = Instant::now();
+		let rounds = 5;
+		for _ in 0..rounds {
+			EventLayout::new(blob).expect("layout");
+		}
+		println!(
+			"  EventLayout::new (decode + compare)            {:>12.2?}",
+			start.elapsed() / rounds
+		);
+
+		let layout = EventLayout::new(blob).expect("layout");
+		println!("  verdict: {:?}", layout.verdict());
+
+		for (label, raw) in [
+			("13386492 / 84 events", MAINNET_EVENTS),
+			("13384676 / 50 events", MAINNET_EVENTS_SEQ2),
+		] {
+			println!("\n== per block, {label} ==");
+			bench("read_events with metadata (now)", 2000, || {
+				read_events(raw, Some(&layout)).map(|(r, _)| r.len()).unwrap_or(0)
+			});
+			bench("read_events without metadata (before)", 2000, || {
+				read_events(raw, None).map(|(r, _)| r.len()).unwrap_or(0)
+			});
+			bench("  of which: plain Decode, best case", 2000, || {
+				Records::decode(&mut &raw[..]).map(|r| r.len()).unwrap_or(0)
+			});
+			bench("  of which: compat balances layout", 2000, || {
+				decode_records::<BalancesEvent2506>(raw).map(|r| r.len()).unwrap_or(0)
+			});
+			bench("  of which: resync + evm sweep", 200, || {
+				read_resilient(raw).map(|(r, ..)| r.len()).unwrap_or(0)
+			});
+			// for scale: the decode is only the first half of the per-block work, and the whole
+			// lot is behind a per-block cache.
+			let records = read_events(raw, Some(&layout)).expect("readable").0;
+			let hashes: Vec<[u8; 32]> = (0..8u8).map(|i| [i; 32]).collect();
+			bench("translating those records into synth txs", 2000, || {
+				hydradx_runtime::evm::event_logs::synthetic_txs_from_records(
+					&records,
+					222_222,
+					&[7u8; 32],
+					&hashes,
+					13_386_492,
+					&[],
+				)
+				.len()
+			});
+		}
+		println!();
 	}
 }

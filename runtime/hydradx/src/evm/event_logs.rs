@@ -70,6 +70,47 @@ fn transfer(asset: u32, from: H160, to: H160, amount: u128) -> Vec<(H160, ethere
 	sp_std::vec![(addr, build_erc20_transfer_log(addr, from, to, U256::from(amount)))]
 }
 
+/// Every `(pallet, variant)` this module reads, by the names runtime metadata uses.
+///
+/// Three roles: most become erc20 `Transfer` or uniswap `Swap` logs below, `Ethereum.Executed`
+/// is what deduplicates synth logs against real eth txs, and
+/// `TransactionPayment.TransactionFeePaid` is where a synth tx's origin comes from. Losing any
+/// of them changes what `eth_getLogs` returns.
+///
+/// The node checks a chain's metadata against this list before reading a single block, so a
+/// runtime that moves one of these is a loud error instead of a quiet gap. Keep it in step
+/// with the match in `logs_from_event` and the two helpers under it.
+pub const SYNTH_EVENTS: &[(&str, &str)] = &[
+	("Tokens", "Transfer"),
+	("Tokens", "Deposited"),
+	("Tokens", "Withdrawn"),
+	("Tokens", "DustLost"),
+	("Tokens", "Slashed"),
+	("Tokens", "Reserved"),
+	("Tokens", "Unreserved"),
+	("Tokens", "ReserveRepatriated"),
+	("Tokens", "Locked"),
+	("Tokens", "Unlocked"),
+	("Balances", "Transfer"),
+	("Balances", "Deposit"),
+	("Balances", "Minted"),
+	("Balances", "Withdraw"),
+	("Balances", "Burned"),
+	("Balances", "DustLost"),
+	("Balances", "Slashed"),
+	("Balances", "Reserved"),
+	("Balances", "Unreserved"),
+	("Balances", "ReserveRepatriated"),
+	("Balances", "Locked"),
+	("Balances", "Frozen"),
+	("Balances", "Unlocked"),
+	("Balances", "Thawed"),
+	("Broadcast", "Swapped3"),
+	("EVM", "Log"),
+	("Ethereum", "Executed"),
+	("TransactionPayment", "TransactionFeePaid"),
+];
+
 /// Pure: the evm logs an indexer should see for one runtime event.
 pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
 	use orml_tokens::Event as Tokens;
