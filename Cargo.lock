@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "16.0.0"
+version = "16.0.1"
 dependencies = [
  "async-trait",
  "clap",
@@ -5691,6 +5691,7 @@ dependencies = [
  "fp-self-contained",
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "frame-metadata",
  "frame-support",
  "frame-system",
  "futures",
@@ -5706,6 +5707,7 @@ dependencies = [
  "log",
  "lru 0.12.5",
  "num_cpus",
+ "pallet-balances",
  "pallet-claims",
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
@@ -5733,6 +5735,7 @@ dependencies = [
  "sc-tracing",
  "sc-transaction-pool",
  "sc-transaction-pool-api",
+ "scale-info",
  "serde",
  "serde_json",
  "sp-api",
@@ -5815,7 +5818,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "429.0.0"
+version = "430.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
