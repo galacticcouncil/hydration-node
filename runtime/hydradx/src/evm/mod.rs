@@ -55,6 +55,7 @@ use sp_core::{crypto::AccountId32, Get, U256};
 pub mod aave_trade_executor;
 mod accounts_conversion;
 mod erc20_currency;
+pub mod event_logs;
 pub mod evm_error_decoder;
 mod evm_fee;
 mod executor;
@@ -62,6 +63,7 @@ mod gas_to_weight_mapping;
 pub mod permit;
 pub mod precompiles;
 mod runner;
+pub mod synthetic_logs;
 
 use crate::circuit_breaker::IgnoreWithdrawFuse;
 pub use erc20_currency::Erc20Currency;
@@ -238,6 +240,9 @@ impl pallet_evm_accounts::Config for Runtime {
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	// faster than ControllerOrigin (TC majority) so NTT mint/burn can be stopped in minutes
+	type NttEmergencyOrigin =
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<crate::governance::TechCommitteeMajority, GeneralAdmin>>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposits = AssetRegistry;

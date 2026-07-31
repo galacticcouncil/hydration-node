@@ -76,14 +76,9 @@ fn omnipool_fixed_fees_should_override_dynamic_fees() {
         // With 50% fixed fee, the received amount should be approximately half of the original
         let expected_half = hdx_received_dynamic / 2;
         let tolerance = hdx_received_dynamic / 10; // 10% tolerance
-        let difference = if hdx_received_fixed > expected_half {
-            hdx_received_fixed - expected_half
-        } else {
-            expected_half - hdx_received_fixed
-        };
+        let difference = hdx_received_fixed.abs_diff(expected_half);
         assert!(difference <= tolerance,
-            "HDX received with 50% fee ({}) should be approximately half of dynamic fee amount ({}), expected around {}, tolerance: {}", 
-            hdx_received_fixed, hdx_received_dynamic, expected_half, tolerance);
+            "HDX received with 50% fee ({hdx_received_fixed}) should be approximately half of dynamic fee amount ({hdx_received_dynamic}), expected around {expected_half}, tolerance: {tolerance}");
 
         let asset_state = hydradx_runtime::Omnipool::load_asset_state(ASSET_ID_TO_TEST).unwrap();
         let current_fees = pallet_dynamic_fees::UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((ASSET_ID_TO_TEST, asset_state.reserve));

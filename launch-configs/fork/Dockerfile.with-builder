@@ -1,0 +1,68 @@
+# Fork image built against THIS repo's node (e.g. a PR build) instead of the
+# released binary. Stage 1 compiles hydradx in bookworm so its glibc matches the
+# node:18-bookworm runtime; scraper + relay binaries still come from releases.
+# Build with the repo root as context:
+#   docker build -f launch-configs/fork/Dockerfile.with-builder -t galacticcouncil/fork:synth .
+FROM rust:1.88-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	clang libclang-dev protobuf-compiler cmake pkg-config libssl-dev git \
+	&& rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY . .
+
+ENV CXXFLAGS="-include cstdint"
+RUN cargo build --release --locked --config net.git-fetch-with-cli=true -p hydradx
+
+FROM node:18-bookworm
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    nodejs \
+    npm \
+    ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /zombienet/hydration-node/launch-configs/fork
+
+RUN wget -q https://github.com/paritytech/zombienet/releases/download/v1.3.128/zombienet-linux-x64 -O /usr/local/bin/zombienet && \
+    chmod +x /usr/local/bin/zombienet
+RUN zombienet version
+
+ARG POLKADOT_SDK_VERSION=latest
+
+RUN mkdir -p /zombienet/polkadot-sdk/target/release
+RUN if [ "$POLKADOT_SDK_VERSION" = "latest" ]; then \
+        DOWNLOAD_URL="https://github.com/paritytech/polkadot-sdk/releases/latest/download"; \
+    else \
+        DOWNLOAD_URL="https://github.com/paritytech/polkadot-sdk/releases/download/$POLKADOT_SDK_VERSION"; \
+    fi && \
+    for binary in polkadot polkadot-execute-worker polkadot-prepare-worker; do \
+        wget -q $DOWNLOAD_URL/$binary \
+            -O /zombienet/polkadot-sdk/target/release/$binary \
+        && chmod +x /zombienet/polkadot-sdk/target/release/$binary \
+        && /zombienet/polkadot-sdk/target/release/$binary --version; \
+    done
+
+ARG HYDRATION_BIN_URL=https://github.com/galacticcouncil/hydration-node/releases/latest/download
+
+RUN mkdir -p /zombienet/hydration-node/target/release
+# scraper is unchanged by this build, pull it from the latest release.
+RUN wget -q $HYDRATION_BIN_URL/scraper -O /zombienet/hydration-node/target/release/scraper && \
+    chmod +x /zombienet/hydration-node/target/release/scraper
+# hydradx comes from the local builder stage (this PR).
+COPY --from=builder /build/target/release/hydradx /zombienet/hydration-node/target/release/hydradx
+RUN chmod +x /zombienet/hydration-node/target/release/hydradx && \
+    /zombienet/hydration-node/target/release/hydradx --version
+
+COPY launch-configs/fork/ .
+
+RUN npm i
+
+VOLUME /zombienet/hydration-node/launch-configs/fork/data
+EXPOSE 9988
+
+CMD npm start

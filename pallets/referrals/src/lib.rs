@@ -298,6 +298,11 @@ pub mod pallet {
 			from: AssetAmount<T::AssetId>,
 			to: AssetAmount<T::AssetId>,
 		},
+		/// A pending asset could not be converted; skipped, not blocking.
+		ConversionFailed {
+			asset_id: T::AssetId,
+			reason: DispatchError,
+		},
 		/// Rewards claimed.
 		Claimed {
 			who: T::AccountId,
@@ -482,20 +487,18 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			for (asset_id, _) in PendingConversions::<T>::iter() {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
-				let r = T::Convert::convert(
+				// Best-effort, like `on_idle`: skip an un-convertible slice rather than revert the
+				// whole claim. Funds stay in the pot and re-queue on the next fee.
+				if let Err(reason) = T::Convert::convert(
 					Self::pot_account_id(),
 					asset_id.clone(),
 					T::RewardAsset::get(),
 					asset_balance,
-				);
-				if let Err(error) = r {
-					// We allow these errors to continue claiming as the current amount of asset that needed to be converted
-					// has very low impact on the rewards.
-					if error != Error::<T>::ConversionMinTradingAmountNotReached.into()
-						&& error != Error::<T>::ConversionZeroAmountReceived.into()
-					{
-						return Err(error);
-					}
+				) {
+					Self::deposit_event(Event::ConversionFailed {
+						asset_id: asset_id.clone(),
+						reason,
+					});
 				}
 				PendingConversions::<T>::remove(asset_id);
 			}
@@ -623,12 +626,17 @@ pub mod pallet {
 			for asset_id in PendingConversions::<T>::iter_keys().take(max_converts as usize) {
 				let asset_balance = T::Currency::balance(asset_id.clone(), &Self::pot_account_id());
 				// remove the asset_id from PendingConversions even when the conversion fails
-				let _ = T::Convert::convert(
+				if let Err(reason) = T::Convert::convert(
 					Self::pot_account_id(),
 					asset_id.clone(),
 					T::RewardAsset::get(),
 					asset_balance,
-				);
+				) {
+					Self::deposit_event(Event::ConversionFailed {
+						asset_id: asset_id.clone(),
+						reason,
+					});
+				}
 				PendingConversions::<T>::remove(asset_id);
 				actual_converts += 1;
 			}

@@ -336,7 +336,7 @@ pub mod rococo {
 
 	/// Helper function to generate a crypto pair from seed
 	fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-		TPublic::Pair::from_string(&format!("//{}", seed), None)
+		TPublic::Pair::from_string(&format!("//{seed}"), None)
 			.expect("static values are valid; qed")
 			.public()
 	}
@@ -396,7 +396,7 @@ pub mod rococo {
 		AuthorityDiscoveryId,
 	) {
 		(
-			get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
+			get_account_id_from_seed::<sr25519::Public>(&format!("{seed}//stash")),
 			get_account_id_from_seed::<sr25519::Public>(seed),
 			get_from_seed::<BabeId>(seed),
 			get_from_seed::<GrandpaId>(seed),
@@ -463,7 +463,7 @@ type AccountPublic = <MultiSignature as Verify>::Signer;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-	TPublic::Pair::from_string(&format!("//{}", seed), None)
+	TPublic::Pair::from_string(&format!("//{seed}"), None)
 		.expect("static values are valid; qed")
 		.public()
 }
@@ -929,7 +929,7 @@ pub fn hydradx_run_to_next_block() {
 
 pub fn hydradx_run_to_block(to: BlockNumber) {
 	let b = hydradx_runtime::System::block_number();
-	assert!(b <= to, "the current block number {:?} is higher than expected.", b);
+	assert!(b <= to, "the current block number {b:?} is higher than expected.");
 
 	if b < to {
 		go_to_block(to);
@@ -990,6 +990,7 @@ pub fn hydra_live_ext(
 			p.execute_with(|| {
 				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
+				pallet_stableswap::migrations::v2::MigrateV1ToV2::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 			});
 			p
 		});

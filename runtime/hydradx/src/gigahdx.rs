@@ -210,17 +210,6 @@ impl pallet_gigahdx::traits::ExternalClaims<AccountId> for HdxExternalClaims {
 	}
 }
 
-/// Derived sub-account that holds seized GIGAHDX (aToken) + the matching
-/// HDX after a gigahdx-collateral liquidation. Governance disposes later.
-pub struct GigaHdxLiquidationAccount;
-
-impl sp_core::Get<AccountId> for GigaHdxLiquidationAccount {
-	fn get() -> AccountId {
-		use frame_support::sp_runtime::traits::AccountIdConversion;
-		frame_support::PalletId(*b"gigaliq!").into_account_truncating()
-	}
-}
-
 /// Selective force-removal of gigahdx-rewards votes that would otherwise pin
 /// HDX the protocol is about to seize. Delegated to by
 /// `GigaHdxLiquidationSupport`; also used directly by integration tests.
@@ -363,7 +352,7 @@ impl pallet_liquidation::traits::GigaHdxSupport<AccountId> for GigaHdxLiquidatio
 	}
 
 	fn liquidation_account() -> AccountId {
-		<GigaHdxLiquidationAccount as sp_core::Get<AccountId>>::get()
+		<crate::TreasuryAccount as sp_core::Get<AccountId>>::get()
 	}
 
 	fn pool_contract() -> Option<EvmAddress> {

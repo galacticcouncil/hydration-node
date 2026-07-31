@@ -693,6 +693,9 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
 			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
+			// Arb profit can be smaller than the bought asset's ED and would otherwise be dust-reaped
+			// out of the pot before `settle_otc` measures it, spuriously failing the settlement.
+			pallet_otc_settlements::Pallet::<Runtime>::account_id(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -939,6 +942,9 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			// liquidity index is timestamp-dependent, so the rounding boundary
 			// shifts and a later attempt may pass.
 			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
+			// same class as dca's own retriable TradeLimitReached — erc20/aToken rounding
+			// can undershoot the dry-run output passed as router min limit
+			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];

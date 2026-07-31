@@ -23,19 +23,10 @@ fn enable_slip_fees() {
 
 /// Assert that `actual` is within `tolerance` of `expected`.
 fn assert_approx(actual: u128, expected: u128, tolerance: u128, label: &str) {
-	let diff = if actual >= expected {
-		actual - expected
-	} else {
-		expected - actual
-	};
+	let diff = actual.abs_diff(expected);
 	assert!(
 		diff <= tolerance,
-		"{}: rust={} python={} diff={} tolerance={}",
-		label,
-		actual,
-		expected,
-		diff,
-		tolerance
+		"{label}: rust={actual} python={expected} diff={diff} tolerance={tolerance}"
 	);
 }
 
@@ -64,9 +55,9 @@ fn dump_pool_state_and_fees() {
 		let dai_reserve = Currencies::free_balance(DAI, &Omnipool::protocol_account());
 
 		println!("=== POOL STATE ===");
-		println!("HDX reserve:      {}", hdx_reserve);
+		println!("HDX reserve:      {hdx_reserve}");
 		println!("HDX hub_reserve:  {}", hdx_state.hub_reserve);
-		println!("DAI reserve:      {}", dai_reserve);
+		println!("DAI reserve:      {dai_reserve}");
 		println!("DAI hub_reserve:  {}", dai_state.hub_reserve);
 
 		let (hdx_asset_fee, hdx_protocol_fee) =
@@ -74,8 +65,8 @@ fn dump_pool_state_and_fees() {
 		let (dai_asset_fee, dai_protocol_fee) =
 			pallet_dynamic_fees::UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 
-		println!("HDX asset_fee={:?} protocol_fee={:?}", hdx_asset_fee, hdx_protocol_fee);
-		println!("DAI asset_fee={:?} protocol_fee={:?}", dai_asset_fee, dai_protocol_fee);
+		println!("HDX asset_fee={hdx_asset_fee:?} protocol_fee={hdx_protocol_fee:?}");
+		println!("DAI asset_fee={dai_asset_fee:?} protocol_fee={dai_protocol_fee:?}");
 	});
 }
 
@@ -168,9 +159,7 @@ fn xval_single_buy() {
 	// Slip fees must increase cost vs baseline
 	assert!(
 		hdx_spent > cost_no_slip,
-		"Slip fee should increase buy cost: with_slip={} no_slip={}",
-		hdx_spent,
-		cost_no_slip
+		"Slip fee should increase buy cost: with_slip={hdx_spent} no_slip={cost_no_slip}"
 	);
 }
 
@@ -340,9 +329,7 @@ fn xval_multiple_buys_same_direction() {
 	let slip_total = trade1_cost + trade2_cost;
 	assert!(
 		slip_total > no_slip_total,
-		"Slip fees should increase total buy cost: with_slip={} no_slip={}",
-		slip_total,
-		no_slip_total
+		"Slip fees should increase total buy cost: with_slip={slip_total} no_slip={no_slip_total}"
 	);
 }
 
@@ -432,15 +419,11 @@ fn xval_multiple_buys_opposite_direction() {
 	// Slip fees must increase costs vs baseline
 	assert!(
 		trade1_cost > no_slip_trade1,
-		"Slip fee should increase trade1 cost: with_slip={} no_slip={}",
-		trade1_cost,
-		no_slip_trade1
+		"Slip fee should increase trade1 cost: with_slip={trade1_cost} no_slip={no_slip_trade1}"
 	);
 	assert!(
 		trade2_cost > no_slip_trade2,
-		"Slip fee should increase trade2 cost: with_slip={} no_slip={}",
-		trade2_cost,
-		no_slip_trade2
+		"Slip fee should increase trade2 cost: with_slip={trade2_cost} no_slip={no_slip_trade2}"
 	);
 }
 
@@ -550,9 +533,7 @@ fn xval_mixed_trades() {
 		// Slip fees must reduce trade 1 output vs no-slip baseline
 		assert!(
 			t1 < t1_no_slip,
-			"Slip fee should reduce trade1 output: no_slip={} with_slip={}",
-			t1_no_slip,
-			t1
+			"Slip fee should reduce trade1 output: no_slip={t1_no_slip} with_slip={t1}"
 		);
 	});
 }
@@ -735,9 +716,7 @@ fn xval_sell_lrna_for_dai_with_prior_delta() {
 		let py_fresh: u128 = 2035714285714285714285;
 		assert!(
 			t2_dai < py_fresh,
-			"Prior delta should reduce sell_lrna output: {} < {}",
-			t2_dai,
-			py_fresh
+			"Prior delta should reduce sell_lrna output: {t2_dai} < {py_fresh}"
 		);
 	});
 }
@@ -785,9 +764,7 @@ fn xval_buy_dai_with_lrna_after_prior_sell() {
 		let py_fresh_cost: u128 = 4511278;
 		assert!(
 			t2_lrna_cost >= py_fresh_cost,
-			"Prior delta should increase buy_lrna cost: {} >= {}",
-			t2_lrna_cost,
-			py_fresh_cost
+			"Prior delta should increase buy_lrna cost: {t2_lrna_cost} >= {py_fresh_cost}"
 		);
 	});
 }

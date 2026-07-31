@@ -2488,7 +2488,7 @@ mod stableswap {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 197218633037918;
+		let amount_to_receive = 198401944835214;
 		//With DCA
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -2512,11 +2512,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2616,11 +2616,11 @@ mod stableswap {
 
 				init_omnipol();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2683,11 +2683,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					30_000_000 * UNITS as i128,
+					30_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2774,11 +2774,11 @@ mod stableswap {
 
 				//Init omnipool and add pool id as token
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2790,12 +2790,11 @@ mod stableswap {
 				));
 				set_zero_reward_for_referrals(pool_id);
 				//Populate oracle with omnipool source
-				assert_ok!(Tokens::set_balance(
-					RawOrigin::Root.into(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					CHARLIE.into(),
 					pool_id,
-					1000 * UNITS,
-					0,
+					1000 * UNITS
 				));
 
 				assert_ok!(Omnipool::sell(
@@ -2860,7 +2859,7 @@ mod stableswap {
 				let fee = Currencies::free_balance(stable_asset_1, &Treasury::account_id());
 				assert!(fee > 0, "The treasury did not receive the fee");
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
-				assert_balance!(ALICE.into(), HDX, 1070726380522238);
+				assert_balance!(ALICE.into(), HDX, 1070726325505236);
 
 				assert_reserved_balance!(&ALICE.into(), stable_asset_1, dca_budget - amount_to_sell - fee);
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -2892,11 +2891,11 @@ mod stableswap {
 
 				init_omnipol();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -2909,12 +2908,11 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 
 				//Populate oracle with omnipool source
-				assert_ok!(Tokens::set_balance(
-					RawOrigin::Root.into(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					CHARLIE.into(),
 					pool_id,
-					1000 * UNITS,
-					0,
+					1000 * UNITS
 				));
 				assert_ok!(Omnipool::sell(
 					RuntimeOrigin::signed(CHARLIE.into()),
@@ -2962,7 +2960,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380522238);
+				assert_balance!(ALICE.into(), HDX, 1070726325505236);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -2993,11 +2991,11 @@ mod stableswap {
 
 				init_omnipol();
 
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3010,12 +3008,11 @@ mod stableswap {
 				set_zero_reward_for_referrals(pool_id);
 
 				//Populate oracle with omnipool source
-				assert_ok!(Tokens::set_balance(
-					RawOrigin::Root.into(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					CHARLIE.into(),
 					pool_id,
-					1000 * UNITS,
-					0,
+					1000 * UNITS
 				));
 				assert_ok!(Omnipool::sell(
 					RuntimeOrigin::signed(CHARLIE.into()),
@@ -3065,7 +3062,7 @@ mod stableswap {
 					stable_asset_1,
 					alice_init_stable1_balance - amount_to_sell
 				);
-				assert_balance!(ALICE.into(), HDX, 1070726380522238);
+				assert_balance!(ALICE.into(), HDX, 1070726325505236);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -3099,11 +3096,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3279,11 +3276,11 @@ mod stableswap {
 
 				//Init omnipool and add pool id as token
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3389,11 +3386,11 @@ mod stableswap {
 
 				//Init omnipool and add pool id as token
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3512,11 +3509,11 @@ mod stableswap {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					3000 * UNITS as i128,
+					3000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -3719,14 +3716,12 @@ mod stableswap {
 
 				assert_eq!(
 					alice_stable_shares_after, 0,
-					"User should have 0 pool shares since DCA execution failed. Got {}",
-					alice_stable_shares_after
+					"User should have 0 pool shares since DCA execution failed. Got {alice_stable_shares_after}"
 				);
 
 				assert_eq!(
 					router_reserved_shares, 0,
-					"Router should have 0 reserved shares. Got {}",
-					router_reserved_shares
+					"Router should have 0 reserved shares. Got {router_reserved_shares}"
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
@@ -3756,13 +3751,22 @@ mod stableswap {
 					alice_init_stable_balance as i128,
 				));
 
-				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				// Trigger lockdown on the stableshare (pool_id) by adding liquidity that mints
+				// more shares than the deposit limit
 				let deposit_limit = UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
-				assert_ok!(Currencies::deposit(
+				let bob_liquidity = 10_000_000_000_000_000_000u128;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					BOB.into(),
+					stable_asset_1,
+					bob_liquidity as i128,
+				));
+				assert_ok!(Stableswap::add_assets_liquidity(
+					RuntimeOrigin::signed(BOB.into()),
 					pool_id,
-					&AccountId::from(BOB),
-					deposit_limit + UNITS
+					BoundedVec::truncate_from(vec![AssetAmount::new(stable_asset_1, bob_liquidity)]),
+					Balance::zero(),
 				));
 
 				let dca_budget = 1100 * UNITS;
@@ -3823,13 +3827,22 @@ mod stableswap {
 					alice_init_stable_balance as i128,
 				));
 
-				// Trigger lockdown on the stableshare (pool_id) by exceeding deposit limit
+				// Trigger lockdown on the stableshare (pool_id) by adding liquidity that mints
+				// more shares than the deposit limit
 				let deposit_limit = UNITS;
 				crate::deposit_limiter::update_deposit_limit(pool_id, deposit_limit).unwrap();
-				assert_ok!(Currencies::deposit(
+				let bob_liquidity = 10_000_000_000_000_000_000u128;
+				assert_ok!(Currencies::update_balance(
+					RuntimeOrigin::root(),
+					BOB.into(),
+					stable_asset_1,
+					bob_liquidity as i128,
+				));
+				assert_ok!(Stableswap::add_assets_liquidity(
+					RuntimeOrigin::signed(BOB.into()),
 					pool_id,
-					&AccountId::from(BOB),
-					deposit_limit + UNITS
+					BoundedVec::truncate_from(vec![AssetAmount::new(stable_asset_1, bob_liquidity)]),
+					Balance::zero(),
 				));
 
 				let dca_budget = 1100 * UNITS;
@@ -4034,11 +4047,11 @@ mod all_pools {
 
 				//Create omnipool and populate oracle
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					1000000 * UNITS as i128,
+					1000000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4128,7 +4141,7 @@ mod all_pools {
 
 				//Assert
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
-				assert_balance!(ALICE.into(), DAI, 2380211607465609);
+				assert_balance!(ALICE.into(), DAI, 2380286185085611);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -4193,11 +4206,11 @@ mod with_onchain_route {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					300_000_000 * UNITS as i128,
+					300_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4283,7 +4296,7 @@ mod with_onchain_route {
 	#[test]
 	fn sell_should_work_with_omnipool_and_stable_trades_with_onchain_routes() {
 		let amount_to_sell = 200 * UNITS;
-		let amount_to_receive = 187172768546856u128;
+		let amount_to_receive = 198403134650839u128;
 
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -4307,11 +4320,11 @@ mod with_onchain_route {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					300_000_000 * UNITS as i128,
+					300_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4530,11 +4543,11 @@ mod with_onchain_route {
 				));
 
 				init_omnipol();
-				assert_ok!(Currencies::update_balance(
-					RuntimeOrigin::root(),
+				assert_ok!(Currencies::transfer(
+					RuntimeOrigin::signed(BOB.into()),
 					Omnipool::protocol_account(),
 					pool_id,
-					300_000_000 * UNITS as i128,
+					300_000_000 * UNITS
 				));
 
 				assert_ok!(Omnipool::add_token(
@@ -4929,6 +4942,95 @@ mod aave_atoken {
 				"retry should have succeeded and reset the counter"
 			);
 		});
+	}
+
+	#[test]
+	fn router_trading_limit_reached_should_be_retriable() {
+		use frame_support::traits::Contains;
+		assert!(hydradx_runtime::RetryOnErrorForDca::contains(
+			&pallet_route_executor::Error::<Runtime>::TradingLimitReached.into()
+		));
+	}
+
+	// Snapshot at block 13260776, produced with the same scraper command as above,
+	// --at 0x798bc20aeb759a30dd97aafdab03346ff463cbc17e776216d171a8b3ad6411d6
+	const PATH_TO_HSM_WINDDOWN_SNAPSHOT: &str = "dca-snapshot/SNAPSHOT_13260776";
+
+	// replays mainnet block 13260777: hsm wind-down schedule 33794 (sUSDe->HOLLAR->aUSDT) failed
+	// with router TradingLimitReached and was terminated instead of retried
+	#[test]
+	fn dca_should_retry_when_router_trading_limit_reached() {
+		TestNet::reset();
+
+		hydra_live_ext(PATH_TO_HSM_WINDDOWN_SNAPSHOT).execute_with(|| {
+			//Arrange
+			assert_eq!(hydradx_runtime::System::block_number(), 13260776);
+			let schedule_id = 33794;
+			assert!(DCA::schedules(schedule_id).is_some());
+			// on mainnet the timestamp inherent runs after on_initialize — keep the parent timestamp
+			hydradx_runtime::System::set_block_number(13260777);
+
+			// the slim snapshot strips schedule 33812's owner, so replay its trade by hand:
+			// the aave hop moves pool-111 shares out of the aHUSDT contract account, then the
+			// stableswap hop removes liquidity from pool 111 right before 33794 executes
+			let ahusdt: sp_runtime::AccountId32 =
+				hex_literal::hex!("455448001806860d27ee903c1ec7586d4f7d598d7591f1240000000000000000").into();
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				ahusdt,
+				111,
+				-22_133_969_015_170_432_881i128,
+			));
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				BOB.into(),
+				111,
+				22_133_969_015_170_432_881i128,
+			));
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				111,
+				222,
+				22_133_969_015_170_432_881u128,
+				0,
+				vec![Trade {
+					pool: PoolType::Stableswap(111),
+					asset_in: 111,
+					asset_out: 222,
+				}]
+				.try_into()
+				.unwrap(),
+			));
+			// exact hollar amount of the mainnet swap — the replayed state matches
+			assert_eq!(Currencies::free_balance(222, &BOB.into()), 22_567_968_483_370_805_906);
+
+			//Act
+			DCA::on_initialize(13260777);
+
+			//Assert: trade failed exactly like mainnet, but got retried instead of terminated
+			assert_trade_failed_with_router_trading_limit_reached(schedule_id);
+			assert!(
+				DCA::schedules(schedule_id).is_some(),
+				"schedule must be retried, not terminated"
+			);
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+		});
+	}
+
+	fn assert_trade_failed_with_router_trading_limit_reached(schedule_id: u32) {
+		let expected: sp_runtime::DispatchError = pallet_route_executor::Error::<Runtime>::TradingLimitReached.into();
+		let events = last_hydra_events(20);
+		let found = events.iter().any(|e| {
+			matches!(
+				e,
+				RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. })
+				if *id == schedule_id && *error == expected
+			)
+		});
+		assert!(
+			found,
+			"expected TradeFailed event with router::TradingLimitReached for schedule {schedule_id}"
+		);
 	}
 
 	fn assert_trade_failed_with_omnipool_insufficient_balance(schedule_id: u32) {
@@ -5552,9 +5654,7 @@ mod extra_gas_erc20 {
 
 			assert!(
 				fee_with_extra > base_fee,
-				"Fee with extra gas ({}) should be > base fee ({})",
-				fee_with_extra,
-				base_fee
+				"Fee with extra gas ({fee_with_extra}) should be > base fee ({base_fee})"
 			);
 
 			// The first attempt charged base fee (before extra gas was added)
@@ -6126,4 +6226,408 @@ fn rolling_buy_dca_completes_prematurely_when_price_increases() {
 			"Rolling DCA should still be active after price increase"
 		);
 	});
+}
+
+// Interaction between a `ghdxlock` balance lock and a named reserve. The Router
+// (fungible API) treats the spendable floor as `frozen - reserved`, whereas
+// `reserve`/locks treat them independently — so reserved HDX lets the Router
+// move otherwise-locked HDX.
+mod gigahdx_lock_reserve {
+	use super::*;
+	use frame_support::traits::tokens::fungible::Inspect as FungibleInspect;
+	use frame_support::traits::tokens::{Fortitude, Preservation};
+	use frame_support::traits::{LockIdentifier, LockableCurrency, WithdrawReasons};
+	use sp_runtime::TokenError;
+
+	// Same id a gigahdx stake installs via `set_lock`.
+	const GHDX_LOCK: LockIdentifier = *b"ghdxlock";
+
+	fn omnipool_route() -> BoundedVec<Trade<AssetId>, ConstU32<{ MAX_NUMBER_OF_TRADES }>> {
+		vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI,
+		}]
+		.try_into()
+		.unwrap()
+	}
+
+	fn reducible_hdx(who: &AccountId) -> Balance {
+		<Balances as FungibleInspect<AccountId>>::reducible_balance(who, Preservation::Expendable, Fortitude::Polite)
+	}
+
+	// With a 600 reserve, the fungible floor drops to `frozen - reserved = 0`, so
+	// the Router can sell HDX otherwise held by the 400 lock.
+	#[test]
+	fn router_sell_should_drain_ghdxlock_locked_hdx_when_account_holds_a_reserve() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				1000 * UNITS
+			));
+			// Reserve under the DCA id, then lock the remaining free (free == frozen == 400).
+			assert_ok!(Currencies::reserve_named(
+				&NamedReserveId::get(),
+				HDX,
+				&alice,
+				600 * UNITS
+			));
+			Balances::set_lock(GHDX_LOCK, &alice, 400 * UNITS, WithdrawReasons::all());
+
+			// Reducible is the whole free balance, not `free - frozen`.
+			assert_balance!(alice.clone(), HDX, 400 * UNITS);
+			assert_reserved_balance!(alice.clone(), HDX, 600 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 400 * UNITS);
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				300 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			// Free HDX drops below the 400 lock; the reserve is untouched.
+			assert_balance!(alice.clone(), HDX, 100 * UNITS);
+			assert_reserved_balance!(alice.clone(), HDX, 600 * UNITS);
+			assert!(
+				Currencies::free_balance(HDX, &alice) < 400 * UNITS,
+				"free HDX dropped below the lock"
+			);
+		});
+	}
+
+	// Same lock, no reserve: reducible is 0 and the Router sell is refused.
+	#[test]
+	fn router_sell_should_fail_to_touch_ghdxlock_when_no_reserve() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				400 * UNITS
+			));
+			Balances::set_lock(GHDX_LOCK, &alice, 400 * UNITS, WithdrawReasons::all());
+
+			assert_eq!(reducible_hdx(&alice), 0);
+
+			assert_noop!(
+				Router::sell(
+					RuntimeOrigin::signed(alice.clone()),
+					HDX,
+					DAI,
+					300 * UNITS,
+					0,
+					omnipool_route(),
+				),
+				TokenError::FundsUnavailable
+			);
+
+			assert_balance!(alice.clone(), HDX, 400 * UNITS);
+		});
+	}
+
+	// A real `DCA::schedule` parks the reserve; the Router then sells locked HDX
+	// while the DCA budget stays intact.
+	#[test]
+	fn dca_reserve_should_enable_selling_ghdxlock_locked_hdx() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2000 * UNITS
+			));
+
+			// Non-rolling sell schedule reserves its full 1200 HDX budget under
+			// NamedReserveId (dca/src/lib.rs: `reserve_amount = total_amount`).
+			let schedule =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, 1200 * UNITS, HDX, DAI, 100 * UNITS);
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(alice.clone()), schedule, None));
+			assert_reserved_balance!(alice.clone(), HDX, 1200 * UNITS);
+			assert_balance!(alice.clone(), HDX, 800 * UNITS);
+
+			// Lock the remaining 800 free HDX (free == frozen == 800).
+			Balances::set_lock(GHDX_LOCK, &alice, 800 * UNITS, WithdrawReasons::all());
+			assert_eq!(reducible_hdx(&alice), 800 * UNITS);
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				600 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			assert_balance!(alice.clone(), HDX, 200 * UNITS);
+			assert!(
+				Currencies::free_balance(HDX, &alice) < 800 * UNITS,
+				"free HDX dropped below the lock"
+			);
+			// DCA budget untouched.
+			assert_reserved_balance!(alice.clone(), HDX, 1200 * UNITS);
+		});
+	}
+
+	// Free can be pushed down only to `frozen - reserved`, so with reserve 200 <
+	// lock 600 exactly 200 of locked HDX is sellable and the next unit is refused.
+	#[test]
+	fn locked_hdx_sellable_is_capped_at_the_reserved_amount() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				1000 * UNITS
+			));
+			// Stake/lock 600, then park a 200 reserve (< stake).
+			Balances::set_lock(GHDX_LOCK, &alice, 600 * UNITS, WithdrawReasons::all());
+			assert_ok!(Currencies::reserve_named(
+				&NamedReserveId::get(),
+				HDX,
+				&alice,
+				200 * UNITS
+			));
+
+			// free 800, frozen 600, reserved 200 -> reducible = 800 - (600 - 200) = 400.
+			assert_balance!(alice.clone(), HDX, 800 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 400 * UNITS);
+
+			// Sell the full reducible: 200 above the lock + 200 below it.
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				400 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			// free == `frozen - reserved`; the floor is reached, one more unit is refused.
+			assert_balance!(alice.clone(), HDX, 400 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 0);
+			assert_noop!(
+				Router::sell(
+					RuntimeOrigin::signed(alice.clone()),
+					HDX,
+					DAI,
+					1 * UNITS,
+					0,
+					omnipool_route(),
+				),
+				TokenError::FundsUnavailable
+			);
+		});
+	}
+
+	// Reserve >= lock zeroes the floor, so the whole free balance is sellable:
+	// free drains to 0 while the full lock remains.
+	#[test]
+	fn whole_stake_becomes_sellable_when_reserve_at_least_matches_stake() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				1000 * UNITS
+			));
+			// Stake/lock 400, then park a 500 reserve (>= stake).
+			Balances::set_lock(GHDX_LOCK, &alice, 400 * UNITS, WithdrawReasons::all());
+			assert_ok!(Currencies::reserve_named(
+				&NamedReserveId::get(),
+				HDX,
+				&alice,
+				500 * UNITS
+			));
+
+			// free 500, frozen 400, reserved 500 -> floor 0, whole free is reducible.
+			assert_balance!(alice.clone(), HDX, 500 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 500 * UNITS);
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				500 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			// Free fully drained; the 400 lock remains, reserve untouched.
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_reserved_balance!(alice.clone(), HDX, 500 * UNITS);
+		});
+	}
+	// End to end with a reserve == lock. The reserve needs `free - budget >=
+	// frozen`, so it comes from unlocked HDX (account carries 2X); once it matches
+	// the lock the floor is 0 and a plain `transfer_allow_death` moves the locked X.
+	#[test]
+	fn user_scenario_stake_then_reserve_via_dca_then_transfer_out_the_whole_stake() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+
+			// X = 1000 (>= DCA `MinBudgetInNativeCurrency`). Alice needs 2X.
+			let x = 1000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+			let bob_before = Currencies::free_balance(HDX, &bob);
+
+			// Lock X (stake).
+			Balances::set_lock(GHDX_LOCK, &alice, x, WithdrawReasons::all());
+			assert_balance!(alice.clone(), HDX, 2 * x);
+
+			// Schedule a DCA to sell X: reserves X under `dcaorder`.
+			let schedule = schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, x, HDX, DAI, 100 * UNITS);
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(alice.clone()), schedule, None));
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			assert_balance!(alice.clone(), HDX, x);
+			assert_eq!(reducible_hdx(&alice), x);
+
+			// A plain transfer moves the whole locked X to Bob.
+			assert_ok!(Balances::transfer_allow_death(
+				RuntimeOrigin::signed(alice.clone()),
+				bob.clone(),
+				x
+			));
+
+			// Free HDX 0 behind the live X lock; DCA budget untouched; Bob got X.
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			assert_eq!(Currencies::free_balance(HDX, &bob), bob_before + x);
+		});
+	}
+
+	// With free 0, reserved X, frozen X, each unreserved unit is immediately
+	// re-frozen (reducible 0), so the DCA's own trade leg fails and the schedule
+	// terminates without selling.
+	#[test]
+	fn dca_cannot_trade_after_the_backing_is_transferred_out() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+			let x = 1000 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+
+			// Reserve X via a real DCA schedule, lock X, then move X out.
+			let schedule = schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, x, HDX, DAI, 100 * UNITS);
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(alice.clone()), schedule, None));
+			Balances::set_lock(GHDX_LOCK, &alice, x, WithdrawReasons::all());
+			assert_ok!(Balances::transfer_allow_death(
+				RuntimeOrigin::signed(alice.clone()),
+				bob.clone(),
+				x
+			));
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+
+			// The DCA's internal trade leg — a Router::sell — now fails outright.
+			assert_noop!(
+				Router::sell(
+					RuntimeOrigin::signed(alice.clone()),
+					HDX,
+					DAI,
+					100 * UNITS,
+					0,
+					omnipool_route(),
+				),
+				sp_runtime::TokenError::FundsUnavailable
+			);
+
+			// Drive the scheduler: the DCA fails its trade and terminates, selling nothing.
+			let dai_before = Currencies::free_balance(DAI, &alice);
+			run_to_block(12, 20);
+			assert!(DCA::schedules(0).is_none(), "DCA terminated");
+			assert_balance!(alice.clone(), DAI, dai_before);
+
+			// The refunded budget is re-frozen by the live lock (reducible 0).
+			assert_balance!(alice.clone(), HDX, x);
+			assert_reserved_balance!(alice.clone(), HDX, 0);
+			assert_eq!(reducible_hdx(&alice), 0);
+		});
+	}
+
+	// `Router::sell_all` sizes to `reducible_balance(.., Polite)`, which the reserve
+	// inflates to the full free balance — so one call sells all the locked HDX. The
+	// reserve stays trapped behind the lock afterwards.
+	#[test]
+	fn sell_all_drains_the_entire_locked_stake_in_one_call() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			let alice: AccountId = ALICE.into();
+			let x = 1000 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+
+			// Park the reserve via a real DCA schedule, then lock X.
+			let schedule = schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, x, HDX, DAI, 100 * UNITS);
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(alice.clone()), schedule, None));
+			Balances::set_lock(GHDX_LOCK, &alice, x, WithdrawReasons::all());
+			assert_balance!(alice.clone(), HDX, x);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			assert_eq!(reducible_hdx(&alice), x);
+
+			let dai_before = Currencies::free_balance(DAI, &alice);
+
+			// One call, no amount: sizes to the full free balance.
+			assert_ok!(Router::sell_all(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				0,
+				omnipool_route(),
+			));
+
+			// All the locked HDX was sold; the DCA budget is untouched.
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_eq!(Currencies::free_balance(DAI, &alice) - dai_before, 712_143_506_239_384);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+
+			// Unreserving the budget re-freezes it behind the lock.
+			assert_eq!(Currencies::unreserve_named(&NamedReserveId::get(), HDX, &alice, x), 0);
+			assert_balance!(alice.clone(), HDX, x);
+			assert_reserved_balance!(alice.clone(), HDX, 0);
+			assert_eq!(reducible_hdx(&alice), 0);
+		});
+	}
 }

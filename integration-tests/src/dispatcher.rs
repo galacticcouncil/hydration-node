@@ -101,7 +101,7 @@ fn dispatch_as_aave_admin_can_modify_supply_cap_on_testnet() {
 			RuntimeEvent::Dispatcher(pallet_dispatcher::Event::AaveManagerCallDispatched {
 				result: Ok(..), ..
 			}) => {}
-			_ => panic!("Unexpected event: {:?}", event),
+			_ => panic!("Unexpected event: {event:?}"),
 		}
 	});
 }
@@ -248,8 +248,7 @@ fn dispatch_with_extra_gas_should_pay_for_extra_gas_used_when_it_is_not_used() {
 		let gas_eater_paid_fee = initial_alice_hdx_balance - alice_balance_final;
 		assert_eq!(
 			gas_eater_paid_fee, hydra_paid_fee,
-			"GasEater transfer should cost the same as HydraToken transfer: {:?} == {:?}",
-			gas_eater_paid_fee, hydra_paid_fee
+			"GasEater transfer should cost the same as HydraToken transfer: {gas_eater_paid_fee:?} == {hydra_paid_fee:?}"
 		);
 	});
 }
@@ -363,17 +362,13 @@ fn dispatch_with_extra_gas_should_not_refund_extra_gas_correctly() {
 	// Fee charged on tx submit should be higher in the second case
 	assert!(
 		fee_charge_2 > fee_charge_1,
-		"Fee charged on tx submit should be higher in the second case: {:?} > {:?}",
-		fee_charge_2,
-		fee_charge_1
+		"Fee charged on tx submit should be higher in the second case: {fee_charge_2:?} > {fee_charge_1:?}"
 	);
 
 	// the two tx fees should be the same because it should refund correctly the unused gas
 	assert!(
 		actual_fee_paid_1 < actual_fee_paid_2,
-		"Paid fee should be higher for the second tx: {:?} < {:?}",
-		actual_fee_paid_1,
-		actual_fee_paid_2
+		"Paid fee should be higher for the second tx: {actual_fee_paid_1:?} < {actual_fee_paid_2:?}"
 	);
 }
 

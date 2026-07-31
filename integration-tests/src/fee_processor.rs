@@ -1793,3 +1793,72 @@ fn hdx_referral_slice_is_raw_hdx_and_immediately_claimable() {
 		);
 	});
 }
+
+// ---------------------------------------------------------------------------
+// hold_until_ed: the gigapot eventually receives every buffered HDX fee
+// ---------------------------------------------------------------------------
+
+#[test]
+fn gigapot_eventually_receives_all_buffered_hdx_fees_when_starting_below_ed() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_24();
+
+		let giga = gigahdx_pot();
+		let ed = primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
+		let held = || pallet_fee_processor::HeldFees::<Runtime>::get(&giga);
+		let delivered = || Currencies::free_balance(HDX, &giga);
+
+		// Production cannot seed the gigapot; drain the test-genesis seed so it starts
+		// below ED and its 15% HDX-path slice must be buffered, not delivered.
+		let seeded = delivered();
+		assert_ok!(Currencies::update_balance(
+			RawOrigin::Root.into(),
+			giga.clone(),
+			HDX,
+			-(seeded as i128),
+		));
+		assert_eq!(delivered(), 0, "gigapot starts below ED");
+
+		// Several small DAI->HDX trades. Each giga slice is far below ED, so it accrues into
+		// the buffer (physically held in the seeded fee-processor pot) instead of being
+		// delivered to the gigapot.
+		for _ in 0..4 {
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(BOB.into()),
+				DAI,
+				HDX,
+				10 * UNITS,
+				0
+			));
+			assert_eq!(delivered(), 0, "below ED: buffered, nothing delivered to the gigapot");
+			go_to_block(System::block_number() + 1);
+		}
+
+		// The four sub-ED slices are all buffered (none delivered), and the buffer is below ED.
+		let buffered = held();
+		assert_eq!(buffered, 2_371_450, "four sub-ED slices accrued into the buffer");
+		assert!(buffered < ed, "buffer is still below ED");
+		assert_eq!(delivered(), 0, "nothing delivered before the buffer crosses ED");
+
+		// One large trade makes buffer + new slice >= ED, flushing the whole buffer at once.
+		assert_ok!(Omnipool::sell(
+			RuntimeOrigin::signed(BOB.into()),
+			DAI,
+			HDX,
+			50_000_000 * UNITS,
+			0
+		));
+
+		// The buffer drains fully into the gigapot: HeldFees back to 0 and the gigapot now holds
+		// every accrued giga fee — the four previously buffered slices plus the flushing slice.
+		assert_eq!(held(), 0, "buffer fully flushed once the gigapot crosses ED");
+		assert_eq!(
+			delivered(),
+			3_140_987_039_253,
+			"gigapot receives all buffered fees plus the flushing slice"
+		);
+		assert!(delivered() > buffered, "delivery includes the previously buffered fees");
+	});
+}

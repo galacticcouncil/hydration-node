@@ -280,47 +280,28 @@ pub mod pallet {
 
 				ensure!(order.partially_fillable, Error::<T>::OrderNotPartiallyFillable);
 
-				let amount_out_calculation = U256::from(order.amount_out)
-					.checked_mul(U256::from(amount_in))
-					.and_then(|v| v.checked_div(U256::from(order.amount_in)))
-					.ok_or(Error::<T>::MathError)?;
-				let amount_out = Balance::try_from(amount_out_calculation).map_err(|_| Error::<T>::MathError)?;
-
-				order.amount_in = order.amount_in.checked_sub(amount_in).ok_or(Error::<T>::MathError)?;
-				order.amount_out = order.amount_out.checked_sub(amount_out).ok_or(Error::<T>::MathError)?;
-
+				let amount_out = Self::partial_amount_out(order.amount_out, amount_in, order.amount_in)?;
 				let fee = Self::calculate_fee(amount_out);
 
-				Self::ensure_min_order_amount(order.asset_in, order.amount_in)?;
-				// the fee is applied to amount_out
-				Self::ensure_min_order_amount(
-					order.asset_out,
-					order.amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?,
-				)?;
+				let new_amount_in = order.amount_in.checked_sub(amount_in).ok_or(Error::<T>::MathError)?;
+				let new_amount_out = order.amount_out.checked_sub(amount_out).ok_or(Error::<T>::MathError)?;
+				Self::ensure_remaining_order_valid(order.asset_in, order.asset_out, new_amount_in, new_amount_out)?;
+
+				order.amount_in = new_amount_in;
+				order.amount_out = new_amount_out;
 
 				Self::execute_order(order, &who, amount_in, amount_out, fee)?;
 
-				// TODO: Deprecated, remove when ready
-				Self::deposit_event(Event::PartiallyFilled {
+				Self::deposit_fill_events(
 					order_id,
-					who: who.clone(),
+					&order.owner,
+					&who,
+					order.asset_in,
+					order.asset_out,
 					amount_in,
 					amount_out,
 					fee,
-				});
-
-				pallet_broadcast::Pallet::<T>::deposit_trade_event(
-					order.owner.clone(),
-					who,
-					pallet_broadcast::types::Filler::OTC(order_id),
-					pallet_broadcast::types::TradeOperation::ExactIn,
-					vec![Asset::new(order.asset_in.into(), amount_in)],
-					vec![Asset::new(order.asset_out.into(), amount_out)],
-					vec![Fee {
-						asset: order.asset_out.into(),
-						amount: fee,
-						destination: Destination::Account(T::FeeReceiver::get()),
-					}],
+					false,
 				);
 
 				Ok(())
@@ -346,27 +327,16 @@ pub mod pallet {
 			Self::execute_order(&order, &who, order.amount_in, order.amount_out, fee)?;
 			<Orders<T>>::remove(order_id);
 
-			// TODO: Deprecated, remove when ready
-			Self::deposit_event(Event::Filled {
+			Self::deposit_fill_events(
 				order_id,
-				who: who.clone(),
-				amount_in: order.amount_in,
-				amount_out: order.amount_out,
+				&order.owner,
+				&who,
+				order.asset_in,
+				order.asset_out,
+				order.amount_in,
+				order.amount_out,
 				fee,
-			});
-
-			pallet_broadcast::Pallet::<T>::deposit_trade_event(
-				who,
-				order.owner,
-				pallet_broadcast::types::Filler::OTC(order_id),
-				pallet_broadcast::types::TradeOperation::ExactIn,
-				vec![Asset::new(order.asset_in.into(), order.amount_in)],
-				vec![Asset::new(order.asset_out.into(), order.amount_out)],
-				vec![Fee {
-					asset: order.asset_out.into(),
-					amount: fee,
-					destination: Destination::Account(T::FeeReceiver::get()),
-				}],
+				true,
 			);
 
 			Ok(())
@@ -423,6 +393,8 @@ impl<T: Config> Pallet<T> {
 		amount_out: Balance,
 		fee: Balance,
 	) -> DispatchResult {
+		// Filler pays the maker first, so the maker's account keeps a live balance while its
+		// reserved asset_out is released back.
 		T::Currency::transfer(
 			order.asset_in,
 			who,
@@ -430,29 +402,222 @@ impl<T: Config> Pallet<T> {
 			amount_in,
 			ExistenceRequirement::AllowDeath,
 		)?;
+		Self::release_reserved_asset_out(order.asset_out, &order.owner, who, amount_out, fee)
+	}
+
+	/// Pro-rata `amount_out` for filling `amount_in` of an order priced `order_amount_out : order_amount_in`.
+	fn partial_amount_out(
+		order_amount_out: Balance,
+		amount_in: Balance,
+		order_amount_in: Balance,
+	) -> Result<Balance, DispatchError> {
+		let amount_out = U256::from(order_amount_out)
+			.checked_mul(U256::from(amount_in))
+			.and_then(|v| v.checked_div(U256::from(order_amount_in)))
+			.ok_or(Error::<T>::MathError)?;
+		Ok(Balance::try_from(amount_out).map_err(|_| Error::<T>::MathError)?)
+	}
+
+	/// Ensure the residual of a partially filled order still clears the minimum order amount on both
+	/// legs. The asset_out leg is checked net of the fee the *remaining* order would pay when filled,
+	/// matching `place_order`, so an order is fillable through every entry point on the same terms.
+	fn ensure_remaining_order_valid(
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		new_amount_in: Balance,
+		new_amount_out: Balance,
+	) -> DispatchResult {
+		let remaining_fee = Self::calculate_fee(new_amount_out);
+		Self::ensure_min_order_amount(asset_in, new_amount_in)?;
+		Self::ensure_min_order_amount(
+			asset_out,
+			new_amount_out.checked_sub(remaining_fee).ok_or(Error::<T>::MathError)?,
+		)
+	}
+
+	/// Release the maker's reserved `asset_out` for a fill: unreserve `amount_out`, pay the filler the
+	/// amount net of fee, and send the fee to the fee receiver.
+	fn release_reserved_asset_out(
+		asset_out: T::AssetId,
+		owner: &T::AccountId,
+		filler: &T::AccountId,
+		amount_out: Balance,
+		fee: Balance,
+	) -> DispatchResult {
 		let remaining_to_unreserve =
 			// returns any amount that was unable to be unreserved
-			T::Currency::unreserve_named(&NAMED_RESERVE_ID, order.asset_out, &order.owner, amount_out);
+			T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_out, owner, amount_out);
 		ensure!(remaining_to_unreserve.is_zero(), Error::<T>::InsufficientReservedAmount);
 
 		let amount_out_without_fee = amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?;
-
 		T::Currency::transfer(
-			order.asset_out,
-			&order.owner,
-			who,
+			asset_out,
+			owner,
+			filler,
 			amount_out_without_fee,
 			ExistenceRequirement::AllowDeath,
 		)?;
 		T::Currency::transfer(
-			order.asset_out,
-			&order.owner,
+			asset_out,
+			owner,
 			&T::FeeReceiver::get(),
 			fee,
 			ExistenceRequirement::AllowDeath,
 		)?;
-
 		Ok(())
+	}
+
+	/// Emit the (deprecated) `Filled`/`PartiallyFilled` event and the broadcast `Swapped` event for a
+	/// fill. Full and partial fills report the swapper/filler in opposite orders; that is preserved.
+	#[allow(clippy::too_many_arguments)]
+	fn deposit_fill_events(
+		order_id: OrderId,
+		owner: &T::AccountId,
+		filler: &T::AccountId,
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		fee: Balance,
+		is_full_fill: bool,
+	) {
+		// TODO: Deprecated, remove when ready
+		if is_full_fill {
+			Self::deposit_event(Event::Filled {
+				order_id,
+				who: filler.clone(),
+				amount_in,
+				amount_out,
+				fee,
+			});
+		} else {
+			Self::deposit_event(Event::PartiallyFilled {
+				order_id,
+				who: filler.clone(),
+				amount_in,
+				amount_out,
+				fee,
+			});
+		}
+
+		let (swapper, broadcast_filler) = if is_full_fill {
+			(filler.clone(), owner.clone())
+		} else {
+			(owner.clone(), filler.clone())
+		};
+
+		pallet_broadcast::Pallet::<T>::deposit_trade_event(
+			swapper,
+			broadcast_filler,
+			pallet_broadcast::types::Filler::OTC(order_id),
+			pallet_broadcast::types::TradeOperation::ExactIn,
+			vec![Asset::new(asset_in.into(), amount_in)],
+			vec![Asset::new(asset_out.into(), amount_out)],
+			vec![Fee {
+				asset: asset_out.into(),
+				amount: fee,
+				destination: Destination::Account(T::FeeReceiver::get()),
+			}],
+		);
+	}
+
+	/// Fill an order (fully or partially) where the filler provides `asset_in` *after* receiving
+	/// `asset_out`, instead of before.
+	///
+	/// The maker's reserved `asset_out` for the filled portion (minus fee) is released to `filler`
+	/// first, then `deliver` is invoked with that amount so the filler can source `asset_in` from it
+	/// (e.g. by trading it through a pool), and finally `amount_in` of `asset_in` is pulled from
+	/// `filler` to the maker to complete the fill. The final transfer fails if `deliver` did not
+	/// leave `filler` holding at least `amount_in` of `asset_in`.
+	///
+	/// Must run inside a transaction: a failure in `deliver` or in any transfer rolls the whole fill
+	/// back, so the order and the maker's reserve are never left half-settled.
+	#[require_transactional]
+	pub fn fill_order_with_deferred_delivery<F>(
+		order_id: OrderId,
+		filler: &T::AccountId,
+		amount_in: Balance,
+		deliver: F,
+	) -> DispatchResult
+	where
+		F: FnOnce(Balance) -> DispatchResult,
+	{
+		<Orders<T>>::try_mutate_exists(order_id, |maybe_order| -> DispatchResult {
+			let (owner, asset_in, asset_out, order_amount_in, order_amount_out, partially_fillable) = {
+				let order = maybe_order.as_ref().ok_or(Error::<T>::OrderNotFound)?;
+				(
+					order.owner.clone(),
+					order.asset_in,
+					order.asset_out,
+					order.amount_in,
+					order.amount_out,
+					order.partially_fillable,
+				)
+			};
+
+			ensure!(amount_in <= order_amount_in, Error::<T>::MathError);
+			let is_full_fill = amount_in == order_amount_in;
+
+			let amount_out = if is_full_fill {
+				order_amount_out
+			} else {
+				ensure!(partially_fillable, Error::<T>::OrderNotPartiallyFillable);
+				Self::partial_amount_out(order_amount_out, amount_in, order_amount_in)?
+			};
+
+			let fee = Self::calculate_fee(amount_out);
+			let amount_out_without_fee = amount_out.checked_sub(fee).ok_or(Error::<T>::MathError)?;
+
+			// Validate the residual order before the router trade so a doomed fill is rejected cheaply.
+			let remaining = if is_full_fill {
+				None
+			} else {
+				let new_amount_in = order_amount_in.checked_sub(amount_in).ok_or(Error::<T>::MathError)?;
+				let new_amount_out = order_amount_out.checked_sub(amount_out).ok_or(Error::<T>::MathError)?;
+				Self::ensure_remaining_order_valid(asset_in, asset_out, new_amount_in, new_amount_out)?;
+				Some((new_amount_in, new_amount_out))
+			};
+
+			// Collect-before-deliver drains the maker's `asset_out` before `asset_in` is handed back;
+			// hold a provider reference so a maker holding only `asset_out` is not reaped (nonce reset)
+			// in the gap. The whole call is transactional, so an early return rolls this back too.
+			frame_system::Pallet::<T>::inc_providers(&owner);
+
+			Self::release_reserved_asset_out(asset_out, &owner, filler, amount_out, fee)?;
+
+			// Filler sources asset_in using the funds it just received.
+			deliver(amount_out_without_fee)?;
+
+			// Filler delivers asset_in to the maker, completing the fill.
+			T::Currency::transfer(asset_in, filler, &owner, amount_in, ExistenceRequirement::AllowDeath)?;
+
+			frame_system::Pallet::<T>::dec_providers(&owner)?;
+
+			match remaining {
+				None => {
+					*maybe_order = None;
+				}
+				Some((new_amount_in, new_amount_out)) => {
+					let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
+					order.amount_in = new_amount_in;
+					order.amount_out = new_amount_out;
+				}
+			}
+
+			Self::deposit_fill_events(
+				order_id,
+				&owner,
+				filler,
+				asset_in,
+				asset_out,
+				amount_in,
+				amount_out,
+				fee,
+				is_full_fill,
+			);
+
+			Ok(())
+		})
 	}
 
 	pub fn calculate_fee(amount: Balance) -> Balance {
