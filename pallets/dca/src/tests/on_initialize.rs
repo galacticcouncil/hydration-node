@@ -1367,20 +1367,24 @@ fn dca_schedule_should_retry_when_error_is_configured_to_retry_on() {
 
 			//Act and assert
 			let schedule_id = 0;
+			let retry_1 = retry_block(502, 0);
+			let retry_2 = retry_block(retry_1, 1);
+			let retry_3 = retry_block(retry_2, 2);
+
 			set_to_blocknumber(502);
 			assert!(DCA::schedules(schedule_id).is_some());
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
-			assert_scheduled_ids!(522, vec![schedule_id]);
+			assert_scheduled_ids!(retry_1, vec![schedule_id]);
 
-			set_to_blocknumber(522);
+			set_to_blocknumber(retry_1);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
-			assert_scheduled_ids!(562, vec![schedule_id]);
+			assert_scheduled_ids!(retry_2, vec![schedule_id]);
 
-			set_to_blocknumber(562);
+			set_to_blocknumber(retry_2);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
-			assert_scheduled_ids!(642, vec![schedule_id]);
+			assert_scheduled_ids!(retry_3, vec![schedule_id]);
 
-			set_to_blocknumber(642);
+			set_to_blocknumber(retry_3);
 			assert_number_of_executed_sell_trades!(0);
 			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::MaxRetryReached.into());
 		});
