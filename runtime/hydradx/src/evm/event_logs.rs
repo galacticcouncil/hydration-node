@@ -15,7 +15,7 @@
 
 use super::synthetic_logs::{
 	account_to_evm_address, assemble_synth_txs, asset_evm_address, build_erc20_transfer_log, build_uniswap_v2_swap_log,
-	frozen_address_of, reserved_address_of, Bucket, HookPhase,
+	frozen_address_of, reserved_address_of, Bucket, ExtrinsicMeta, HookPhase,
 };
 use crate::RuntimeEvent;
 use frame_system::{EventRecord, Phase};
@@ -309,6 +309,7 @@ pub fn synthetic_txs_from_records(
 	chain_id: u64,
 	block_hash: &[u8],
 	extrinsic_hashes: &[[u8; 32]],
+	block_number: u64,
 	real_statuses: &[TransactionStatus],
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
 	let base_tx_index = real_statuses.len() as u32;
@@ -368,7 +369,30 @@ pub fn synthetic_txs_from_records(
 	if entries.is_empty() {
 		return Vec::new();
 	}
-	assemble_synth_txs(entries, chain_id, block_hash, extrinsic_hashes, base_tx_index)
+	// Origin of each extrinsic, used as the synth tx's `to`. `TransactionFeePaid` is the
+	// cheapest reliable signal: already in these records, so no extrinsic decode and no
+	// exposure to the sdk skew `compat_events` handles. Unsigned extrinsics emit none and
+	// correctly end up with no origin.
+	let mut origins: BTreeMap<u32, H160> = BTreeMap::new();
+	for rec in records.iter() {
+		if let RuntimeEvent::TransactionPayment(pallet_transaction_payment::Event::TransactionFeePaid { who, .. }) =
+			&rec.event
+		{
+			if let Phase::ApplyExtrinsic(i) = rec.phase {
+				origins.insert(i, evm_addr(who));
+			}
+		}
+	}
+	let extrinsics: Vec<ExtrinsicMeta> = extrinsic_hashes
+		.iter()
+		.enumerate()
+		.map(|(i, hash)| ExtrinsicMeta {
+			hash: *hash,
+			origin: origins.get(&(i as u32)).copied(),
+		})
+		.collect();
+
+	assemble_synth_txs(entries, chain_id, block_hash, &extrinsics, block_number, base_tx_index)
 }
 
 #[cfg(test)]
@@ -608,7 +632,7 @@ mod tests {
 			logs: sp_std::vec![receipt_dup],
 			logs_bloom: Default::default(),
 		}];
-		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], &[], &real);
+		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], &[], 1, &real);
 		let synth_logs: Vec<ethereum::Log> = out.iter().flat_map(|(_, s, _)| s.logs.clone()).collect();
 		assert!(
 			synth_logs.iter().any(|l| l.address == internal_addr),
