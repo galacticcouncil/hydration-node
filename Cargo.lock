@@ -5632,7 +5632,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.1.6"
+version = "15.1.7"
 dependencies = [
  "async-trait",
  "clap",
@@ -5659,6 +5659,7 @@ dependencies = [
  "fp-self-contained",
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "frame-metadata 20.0.0",
  "frame-support",
  "frame-system",
  "futures",
@@ -5674,6 +5675,7 @@ dependencies = [
  "log",
  "lru 0.12.5",
  "num_cpus",
+ "pallet-balances",
  "pallet-claims",
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
@@ -5701,6 +5703,7 @@ dependencies = [
  "sc-tracing",
  "sc-transaction-pool",
  "sc-transaction-pool-api",
+ "scale-info",
  "serde",
  "serde_json",
  "sp-api",
