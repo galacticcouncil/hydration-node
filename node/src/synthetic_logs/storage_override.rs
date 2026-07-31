@@ -155,9 +155,19 @@ where
 			.map(|body| body.iter().map(|xt| BlakeTwo256::hash_of(xt).0).collect())
 			.unwrap_or_default();
 
+		// Only used to order the synth `nonce`; identity comes from `at` + extrinsic hash.
+		let block_number: u64 = self.client.number(at).ok().flatten().map_or(0, u64::from);
+
 		// `at` is the block's OWN hash: sibling blocks share a parent, so a parent-based
 		// domain gave colliding synth tx hashes on every fork.
-		synthetic_txs_from_records(&records, chain_id, at.as_ref(), &extrinsic_hashes, &real_statuses)
+		synthetic_txs_from_records(
+			&records,
+			chain_id,
+			at.as_ref(),
+			&extrinsic_hashes,
+			block_number,
+			&real_statuses,
+		)
 	}
 }
 
