@@ -129,7 +129,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 433,
+	spec_version: 434,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -173,6 +173,7 @@ construct_runtime!(
 		Origins: pallet_custom_origins = 38,
 		Whitelist: pallet_whitelist = 39,
 		Dispatcher: pallet_dispatcher = 40,
+		MetaTx: pallet_meta_tx = 41,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
@@ -360,6 +361,7 @@ mod benches {
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_dispatcher, Dispatcher]
+		[pallet_meta_tx, MetaTx]
 		[pallet_hsm, HSM]
 		[pallet_dynamic_fees, DynamicFees]
 		[pallet_signet, Signet]

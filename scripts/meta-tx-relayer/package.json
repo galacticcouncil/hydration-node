@@ -1,0 +1,19 @@
+{
+  "name": "meta-tx-relayer",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/server.js",
+  "description": "Sponsoring relayer for pallet-meta-tx: accepts signed intents and submits them, paying the fee",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "node src/server.js",
+    "demo": "node src/demo.js"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.4.5",
+    "@polkadot/keyring": "^13.5.5",
+    "@polkadot/util": "^13.5.5",
+    "@polkadot/util-crypto": "^13.5.5",
+    "express": "^4.21.2"
+  }
+}

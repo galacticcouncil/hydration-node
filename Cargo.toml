@@ -21,6 +21,7 @@ members = [
     'runtime/adapters',
     'pallets/collator-rewards',
     'pallets/collator-rotation',
+    'pallets/meta-tx',
     'pallets/transaction-pause',
     'pallets/ema-oracle',
     'pallets/liquidity-mining',
@@ -150,6 +151,7 @@ pallet-relaychain-info = { path = "pallets/relaychain-info", default-features = 
 pallet-route-executor = { path = "pallets/route-executor", default-features = false }
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
 pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false }
+pallet-meta-tx = { path = "pallets/meta-tx", default-features = false }
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
 pallet-staking = { path = "pallets/staking", default-features = false }
 pallet-democracy = { path = "pallets/democracy", default-features = false }

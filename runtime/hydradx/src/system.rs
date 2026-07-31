@@ -444,6 +444,13 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
 }
 
+impl pallet_meta_tx::Config for Runtime {
+	type RuntimeCall = RuntimeCall;
+	type Signature = primitives::Signature;
+	type Signer = <primitives::Signature as sp_runtime::traits::Verify>::Signer;
+	type WeightInfo = pallet_meta_tx::weights::HydraWeight<Runtime>;
+}
+
 pub struct ManageExecutionTypeForUnifiedEvent;
 
 impl BatchHook for ManageExecutionTypeForUnifiedEvent {
