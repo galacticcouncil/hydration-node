@@ -9,7 +9,7 @@ use sp_runtime::traits::{BlockNumberProvider, Saturating};
 use sp_std::marker::PhantomData;
 
 const MIGRATION_DONE_KEY: &[u8] = b"HydrationConvictionVoting2sBlockMigrationDone";
-const MAX_VOTING_FOR_RECORDS: u64 = 1_000;
+const MAX_VOTING_FOR_RECORDS: u64 = 10_000;
 
 // This migration preserves existing conviction-voting prior-lock wall-clock unlock times when
 // moving from 6s to 2s blocks. Only `VotingFor` stores block numbers; `ClassLocksFor` stores

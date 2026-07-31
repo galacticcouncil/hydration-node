@@ -51,14 +51,14 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 		let lookup_len = lookup.len() as u64;
 
 		log::info!(
-			"MigrateSchedulerTo2sBlocks found Agenda entries: {:?}, Agenda cap: 150, Lookup entries: {:?}, Lookup cap: 5",
+			"MigrateSchedulerTo2sBlocks found Agenda entries: {:?}, Agenda cap: 750, Lookup entries: {:?}, Lookup cap: 5",
 			agenda_len,
 			lookup_len,
 		);
 
-		if agenda_len >= 150 {
+		if agenda_len >= 750 {
 			log::error!(
-				"MigrateSchedulerTo2sBlocks skipped because Agenda has {:?} entries, cap: 150",
+				"MigrateSchedulerTo2sBlocks skipped because Agenda has {:?} entries, cap: 750",
 				agenda_len
 			);
 			return T::DbWeight::get().reads_writes(agenda_len.saturating_add(lookup_len).saturating_add(1), 0);
