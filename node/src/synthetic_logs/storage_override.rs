@@ -16,7 +16,10 @@
 use std::{
 	marker::PhantomData,
 	num::NonZeroUsize,
-	sync::{Arc, Mutex, Once},
+	sync::{
+		atomic::{AtomicUsize, Ordering},
+		Arc, Mutex, Once,
+	},
 };
 
 use super::compat_events;
@@ -36,10 +39,24 @@ use sp_storage::StorageKey;
 type Hash = <Block as BlockT>::Hash;
 type SynthTxs = Vec<(EthTransaction, TransactionStatus, EthReceipt)>;
 
-// node/runtime sdk skew is a persistent condition, so report it once instead of
-// once per block.
+// A recoverable skew is one persistent condition, so it is reported once. Data loss is
+// not: `Partial` and total failure get their OWN counters, because sharing a latch with
+// the recoverable case silently swallowed real loss — a `Compat` block consumed the
+// latch and every later dropped record went unreported.
 static SKEW_WARNED: Once = Once::new();
+static PARTIAL_SEEN: AtomicUsize = AtomicUsize::new(0);
 static DECODE_FAILED: Once = Once::new();
+
+/// Log the first occurrence, then back off by powers of two, so persistent loss stays
+/// visible without flooding one line per block.
+fn should_report(counter: &AtomicUsize) -> usize {
+	let n = counter.fetch_add(1, Ordering::Relaxed);
+	if n == 0 || n.is_power_of_two() {
+		n + 1
+	} else {
+		0
+	}
+}
 
 // `synthetic()` is invoked once each by `current_block`/`current_receipts`/
 // `current_transaction_statuses`, so a range `eth_getLogs` would re-read and
@@ -107,17 +124,28 @@ where
 				});
 				records
 			}
-			Some((records, compat_events::Source::Partial { skipped, trailing })) => {
-				SKEW_WARNED.call_once(|| {
+			Some((
+				records,
+				compat_events::Source::Partial {
+					skipped,
+					recovered,
+					trailing,
+				},
+			)) => {
+				// Real data loss: a dropped record takes its logs with it, and a resync can skip a
+				// RUN of records (observed: 12 of 19 logs on one block, including a wormhole
+				// LogMessagePublished). Never share a latch with the recoverable Compat case.
+				let seen = should_report(&PARTIAL_SEEN);
+				if seen > 0 {
 					log::error!(
 						target: "synthetic-logs",
-						"System::Events only partially decodable by this node — synth logs are \
-						 INCOMPLETE (first affected block dropped {skipped} event(s), {trailing} \
-						 trailing byte(s)). the node's RuntimeEvent does not match the on-chain \
-						 runtime's; add its pallet_balances layout to compat_events.rs or deploy a \
-						 node built against the live runtime's sdk."
+						"System::Events only partially decodable — synth logs are INCOMPLETE for \
+						 block {at:?}: dropped {skipped} event(s), salvaged {recovered} EVM.Log, \
+						 {trailing} trailing byte(s). {seen} affected block(s) so far. this node's \
+						 RuntimeEvent does not match the on-chain runtime's; deploy a node built \
+						 against the live runtime's sdk."
 					)
-				});
+				}
 				records
 			}
 			// never silent: an undecodable block otherwise looks event-free and drops every
