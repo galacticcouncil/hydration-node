@@ -27,6 +27,7 @@ mod global_withdraw_limit;
 mod hsm;
 mod insufficient_assets_ed;
 mod liquidation;
+mod meta_tx;
 mod multi_payment;
 mod non_native_fee;
 mod omnipool_add_all_liquidity;

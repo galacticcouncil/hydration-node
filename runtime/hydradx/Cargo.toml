@@ -55,6 +55,7 @@ pallet-collator-rotation = { workspace = true }
 pallet-currencies = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
 pallet-ema-oracle = { workspace = true }
+pallet-meta-tx = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
 pallet-duster-rpc-runtime-api = { workspace = true }
@@ -217,6 +218,7 @@ runtime-benchmarks = [
     "pallet-claims/runtime-benchmarks",
     "pallet-identity/runtime-benchmarks",
     "pallet-collective/runtime-benchmarks",
+    "pallet-meta-tx/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
     "pallet-tips/runtime-benchmarks",
     "pallet-proxy/runtime-benchmarks",
@@ -332,6 +334,7 @@ std = [
     "pallet-currencies-rpc-runtime-api/std",
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
+    "pallet-meta-tx/std",
     "pallet-transaction-pause/std",
     "pallet-dca/std",
     "pallet-ema-oracle/std",
@@ -422,6 +425,7 @@ try-runtime = [
     "pallet-session/try-runtime",
     "pallet-timestamp/try-runtime",
     "pallet-transaction-payment/try-runtime",
+    "pallet-meta-tx/try-runtime",
     "pallet-transaction-pause/try-runtime",
     "pallet-ema-oracle/try-runtime",
     "pallet-utility/try-runtime",

@@ -47,6 +47,7 @@ pallet-lbp = { workspace = true }
 pallet-xyk = { workspace = true }
 pallet-evm-accounts = { workspace = true }
 pallet-xyk-liquidity-mining = { workspace = true }
+pallet-meta-tx = { workspace = true }
 pallet-transaction-pause = { workspace = true }
 pallet-liquidation = { workspace = true }
 pallet-gigahdx = { workspace = true }
@@ -231,6 +232,7 @@ std = [
     "scraper/std",
     "pallet-dynamic-evm-fee/std",
     "precompile-utils/std",
+    "pallet-meta-tx/std",
     "pallet-transaction-pause/std",
     "pallet-liquidation/std",
     "pallet-gigahdx/std",

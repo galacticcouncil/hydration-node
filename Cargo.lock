@@ -5879,6 +5879,7 @@ dependencies = [
  "pallet-liquidation",
  "pallet-liquidity-mining",
  "pallet-message-queue",
+ "pallet-meta-tx 1.0.0",
  "pallet-migrations",
  "pallet-multisig",
  "pallet-omnipool",
@@ -10019,6 +10020,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-meta-tx"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-utility",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-migrations"
 version = "11.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#e8f4375d646cf2066f8c76e338398841709a0934"
@@ -13972,6 +13990,7 @@ dependencies = [
  "pallet-lbp",
  "pallet-liquidation",
  "pallet-liquidity-mining",
+ "pallet-meta-tx 1.0.0",
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
@@ -19500,7 +19519,7 @@ dependencies = [
  "pallet-identity",
  "pallet-indices",
  "pallet-message-queue",
- "pallet-meta-tx",
+ "pallet-meta-tx 0.3.0",
  "pallet-migrations",
  "pallet-mmr",
  "pallet-multisig",
