@@ -1399,7 +1399,7 @@ mod tests {
 		encoded(meta)
 	}
 
-	fn strip_fields(fields: &mut Vec<Field<PortableForm>>) {
+	fn strip_fields(fields: &mut [Field<PortableForm>]) {
 		for field in fields.iter_mut() {
 			field.docs = Vec::new();
 			field.type_name = None;
