@@ -259,12 +259,6 @@ pub struct Decoded {
 	pub trailing: usize,
 }
 
-impl Decoded {
-	pub fn is_complete(&self) -> bool {
-		self.dropped.is_empty() && self.trailing == 0 && self.records.len() == self.expected
-	}
-}
-
 /// The chain's event encoding at some block, paired with this node's, and the machinery to
 /// move records from one to the other.
 pub struct EventLayout {
@@ -879,6 +873,14 @@ mod tests {
 	/// hydration wormhole core bridge
 	const CORE_BRIDGE: [u8; 20] = hex_literal::hex!("3792a6d63c31941B2805181771795D9176fA82A1");
 
+	/// Nothing lost: every record the blob claims decoded, none dropped, no trailing bytes.
+	/// A test-local predicate rather than a method on `Decoded` — production code decides what
+	/// to do from the individual fields, so a method here would be dead code, and `-D warnings`
+	/// in the Makefile turns dead code into a build failure.
+	fn complete(d: &Decoded) -> bool {
+		d.dropped.is_empty() && d.trailing == 0 && d.records.len() == d.expected
+	}
+
 	fn layout_433() -> EventLayout {
 		EventLayout::new(CHAIN_METADATA_433).expect("the checked-in mainnet metadata must build a layout")
 	}
@@ -1177,7 +1179,7 @@ mod tests {
 		let layout = EventLayout::new(&encoded(chain)).expect("layout");
 		assert_eq!(layout.verdict(), Verdict::Divergent);
 		let decoded = layout.decode(&raw);
-		assert!(decoded.is_complete(), "dropped {:?}", decoded.dropped);
+		assert!(complete(&decoded), "dropped {:?}", decoded.dropped);
 		assert_eq!(decoded.records, vec![record]);
 	}
 
@@ -1208,7 +1210,7 @@ mod tests {
 
 		let layout = EventLayout::new(&encoded(chain)).expect("layout");
 		let decoded = layout.decode(&raw);
-		assert!(decoded.is_complete(), "dropped {:?}", decoded.dropped);
+		assert!(complete(&decoded), "dropped {:?}", decoded.dropped);
 		assert_eq!(
 			decoded.records,
 			vec![balances_record(BalancesEvent::Transfer { from, to, amount })]
@@ -1290,7 +1292,7 @@ mod tests {
 			&vec![0xaa; 512][..],
 		] {
 			let decoded = layout.decode(raw);
-			assert!(decoded.records.is_empty() || !decoded.is_complete());
+			assert!(decoded.records.is_empty() || !complete(&decoded));
 		}
 		// every truncation of a real blob.
 		for cut in (1..MAINNET_EVENTS_SEQ2.len()).step_by(37) {
