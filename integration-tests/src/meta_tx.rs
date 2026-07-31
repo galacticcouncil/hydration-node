@@ -256,3 +256,43 @@ fn meta_tx_nonce_should_be_independent_of_the_system_nonce() {
 		);
 	});
 }
+
+#[test]
+fn meta_tx_should_not_be_able_to_source_an_evm_call_for_a_substrate_signer() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let pair = keypair("MetaTxEvm");
+		let signer = account_of(&pair);
+		let relayer: AccountId = ALICE.into();
+
+		let evm_call = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+			call: Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+				source: sp_core::H160::repeat_byte(0xaa),
+				target: sp_core::H160::repeat_byte(0xbb),
+				input: vec![0x06, 0xfd, 0xde, 0x03],
+				value: sp_core::U256::zero(),
+				gas_limit: 100_000,
+				max_fee_per_gas: sp_core::U256::from(26_663_905u128),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+				authorization_list: vec![],
+			})),
+		});
+
+		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, evm_call, 1_000)));
+
+		let inner_failed = System::events().iter().any(|record| {
+			matches!(
+				&record.event,
+				RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result: Err(_), .. })
+			)
+		});
+		assert!(
+			inner_failed,
+			"an sr25519 signer cannot satisfy EnsureAddressTruncated, so EVM legs MUST be rejected"
+		);
+		assert_eq!(MetaTx::nonce(&signer), 1);
+	});
+}
