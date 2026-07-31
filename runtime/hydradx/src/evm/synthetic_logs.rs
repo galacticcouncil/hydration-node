@@ -54,32 +54,57 @@ pub enum Bucket {
 	},
 }
 
-/// Domain-separation seed folded into each synth tx's `input`, so envelope hashes
-/// are unique chain-wide — frontier indexes txs by hash, and without this
-/// `Extrinsic(2)` in two different blocks would hash identically.
+/// Signature the synth tx's `input` encodes. `input` is real abi calldata, so any evm
+/// tool decodes it without knowing anything about hydration: a 4-byte selector plus
+/// three abi words. Explorers with a 4byte lookup render it as a named call.
 ///
-/// `block_hash` is the block's OWN hash, never its parent's: sibling blocks at the
-/// same height share a parent, so a parent-based domain collides on every fork —
-/// and this chain forks often enough that cutting the fork rate warranted an
-/// emergency release. The block hash already commits to the height, so the domain
-/// needs no block number of its own (the `nonce` uses one, for ordering).
+/// Bump the version in the name if the layout changes — the selector then changes with
+/// it, which is stronger than an embedded version string a decoder might ignore.
+pub const SYNTH_SIGNATURE: &[u8] = b"hydrationSynthV1(bytes32,bytes32,uint64)";
+
+/// `keccak256(SYNTH_SIGNATURE)[..4]`, asserted in `synth_selector_matches_signature`.
+pub const SYNTH_SELECTOR: [u8; 4] = [0xf1, 0xf8, 0x39, 0x3a];
+
+/// abi `bytes32`: the 32 bytes verbatim, right-padded if the source is short.
+fn word32(bytes: &[u8]) -> [u8; 32] {
+	let mut w = [0u8; 32];
+	let n = if bytes.len() < 32 { bytes.len() } else { 32 };
+	w[..n].copy_from_slice(&bytes[..n]);
+	w
+}
+
+/// The synth tx's `input`, as an abi-encoded call to [`SYNTH_SIGNATURE`]:
 ///
-/// `extrinsic_hash` is the substrate extrinsic this bucket came from, zero for hook
+/// ```text
+///   0..4     selector 0xf1f8393a
+///   4..36    bytes32  substrateBlockHash
+///  36..68    bytes32  extrinsicHash
+///  68..100   uint64   bucket        (left-padded to a word)
+/// ```
+///
+/// `substrateBlockHash` is the block's OWN hash, never its parent's: sibling blocks at
+/// the same height share a parent, so a parent-based value collides on every fork — and
+/// this chain forks often enough that cutting the fork rate warranted an emergency
+/// release. It also commits to the height, so no block number is needed here.
+///
+/// `extrinsicHash` is the substrate extrinsic this bucket came from, zero for hook
 /// phases, so an indexer can join a synth tx straight back to its extrinsic.
 ///
 /// `bucket` is [`bucket_nonce`]'s encoding of the origin — extrinsic index, or hook
 /// phase + `ExecutionType` tag. It lives here rather than in the tx's `nonce` field
-/// because those values exceed `i64::MAX`, which overflows the `bigint` column
-/// indexers keep nonces in; and because a repeating `nonce` breaks `(from, nonce)`
-/// as a key. Uniqueness of the envelope rests entirely on this triple: distinct
-/// blocks differ in `block_hash`, distinct buckets in `extrinsic_hash` or `bucket`.
-fn tx_domain(block_hash: &[u8], extrinsic_hash: &[u8], bucket: u64) -> Vec<u8> {
-	let mut seed = Vec::with_capacity(18 + block_hash.len() + extrinsic_hash.len() + 8);
-	seed.extend_from_slice(b"hydration-synth-v1");
-	seed.extend_from_slice(block_hash);
-	seed.extend_from_slice(extrinsic_hash);
-	seed.extend_from_slice(&bucket.to_be_bytes());
-	seed
+/// because those values exceed `i64::MAX`, which overflows the `bigint` column indexers
+/// keep nonces in, and because a repeating `nonce` breaks `(from, nonce)` as a key.
+///
+/// Envelope uniqueness rests entirely on this payload: distinct blocks differ in
+/// `substrateBlockHash`, distinct buckets in `extrinsicHash` or `bucket`.
+fn tx_input(block_hash: &[u8], extrinsic_hash: &[u8], bucket: u64) -> Vec<u8> {
+	let mut data = Vec::with_capacity(4 + 32 * 3);
+	data.extend_from_slice(&SYNTH_SELECTOR);
+	data.extend_from_slice(&word32(block_hash));
+	data.extend_from_slice(&word32(extrinsic_hash));
+	data.extend_from_slice(&[0u8; 24]);
+	data.extend_from_slice(&bucket.to_be_bytes());
+	data
 }
 
 /// Shift reserving the low bits of the synth `nonce` for the per-block group index.
@@ -165,7 +190,7 @@ pub fn assemble_synth_txs(
 		// `value` stays zero because no native token moves — putting an index there
 		// would show up as a phantom transfer in anything summing tx values.
 		let meta = bucket_extrinsic(&bucket, extrinsics);
-		let input = tx_domain(
+		let input = tx_input(
 			block_hash,
 			&meta.map(|m| m.hash).unwrap_or_default(),
 			bucket_nonce(bucket),
@@ -518,6 +543,35 @@ mod tests {
 	// Two synth txs sharing the same bucket-nonce class but different group_index
 	// must have distinct canonical envelope hashes — frontier indexes by hash, so
 	// a collision would mean one synth tx shadows the other in eth_getTransactionByHash.
+	// The selector is hardcoded so the encoder stays pure/no_std; keep it honest.
+	#[test]
+	fn synth_selector_matches_signature() {
+		let expected = sp_io::hashing::keccak_256(SYNTH_SIGNATURE);
+		assert_eq!(
+			SYNTH_SELECTOR,
+			expected[..4],
+			"selector must be keccak256(\"hydrationSynthV1(bytes32,bytes32,uint64)\")[..4]"
+		);
+	}
+
+	// `input` must be decodable by any evm tool as a plain abi call: selector, then
+	// three words at fixed offsets.
+	#[test]
+	fn tx_input_is_abi_calldata() {
+		let block = [0xABu8; 32];
+		let xt = [0xCDu8; 32];
+		let bucket = u64::MAX - 3;
+		let data = tx_input(&block, &xt, bucket);
+
+		assert_eq!(data.len(), 4 + 32 * 3, "selector + 3 words");
+		assert_eq!(data[..4], SYNTH_SELECTOR);
+		assert_eq!(data[4..36], block, "bytes32 substrateBlockHash");
+		assert_eq!(data[36..68], xt, "bytes32 extrinsicHash");
+		// uint64 is right-aligned in its word
+		assert_eq!(data[68..92], [0u8; 24], "uint64 left-padding");
+		assert_eq!(u64::from_be_bytes(data[92..100].try_into().unwrap()), bucket);
+	}
+
 	#[test]
 	fn synth_nonce_is_monotonic_unique_and_int64_safe() {
 		// Unique and ordered within a block.
