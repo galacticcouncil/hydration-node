@@ -26,8 +26,10 @@ use hydradx_runtime::{Balances, Runtime, RuntimeEvent};
 use pallet_balances::Event as BalancesEvent;
 use primitives::AccountId;
 use sp_core::H256;
+use std::collections::BTreeSet;
 
 type Records = Vec<EventRecord<RuntimeEvent, H256>>;
+type LogKey = (sp_core::H160, Vec<H256>, Vec<u8>);
 type Balance = u128;
 type NodeBalancesEvent = BalancesEvent<Runtime>;
 
@@ -39,9 +41,14 @@ pub enum Source {
 	/// read through a compat balances layout — the node and the on-chain runtime
 	/// are on different polkadot-sdk versions, but nothing was lost.
 	Compat,
-	/// resynchronised past records this node cannot decode at all. `skipped` events
-	/// are missing and `trailing` bytes were unparseable; everything else survived.
-	Partial { skipped: usize, trailing: usize },
+	/// resynchronised past records this node cannot decode at all. `skipped` events are
+	/// missing, `recovered` were salvaged out of the skipped regions as `EVM.Log`, and
+	/// `trailing` bytes were unparseable; everything else survived.
+	Partial {
+		skipped: usize,
+		recovered: usize,
+		trailing: usize,
+	},
 }
 
 /// Decode `System::Events` without letting one undecodable record cost the whole
@@ -66,8 +73,15 @@ pub fn read_events(raw: &[u8]) -> Option<(Records, Source)> {
 	// unknown skew: salvage per-record rather than returning an empty block. events
 	// raised after the undecodable ones — `EVM.Log`, and with it wormhole's
 	// `LogMessagePublished` — are what this tier exists to preserve.
-	let (records, skipped, trailing) = read_resilient(raw)?;
-	(!records.is_empty()).then_some((records, Source::Partial { skipped, trailing }))
+	let (records, skipped, recovered, trailing) = read_resilient(raw)?;
+	(!records.is_empty()).then_some((
+		records,
+		Source::Partial {
+			skipped,
+			recovered,
+			trailing,
+		},
+	))
 }
 
 /// One record: `phase`, event, `topics`. Leaves the cursor untouched on failure so
@@ -97,17 +111,79 @@ fn is_phase_start(bytes: &[u8]) -> bool {
 	}
 }
 
+/// One record, but only if it is an `EVM.Log`.
+///
+/// This is the salvage path, and it works where the generic one cannot: an `EVM.Log`
+/// record is `phase ‖ pallet ‖ variant ‖ address ‖ topics ‖ data ‖ record_topics`, none
+/// of which depends on a pallet whose layout an sdk bump moved. So wormhole's core-bridge
+/// `LogMessagePublished` stays readable even when the record beside it does not decode.
+///
+/// Guards against parsing garbage: the pallet byte must be this runtime's EVM index, the
+/// event must be the `Log` variant, at most 4 log topics (the evm cap), and the record's
+/// own topic vec must be empty — `deposit_event` never sets topics for these.
+fn decode_evm_log_record(input: &mut &[u8], evm_index: u8) -> Option<EventRecord<RuntimeEvent, H256>> {
+	let checkpoint = *input;
+	let decode = |input: &mut &[u8]| {
+		let phase = Phase::decode(input).ok()?;
+		if Input::read_byte(input).ok()? != evm_index {
+			return None;
+		}
+		let event = pallet_evm::Event::<Runtime>::decode(input).ok()?;
+		match &event {
+			pallet_evm::Event::Log { log } if log.topics.len() <= 4 => {}
+			_ => return None,
+		}
+		let topics = Vec::<H256>::decode(input).ok()?;
+		if !topics.is_empty() {
+			return None;
+		}
+		Some(EventRecord {
+			phase,
+			event: RuntimeEvent::EVM(event),
+			topics,
+		})
+	};
+	let record = decode(input);
+	if record.is_none() {
+		*input = checkpoint;
+	}
+	record
+}
+
+/// Walk a region we are about to skip and pull out every `EVM.Log` record in it, so a
+/// resync never costs a wormhole event.
+fn salvage_evm_logs(region: &[u8], evm_index: u8, out: &mut Records) -> usize {
+	let mut off = 0usize;
+	let mut found = 0usize;
+	while off < region.len() {
+		let mut probe = &region[off..];
+		match decode_evm_log_record(&mut probe, evm_index) {
+			Some(record) => {
+				let consumed = region.len() - off - probe.len();
+				out.push(record);
+				found += 1;
+				off += consumed.max(1);
+			}
+			None => off += 1,
+		}
+	}
+	found
+}
+
 /// Decode as many records as possible, stepping over any this node's types cannot
-/// parse. Returns `(records, skipped, trailing_bytes)`.
+/// parse, salvaging `EVM.Log` records out of the skipped regions. Returns
+/// `(records, skipped, recovered, trailing_bytes)`.
 ///
 /// Recovery relies on `Phase` being a tight anchor plus the next record decoding
 /// cleanly from the candidate offset; a mis-landing costs extra skipped records,
 /// never a wrong record.
-fn read_resilient(raw: &[u8]) -> Option<(Records, usize, usize)> {
+fn read_resilient(raw: &[u8]) -> Option<(Records, usize, usize, usize)> {
+	let evm_index = <hydradx_runtime::EVM as PalletInfoAccess>::index() as u8;
 	let mut input = raw;
 	let count = codec::Compact::<u32>::decode(&mut input).ok()?.0 as usize;
 	let mut records = Records::new();
 	let mut skipped = 0usize;
+	let mut recovered = 0usize;
 
 	while !input.is_empty() && records.len() + skipped < count {
 		if let Some(record) = decode_record(&mut input) {
@@ -132,7 +208,29 @@ fn read_resilient(raw: &[u8]) -> Option<(Records, usize, usize)> {
 			None => break,
 		}
 	}
-	Some((records, skipped, input.len()))
+	// A record whose layout this node gets wrong can still "decode" while consuming the
+	// wrong byte count, swallowing whatever followed it — so the sequential walk above can
+	// lose an EVM.Log without ever reporting a skip. Sweep the whole blob independently and
+	// merge back anything missing. This is what makes "never lose a wormhole event" hold.
+	let mut swept = Records::new();
+	salvage_evm_logs(raw, evm_index, &mut swept);
+	let have: BTreeSet<LogKey> = records.iter().filter_map(evm_log_key).collect();
+	for record in swept {
+		if evm_log_key(&record).map(|k| !have.contains(&k)).unwrap_or(false) {
+			records.push(record);
+			recovered += 1;
+		}
+	}
+
+	Some((records, skipped, recovered, input.len()))
+}
+
+/// Identity of an `EVM.Log` record, for merging a sweep without duplicating.
+fn evm_log_key(record: &EventRecord<RuntimeEvent, H256>) -> Option<LogKey> {
+	match &record.event {
+		RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => Some((log.address, log.topics.clone(), log.data.clone())),
+		_ => None,
+	}
 }
 
 /// Read records one at a time, decoding the balances pallet with `B`'s layout and
@@ -280,6 +378,13 @@ mod tests {
 	/// Minted, Deposit, Issued}` — the variants a skewed layout chokes on.
 	const MAINNET_EVENTS: &[u8] = include_bytes!("test_data/events_13386492.scale");
 
+	/// `System::Events` from mainnet block 13384676 (50 records) — the DAI transfer that
+	/// published wormhole sequence 2. This block also carries `ConvictionVoting.Voted` and
+	/// `Scheduler.{Scheduled,Canceled}`, whose layouts moved between stable2506 and
+	/// stable2603 too, so a skewed node cannot decode it even through the balances compat
+	/// layout. It is the regression case for "never lose a wormhole event".
+	const MAINNET_EVENTS_SEQ2: &[u8] = include_bytes!("test_data/events_13384676.scale");
+
 	/// keccak256("LogMessagePublished(address,uint64,uint32,bytes,uint8)")
 	const LOG_MESSAGE_PUBLISHED: [u8; 32] =
 		hex_literal::hex!("6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2");
@@ -415,7 +520,7 @@ mod tests {
 	/// events and still recovers the wormhole message that follows them.
 	#[test]
 	fn resync_preserves_logs_around_undecodable_records() {
-		let (records, skipped, trailing) = read_resilient(MAINNET_EVENTS).expect("must salvage records");
+		let (records, skipped, _recovered, trailing) = read_resilient(MAINNET_EVENTS).expect("must salvage records");
 		assert!(!records.is_empty(), "a skew must never cost the whole block");
 
 		let published = records.iter().any(|r| match &r.event {
@@ -428,6 +533,28 @@ mod tests {
 			published,
 			"LogMessagePublished must survive resync (skipped {skipped}, trailing {trailing})"
 		);
+	}
+
+	/// The hard guarantee: whatever this node cannot decode, a wormhole core-bridge
+	/// `LogMessagePublished` must still come out. Block 13384676 defeats both the typed
+	/// path and the balances compat layout on a skewed node, so this exercises the salvage
+	/// scan on real data.
+	#[test]
+	fn wormhole_event_survives_undecodable_neighbours() {
+		let (records, source) = read_events(MAINNET_EVENTS_SEQ2).expect("must be readable");
+		println!("seq2 fixture read via {source:?}, {} records", records.len());
+
+		let published = records
+			.iter()
+			.filter_map(|r| match &r.event {
+				RuntimeEvent::EVM(pallet_evm::Event::Log { log }) => Some(log),
+				_ => None,
+			})
+			.find(|log| log.address.0 == CORE_BRIDGE && log.topics.first().map(|t| t.0) == Some(LOG_MESSAGE_PUBLISHED))
+			.expect("core-bridge LogMessagePublished must survive whatever else fails");
+
+		let sequence = u64::from_be_bytes(published.data[24..32].try_into().unwrap());
+		assert_eq!(sequence, 2, "wormhole sequence 2");
 	}
 
 	/// A trailing-byte guard: the compat path must reject a layout that happens to
