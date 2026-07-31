@@ -4112,6 +4112,76 @@ fn dispatch_should_work_with_transfer() {
 }
 
 #[test]
+fn evm_gas_should_be_paid_in_weth_after_registry_location_repoint() {
+	// the mrl->ntt migration repoints asset 20 from the moonbeam erc20 to hydration's own one;
+	// gas payment must not depend on where the registry location points
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			WETH,
+			(100 * UNITS * 1_000_000) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			RuntimeOrigin::signed(ALICE.into()),
+			WETH,
+		));
+
+		// point asset 20 at the local erc20 view (currencies precompile prefix + u32be(20))
+		assert_ok!(AssetRegistry::update(
+			RuntimeOrigin::root(),
+			WETH,
+			None,
+			None,
+			None,
+			None,
+			None,
+			None,
+			None,
+			Some(hydradx_runtime::AssetLocation(polkadot_xcm::v5::Location::new(
+				0,
+				[polkadot_xcm::v5::Junction::AccountKey20 {
+					network: None,
+					key: hex!["0000000000000000000000000000000100000014"],
+				}],
+			))),
+		));
+		assert_eq!(<hydradx_runtime::evm::WethAssetId as Get<AssetId>>::get(), WETH);
+
+		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+			.to_vec();
+		let balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		assert_ok!(EVM::call(
+			RuntimeOrigin::signed(ALICE.into()),
+			evm_address,
+			DISPATCH_ADDR,
+			data,
+			U256::from(0),
+			1000000,
+			gas_price * 10,
+			None,
+			Some(U256::zero()),
+			[].into(),
+			vec![],
+		));
+
+		assert!(Tokens::free_balance(WETH, &AccountId::from(ALICE)) < balance - 10u128.pow(16));
+	});
+}
+
+#[test]
 fn dispatch_should_work_with_buying_insufficient_asset() {
 	TestNet::reset();
 
