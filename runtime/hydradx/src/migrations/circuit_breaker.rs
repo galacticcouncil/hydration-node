@@ -11,7 +11,8 @@ use sp_runtime::Saturating;
 use sp_std::{marker::PhantomData, vec::Vec};
 
 const MIGRATION_DONE_KEY: &[u8] = b"HydrationCircuitBreaker2sLimitMigrationDone";
-const MAX_LIMIT_ENTRIES_PER_MAP: u64 = 10;
+// 30% above the largest map's 3 entries observed on mainnet, rounded up.
+const MAX_LIMIT_ENTRIES_PER_MAP: u64 = 4;
 
 pub struct MigrateCircuitBreakerLimitsTo2sBlocks<T: pallet::Config>(PhantomData<T>);
 

@@ -2,6 +2,9 @@ use crate::pallet;
 use frame_support::traits::{Get, GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
 use sp_runtime::Saturating;
 
+// 30% above the 38 schedules observed on mainnet, rounded up.
+const MAX_SCHEDULES: u64 = 50;
+
 // This migration multiplies the periods of schedules by 3 to account for 3x faster block times
 // when moving from 6s to 2s blocks.
 pub struct MultiplySchedulesPeriodBy3<T: pallet::Config>(sp_std::marker::PhantomData<T>);
@@ -36,31 +39,35 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy3<T> {
 		}
 
 		let schedules: sp_std::vec::Vec<_> = crate::Schedules::<T>::iter().collect();
-		reads.saturating_accrue(schedules.len() as u64);
+		let schedules_len = schedules.len() as u64;
+		reads.saturating_accrue(schedules_len);
 
 		log::info!(
-			"MultiplySchedulesPeriodBy3 found schedules: {:?}, processing cap: 150",
-			schedules.len()
+			"MultiplySchedulesPeriodBy3 found schedules: {:?}, processing cap: {:?}",
+			schedules_len,
+			MAX_SCHEDULES,
 		);
+
+		if schedules_len > MAX_SCHEDULES {
+			log::error!(
+				"MultiplySchedulesPeriodBy3 skipped because Schedules has {:?} entries, cap: {:?}",
+				schedules_len,
+				MAX_SCHEDULES,
+			);
+			return T::DbWeight::get().reads(reads);
+		}
 
 		for (key, mut schedule) in schedules {
 			schedule.period = schedule.period.saturating_mul(3u32.into());
 			crate::Schedules::<T>::insert(key, schedule);
 			writes.saturating_inc();
-
-			// At the time before the migration there are ~60 schedules.
-			// Setting a safe limit which can be executed in 1 block
-			if writes == 150 {
-				log::info!("Hit limit of 150 schedules, exiting loop");
-				break;
-			}
 		}
 
 		// Increase on-chain StorageVersion
 		StorageVersion::new(3).put::<crate::Pallet<T>>();
 		writes.saturating_inc();
 
-		log::info!("MultiplySchedulesPeriodBy3 processed schedules: {writes:?}");
+		log::info!("MultiplySchedulesPeriodBy3 processed schedules: {schedules_len:?}");
 		T::DbWeight::get().reads_writes(reads, writes)
 	}
 

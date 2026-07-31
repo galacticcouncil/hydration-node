@@ -9,6 +9,8 @@ use sp_runtime::{traits::BlockNumberProvider, Saturating};
 use sp_std::{marker::PhantomData, vec::Vec};
 
 const MIGRATION_DONE_KEY: &[u8] = b"HydrationScheduler2sBlockMigrationDone";
+// 30% above the 470 agenda entries observed on mainnet.
+const MAX_AGENDA_ENTRIES: u64 = 611;
 
 // This migration migrates the Scheduler to 2s block times by multiplying by 3 the spread between
 // stored scheduler block numbers and the current block, and by multiplying periodic intervals by 3.
@@ -47,31 +49,19 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 		)> = pallet_scheduler::Agenda::<T>::iter().collect();
 		let agenda_len = agenda.len() as u64;
 
-		let lookup: Vec<_> = pallet_scheduler::Lookup::<T>::iter().collect();
-		let lookup_len = lookup.len() as u64;
-
 		log::info!(
-			"MigrateSchedulerTo2sBlocks found Agenda entries: {:?}, Agenda cap: 750, Lookup entries: {:?}, Lookup cap: 5",
+			"MigrateSchedulerTo2sBlocks found Agenda entries: {:?}, cap: {:?}",
 			agenda_len,
-			lookup_len,
+			MAX_AGENDA_ENTRIES,
 		);
 
-		if agenda_len >= 750 {
+		if agenda_len > MAX_AGENDA_ENTRIES {
 			log::error!(
-				"MigrateSchedulerTo2sBlocks skipped because Agenda has {:?} entries, cap: 750",
-				agenda_len
+				"MigrateSchedulerTo2sBlocks skipped because Agenda has {:?} entries, cap: {:?}",
+				agenda_len,
+				MAX_AGENDA_ENTRIES,
 			);
-			return T::DbWeight::get().reads_writes(agenda_len.saturating_add(lookup_len).saturating_add(1), 0);
-		}
-
-		// We expect Lookup to be empty on-chain, but migrate up to 5 entries defensively in case
-		// any named schedules exist at upgrade time. If there are more, skip only Lookup migration.
-		let migrate_lookup = lookup_len <= 5;
-		if !migrate_lookup {
-			log::error!(
-				"Skipping Scheduler Lookup migration because more than 5 entries exist, len: {:?}",
-				lookup_len
-			);
+			return T::DbWeight::get().reads_writes(agenda_len.saturating_add(1), 0);
 		}
 
 		for (old_block, mut schedules) in agenda {
@@ -87,27 +77,12 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 			pallet_scheduler::Agenda::<T>::insert(new_block, schedules);
 		}
 
-		let lookup_writes = if migrate_lookup { lookup_len } else { 0 };
-		if migrate_lookup {
-			for (name, (block, index)) in lookup {
-				pallet_scheduler::Lookup::<T>::insert(name, (Self::scale_block(block, current_block), index));
-			}
-		}
-
 		Self::mark_done();
 
-		log::info!(
-			"MigrateSchedulerTo2sBlocks processed agenda items: {:?}, lookup entries: {:?}, lookup migrated: {:?}",
-			agenda_len,
-			lookup_len,
-			migrate_lookup
-		);
+		log::info!("MigrateSchedulerTo2sBlocks processed agenda items: {:?}", agenda_len,);
 		T::DbWeight::get().reads_writes(
-			agenda_len.saturating_add(lookup_len).saturating_add(1),
-			agenda_len
-				.saturating_mul(2)
-				.saturating_add(lookup_writes)
-				.saturating_add(1),
+			agenda_len.saturating_add(1),
+			agenda_len.saturating_mul(2).saturating_add(1),
 		)
 	}
 }
@@ -128,11 +103,6 @@ mod test {
 			let periodic_call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
 				remark: vec![1],
 			}));
-			let named_call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
-				remark: vec![2],
-			}));
-			let named_id = [7u8; 32];
-
 			assert_ok!(Scheduler::schedule(
 				RuntimeOrigin::root(),
 				200,
@@ -140,29 +110,16 @@ mod test {
 				3,
 				periodic_call
 			));
-			assert_ok!(Scheduler::schedule_named(
-				RuntimeOrigin::root(),
-				named_id,
-				220,
-				None,
-				3,
-				named_call
-			));
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(200));
-			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(220));
-			assert_eq!(pallet_scheduler::Lookup::<Runtime>::get(named_id), Some((220, 0)));
 
 			System::set_block_number(100);
 			MigrateSchedulerTo2sBlocks::<Runtime>::on_runtime_upgrade();
 
 			assert!(!pallet_scheduler::Agenda::<Runtime>::contains_key(200));
-			assert!(!pallet_scheduler::Agenda::<Runtime>::contains_key(220));
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(400));
-			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(460));
 			let migrated_agenda = pallet_scheduler::Agenda::<Runtime>::get(400);
 			let migrated_schedule = migrated_agenda.get(0).and_then(Option::as_ref).unwrap();
 			assert_eq!(migrated_schedule.maybe_periodic, Some((30, 2)));
-			assert_eq!(pallet_scheduler::Lookup::<Runtime>::get(named_id), Some((460, 0)));
 
 			MigrateSchedulerTo2sBlocks::<Runtime>::on_runtime_upgrade();
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(400));

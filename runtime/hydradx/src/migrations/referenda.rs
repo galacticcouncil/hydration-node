@@ -12,7 +12,10 @@ use sp_runtime::traits::{BlockNumberProvider, Saturating};
 use sp_std::{marker::PhantomData, vec::Vec};
 
 const MIGRATION_DONE_KEY: &[u8] = b"HydrationReferenda2sBlockMigrationDone";
-const MAX_ACTIVE_REFERENDA: u64 = 30;
+// 30% above the 378 referendum records observed on mainnet, rounded up.
+const MAX_REFERENDA_RECORDS: u64 = 492;
+// 30% above the 2 active referenda observed on mainnet, rounded up.
+const MAX_ACTIVE_REFERENDA: u64 = 3;
 
 // Minimal OpenGov active-state migration for the 6s -> 2s block-time change.
 //
@@ -89,15 +92,18 @@ where
 		let current_block = <T as pallet::Config<I>>::BlockNumberProvider::current_block_number();
 		let checked = reads.saturating_sub(1);
 		log::info!(
-			"MigrateReferendaTo2sBlocks found ReferendumInfoFor records: {:?}, ongoing: {:?}, ongoing cap: {:?}",
+			"MigrateReferendaTo2sBlocks found ReferendumInfoFor records: {:?}, records cap: {:?}, ongoing: {:?}, ongoing cap: {:?}",
 			checked,
+			MAX_REFERENDA_RECORDS,
 			ongoing_count,
 			MAX_ACTIVE_REFERENDA,
 		);
 
-		if ongoing_count > MAX_ACTIVE_REFERENDA {
+		if checked > MAX_REFERENDA_RECORDS || ongoing_count > MAX_ACTIVE_REFERENDA {
 			log::error!(
-				"MigrateReferendaTo2sBlocks skipped because ReferendumInfoFor has {:?} ongoing referenda, cap: {:?}",
+				"MigrateReferendaTo2sBlocks skipped because ReferendumInfoFor has {:?} records, cap: {:?}, or {:?} ongoing referenda, cap: {:?}",
+				checked,
+				MAX_REFERENDA_RECORDS,
 				ongoing_count,
 				MAX_ACTIVE_REFERENDA,
 			);
