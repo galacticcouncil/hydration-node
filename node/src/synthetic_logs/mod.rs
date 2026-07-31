@@ -6,8 +6,12 @@
 //! Node-side synthetic-logs indexing: surface substrate token/trade activity as
 //! EVM logs over eth json-rpc, entirely off-chain.
 //!
-//! - [`compat_events`]: version-tolerant `System::Events` reader, so a node built
-//!   against a different polkadot-sdk than the on-chain runtime still sees events.
+//! - [`metadata_events`]: decodes `System::Events` against the *chain's* own runtime
+//!   metadata, so a node built on a different polkadot-sdk reads events by name rather
+//!   than by variant index — and measures records it cannot represent instead of
+//!   losing their neighbours.
+//! - [`compat_events`]: picks a reader for a block and falls back to hand-written
+//!   layouts and a salvage scan when metadata is unavailable.
 //! - [`storage_override`]: appends synthetic txs/statuses/receipts to Frontier's
 //!   reads (header left canonical).
 //! - [`eth_filter`]: custom `eth_getLogs` that surfaces synth logs without
@@ -18,4 +22,5 @@
 pub mod compat_events;
 pub mod eth_filter;
 pub mod mapping_sync;
+pub mod metadata_events;
 pub mod storage_override;
