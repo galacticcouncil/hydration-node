@@ -36,7 +36,7 @@ use sc_client_api::{backend::Backend, BlockBackend, StorageProvider};
 use sp_api::{Metadata as MetadataApi, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::{hashing::twox_128, H160, H256, U256};
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash as HashT};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash as HashT, Header as HeaderT};
 use sp_storage::StorageKey;
 
 type Hash = <Block as BlockT>::Hash;
@@ -58,6 +58,40 @@ static DECODE_FAILED: Once = Once::new();
 
 fn names(missing: &[Missing]) -> String {
 	missing.iter().map(|m| m.name.as_str()).collect::<Vec<_>>().join(", ")
+}
+
+/// Which block's state to read the metadata out of, to describe the runtime that *executed*
+/// `at`.
+///
+/// The parent's, not `at`'s. A runtime api call at `at` runs whatever `:code` sits in `at`'s
+/// post-state, and on the block where an upgrade is applied cumulus has already written the
+/// NEW code there while the block itself was executed by the OLD one. Reading metadata at
+/// `at` would then cache the new runtime's layout under the old runtime's spec version and
+/// mis-decode every later old-spec block. The parent's post-state holds the code that
+/// actually ran, in every case:
+///
+/// ```text
+/// block N-1 ─┬─ :code = old
+/// block N    ├─ executed by old; on_initialize writes :code = new; LastRuntimeUpgrade = old
+/// block N+1  └─ executed by new; LastRuntimeUpgrade = new
+///
+///   layout for N   → spec old (from N)   + metadata from N-1 (old code)   ✓
+///   layout for N+1 → spec new (from N+1) + metadata from N   (new code)   ✓
+/// ```
+///
+/// Falls back to `at` at genesis, or when the parent is unknown — no worse than before, and
+/// the odds of the oldest block this node retains being an upgrade block are negligible.
+fn metadata_source<C>(client: &C, at: Hash) -> Hash
+where
+	C: HeaderBackend<Block>,
+{
+	client
+		.header(at)
+		.ok()
+		.flatten()
+		.map(|header| *header.parent_hash())
+		.filter(|parent| *parent != Hash::default())
+		.unwrap_or(at)
 }
 
 /// Log the first occurrence, then back off by powers of two, so persistent loss stays
@@ -132,14 +166,16 @@ where
 		if let Some(known) = layouts.get(&spec) {
 			return known.clone();
 		}
-		let layout = self.build_layout(at, spec);
+		let layout = self.build_layout(metadata_source(self.client.as_ref(), at), spec);
 		layouts.insert(spec, layout.clone());
 		layout
 	}
 
-	/// The spec version running at `at`, out of state rather than the runtime api: no wasm
-	/// call, and `frame_executive` keeps `System::LastRuntimeUpgrade` equal to the current
-	/// runtime's version at every block after an upgrade. Only the leading `Compact<u32>` of
+	/// The spec version of the runtime that *executed* `at`, out of state rather than the
+	/// runtime api: no wasm call, and `frame_executive` only bumps
+	/// `System::LastRuntimeUpgrade` when a new runtime runs for the first time, so the value
+	/// in a block's post-state names the runtime that produced that block's events — which is
+	/// exactly the layout needed to decode them. Only the leading `Compact<u32>` of
 	/// `LastRuntimeUpgradeInfo` is read, so the `spec_name` type moving between sdks cannot
 	/// break it. A missing entry just shares one cache slot.
 	fn spec_version(&self, at: Hash) -> u32 {
@@ -447,5 +483,71 @@ where
 
 	fn is_eip1559(&self, at: Hash) -> bool {
 		self.inner.is_eip1559(at)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use sp_runtime::generic::Header as GenericHeader;
+	use sp_runtime::traits::BlakeTwo256 as Hashing;
+
+	type Header = GenericHeader<u32, Hashing>;
+
+	/// Just enough of a header backend to answer "what is this block's parent".
+	struct Headers(Vec<(Hash, Hash)>);
+
+	impl HeaderBackend<Block> for Headers {
+		fn header(&self, hash: Hash) -> sp_blockchain::Result<Option<Header>> {
+			Ok(self.0.iter().find(|(h, _)| *h == hash).map(|(_, parent)| Header {
+				parent_hash: *parent,
+				number: 1,
+				state_root: Default::default(),
+				extrinsics_root: Default::default(),
+				digest: Default::default(),
+			}))
+		}
+		fn info(&self) -> sp_blockchain::Info<Block> {
+			unimplemented!("not read by metadata_source")
+		}
+		fn status(&self, _: Hash) -> sp_blockchain::Result<sp_blockchain::BlockStatus> {
+			unimplemented!("not read by metadata_source")
+		}
+		fn number(&self, _: Hash) -> sp_blockchain::Result<Option<u32>> {
+			unimplemented!("not read by metadata_source")
+		}
+		fn hash(&self, _: u32) -> sp_blockchain::Result<Option<Hash>> {
+			unimplemented!("not read by metadata_source")
+		}
+	}
+
+	/// The upgrade-block regression: metadata has to come from the parent's state, because a
+	/// runtime api call at the upgrade block itself would run the NEW `:code` cumulus has
+	/// already written there, and cache the new layout under the old runtime's spec version.
+	#[test]
+	fn metadata_comes_from_the_parent_state() {
+		let (parent, upgrade) = (Hash::repeat_byte(1), Hash::repeat_byte(2));
+		let headers = Headers(vec![(upgrade, parent)]);
+		assert_eq!(
+			metadata_source(&headers, upgrade),
+			parent,
+			"a block's events were produced by the runtime in its PARENT's post-state"
+		);
+	}
+
+	/// Genesis has no parent, and an unknown block cannot offer one: fall back to the block
+	/// itself rather than reading state at the zero hash.
+	#[test]
+	fn genesis_and_unknown_blocks_fall_back_to_themselves() {
+		let genesis = Hash::repeat_byte(3);
+		let headers = Headers(vec![(genesis, Hash::default())]);
+		assert_eq!(metadata_source(&headers, genesis), genesis, "genesis has no parent");
+
+		let orphan = Hash::repeat_byte(9);
+		assert_eq!(
+			metadata_source(&Headers(Vec::new()), orphan),
+			orphan,
+			"an unknown header must not send us to the zero hash"
+		);
 	}
 }
