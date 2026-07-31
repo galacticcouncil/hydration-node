@@ -16,7 +16,7 @@ use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use frame_support::traits::OnRuntimeUpgrade;
 pub use frame_system::RawOrigin;
 use hex_literal::hex;
-use hydradx_runtime::{evm::weth_asset_location, Referrals, RuntimeEvent, RuntimeOrigin};
+use hydradx_runtime::{Referrals, RuntimeEvent, RuntimeOrigin};
 pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 pub use num_traits::Zero;
 use pallet_referrals::{FeeDistribution, Level};
@@ -191,7 +191,6 @@ decl_test_parachains! {
 		on_init = {
 			hydradx_runtime::System::set_block_number(1);
 			hydradx_runtime::MultiTransactionPayment::on_initialize(1);
-			hydradx_runtime::AssetRegistry::set_location(WETH, weth_asset_location()).unwrap();
 		},
 		runtime = hydradx_runtime,
 		core = {
