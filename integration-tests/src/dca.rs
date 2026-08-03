@@ -5106,7 +5106,7 @@ fn schedule_fake_with_buy_order_with_route(
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(ALICE),
-		period: 5u32,
+		period: hydradx_runtime::MinimalPeriod::get(),
 		total_amount: budget,
 		max_retries: None,
 		stability_threshold: None,
@@ -5153,7 +5153,7 @@ fn schedule_fake_with_sell_order_with_route(
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(owner),
-		period: 5u32,
+		period: hydradx_runtime::MinimalPeriod::get(),
 		total_amount,
 		max_retries: None,
 		stability_threshold: None,
