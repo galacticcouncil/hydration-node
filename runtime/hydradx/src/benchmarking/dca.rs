@@ -27,7 +27,7 @@ use frame_benchmarking::account;
 use frame_benchmarking::BenchmarkError;
 use frame_support::{
 	assert_ok,
-	traits::{Get, Hooks, Len},
+	traits::{Hooks, Len},
 	weights::Weight,
 	BoundedVec,
 };
