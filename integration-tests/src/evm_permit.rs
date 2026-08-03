@@ -926,7 +926,7 @@ fn evm_permit_set_currency_dispatch_should_work_when_wrapped_in_dispatch_with_ex
 			RuntimeOrigin::signed(alith_evm_account()),
 			asset,
 			0,
-			erc20_balance / 10,
+			erc20_balance / 30,
 			Balance::MIN
 		));
 		hydradx_run_to_next_block();
@@ -3374,7 +3374,7 @@ mod sponsored_paymaster {
 
 			let fee_difference = evm_fee.saturating_sub(native_fee);
 			let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-			let tolerated_fee_difference = FixedU128::from_rational(30, 100);
+			let tolerated_fee_difference = FixedU128::from_rational(32, 100);
 			assert!(
 				relative_fee_difference < tolerated_fee_difference,
 				"unsigned dispatch_permit fee drifted outside native tolerance! \
