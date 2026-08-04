@@ -78,7 +78,7 @@ mod benches {
 		assert_ok!(T::BenchmarkHelper::register_asset(fee_asset, 1));
 		assert_ok!(T::BenchmarkHelper::register_asset(faucet_asset, 1));
 
-		let large_balance: Balance = 340_266_920_938_463_463_374_607_431_768_211_455;
+		let large_balance: Balance = 1_000_000_000_000_000;
 		assert_ok!(T::BenchmarkHelper::mint(fee_asset, &signet_admin, large_balance));
 		assert_ok!(T::BenchmarkHelper::mint(faucet_asset, &signet_admin, large_balance));
 		assert_ok!(T::BenchmarkHelper::mint(fee_asset, &pallet_account, large_balance));
