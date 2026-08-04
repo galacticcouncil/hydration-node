@@ -55,8 +55,10 @@ hydradx-traits = { workspace = true, features = ["std"] }
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
 frame-benchmarking-cli = { workspace = true }
+frame-metadata = { workspace = true, features = ["std"] }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
+scale-info = { workspace = true, features = ["std"] }
 pallet-transaction-payment-rpc = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
 sc-basic-authorship = { workspace = true }
@@ -119,6 +121,7 @@ fp-consensus = { workspace = true }
 fp-self-contained = { workspace = true }
 fp-evm = { workspace = true }
 pallet-ethereum = { workspace = true }
+pallet-balances = { workspace = true }
 pallet-evm = { workspace = true }
 
 [features]

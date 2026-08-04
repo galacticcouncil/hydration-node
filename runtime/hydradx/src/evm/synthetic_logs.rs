@@ -12,17 +12,25 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use ethereum::EIP1559Transaction;
 use ethereum_types::{Bloom, BloomInput, H160, H256, U256};
-use frame_support::pallet_prelude::RuntimeDebug;
 use pallet_broadcast::types::ExecutionType;
 use pallet_ethereum::{Receipt, Transaction, TransactionAction, TransactionStatus};
 use scale_info::TypeInfo;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
 
-/// `from`/`to` for synthetic txs. logs inside carry their own emitter address.
+/// Marker address for synthetic txs: ascii `synth` at both ends with zeros between,
+/// `0x73796e74680000000000000000000073796e7468`. Self-describing once decoded — the
+/// same spirit as substrate's ascii account ids (`modlpy/trsry`, `sibl`) — and
+/// symmetric enough (`73796e7468 … 73796e7468`) to recognise in raw hex without
+/// decoding. Outside the `0x..01` asset-precompile range, so it can never be taken
+/// for an asset, and unused on mainnet (no code, no balance, no nonce).
+///
+/// Always the `from`: nothing signed a synth tx. Also the `to` when the bucket has no
+/// origin — hook phases and unsigned extrinsics. The logs inside carry their own real
+/// emitter addresses.
 pub const SENTINEL_ADDRESS: H160 = H160([
-	0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe,
-	0xef,
+	0x73, 0x79, 0x6e, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x73, 0x79, 0x6e, 0x74,
+	0x68,
 ]);
 
 /// Constant fake `r`/`s`. Inside ECDSA range so the envelope decodes; never recovered.
@@ -31,13 +39,13 @@ pub const SYNTH_SIG_RS: H256 = H256([
 	0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 ]);
 
-#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
+#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Eq)]
 pub enum HookPhase {
 	Initialization,
 	Finalization,
 }
 
-#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq)]
+#[derive(Clone, Copy, Encode, Decode, MaxEncodedLen, TypeInfo, Debug, PartialEq, Eq)]
 pub enum Bucket {
 	Extrinsic(u32),
 	Hook {
@@ -46,15 +54,94 @@ pub enum Bucket {
 	},
 }
 
-/// Per-block domain-separation seed folded into each synth tx's `input`, so
-/// envelope hashes are unique per block (frontier indexes txs by hash; without
-/// this, `Extrinsic(2)` in block N and N+1 would hash identically).
-fn block_domain(parent_hash: &[u8], block_number: u64) -> Vec<u8> {
-	let mut seed = Vec::with_capacity(18 + parent_hash.len() + 8);
-	seed.extend_from_slice(b"hydration-synth-v1");
-	seed.extend_from_slice(parent_hash);
-	seed.extend_from_slice(&block_number.to_le_bytes());
-	seed
+/// Signature the synth tx's `input` encodes. `input` is real abi calldata, so any evm
+/// tool decodes it without knowing anything about hydration: a 4-byte selector plus
+/// three abi words. Explorers with a 4byte lookup render it as a named call.
+///
+/// Bump the version in the name if the layout changes — the selector then changes with
+/// it, which is stronger than an embedded version string a decoder might ignore.
+pub const SYNTH_SIGNATURE: &[u8] = b"hydrationSynthV1(bytes32,bytes32,uint64)";
+
+/// `keccak256(SYNTH_SIGNATURE)[..4]`, asserted in `synth_selector_matches_signature`.
+pub const SYNTH_SELECTOR: [u8; 4] = [0xf1, 0xf8, 0x39, 0x3a];
+
+/// abi `bytes32`: the 32 bytes verbatim, right-padded if the source is short.
+fn word32(bytes: &[u8]) -> [u8; 32] {
+	let mut w = [0u8; 32];
+	let n = if bytes.len() < 32 { bytes.len() } else { 32 };
+	w[..n].copy_from_slice(&bytes[..n]);
+	w
+}
+
+/// The synth tx's `input`, as an abi-encoded call to [`SYNTH_SIGNATURE`]:
+///
+/// ```text
+///   0..4     selector 0xf1f8393a
+///   4..36    bytes32  substrateBlockHash
+///  36..68    bytes32  extrinsicHash
+///  68..100   uint64   bucket        (left-padded to a word)
+/// ```
+///
+/// `substrateBlockHash` is the block's OWN hash, never its parent's: sibling blocks at
+/// the same height share a parent, so a parent-based value collides on every fork — and
+/// this chain forks often enough that cutting the fork rate warranted an emergency
+/// release. It also commits to the height, so no block number is needed here.
+///
+/// `extrinsicHash` is the substrate extrinsic this bucket came from, zero for hook
+/// phases, so an indexer can join a synth tx straight back to its extrinsic.
+///
+/// `bucket` is [`bucket_nonce`]'s encoding of the origin — extrinsic index, or hook
+/// phase + `ExecutionType` tag. It lives here rather than in the tx's `nonce` field
+/// because those values exceed `i64::MAX`, which overflows the `bigint` column indexers
+/// keep nonces in, and because a repeating `nonce` breaks `(from, nonce)` as a key.
+///
+/// Envelope uniqueness rests entirely on this payload: distinct blocks differ in
+/// `substrateBlockHash`, distinct buckets in `extrinsicHash` or `bucket`.
+fn tx_input(block_hash: &[u8], extrinsic_hash: &[u8], bucket: u64) -> Vec<u8> {
+	let mut data = Vec::with_capacity(4 + 32 * 3);
+	data.extend_from_slice(&SYNTH_SELECTOR);
+	data.extend_from_slice(&word32(block_hash));
+	data.extend_from_slice(&word32(extrinsic_hash));
+	data.extend_from_slice(&[0u8; 24]);
+	data.extend_from_slice(&bucket.to_be_bytes());
+	data
+}
+
+/// Shift reserving the low bits of the synth `nonce` for the per-block group index.
+/// 16 bits allows 65_536 synth txs per block, and at ~1e7 blocks keeps the nonce
+/// near 1e12 — seven orders of magnitude inside `i64::MAX`, so it survives every
+/// indexer that stores nonces as a signed 64-bit integer.
+const NONCE_BLOCK_SHIFT: u32 = 16;
+
+/// A synth `nonce` that behaves like a real account nonce: strictly increasing
+/// across blocks and unique per (block, group), so `(from, nonce)` is a usable key
+/// and replacement-detection does not fire on unrelated txs.
+///
+/// It is deliberately NOT the origin encoding — that moved into `input`. Correctness
+/// does not depend on this value: `input` already separates every envelope, so a
+/// pathological block with more than 65_536 buckets degrades to a duplicated nonce,
+/// never a duplicated hash.
+fn synth_nonce(block_number: u64, group_index: u32) -> u64 {
+	(block_number << NONCE_BLOCK_SHIFT) | (u64::from(group_index) & ((1 << NONCE_BLOCK_SHIFT) - 1))
+}
+
+/// What is known about the extrinsic at a given index in the block.
+#[derive(Clone, Copy, Default)]
+pub struct ExtrinsicMeta {
+	/// `blake2_256` of the encoded extrinsic — the hash substrate tooling shows.
+	pub hash: [u8; 32],
+	/// The account that paid for it, mapped to its evm address. `None` for inherents
+	/// and other unsigned extrinsics, which have no origin.
+	pub origin: Option<H160>,
+}
+
+/// The extrinsic a bucket originated from — `None` for hook phases, which run outside
+/// any extrinsic.
+fn bucket_extrinsic(bucket: &Bucket, extrinsics: &[ExtrinsicMeta]) -> Option<ExtrinsicMeta> {
+	match bucket {
+		Bucket::Extrinsic(i) => extrinsics.get(*i as usize).copied(),
+		Bucket::Hook { .. } => None,
+	}
 }
 
 fn logs_bloom(logs: &[ethereum::Log]) -> Bloom {
@@ -79,7 +166,8 @@ fn logs_bloom(logs: &[ethereum::Log]) -> Bloom {
 pub fn assemble_synth_txs(
 	entries: Vec<(Bucket, H160, ethereum::Log)>,
 	chain_id: u64,
-	parent_hash: &[u8],
+	block_hash: &[u8],
+	extrinsics: &[ExtrinsicMeta],
 	block_number: u64,
 	base_tx_index: u32,
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
@@ -92,24 +180,35 @@ pub fn assemble_synth_txs(
 			.push(log);
 	}
 
-	let input = block_domain(parent_hash, block_number);
 	let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 		.expect("synthetic signature constants are within valid ECDSA range; qed");
 
 	let mut out = Vec::with_capacity(groups.len());
 	for (group_index, (_key, (bucket, logs))) in groups.into_iter().enumerate() {
 		let group_index = group_index as u32;
-		// `value = group_index` keeps hashes distinct within a block; `input`
-		// (block domain) keeps them distinct across blocks.
+		// All identity lives in `input`: block hash + extrinsic hash + bucket encoding.
+		// `value` stays zero because no native token moves — putting an index there
+		// would show up as a phantom transfer in anything summing tx values.
+		let meta = bucket_extrinsic(&bucket, extrinsics);
+		let input = tx_input(
+			block_hash,
+			&meta.map(|m| m.hash).unwrap_or_default(),
+			bucket_nonce(bucket),
+		);
+		// `from` stays the sentinel: nothing signed this, and the nonce below belongs to
+		// `from`, so a real account's evm nonce sequence must not be entangled with it.
+		// `to` carries the origin so the account's own history surfaces this activity in
+		// stock explorers — a provenance pointer, not a call target.
+		let to = meta.and_then(|m| m.origin).unwrap_or(SENTINEL_ADDRESS);
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
-			nonce: U256::from(bucket_nonce(bucket)),
+			nonce: U256::from(synth_nonce(block_number, group_index)),
 			max_priority_fee_per_gas: U256::zero(),
 			max_fee_per_gas: U256::zero(),
 			gas_limit: U256::zero(),
-			action: TransactionAction::Call(SENTINEL_ADDRESS),
-			value: U256::from(group_index),
-			input: input.clone(),
+			action: TransactionAction::Call(to),
+			value: U256::zero(),
+			input,
 			access_list: Vec::new(),
 			signature: signature.clone(),
 		});
@@ -119,7 +218,7 @@ pub fn assemble_synth_txs(
 			transaction_hash,
 			transaction_index: base_tx_index + group_index,
 			from: SENTINEL_ADDRESS,
-			to: Some(SENTINEL_ADDRESS),
+			to: Some(to),
 			contract_address: None,
 			logs: logs.clone(),
 			logs_bloom: bloom,
@@ -275,7 +374,9 @@ fn bucket_sort_key(bucket: &Bucket) -> (u8, u64) {
 	}
 }
 
-/// `nonce` field on the synth tx. lets indexers reverse a synth tx to its origin.
+/// Origin encoding folded into the synth tx's `input` — NOT its `nonce`, because
+/// these values exceed `i64::MAX` and would overflow the bigint column indexers keep
+/// nonces in. Lets an indexer reverse a synth tx to what produced it.
 ///
 /// layout:
 ///   Extrinsic(i)                              → i           (low)
@@ -442,41 +543,101 @@ mod tests {
 	// Two synth txs sharing the same bucket-nonce class but different group_index
 	// must have distinct canonical envelope hashes — frontier indexes by hash, so
 	// a collision would mean one synth tx shadows the other in eth_getTransactionByHash.
+	// The selector is hardcoded so the encoder stays pure/no_std; keep it honest.
 	#[test]
-	fn synth_envelope_hash_is_unique_per_group_index() {
-		use super::Transaction;
-		use ethereum::{eip2930::TransactionSignature, EIP1559Transaction, TransactionAction};
+	fn synth_selector_matches_signature() {
+		let expected = sp_io::hashing::keccak_256(SYNTH_SIGNATURE);
+		assert_eq!(
+			SYNTH_SELECTOR,
+			expected[..4],
+			"selector must be keccak256(\"hydrationSynthV1(bytes32,bytes32,uint64)\")[..4]"
+		);
+	}
 
-		let signature = TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS).expect("synth sig in range");
-		let mk = |group_index: u32, nonce: u64| {
-			Transaction::EIP1559(EIP1559Transaction {
-				chain_id: 222_222,
-				nonce: U256::from(nonce),
-				max_priority_fee_per_gas: U256::zero(),
-				max_fee_per_gas: U256::zero(),
-				gas_limit: U256::zero(),
-				action: TransactionAction::Call(SENTINEL_ADDRESS),
-				value: U256::from(group_index),
-				input: Vec::new(),
-				access_list: Vec::new(),
-				signature: signature.clone(),
-			})
+	// `input` must be decodable by any evm tool as a plain abi call: selector, then
+	// three words at fixed offsets.
+	#[test]
+	fn tx_input_is_abi_calldata() {
+		let block = [0xABu8; 32];
+		let xt = [0xCDu8; 32];
+		let bucket = u64::MAX - 3;
+		let data = tx_input(&block, &xt, bucket);
+
+		assert_eq!(data.len(), 4 + 32 * 3, "selector + 3 words");
+		assert_eq!(data[..4], SYNTH_SELECTOR);
+		assert_eq!(data[4..36], block, "bytes32 substrateBlockHash");
+		assert_eq!(data[36..68], xt, "bytes32 extrinsicHash");
+		// uint64 is right-aligned in its word
+		assert_eq!(data[68..92], [0u8; 24], "uint64 left-padding");
+		assert_eq!(u64::from_be_bytes(data[92..100].try_into().unwrap()), bucket);
+	}
+
+	#[test]
+	fn synth_nonce_is_monotonic_unique_and_int64_safe() {
+		// Unique and ordered within a block.
+		assert!(synth_nonce(100, 0) < synth_nonce(100, 1));
+		assert!(synth_nonce(100, 1) < synth_nonce(100, 2));
+		// Strictly increasing across blocks, with no overlap between adjacent blocks.
+		assert!(synth_nonce(100, u16::MAX as u32) < synth_nonce(101, 0));
+		// Comfortably inside i64::MAX at any plausible height — indexers store nonces in
+		// a signed 64-bit column.
+		assert!(synth_nonce(1_000_000_000, u16::MAX as u32) < i64::MAX as u64);
+		// The origin encoding, which used to BE the nonce, does not fit — hence the move
+		// into `input`.
+		assert!(
+			bucket_nonce(Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: None,
+			}) > i64::MAX as u64,
+			"bucket_nonce overflows i64, so it must not be used as the tx nonce"
+		);
+	}
+
+	// `from` must stay the marker: nothing signed a synth tx, and the nonce belongs to
+	// `from`, so entangling it with a real account would corrupt that account's nonce
+	// sequence. `to` carries the origin instead, so the account's own history surfaces
+	// the activity in stock explorers without any custom indexing.
+	#[test]
+	fn origin_lands_in_to_while_from_stays_the_marker() {
+		let origin = H160::repeat_byte(0x5A);
+		let signed = ExtrinsicMeta {
+			hash: [0xAA; 32],
+			origin: Some(origin),
 		};
+		let entries = vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x11u8; 32], &[signed], 100, 0);
+		assert_eq!(txs[0].1.from, SENTINEL_ADDRESS, "synth txs are never signed by a user");
+		assert_eq!(txs[0].1.to, Some(origin), "origin reachable from the account's history");
 
-		// same nonce (same bucket-nonce class) but different group_index → distinct hashes
-		let nonce = u64::MAX - 3; // Hook { Init, None }
-		assert_ne!(mk(0, nonce).hash(), mk(1, nonce).hash());
-		assert_ne!(mk(0, nonce).hash(), mk(2, nonce).hash());
-		assert_ne!(mk(1, nonce).hash(), mk(2, nonce).hash());
+		// hooks (and unsigned extrinsics) have no origin — both ends stay the marker
+		let entries = vec![(
+			Bucket::Hook {
+				phase: HookPhase::Initialization,
+				origin: None,
+			},
+			H160::repeat_byte(0x02),
+			log(2),
+		)];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x11u8; 32], &[], 100, 0);
+		assert_eq!(txs[0].1.to, Some(SENTINEL_ADDRESS));
+	}
 
-		// determinism: same (group_index, nonce) → same hash
-		assert_eq!(mk(7, 42).hash(), mk(7, 42).hash());
+	// `value` means native token moved. Nothing moves in a synth tx, so anything
+	// summing tx values must not see a phantom transfer.
+	#[test]
+	fn synth_txs_never_carry_value() {
+		let entries = vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x11u8; 32], &[meta(0xAA)], 100, 0);
+		match &txs[0].0 {
+			super::Transaction::EIP1559(t) => assert!(t.value.is_zero()),
+			_ => panic!("expected EIP1559"),
+		}
 	}
 
 	// The same bucket + group_index recurs every block (nonce is bucket-derived,
 	// group_index resets per block), so without per-block entropy the envelope
 	// hash would collide across blocks and frontier could only resolve one of
-	// them. The flusher folds parent_hash + block number into `input`; assert that
+	// them. `input` folds in the block's own hash + the extrinsic hash; assert that
 	// distinguishes otherwise-identical envelopes.
 	#[test]
 	fn synth_envelope_hash_is_unique_per_block() {
@@ -492,15 +653,15 @@ mod tests {
 				max_fee_per_gas: U256::zero(),
 				gas_limit: U256::zero(),
 				action: TransactionAction::Call(SENTINEL_ADDRESS),
-				value: U256::zero(), // same group_index
+				value: U256::zero(),
 				input: block_domain.to_vec(),
 				access_list: Vec::new(),
 				signature: signature.clone(),
 			})
 		};
 
-		let block_n = b"hydration-synth-v1\x00block-n-parent-hash\x00\x64";
-		let block_n1 = b"hydration-synth-v1\x00block-n1-parent-hash\x00\x65";
+		let block_n = b"hydration-synth-v1\x00block-n-own-hash\x00zero-extrinsic";
+		let block_n1 = b"hydration-synth-v1\x00block-n1-own-hash\x00zero-extrinsic";
 		assert_ne!(
 			mk(block_n).hash(),
 			mk(block_n1).hash(),
@@ -635,7 +796,14 @@ mod tests {
 			(Bucket::Extrinsic(0), H160::repeat_byte(0xBB), log(2)),
 			(Bucket::Extrinsic(2), H160::repeat_byte(0xCC), log(3)),
 		];
-		let txs = assemble_synth_txs(entries, 222_222, &[0x42u8; 32], 100, 5);
+		let txs = assemble_synth_txs(
+			entries,
+			222_222,
+			&[0x42u8; 32],
+			&[meta(0xA0), meta(0xA1), meta(0xA2)],
+			100,
+			5,
+		);
 
 		// two distinct buckets → two synth txs, sorted Extrinsic(0) < Extrinsic(2)
 		assert_eq!(txs.len(), 2);
@@ -667,17 +835,76 @@ mod tests {
 	}
 
 	#[test]
-	fn assemble_synth_txs_hash_differs_across_blocks() {
-		let mk = |parent: &[u8], bn: u64| {
+	fn assemble_synth_txs_hash_differs_across_blocks_and_extrinsics() {
+		let mk = |block_hash: &[u8], xts: &[ExtrinsicMeta]| {
 			let entries = vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))];
-			assemble_synth_txs(entries, 222_222, parent, bn, 0)[0]
+			assemble_synth_txs(entries, 222_222, block_hash, xts, 100, 0)[0]
 				.1
 				.transaction_hash
 		};
-		// same bucket + base index, different block identity → different synth-tx hash
-		assert_ne!(mk(&[0x11u8; 32], 100), mk(&[0x22u8; 32], 101));
+		let xt_a = [meta(0xAA)];
+		let xt_b = [meta(0xBB)];
+
+		// Sibling blocks at the same height share a parent, so only the block's OWN
+		// hash separates them — keying the domain on the parent collided here, and
+		// this chain forks often.
+		assert_ne!(mk(&[0x11u8; 32], &xt_a), mk(&[0x22u8; 32], &xt_a));
+		// same block, different extrinsic
+		assert_ne!(mk(&[0x11u8; 32], &xt_a), mk(&[0x11u8; 32], &xt_b));
 		// determinism
-		assert_eq!(mk(&[0x11u8; 32], 100), mk(&[0x11u8; 32], 100));
+		assert_eq!(mk(&[0x11u8; 32], &xt_a), mk(&[0x11u8; 32], &xt_a));
+	}
+
+	// Hook buckets have no extrinsic, so every one of them carries the zero
+	// extrinsic hash. Within a block only `nonce` and `value` separate them.
+	#[test]
+	fn hook_buckets_stay_distinct_despite_zero_extrinsic_hash() {
+		use pallet_broadcast::types::ExecutionType;
+
+		let entries = vec![
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: None,
+				},
+				H160::repeat_byte(0x01),
+				log(1),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: None,
+				},
+				H160::repeat_byte(0x02),
+				log(2),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: Some(ExecutionType::DCA(7, 1)),
+				},
+				H160::repeat_byte(0x03),
+				log(3),
+			),
+		];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x33u8; 32], &[], 100, 0);
+		assert_eq!(txs.len(), 3, "three distinct hook buckets");
+
+		let mut hashes: Vec<_> = txs.iter().map(|(_, s, _)| s.transaction_hash).collect();
+		hashes.sort();
+		hashes.dedup();
+		assert_eq!(
+			hashes.len(),
+			3,
+			"hook buckets must not collide on the zero extrinsic hash"
+		);
+	}
+
+	fn meta(tag: u8) -> ExtrinsicMeta {
+		ExtrinsicMeta {
+			hash: [tag; 32],
+			origin: None,
+		}
 	}
 
 	fn log(tag: u8) -> ethereum::Log {

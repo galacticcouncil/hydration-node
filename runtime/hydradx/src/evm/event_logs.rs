@@ -15,7 +15,7 @@
 
 use super::synthetic_logs::{
 	account_to_evm_address, assemble_synth_txs, asset_evm_address, build_erc20_transfer_log, build_uniswap_v2_swap_log,
-	frozen_address_of, reserved_address_of, Bucket, HookPhase,
+	frozen_address_of, reserved_address_of, Bucket, ExtrinsicMeta, HookPhase,
 };
 use crate::RuntimeEvent;
 use frame_system::{EventRecord, Phase};
@@ -69,6 +69,47 @@ fn transfer(asset: u32, from: H160, to: H160, amount: u128) -> Vec<(H160, ethere
 	let addr = asset_evm_address(asset);
 	sp_std::vec![(addr, build_erc20_transfer_log(addr, from, to, U256::from(amount)))]
 }
+
+/// Every `(pallet, variant)` this module reads, by the names runtime metadata uses.
+///
+/// Three roles: most become erc20 `Transfer` or uniswap `Swap` logs below, `Ethereum.Executed`
+/// is what deduplicates synth logs against real eth txs, and
+/// `TransactionPayment.TransactionFeePaid` is where a synth tx's origin comes from. Losing any
+/// of them changes what `eth_getLogs` returns.
+///
+/// The node checks a chain's metadata against this list before reading a single block, so a
+/// runtime that moves one of these is a loud error instead of a quiet gap. Keep it in step
+/// with the match in `logs_from_event` and the two helpers under it.
+pub const SYNTH_EVENTS: &[(&str, &str)] = &[
+	("Tokens", "Transfer"),
+	("Tokens", "Deposited"),
+	("Tokens", "Withdrawn"),
+	("Tokens", "DustLost"),
+	("Tokens", "Slashed"),
+	("Tokens", "Reserved"),
+	("Tokens", "Unreserved"),
+	("Tokens", "ReserveRepatriated"),
+	("Tokens", "Locked"),
+	("Tokens", "Unlocked"),
+	("Balances", "Transfer"),
+	("Balances", "Deposit"),
+	("Balances", "Minted"),
+	("Balances", "Withdraw"),
+	("Balances", "Burned"),
+	("Balances", "DustLost"),
+	("Balances", "Slashed"),
+	("Balances", "Reserved"),
+	("Balances", "Unreserved"),
+	("Balances", "ReserveRepatriated"),
+	("Balances", "Locked"),
+	("Balances", "Frozen"),
+	("Balances", "Unlocked"),
+	("Balances", "Thawed"),
+	("Broadcast", "Swapped3"),
+	("EVM", "Log"),
+	("Ethereum", "Executed"),
+	("TransactionPayment", "TransactionFeePaid"),
+];
 
 /// Pure: the evm logs an indexer should see for one runtime event.
 pub fn logs_from_event(event: &RuntimeEvent) -> Vec<(H160, ethereum::Log)> {
@@ -294,15 +335,21 @@ fn log_key(address: H160, topics: &[H256], data: &[u8]) -> LogKey {
 	(address, topics.to_vec(), data.to_vec())
 }
 
-/// PURE: assemble a block's synthetic txs from its event records. Shared by the
-/// runtime API and the node's client-side indexer. `real_statuses` are the
-/// block's real eth-tx statuses — used both to index synth txs after them
-/// (`base_tx_index`) and to dedup `EVM::Log` events that already appear in a
-/// real tx's receipt.
+/// PURE: assemble a block's synthetic txs from its event records. `real_statuses`
+/// are the block's real eth-tx statuses — used both to index synth txs after them
+/// (`base_tx_index`) and to dedup `EVM::Log` events that already appear in a real
+/// tx's receipt.
+///
+/// `block_hash` is the block's own hash and `extrinsic_hashes` are its extrinsic
+/// hashes in order; together they domain-separate the synth tx envelopes and give
+/// an indexer a direct join back to the originating extrinsic. Pass an empty slice
+/// when the body is unavailable — extrinsic buckets then fall back to the zero
+/// hash, which stays unique because the block hash is still folded in.
 pub fn synthetic_txs_from_records(
 	records: &[EventRecord<RuntimeEvent, H256>],
 	chain_id: u64,
-	parent_hash: &[u8],
+	block_hash: &[u8],
+	extrinsic_hashes: &[[u8; 32]],
 	block_number: u64,
 	real_statuses: &[TransactionStatus],
 ) -> Vec<(Transaction, TransactionStatus, Receipt)> {
@@ -363,7 +410,30 @@ pub fn synthetic_txs_from_records(
 	if entries.is_empty() {
 		return Vec::new();
 	}
-	assemble_synth_txs(entries, chain_id, parent_hash, block_number, base_tx_index)
+	// Origin of each extrinsic, used as the synth tx's `to`. `TransactionFeePaid` is the
+	// cheapest reliable signal: already in these records, so no extrinsic decode and no
+	// exposure to the sdk skew `compat_events` handles. Unsigned extrinsics emit none and
+	// correctly end up with no origin.
+	let mut origins: BTreeMap<u32, H160> = BTreeMap::new();
+	for rec in records.iter() {
+		if let RuntimeEvent::TransactionPayment(pallet_transaction_payment::Event::TransactionFeePaid { who, .. }) =
+			&rec.event
+		{
+			if let Phase::ApplyExtrinsic(i) = rec.phase {
+				origins.insert(i, evm_addr(who));
+			}
+		}
+	}
+	let extrinsics: Vec<ExtrinsicMeta> = extrinsic_hashes
+		.iter()
+		.enumerate()
+		.map(|(i, hash)| ExtrinsicMeta {
+			hash: *hash,
+			origin: origins.get(&(i as u32)).copied(),
+		})
+		.collect();
+
+	assemble_synth_txs(entries, chain_id, block_hash, &extrinsics, block_number, base_tx_index)
 }
 
 #[cfg(test)]
@@ -603,7 +673,7 @@ mod tests {
 			logs: sp_std::vec![receipt_dup],
 			logs_bloom: Default::default(),
 		}];
-		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], 1, &real);
+		let out = synthetic_txs_from_records(&records, 1, &[0u8; 32], &[], 1, &real);
 		let synth_logs: Vec<ethereum::Log> = out.iter().flat_map(|(_, s, _)| s.logs.clone()).collect();
 		assert!(
 			synth_logs.iter().any(|l| l.address == internal_addr),
