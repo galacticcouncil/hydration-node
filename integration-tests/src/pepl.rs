@@ -1451,3 +1451,69 @@ fn liquidate_with_pool_should_fail_when_pool_is_wrong() {
 		);
 	});
 }
+
+// Historical replay of mainnet block 13133621, extrinsic 2: v1 liquidated borrower
+// 0x942c…d5f4 (collateral 690 = GDOT stableswap shares, debt 34 = ETH, debt_to_cover
+// 79_799_970_000_000_000, empty route). The snapshot is the parent block 13133620 —
+// the exact state the worker decided on. Proves the v2 decision layer catches the same
+// position and its `liquidate_with_pool` submission executes end-to-end.
+//
+// Snapshot (not committed — ~350MB full-state scrape):
+//   ./target/release/scraper save-storage \
+//     --at 0x76f3bd515676e7f94906ad4cc283e4bc669d7b769c5f2f5abcc3330d2f5301a3 \
+//     --uri wss://hydration-rpc.n.dwellir.com:443 --path integration-tests/snapshots/pepl
+pub const PATH_TO_SNAPSHOT_13133620: &str = "snapshots/pepl/SNAPSHOT_13133620";
+
+#[ignore] // needs the uncommitted snapshot above — run with `-- --ignored`
+#[test]
+fn v2_should_liquidate_when_replaying_mainnet_liquidation_13133621() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_13133620).execute_with(|| {
+		let borrower_evm = H160(hex!["942cd0ba9ae39ea7ac5a87973e1205f1a82fd5f4"]);
+
+		let api = ApiProvider::<Runtime>(Runtime);
+		let hydration = Hydration::new(
+			contracts::RUNTIME_API_CALLER,
+			contracts::POOL_ADDRESS_PROVIDER,
+			LOG_PREFIX,
+		);
+		let block_number = hydradx_runtime::System::block_number();
+		let block = hydradx_runtime::System::block_hash(block_number);
+		let now = api.timestamp(block).expect("timestamp");
+
+		let mm = hydration.fetch_money_market(&api, block).expect("fetch_money_market");
+		let borrower = hydration
+			.fetch_borrower(&api, block, block_number, &mm, borrower_evm, now)
+			.expect("fetch_borrower");
+
+		let cfg = pepl_worker::LiquidationTaskConfig {
+			target_hf: TARGET_HF,
+			log_prefix: LOG_PREFIX.to_string(),
+			..Default::default()
+		};
+		let decision = pepl_worker::decide_liquidation(&cfg, &mm, &borrower)
+			.expect("v2 must decide to liquidate the borrower v1 liquidated on mainnet");
+
+		// The position v1 actually liquidated on-chain: GDOT-shares collateral, ETH debt.
+		assert_eq!(decision.collateral_asset, 690);
+		assert_eq!(decision.debt_asset, 34);
+		assert_eq!(decision.user, borrower_evm);
+
+		let pool_contract = hydration.fetch_pool(&api, block).expect("fetch_pool");
+		assert_eq!(pool_contract, Liquidation::borrowing_contract());
+
+		assert_ok!(Liquidation::liquidate_with_pool(
+			RuntimeOrigin::none(),
+			pool_contract,
+			decision.collateral_asset,
+			decision.debt_asset,
+			borrower_evm,
+			decision.debt_to_cover,
+			BoundedVec::new(),
+			Some(decision.priority),
+		));
+
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
+}

@@ -1578,7 +1578,9 @@ where
 		  let (result_tx, result_rx) = std::sync::mpsc::channel::<(usize, EvmAddress, Option<Borrower>)>();
 		  let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).max(1);
 		  let chunk_size = scan_list.len().div_ceil(cores).max(1);
-		  let submitted = AtomicUsize::new(0);
+		  // Counts liquidations FOUND and handed to the pool, not accepted ones — the spawned
+		  // submits outlive this scope, so their results are logged per-tx inside the task.
+		  let found = AtomicUsize::new(0);
 
 		  tokio::task::block_in_place(|| {
 			  std::thread::scope(|scope| {
@@ -1589,7 +1591,7 @@ where
 					  let result_tx = result_tx.clone();
 					  let scan_ctxs = &scan_ctxs;
 					  let cfg = &task.cfg;
-					  let submitted = &submitted;
+					  let found = &found;
 					  let best = b.hash;
 					  scope.spawn(move || {
 						  let runtime_api = client.runtime_api();
@@ -1615,9 +1617,17 @@ where
 								  if let Some(mapped) = map_decision_collateral(&decision, ctx.kind, &ctx.atoken_map, log_prefix) {
 									  if let Some(opaque) = encode_liquidation_opaque(&mapped, ctx.mm.pool, log_prefix) {
 										  let pool = pool.clone();
-										  submitted.fetch_add(1, Ordering::Relaxed);
+										  let user = mapped.user;
+										  let prefix = ctx.log_prefix.clone();
+										  found.fetch_add(1, Ordering::Relaxed);
 										  handle.spawn(async move {
-											  let _ = pool.submit_one(best, TransactionSource::Local, opaque.into()).await;
+											  // A pool rejection (duplicate, pool limits, `InvalidTransaction` from
+											  // `validate_unsigned`) must never look like a landed liquidation —
+											  // that is the invisible-miss shape the worker exists to eliminate.
+											  match pool.submit_one(best, TransactionSource::Local, opaque.into()).await {
+												  Ok(_) => log::debug!(target: LOG_TARGET, "{prefix:?} run(): submitted liquidation for borrower {user:?}"),
+												  Err(e) => log::error!(target: LOG_TARGET, "{prefix:?} run(): failed to submit liquidation for borrower {user:?}, err: {e:?}"),
+											  }
 										  });
 									  }
 								  }
@@ -1649,7 +1659,7 @@ where
 			  }
 		  }
 
-		  log::debug!(target: LOG_TARGET, "{:?} run(): parallel scan of {} borrowers across {} market(s) over {} cores submitted {} liquidations (submit-on-find) for block {:?}", task.cfg.log_prefix, scan_list.len(), instances.len(), cores, submitted.load(Ordering::Relaxed), b.hash);
+		  log::debug!(target: LOG_TARGET, "{:?} run(): parallel scan of {} borrowers across {} market(s) over {} cores found {} liquidations (submit-on-find; per-tx submit results logged separately) for block {:?}", task.cfg.log_prefix, scan_list.len(), instances.len(), cores, found.load(Ordering::Relaxed), b.hash);
 
 		  // After a successful omniwatch fetch has been routed into the instances, replace the
 		  // on-disk cache with the current working set (union incl. event-discovered, minus

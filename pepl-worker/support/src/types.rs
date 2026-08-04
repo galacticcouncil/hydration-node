@@ -613,7 +613,7 @@ impl MoneyMarket {
 		};
 
 		// In collateral asset
-		let Some(collateral_amount) = percent_mul(base_collateral_amount, liq_bonus) else {
+		let Some(mut collateral_amount) = percent_mul(base_collateral_amount, liq_bonus) else {
 			return Err(Error::Arithmetic("Overflow"));
 		};
 
@@ -661,10 +661,12 @@ impl MoneyMarket {
 					.ok_or(Error::Arithmetic("Overflow"))?
 			};
 
-			// In collateral asset
-			let Some(collateral_amount) = percent_mul(base_collateral_amount, liq_bonus) else {
+			// In collateral asset. Must overwrite the pre-clamp binding, not shadow it — the ED
+			// guard below decides on this value.
+			let Some(clamped_collateral_amount) = percent_mul(base_collateral_amount, liq_bonus) else {
 				return Err(Error::Arithmetic("Overflow"));
 			};
+			collateral_amount = clamped_collateral_amount;
 
 			debt_in_base = actual_debt_to_liquidate
 				.full_mul(debt.price)

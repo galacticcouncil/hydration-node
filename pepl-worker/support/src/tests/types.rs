@@ -112,6 +112,110 @@ fn select_best_should_pick_highest_hf_when_no_option_heals() {
 	assert_eq!(best, Some(better));
 }
 
+// Aave reserve configuration bitmap: liquidation threshold in bits [16..31], liquidation bonus
+// in bits [32..47], decimals in bits [48..55].
+fn reserve_config(threshold_bps: u128, bonus_bps: u128, decimals: u8) -> U256 {
+	(U256::from(threshold_bps) << 16) | (U256::from(bonus_bps) << 32) | (U256::from(decimals) << 48)
+}
+
+fn reserve(idx: usize, addr: u8, price: u128, existential_deposit: u128, configuration: U256) -> Reserve {
+	Reserve {
+		idx,
+		data: ReserveData {
+			configuration,
+			liquidity_index: 0,
+			current_liquidity_rate: 0,
+			variable_borrow_index: 0,
+			current_variable_borrow_rate: 0,
+			last_update_timestamp: 0,
+			a_token_address: H160::zero(),
+			stable_debt_token_address: H160::zero(),
+			variable_debt_token_address: H160::zero(),
+		},
+		address: H160::repeat_byte(addr),
+		asset_id: idx as u32,
+		symbol: "TST".to_string(),
+		price: U256::from(price),
+		existential_deposit,
+		emode: None,
+	}
+}
+
+// A borrower far below HF 1 whose theoretical seize (1050) exceeds the collateral they actually
+// hold (100), forcing `calc_debt_to_liquidate` down its clamp branch. Both reserves use the
+// oracle's 8 decimals and a price of 1.0, so asset amounts and base-currency amounts coincide and
+// the clamp arithmetic stays legible.
+fn insufficient_collateral_fixture(collateral_ed: u128, debt_ed: u128) -> (MoneyMarket, Borrower, Reserve, Reserve) {
+	let collateral = reserve(0, 0x01, 100_000_000, collateral_ed, reserve_config(8_000, 10_500, 8));
+	let debt = reserve(1, 0x02, 100_000_000, debt_ed, reserve_config(0, 10_000, 8));
+
+	let mut reserves = HashMap::new();
+	reserves.insert(collateral.address, collateral.clone());
+	reserves.insert(debt.address, debt.clone());
+
+	let mm = MoneyMarket {
+		pool: H160::zero(),
+		oracle: H160::zero(),
+		reserves,
+		poisoned: Vec::new(),
+	};
+
+	let borrower = Borrower {
+		configuration: UserConfiguration(U256::zero()),
+		address: H160::repeat_byte(0xAB),
+		reserves: vec![
+			Some(UserReserve {
+				collateral: U256::from(100u8),
+				debt: U256::zero(),
+			}),
+			Some(UserReserve {
+				collateral: U256::zero(),
+				debt: U256::from(1_000u16),
+			}),
+		],
+		emode_id: None,
+		total_debt: U256::from(1_000u16),
+		total_collateral: U256::from(100u8),
+		updated_at: 0,
+	};
+
+	(mm, borrower, collateral, debt)
+}
+
+// The clamp branch must report the CLAMPED seize, not the pre-clamp theoretical one: shadowing
+// the binding left `collateral_amount` at 1050 while `collateral_in_base_currency` was already
+// the clamped 100, so the two disagreed by the bonus-inflated overshoot.
+#[test]
+fn calc_debt_to_liquidate_should_return_clamped_amount_when_collateral_is_insufficient() {
+	let (mm, borrower, collateral, debt) = insufficient_collateral_fixture(1, 1);
+
+	let amounts = mm
+		.calc_debt_to_liquidate(&borrower, U256::from(TARGET_HF), &collateral, &debt)
+		.expect("clamped liquidation amounts");
+
+	assert_eq!(
+		amounts,
+		LiquidationAmounts {
+			debt_amount: U256::from(95u8),
+			collateral_amount: U256::from(100u8),
+			debt_in_base_currency: U256::from(95u8),
+			collateral_in_base_currency: U256::from(100u8),
+		}
+	);
+}
+
+// The ED guard decides on the clamped seize. With ED = 500 the clamped 100 is dust and the
+// option must be dropped; reading the pre-clamp 1050 instead passed the guard and submitted a
+// liquidation that dusts on-chain.
+#[test]
+fn calc_debt_to_liquidate_should_fail_when_clamped_seize_is_below_existential_deposit() {
+	let (mm, borrower, collateral, debt) = insufficient_collateral_fixture(500, 1);
+
+	let result = mm.calc_debt_to_liquidate(&borrower, U256::from(TARGET_HF), &collateral, &debt);
+
+	assert!(matches!(result, Err(Error::LiquidationBelowED)));
+}
+
 // Bit layout: one pair per reserve index — bit `2*idx` = debt, bit `2*idx + 1` = collateral.
 #[test]
 fn user_configuration_uses_any_should_detect_collateral_and_debt_bits() {
