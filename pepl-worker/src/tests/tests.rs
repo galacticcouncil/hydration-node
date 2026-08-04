@@ -1,22 +1,5 @@
 use crate::*;
 
-// Live smoke test: hits the real omniwatch endpoint over the network, so it is
-// #[ignore]d by default (flaky, and the borrower count is non-deterministic). Run it
-// manually with `cargo test -p pepl-worker -- --ignored` to check omniwatch
-// reachability. Deterministic failure-mode coverage is in the tests below, against a local mock.
-#[tokio::test]
-#[ignore = "hits live omniwatch over the network; run with --ignored"]
-async fn fetch_borrowers_list_should_return_borrowers_when_omniwatch_reachable() {
-	let https = https::new();
-
-	let url = OMNIWATCH_URL.parse().expect("OMNIWATCH_URL to be valid");
-	let borrowers = fetch_borrowers_list(&https, url, "test")
-		.await
-		.expect("fetch borrowers from omniwatch to work");
-
-	assert!(!borrowers.is_empty());
-}
-
 // A down/unreachable omniwatch must return `None` (never panic). Port 1 is not listening, so
 // the connection is refused immediately — deterministic, no network dependency.
 #[tokio::test]

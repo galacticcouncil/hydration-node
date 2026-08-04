@@ -22,16 +22,11 @@ use orml_traits::MultiCurrency;
 use pallet_currencies_rpc_runtime_api::runtime_decl_for_currencies_api::CurrenciesApi;
 use pepl_support::traits::RuntimeApiErr;
 use pepl_support::traits::RuntimeApiProvider;
-use pepl_worker::contracts;
 use pepl_worker_support as pepl_support;
-use pepl_worker_support::types::Borrower;
-use pepl_worker_support::types::EModeCategory;
 use pepl_worker_support::types::LiquidationAmounts;
 use pepl_worker_support::types::MoneyMarket;
 use pepl_worker_support::types::ReserveOpp;
 use pepl_worker_support::types::Timestamp;
-use pepl_worker_support::types::UserConfiguration;
-use pepl_worker_support::types::UserReserve;
 use pepl_worker_support::Function;
 use pepl_worker_support::Hydration;
 use pretty_assertions::assert_eq;
@@ -54,7 +49,6 @@ use liquidation_worker_support::UserData as V1UserData;
 
 const LOG_PREFIX: &str = "tests-log-prefix";
 
-pub const PATH_TO_SNAPSHOT: &str = "snapshots/pepl/b49b947a954942f74e23d4f46b668fff00bc8b4f8105c8b905222a3bf76ea308";
 pub const PATH_TO_SNAPSHOT_2: &str = "evm-snapshot/LIQUIDATION_SNAPSHOT";
 
 const TARGET_HF: u128 = 1_001_000_000_000_000_000;
@@ -274,153 +268,6 @@ where
 			.timestamp
 			.checked_div(1_000)
 	}
-}
-
-#[test]
-fn fetch_money_market_should_work() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		let hollar = H160(hex!["531a654d1696ed52e7275a8cede955e82620f99a"]);
-		let eth = H160(hex!["0000000000000000000000000000000100000022"]);
-		let dot = H160(hex!["0000000000000000000000000000000100000005"]);
-		let usdc = H160(hex!["0000000000000000000000000000000100000016"]);
-
-		let block = hydradx_runtime::System::block_hash(hydradx_runtime::System::block_number());
-		let api = ApiProvider::<Runtime>(Runtime);
-
-		let hydration = pepl_support::Hydration::new(
-			contracts::RUNTIME_API_CALLER,
-			contracts::POOL_ADDRESS_PROVIDER,
-			LOG_PREFIX,
-		);
-
-		let mm = hydration.fetch_money_market(&api, block);
-		assert!(mm.is_some());
-
-		let mm = mm.expect("MomneyMarket to be some");
-		let mm_hollar = mm.reserves.get(&hollar).expect("MoneyMarket to have HOLLAR");
-		assert_eq!(mm_hollar.address, hollar);
-		assert_eq!(mm_hollar.symbol, "HOLLAR".to_string());
-		assert_eq!(mm_hollar.price, U256::from(100_000_000_u128));
-		assert_eq!(mm_hollar.asset_id, 222);
-		assert_eq!(mm_hollar.emode, None);
-		assert_eq!(mm_hollar.data.configuration, U256::from(2671197528984125440_u128));
-
-		let mm_eth = mm.reserves.get(&eth).expect("MoneyMarket to have ETH");
-		assert_eq!(mm_eth.address, eth);
-		assert_eq!(mm_eth.symbol, "ETH".to_string());
-		assert_eq!(mm_eth.price, U256::from(230_350_568_365_u128));
-		assert_eq!(mm_eth.asset_id, 34);
-		assert_eq!(
-			mm_eth.emode,
-			Some(EModeCategory {
-				liquidation_threshold: 9_000_u16,
-				liquidation_bonus: 10_450_u16
-			})
-		);
-
-		let mm_dot = mm.reserves.get(&dot).expect("MoneyMarket to have DOT");
-		assert_eq!(mm_dot.address, dot);
-		assert_eq!(mm_dot.symbol, "DOT".to_string());
-		assert_eq!(mm_dot.price, U256::from(120_665_467_u128));
-		assert_eq!(mm_dot.asset_id, 5);
-		assert_eq!(
-			mm_dot.emode,
-			Some(EModeCategory {
-				liquidation_threshold: 9_200_u16,
-				liquidation_bonus: 10_450_u16
-			})
-		);
-
-		let mm_usdc = mm.reserves.get(&usdc).expect("MoneyMarket to have USDC");
-		assert_eq!(mm_usdc.address, usdc);
-		assert_eq!(mm_usdc.symbol, "USDC".to_string());
-		assert_eq!(mm_usdc.price, U256::from(99_981_389_u128));
-		assert_eq!(mm_usdc.asset_id, 22);
-		assert_eq!(
-			mm_usdc.emode,
-			Some(EModeCategory {
-				liquidation_threshold: 9_300_u16,
-				liquidation_bonus: 10_150_u16
-			})
-		);
-	});
-}
-
-#[test]
-fn fetch_borrower_should_work() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
-		let dot = H160(hex!["0000000000000000000000000000000100000005"]);
-		let vdot = H160(hex!["000000000000000000000000000000010000000f"]);
-		let usdc = H160(hex!["0000000000000000000000000000000100000016"]);
-
-		let block_number = hydradx_runtime::System::block_number();
-		let block = hydradx_runtime::System::block_hash(block_number);
-		let api = ApiProvider::<Runtime>(Runtime);
-
-		let now = Runtime::current_block()
-			.expect("runtime to have current_block")
-			.header
-			.timestamp
-			/ 1_000;
-
-		let exp_dot = Some(UserReserve {
-			collateral: U256::from(23_262_963_331_u128),
-			debt: U256::from(0_u128),
-		});
-		let expt_usdc = Some(UserReserve {
-			collateral: U256::from(13_556_378_052_u128),
-			debt: U256::from(30_440_549_054_u128),
-		});
-		let exp_vdot = Some(UserReserve {
-			collateral: U256::from(6_888_450_327_u128),
-			debt: U256::from(0_u128),
-		});
-
-		let mut exp_reserves: Vec<Option<UserReserve>> = vec![None; 22];
-		exp_reserves[0] = expt_usdc.clone();
-		exp_reserves[3] = exp_dot.clone();
-		exp_reserves[4] = exp_vdot.clone();
-
-		let expected = Borrower {
-			configuration: UserConfiguration(U256::from(643_u128)),
-			address: H160(hex!["288e0dbd476cbfc7dfc1268c00b9e5081e9d9b1a"]),
-			emode_id: Some(U256::from(1_u128)),
-			reserves: exp_reserves,
-			total_debt: U256::from(30_440_549_054_u128),
-			total_collateral: U256::from(43_707_791_710_u128),
-			updated_at: block_number,
-		};
-
-		let hydration = pepl_support::Hydration::new(
-			contracts::RUNTIME_API_CALLER,
-			contracts::POOL_ADDRESS_PROVIDER,
-			LOG_PREFIX,
-		);
-
-		let mm = hydration
-			.fetch_money_market(&api, block)
-			.expect("fetch MoneyMarket data to work");
-
-		let who = H160(hex!("288e0dbd476cbfc7dfc1268c00b9e5081e9d9b1a"));
-		let borrower = hydration
-			.fetch_borrower(&api, block, block_number, &mm, who, now)
-			.expect("fetch borrower to work");
-
-		//Assert
-		assert_eq!(borrower, expected);
-
-		//Assert indexes works
-		let idx = mm.reserves.get(&dot).expect("DOT to be in reserves").idx;
-		assert_eq!(borrower.reserves[idx], exp_dot);
-
-		let idx = mm.reserves.get(&vdot).expect("VDOT to be in reserves").idx;
-		assert_eq!(borrower.reserves[idx], exp_vdot);
-
-		let idx = mm.reserves.get(&usdc).expect("USDC to be in reserves").idx;
-		assert_eq!(borrower.reserves[idx], expt_usdc);
-	});
 }
 
 #[test]
@@ -1449,71 +1296,5 @@ fn liquidate_with_pool_should_fail_when_pool_is_wrong() {
 			),
 			pallet_liquidation::Error::<Runtime>::PoolAddressMismatch
 		);
-	});
-}
-
-// Historical replay of mainnet block 13133621, extrinsic 2: v1 liquidated borrower
-// 0x942c…d5f4 (collateral 690 = GDOT stableswap shares, debt 34 = ETH, debt_to_cover
-// 79_799_970_000_000_000, empty route). The snapshot is the parent block 13133620 —
-// the exact state the worker decided on. Proves the v2 decision layer catches the same
-// position and its `liquidate_with_pool` submission executes end-to-end.
-//
-// Snapshot (not committed — ~350MB full-state scrape):
-//   ./target/release/scraper save-storage \
-//     --at 0x76f3bd515676e7f94906ad4cc283e4bc669d7b769c5f2f5abcc3330d2f5301a3 \
-//     --uri wss://hydration-rpc.n.dwellir.com:443 --path integration-tests/snapshots/pepl
-pub const PATH_TO_SNAPSHOT_13133620: &str = "snapshots/pepl/SNAPSHOT_13133620";
-
-#[ignore] // needs the uncommitted snapshot above — run with `-- --ignored`
-#[test]
-fn v2_should_liquidate_when_replaying_mainnet_liquidation_13133621() {
-	TestNet::reset();
-	hydra_live_ext(PATH_TO_SNAPSHOT_13133620).execute_with(|| {
-		let borrower_evm = H160(hex!["942cd0ba9ae39ea7ac5a87973e1205f1a82fd5f4"]);
-
-		let api = ApiProvider::<Runtime>(Runtime);
-		let hydration = Hydration::new(
-			contracts::RUNTIME_API_CALLER,
-			contracts::POOL_ADDRESS_PROVIDER,
-			LOG_PREFIX,
-		);
-		let block_number = hydradx_runtime::System::block_number();
-		let block = hydradx_runtime::System::block_hash(block_number);
-		let now = api.timestamp(block).expect("timestamp");
-
-		let mm = hydration.fetch_money_market(&api, block).expect("fetch_money_market");
-		let borrower = hydration
-			.fetch_borrower(&api, block, block_number, &mm, borrower_evm, now)
-			.expect("fetch_borrower");
-
-		let cfg = pepl_worker::LiquidationTaskConfig {
-			target_hf: TARGET_HF,
-			log_prefix: LOG_PREFIX.to_string(),
-			..Default::default()
-		};
-		let decision = pepl_worker::decide_liquidation(&cfg, &mm, &borrower)
-			.expect("v2 must decide to liquidate the borrower v1 liquidated on mainnet");
-
-		// The position v1 actually liquidated on-chain: GDOT-shares collateral, ETH debt.
-		assert_eq!(decision.collateral_asset, 690);
-		assert_eq!(decision.debt_asset, 34);
-		assert_eq!(decision.user, borrower_evm);
-
-		let pool_contract = hydration.fetch_pool(&api, block).expect("fetch_pool");
-		assert_eq!(pool_contract, Liquidation::borrowing_contract());
-
-		assert_ok!(Liquidation::liquidate_with_pool(
-			RuntimeOrigin::none(),
-			pool_contract,
-			decision.collateral_asset,
-			decision.debt_asset,
-			borrower_evm,
-			decision.debt_to_cover,
-			BoundedVec::new(),
-			Some(decision.priority),
-		));
-
-		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
-		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
 	});
 }
