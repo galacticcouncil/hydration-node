@@ -5633,7 +5633,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.1.7"
+version = "15.2.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -5787,7 +5787,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "435.0.0"
+version = "436.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -13903,7 +13903,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.105.0"
+version = "1.106.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
