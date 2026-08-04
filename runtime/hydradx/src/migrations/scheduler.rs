@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use codec::Encode;
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec};
-use pallet_scheduler::{pallet, BlockNumberFor, ScheduledOf};
+use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+use pallet_scheduler::{pallet, BlockNumberFor};
 use sp_core::Get;
 use sp_runtime::{traits::BlockNumberProvider, Saturating};
 use sp_std::{marker::PhantomData, vec::Vec};
@@ -43,23 +43,14 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 		}
 
 		let current_block = T::BlockNumberProvider::current_block_number();
-		let agenda: Vec<(
-			BlockNumberFor<T>,
-			BoundedVec<Option<ScheduledOf<T>>, T::MaxScheduledPerBlock>,
-		)> = pallet_scheduler::Agenda::<T>::iter().collect();
+		let agenda = pallet_scheduler::Agenda::<T>::iter().collect::<Vec<_>>();
 		let agenda_len = agenda.len() as u64;
 
-		log::info!(
-			"MigrateSchedulerTo2sBlocks found Agenda entries: {:?}, cap: {:?}",
-			agenda_len,
-			MAX_AGENDA_ENTRIES,
-		);
+		log::info!("MigrateSchedulerTo2sBlocks found Agenda entries: {agenda_len:?}, cap: {MAX_AGENDA_ENTRIES:?}",);
 
 		if agenda_len > MAX_AGENDA_ENTRIES {
 			log::error!(
-				"MigrateSchedulerTo2sBlocks skipped because Agenda has {:?} entries, cap: {:?}",
-				agenda_len,
-				MAX_AGENDA_ENTRIES,
+				"MigrateSchedulerTo2sBlocks skipped because Agenda has {agenda_len:?} entries, cap: {MAX_AGENDA_ENTRIES:?}",
 			);
 			return T::DbWeight::get().reads_writes(agenda_len.saturating_add(1), 0);
 		}
@@ -79,7 +70,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 
 		Self::mark_done();
 
-		log::info!("MigrateSchedulerTo2sBlocks processed agenda items: {:?}", agenda_len,);
+		log::info!("MigrateSchedulerTo2sBlocks processed agenda items: {agenda_len:?}",);
 		T::DbWeight::get().reads_writes(
 			agenda_len.saturating_add(1),
 			agenda_len.saturating_mul(2).saturating_add(1),
@@ -118,7 +109,7 @@ mod test {
 			assert!(!pallet_scheduler::Agenda::<Runtime>::contains_key(200));
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(400));
 			let migrated_agenda = pallet_scheduler::Agenda::<Runtime>::get(400);
-			let migrated_schedule = migrated_agenda.get(0).and_then(Option::as_ref).unwrap();
+			let migrated_schedule = migrated_agenda.first().and_then(Option::as_ref).unwrap();
 			assert_eq!(migrated_schedule.maybe_periodic, Some((30, 2)));
 
 			MigrateSchedulerTo2sBlocks::<Runtime>::on_runtime_upgrade();

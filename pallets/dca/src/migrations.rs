@@ -42,17 +42,11 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MultiplySchedulesPeriodBy3<T> {
 		let schedules_len = schedules.len() as u64;
 		reads.saturating_accrue(schedules_len);
 
-		log::info!(
-			"MultiplySchedulesPeriodBy3 found schedules: {:?}, processing cap: {:?}",
-			schedules_len,
-			MAX_SCHEDULES,
-		);
+		log::info!("MultiplySchedulesPeriodBy3 found schedules: {schedules_len:?}, processing cap: {MAX_SCHEDULES:?}",);
 
 		if schedules_len > MAX_SCHEDULES {
 			log::error!(
-				"MultiplySchedulesPeriodBy3 skipped because Schedules has {:?} entries, cap: {:?}",
-				schedules_len,
-				MAX_SCHEDULES,
+				"MultiplySchedulesPeriodBy3 skipped because Schedules has {schedules_len:?} entries, cap: {MAX_SCHEDULES:?}",
 			);
 			return T::DbWeight::get().reads(reads);
 		}

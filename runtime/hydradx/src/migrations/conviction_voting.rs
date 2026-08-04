@@ -52,16 +52,12 @@ impl<T: pallet::Config<I>, I: 'static> OnRuntimeUpgrade for MigrateConvictionVot
 		let mut migrated = 0u64;
 
 		log::info!(
-			"MigrateConvictionVotingTo2sBlocks found VotingFor records: {:?}, cap: {:?}",
-			voting_for_records,
-			MAX_VOTING_FOR_RECORDS,
+			"MigrateConvictionVotingTo2sBlocks found VotingFor records: {voting_for_records:?}, cap: {MAX_VOTING_FOR_RECORDS:?}",
 		);
 
 		if voting_for_records > MAX_VOTING_FOR_RECORDS {
 			log::error!(
-				"MigrateConvictionVotingTo2sBlocks skipped because VotingFor has {:?} records, cap: {:?}",
-				voting_for_records,
-				MAX_VOTING_FOR_RECORDS,
+				"MigrateConvictionVotingTo2sBlocks skipped because VotingFor has {voting_for_records:?} records, cap: {MAX_VOTING_FOR_RECORDS:?}",
 			);
 			return T::DbWeight::get().reads(reads);
 		}
@@ -83,7 +79,7 @@ impl<T: pallet::Config<I>, I: 'static> OnRuntimeUpgrade for MigrateConvictionVot
 		Self::mark_done();
 		writes.saturating_inc();
 
-		log::info!("MigrateConvictionVotingTo2sBlocks migrated prior locks: {:?}", migrated);
+		log::info!("MigrateConvictionVotingTo2sBlocks migrated prior locks: {migrated:?}");
 		T::DbWeight::get().reads_writes(reads, writes)
 	}
 }

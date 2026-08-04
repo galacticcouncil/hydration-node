@@ -48,16 +48,12 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateStableswapMaxPegUpdateTo2sBl
 		let pool_pegs_len = pool_pegs.len();
 
 		log::info!(
-			"MigrateStableswapMaxPegUpdateTo2sBlocks found PoolPegs entries: {:?}, cap: {:?}",
-			pool_pegs_len,
-			MAX_POOL_PEG_ENTRIES
+			"MigrateStableswapMaxPegUpdateTo2sBlocks found PoolPegs entries: {pool_pegs_len:?}, cap: {MAX_POOL_PEG_ENTRIES:?}",
 		);
 
 		if pool_pegs.len() as u64 > MAX_POOL_PEG_ENTRIES {
 			log::error!(
-				"MigrateStableswapMaxPegUpdateTo2sBlocks skipped because PoolPegs has {:?} entries, cap: {:?}",
-				pool_pegs_len,
-				MAX_POOL_PEG_ENTRIES,
+				"MigrateStableswapMaxPegUpdateTo2sBlocks skipped because PoolPegs has {pool_pegs_len:?} entries, cap: {MAX_POOL_PEG_ENTRIES:?}",
 			);
 			return T::DbWeight::get().reads(reads);
 		}
@@ -80,11 +76,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateStableswapMaxPegUpdateTo2sBl
 		Self::mark_done();
 		writes.saturating_inc();
 
-		log::info!(
-			"MigrateStableswapMaxPegUpdateTo2sBlocks checked pools: {:?}, migrated: {:?}",
-			pool_pegs_len,
-			migrated,
-		);
+		log::info!("MigrateStableswapMaxPegUpdateTo2sBlocks checked pools: {pool_pegs_len:?}, migrated: {migrated:?}",);
 
 		T::DbWeight::get().reads_writes(reads, writes)
 	}

@@ -34,10 +34,7 @@ impl<T: pallet::Config> MigrateCircuitBreakerLimitsTo2sBlocks<T> {
 			true
 		} else {
 			log::error!(
-				"MigrateCircuitBreakerLimitsTo2sBlocks skipped because {:?} has {:?} entries, cap: {:?}",
-				map,
-				len,
-				MAX_LIMIT_ENTRIES_PER_MAP,
+				"MigrateCircuitBreakerLimitsTo2sBlocks skipped because {map:?} has {len:?} entries, cap: {MAX_LIMIT_ENTRIES_PER_MAP:?}",
 			);
 			false
 		}
@@ -64,11 +61,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateCircuitBreakerLimitsTo2sBloc
 			.saturating_add(remove_limits_len as u64);
 
 		log::info!(
-			"MigrateCircuitBreakerLimitsTo2sBlocks found entries - trade: {:?}, add liquidity: {:?}, remove liquidity: {:?}, cap per map: {:?}",
-			trade_limits_len,
-			add_limits_len,
-			remove_limits_len,
-			MAX_LIMIT_ENTRIES_PER_MAP,
+			"MigrateCircuitBreakerLimitsTo2sBlocks found entries - trade: {trade_limits_len:?}, add liquidity: {add_limits_len:?}, remove liquidity: {remove_limits_len:?}, cap per map: {MAX_LIMIT_ENTRIES_PER_MAP:?}",
 		);
 
 		if !Self::is_within_limit(trade_limits_len as u64, "TradeVolumeLimitPerAsset")
@@ -99,10 +92,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateCircuitBreakerLimitsTo2sBloc
 		writes.saturating_inc();
 
 		log::info!(
-			"MigrateCircuitBreakerLimitsTo2sBlocks migrated trade: {:?}, add liquidity: {:?}, remove liquidity: {:?}",
-			trade_limits_len,
-			add_limits_len,
-			remove_limits_len,
+			"MigrateCircuitBreakerLimitsTo2sBlocks migrated trade: {trade_limits_len:?}, add liquidity: {add_limits_len:?}, remove liquidity: {remove_limits_len:?}",
 		);
 
 		T::DbWeight::get().reads_writes(reads, writes)

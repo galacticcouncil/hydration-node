@@ -92,20 +92,12 @@ where
 		let current_block = <T as pallet::Config<I>>::BlockNumberProvider::current_block_number();
 		let checked = reads.saturating_sub(1);
 		log::info!(
-			"MigrateReferendaTo2sBlocks found ReferendumInfoFor records: {:?}, records cap: {:?}, ongoing: {:?}, ongoing cap: {:?}",
-			checked,
-			MAX_REFERENDA_RECORDS,
-			ongoing_count,
-			MAX_ACTIVE_REFERENDA,
+			"MigrateReferendaTo2sBlocks found ReferendumInfoFor records: {checked:?}, records cap: {MAX_REFERENDA_RECORDS:?}, ongoing: {ongoing_count:?}, ongoing cap: {MAX_ACTIVE_REFERENDA:?}",
 		);
 
 		if checked > MAX_REFERENDA_RECORDS || ongoing_count > MAX_ACTIVE_REFERENDA {
 			log::error!(
-				"MigrateReferendaTo2sBlocks skipped because ReferendumInfoFor has {:?} records, cap: {:?}, or {:?} ongoing referenda, cap: {:?}",
-				checked,
-				MAX_REFERENDA_RECORDS,
-				ongoing_count,
-				MAX_ACTIVE_REFERENDA,
+				"MigrateReferendaTo2sBlocks skipped because ReferendumInfoFor has {checked:?} records, cap: {MAX_REFERENDA_RECORDS:?}, or {ongoing_count:?} ongoing referenda, cap: {MAX_ACTIVE_REFERENDA:?}",
 			);
 			return T::DbWeight::get().reads(reads);
 		}
@@ -141,10 +133,7 @@ where
 		writes.saturating_inc();
 
 		log::info!(
-			"MigrateReferendaTo2sBlocks checked referenda records: {:?}, ongoing: {:?}, migrated ongoing: {:?}",
-			checked,
-			ongoing_len,
-			migrated,
+			"MigrateReferendaTo2sBlocks checked referenda records: {checked:?}, ongoing: {ongoing_len:?}, migrated ongoing: {migrated:?}",
 		);
 
 		T::DbWeight::get().reads_writes(reads, writes)
