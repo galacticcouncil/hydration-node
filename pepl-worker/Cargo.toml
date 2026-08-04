@@ -38,6 +38,7 @@ futures = { workspace = true }
 fp-rpc = { workspace = true }
 sp-arithmetic = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

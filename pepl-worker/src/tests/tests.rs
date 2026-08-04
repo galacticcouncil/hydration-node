@@ -200,7 +200,7 @@ fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_give
 	};
 	let market_pool = H160::repeat_byte(0x77);
 
-	let opaque = encode_liquidation_opaque(&decision, market_pool, "test").expect("encode");
+	let opaque = encode_liquidation_opaque(liquidation_call(&decision, market_pool), "test").expect("encode");
 	let encoded = opaque.encode();
 	let xt = hydradx_runtime::HydraUncheckedExtrinsic::decode(&mut &encoded[..]).expect("decode");
 
@@ -402,6 +402,31 @@ mod registry {
 		assert_eq!(instances.len(), 1);
 	}
 
+	// A market marked denylisted (its pool resolved to a denylisted address) must not be revived
+	// through the PAP-adoption path by a second, non-denylisted pool naming the same provider.
+	#[test]
+	fn ensure_instance_should_refuse_when_pap_belongs_to_a_denylisted_instance() {
+		let pool = H160::repeat_byte(0x11);
+		let pap = H160::repeat_byte(0x22);
+		let api = MockPoolApi { pap, pool };
+		let mut denied = MmInstance::new("test", pap, None, InstanceSource::Config);
+		denied.denylisted = true;
+		let mut instances = vec![denied];
+
+		let idx = ensure_instance_for_pool(
+			&mut instances,
+			&api,
+			TestHash::default(),
+			pool,
+			InstanceSource::Discovered,
+			&cfg(),
+		);
+
+		assert_eq!(idx, None);
+		assert_eq!(instances.len(), 1);
+		assert_eq!(instances[0].pool, None);
+	}
+
 	#[test]
 	fn ensure_instance_should_skip_when_pool_denylisted() {
 		let pool = H160::repeat_byte(0x11);
@@ -589,6 +614,24 @@ mod cache {
 		);
 		let _ = std::fs::remove_file(&path);
 	}
+
+	// A denylisted market is never scanned, so persisting its borrowers would re-load them on a
+	// later run as if they were vetted coverage.
+	#[test]
+	fn borrower_cache_should_skip_denylisted_instances() {
+		let path = tmp_path("denylisted");
+		let _ = std::fs::remove_file(&path);
+		let pool_a = H160::repeat_byte(0xAA);
+		let kept = instance_with(pool_a, &[H160::repeat_byte(0x11)]);
+		let mut denied = instance_with(H160::repeat_byte(0xBB), &[H160::repeat_byte(0x99)]);
+		denied.denylisted = true;
+
+		borrower_cache::save(&path, &[kept, denied], "test");
+		let loaded = borrower_cache::load(&path, "test");
+
+		assert_eq!(loaded, vec![(H160::repeat_byte(0x11), pool_a)]);
+		let _ = std::fs::remove_file(&path);
+	}
 }
 
 // A borrower with zero debt is healthy (HF = max), not an error — decide_liquidation skips.
@@ -654,16 +697,58 @@ fn parse_oracle_price_updates_should_extract_base_and_price_from_setvalue() {
 	assert_eq!(parse_oracle_price_updates(&tx), vec![("dot".to_string(), price)]);
 }
 
-// The derived-token reprice. A DOT price update must reprice BOTH the direct DOT reserve (set to
-// the new price) AND a derived reserve whose symbol contains "dot" (e.g. gDOT), scaled by the
-// ratio new_base/old_base.
+// `setMultipleValues` is the call DIA actually uses for mainnet multi-asset updates. It packs
+// `value = (price << 128) | timestamp`, and the parser hand-rolls that split — an endianness or
+// slice change there feeds the fast path a timestamp-derived garbage price.
 #[test]
-fn apply_oracle_updates_should_reprice_direct_and_derived_reserves() {
+fn parse_oracle_price_updates_should_unpack_prices_from_setmultiplevalues() {
+	use ethabi::Token;
+	use pepl_worker_support::Function;
+
+	let dot_price = U256::from(150_000_000u64); // 8-dec USD
+	let eth_price = U256::from(300_000_000_000u64);
+	let timestamp = U256::from(1_700_000_000u64);
+	let pack = |price: U256| (price << 128) | timestamp;
+
+	let mut input = Into::<u32>::into(Function::SetMultipleValues).to_be_bytes().to_vec();
+	input.extend(ethabi::encode(&[
+		Token::Array(vec![
+			Token::String("DOT/USD".to_string()),
+			Token::String("ETH/USD".to_string()),
+		]),
+		Token::Array(vec![Token::Uint(pack(dot_price)), Token::Uint(pack(eth_price))]),
+	]));
+
+	let signature = ethereum::eip2930::TransactionSignature::new(
+		false,
+		sp_core::H256::from_low_u64_be(1),
+		sp_core::H256::from_low_u64_be(1),
+	)
+	.expect("sig in range");
+	let tx = pallet_ethereum::Transaction::EIP1559(ethereum::EIP1559Transaction {
+		chain_id: 222_222,
+		nonce: U256::zero(),
+		max_priority_fee_per_gas: U256::zero(),
+		max_fee_per_gas: U256::zero(),
+		gas_limit: U256::from(1_000_000u32),
+		action: ethereum::TransactionAction::Call(sp_core::H160::repeat_byte(0xDE)),
+		value: U256::zero(),
+		input,
+		access_list: Vec::new(),
+		signature,
+	});
+
+	assert_eq!(
+		parse_oracle_price_updates(&tx),
+		vec![("dot".to_string(), dot_price), ("eth".to_string(), eth_price)]
+	);
+}
+
+fn reserve_named(idx: usize, symbol: &str, addr: u8, price: u128) -> pepl_worker_support::types::Reserve {
 	use pepl_worker_support::types::{Reserve, ReserveData};
 	use sp_core::H160;
-	use std::collections::HashMap;
 
-	let mk = |idx: usize, symbol: &str, addr: u8, price: u128| Reserve {
+	Reserve {
 		idx,
 		data: ReserveData {
 			configuration: U256::zero(),
@@ -682,19 +767,44 @@ fn apply_oracle_updates_should_reprice_direct_and_derived_reserves() {
 		price: U256::from(price),
 		existential_deposit: 0,
 		emode: None,
-	};
+	}
+}
 
-	let dot = mk(0, "DOT", 0x01, 100);
-	let gdot = mk(1, "gDOT", 0x02, 250);
-	let mut reserves = HashMap::new();
-	reserves.insert(dot.address, dot);
-	reserves.insert(gdot.address, gdot);
-	let mut mm = MoneyMarket {
+fn money_market_of(reserves: Vec<pepl_worker_support::types::Reserve>) -> MoneyMarket {
+	use sp_core::H160;
+	use std::collections::HashMap;
+
+	let mut map = HashMap::new();
+	for r in reserves {
+		map.insert(r.address, r);
+	}
+	MoneyMarket {
 		pool: H160::zero(),
 		oracle: H160::zero(),
-		reserves,
+		reserves: map,
 		poisoned: Vec::new(),
-	};
+	}
+}
+
+fn price_of(mm: &MoneyMarket, symbol: &str) -> U256 {
+	mm.reserves
+		.values()
+		.find(|r| r.symbol == symbol)
+		.expect("reserve is present")
+		.price
+}
+
+// The derived-token reprice. A DOT price update must reprice BOTH the direct DOT reserve (set to
+// the new price) AND a derived reserve whose symbol contains "dot" (e.g. gDOT), scaled by the
+// ratio new_base/old_base.
+#[test]
+fn apply_oracle_updates_should_reprice_direct_and_derived_reserves() {
+	use std::collections::HashMap;
+
+	let mut mm = money_market_of(vec![
+		reserve_named(0, "DOT", 0x01, 100),
+		reserve_named(1, "gDOT", 0x02, 250),
+	]);
 
 	// no borrowers → no decisions, but the reprice still happens (we assert on mm)
 	let decisions = apply_oracle_updates_and_decide(
@@ -702,10 +812,82 @@ fn apply_oracle_updates_should_reprice_direct_and_derived_reserves() {
 		&mut mm,
 		&[("dot".to_string(), U256::from(150u32))],
 		&[],
+		&HashMap::new(),
 	);
 	assert!(decisions.is_empty());
 
-	let price_of = |sym: &str| mm.reserves.values().find(|r| r.symbol == sym).unwrap().price;
-	assert_eq!(price_of("DOT"), U256::from(150u32)); // direct: set to new price
-	assert_eq!(price_of("gDOT"), U256::from(375u32)); // derived: 250 * 150 / 100
+	assert_eq!(price_of(&mm, "DOT"), U256::from(150u32)); // direct: set to new price
+	assert_eq!(price_of(&mm, "gDOT"), U256::from(375u32)); // derived: 250 * 150 / 100
+}
+
+// The gigahdx market lists stHDX but no plain HDX, so the ratio denominator only exists on the
+// main market. Without the cross-market lookup an HDX update was a total no-op there and the
+// fast path never fired on the market the derived-token scaling was built for.
+#[test]
+fn apply_oracle_updates_should_reprice_derived_reserve_when_base_is_on_another_market() {
+	use std::collections::HashMap;
+
+	let mut mm = money_market_of(vec![reserve_named(0, "stHDX", 0x03, 250)]);
+	let base_prices = HashMap::from([("hdx".to_string(), U256::from(100u32))]);
+
+	let decisions = apply_oracle_updates_and_decide(
+		&LiquidationTaskConfig::default(),
+		&mut mm,
+		&[("hdx".to_string(), U256::from(150u32))],
+		&[],
+		&base_prices,
+	);
+	assert!(decisions.is_empty());
+
+	assert_eq!(price_of(&mm, "stHDX"), U256::from(375u32)); // 250 * 150 / 100
+}
+
+// A batch can carry both `DOT/USD` and `GDOT/USD`. gDOT is first scaled by the DOT ratio
+// (substring match), then set directly by the GDOT update. Borrower amounts are rescaled by the
+// recorded `new/old`, so that ratio must end at the price the market actually holds — recording
+// only the first pair rescaled collateral by the DOT ratio while the HF was computed from the
+// gDOT price.
+#[test]
+fn apply_oracle_updates_should_track_the_final_price_when_a_reserve_is_repriced_twice() {
+	use std::collections::HashMap;
+
+	let mut mm = money_market_of(vec![
+		reserve_named(0, "DOT", 0x01, 100),
+		reserve_named(1, "gDOT", 0x02, 250),
+	]);
+
+	apply_oracle_updates_and_decide(
+		&LiquidationTaskConfig::default(),
+		&mut mm,
+		&[
+			("dot".to_string(), U256::from(150u32)),
+			("gdot".to_string(), U256::from(400u32)),
+		],
+		&[],
+		&HashMap::new(),
+	);
+
+	assert_eq!(price_of(&mm, "DOT"), U256::from(150u32));
+	// derived pass sets 250 * 150 / 100 = 375, then the direct `gdot` update overwrites it.
+	assert_eq!(price_of(&mm, "gDOT"), U256::from(400u32));
+}
+
+// Without a denominator from either source the reserve must be left alone rather than repriced
+// from a wrong basis.
+#[test]
+fn apply_oracle_updates_should_leave_derived_reserve_when_base_price_is_unknown() {
+	use std::collections::HashMap;
+
+	let mut mm = money_market_of(vec![reserve_named(0, "stHDX", 0x03, 250)]);
+
+	let decisions = apply_oracle_updates_and_decide(
+		&LiquidationTaskConfig::default(),
+		&mut mm,
+		&[("hdx".to_string(), U256::from(150u32))],
+		&[],
+		&HashMap::new(),
+	);
+	assert!(decisions.is_empty());
+
+	assert_eq!(price_of(&mm, "stHDX"), U256::from(250u32));
 }

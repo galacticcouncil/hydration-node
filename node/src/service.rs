@@ -382,6 +382,9 @@ async fn start_node_impl(
 	// below.
 	let base_path_for_pepl = parachain_config.base_path.path().to_path_buf();
 
+	// Published to the `liquidation_*` RPCs; stays `None` when no v2 worker runs on this node.
+	let mut pepl_status: Option<Arc<pepl_worker::WorkerStatus>> = None;
+
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
@@ -410,13 +413,13 @@ async fn start_node_impl(
 			let mut worker_cfg: pepl_worker::LiquidationTaskConfig = liquidation_worker_config.into();
 			worker_cfg.borrower_cache_path = cache_path;
 
+			let task = LiquidationTask::new(RuntimeClient::new(client.clone()), transaction_pool.clone(), worker_cfg);
+			pepl_status = Some(task.status.clone());
+
 			task_manager.spawn_handle().spawn(
 				"pepl-worker-runner",
 				"pepl-worker",
-				pepl_worker::run(
-					LiquidationTask::new(RuntimeClient::new(client.clone()), transaction_pool.clone(), worker_cfg),
-					client.clone(),
-				),
+				pepl_worker::run(task, client.clone()),
 			);
 		}
 	}
@@ -470,6 +473,7 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
+				pepl_status: pepl_status.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;

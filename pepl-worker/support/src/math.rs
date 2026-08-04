@@ -4,6 +4,24 @@ use sp_core::U256;
 pub const OCTILL: u128 = 10u128.pow(27);
 pub const QUINTILL: u128 = 10u128.pow(18);
 
+/// Largest `e` such that `10^e` fits in `U256` / `U512`.
+const MAX_POW10_U256: u8 = 77;
+const MAX_POW10_U512: u8 = 154;
+
+/// `10^exp`, `None` when the result would not fit.
+///
+/// `uint`'s `pow` panics on overflow in release builds too, so exponents derived from a reserve's
+/// `decimals` — an unvalidated byte of the on-chain configuration word — must never reach it
+/// directly.
+pub fn pow10_u256(exp: u8) -> Option<U256> {
+	(exp <= MAX_POW10_U256).then(|| U256::from(10).pow(exp.into()))
+}
+
+/// `10^exp`, `None` when the result would not fit. See [`pow10_u256`].
+pub fn pow10_u512(exp: u8) -> Option<U512> {
+	(exp <= MAX_POW10_U512).then(|| U512::from(10).pow(exp.into()))
+}
+
 /// Multiplies two ray, rounding half up to the nearest ray.
 pub fn ray_mul(a: U256, b: U256) -> Option<U256> {
 	if a.is_zero() || b.is_zero() {

@@ -11369,6 +11369,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "tokio",
+ "xcm-runtime-apis",
 ]
 
 [[package]]

@@ -216,6 +216,29 @@ fn calc_debt_to_liquidate_should_fail_when_clamped_seize_is_below_existential_de
 	assert!(matches!(result, Err(Error::LiquidationBelowED)));
 }
 
+// `decimals` is an unvalidated byte of the on-chain configuration word and `uint`'s `pow` panics
+// on overflow even in release, so an out-of-range value must surface as an error — a panic here
+// unwinds out of the scoped scan threads and kills the worker for the rest of the process life.
+#[test]
+fn calc_debt_to_liquidate_should_fail_when_debt_decimals_are_out_of_range() {
+	let (mm, borrower, collateral, mut debt) = insufficient_collateral_fixture(1, 1);
+	debt.data.configuration = reserve_config(0, 10_000, 200);
+
+	let result = mm.calc_debt_to_liquidate(&borrower, U256::from(TARGET_HF), &collateral, &debt);
+
+	assert!(matches!(result, Err(Error::Arithmetic("decimals out of range"))));
+}
+
+#[test]
+fn calc_debt_to_liquidate_should_fail_when_collateral_decimals_are_out_of_range() {
+	let (mm, borrower, mut collateral, debt) = insufficient_collateral_fixture(1, 1);
+	collateral.data.configuration = reserve_config(8_000, 10_500, 200);
+
+	let result = mm.calc_debt_to_liquidate(&borrower, U256::from(TARGET_HF), &collateral, &debt);
+
+	assert!(matches!(result, Err(Error::Arithmetic("decimals out of range"))));
+}
+
 // Bit layout: one pair per reserve index — bit `2*idx` = debt, bit `2*idx + 1` = collateral.
 #[test]
 fn user_configuration_uses_any_should_detect_collateral_and_debt_bits() {

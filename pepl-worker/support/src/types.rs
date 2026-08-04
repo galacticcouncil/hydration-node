@@ -1,4 +1,6 @@
 use crate::math::percent_mul;
+use crate::math::pow10_u256;
+use crate::math::pow10_u512;
 use crate::math::ray_mul;
 use crate::math::wad_div;
 use crate::math::OCTILL;
@@ -43,6 +45,17 @@ const MAX_LIQUIDATION_CLOSE_FACTOR: u128 = 10_000u128;
 /// an amount of debt corresponding to `MAX_LIQUIDATION_CLOSE_FACTOR`.
 /// A value of 0.95e18 results in 0.95
 const CLOSE_FACTOR_HF_THRESHOLD: u128 = 950_000_000_000_000_000u128;
+
+/// `10^exp`, erroring instead of panicking when `exp` — derived from a reserve's `decimals`, an
+/// unvalidated byte of the on-chain configuration word — is out of range.
+fn pow10(exp: u8) -> Result<U256, Error> {
+	pow10_u256(exp).ok_or(Error::Arithmetic("decimals out of range"))
+}
+
+/// `10^exp` as `U512`. See [`pow10`].
+fn pow10_512(exp: u8) -> Result<U512, Error> {
+	pow10_u512(exp).ok_or(Error::Arithmetic("decimals out of range"))
+}
 
 pub type Balance = u128;
 pub type AssetId = u32;
@@ -561,11 +574,11 @@ impl MoneyMarket {
 		// Adjust decimals from `oracle_price_decimals` to `debt_decimals`
 		let debt_to_liquidate = if debt.decimals() > ORACLE_DECIMALS {
 			debt_to_liquidate
-				.checked_mul(U256::from(10).pow((debt.decimals() - ORACLE_DECIMALS).into()))
+				.checked_mul(pow10(debt.decimals() - ORACLE_DECIMALS)?)
 				.ok_or(Error::Arithmetic("Overflow"))?
 		} else {
 			debt_to_liquidate
-				.checked_div(U256::from(10).pow((ORACLE_DECIMALS - debt.decimals()).into()))
+				.checked_div(pow10(ORACLE_DECIMALS - debt.decimals())?)
 				.ok_or(Error::Arithmetic("Overflow"))?
 		};
 
@@ -582,7 +595,7 @@ impl MoneyMarket {
 		// In debt asset
 		let borrower_debt_amt = borrower_debt_reserve
 			.debt
-			.full_mul(U256::from(10u128.pow(debt.decimals().into())))
+			.full_mul(pow10(debt.decimals())?)
 			.checked_div(debt.price.into())
 			.ok_or(Error::Arithmetic("Overflow"))?
 			.try_into()
@@ -604,11 +617,11 @@ impl MoneyMarket {
 
 		let mut base_collateral_amount = if collateral.decimals() > debt.decimals() {
 			base_collateral_amount
-				.checked_mul(U256::from(10).pow((collateral.decimals() - debt.decimals()).into()))
+				.checked_mul(pow10(collateral.decimals() - debt.decimals())?)
 				.ok_or(Error::Arithmetic("Overflow"))?
 		} else {
 			base_collateral_amount
-				.checked_div(U256::from(10).pow((debt.decimals() - collateral.decimals()).into()))
+				.checked_div(pow10(debt.decimals() - collateral.decimals())?)
 				.ok_or(Error::Arithmetic("Overflow"))?
 		};
 
@@ -617,16 +630,19 @@ impl MoneyMarket {
 			return Err(Error::Arithmetic("Overflow"));
 		};
 
+		let debt_scale = pow10_512(debt.decimals())?;
+		let collateral_scale = pow10_512(collateral.decimals())?;
+
 		let mut collateral_in_base: U256 = collateral_amount
 			.full_mul(collateral.price)
-			.checked_div(U512::from(10).pow(collateral.decimals().into()))
+			.checked_div(collateral_scale)
 			.ok_or(Error::Arithmetic("Overflow"))?
 			.try_into()
 			.map_err(|_| Error::Arithmetic("Overflow"))?;
 
 		let mut debt_in_base = actual_debt_to_liquidate
 			.full_mul(debt.price)
-			.checked_div(U512::from(10).pow(debt.decimals().into()))
+			.checked_div(debt_scale)
 			.ok_or(Error::Arithmetic("Overflow"))?
 			.try_into()
 			.map_err(|_| Error::Arithmetic("Overflow"))?;
@@ -638,7 +654,7 @@ impl MoneyMarket {
 				.collateral
 				.full_mul(percentage_factor)
 				.checked_div(liq_bonus.into())
-				.and_then(|r| r.checked_mul(U512::from(10u128.pow(debt.decimals().into()))))
+				.and_then(|r| r.checked_mul(debt_scale))
 				.and_then(|r| r.checked_div(debt.price.into()))
 				.ok_or(Error::Arithmetic("Overflow"))?
 				.try_into()
@@ -653,11 +669,11 @@ impl MoneyMarket {
 				.map_err(|_| Error::Arithmetic("Overflow"))?;
 			base_collateral_amount = if collateral.decimals() > debt.decimals() {
 				base_collateral_amount
-					.checked_mul(U256::from(10).pow((collateral.decimals() - debt.decimals()).into()))
+					.checked_mul(pow10(collateral.decimals() - debt.decimals())?)
 					.ok_or(Error::Arithmetic("Overflow"))?
 			} else {
 				base_collateral_amount
-					.checked_div(U256::from(10).pow((debt.decimals() - collateral.decimals()).into()))
+					.checked_div(pow10(debt.decimals() - collateral.decimals())?)
 					.ok_or(Error::Arithmetic("Overflow"))?
 			};
 
@@ -670,14 +686,14 @@ impl MoneyMarket {
 
 			debt_in_base = actual_debt_to_liquidate
 				.full_mul(debt.price)
-				.checked_div(U512::from(10).pow(debt.decimals().into()))
+				.checked_div(debt_scale)
 				.ok_or(Error::Arithmetic("Overflow"))?
 				.try_into()
 				.map_err(|_| Error::Arithmetic("Overflow"))?;
 
 			collateral_in_base = collateral_amount
 				.full_mul(collateral.price)
-				.checked_div(U512::from(10).pow(collateral.decimals().into()))
+				.checked_div(collateral_scale)
 				.ok_or(Error::Arithmetic("Overflow"))?
 				.try_into()
 				.map_err(|_| Error::Arithmetic("Overflow"))?;

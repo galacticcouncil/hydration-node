@@ -44,6 +44,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use xcm_runtime_apis::dry_run::DryRunApi;
 
 #[cfg(test)]
 mod tests;
@@ -88,6 +89,26 @@ pub const MAX_PENDING_EVENT_BLOCKS: usize = 256;
 // Cap on watched money-market instances — a backstop against a hostile/buggy omniwatch
 // serving many bogus pools, set far above any realistic market count.
 pub const MAX_MM_INSTANCES: usize = 16;
+
+// The oracle fast path decides from each instance's last scan instead of re-fetching. A cache
+// older than this means that market's per-block scan is failing, so its borrower balances and
+// indices can no longer be trusted to size a liquidation.
+pub const MAX_FAST_PATH_CACHE_AGE_BLOCKS: BlockNumber = 3;
+
+// Resolving an omniwatch-tagged pool costs two runtime-API EVM calls. Failures are remembered
+// ACROSS blocks with exponential backoff so a list of unresolvable pools cannot cost those calls
+// every block forever.
+pub const POOL_RESOLVE_RETRY_BASE_BLOCKS: BlockNumber = 4;
+pub const MAX_POOL_RESOLVE_BACKOFF_BLOCKS: BlockNumber = 600;
+
+// Consecutive zero-debt reads required before a borrower is dropped from the working set. The
+// set may only shrink on on-chain evidence, and one all-zeros read is not evidence.
+pub const ZERO_DEBT_READS_BEFORE_PRUNE: u32 = 3;
+
+// After a liquidation is handed to the tx pool, the same (pool, borrower) is not re-submitted for
+// this many blocks. v1 used a per-block `liquidated_users` set plus a `tx_waitlist`; v2 scans in
+// independent shards, so the cooldown lives on the main task and is applied at both submit sites.
+pub const SUBMIT_COOLDOWN_BLOCKS: BlockNumber = 4;
 
 // Contracts' addresses
 pub mod contracts {
@@ -253,7 +274,7 @@ pub mod borrower_cache {
 		let mut file = CacheFile::default();
 		for inst in instances {
 			let Some(pool) = inst.pool else { continue };
-			if inst.borrowers.is_empty() {
+			if inst.denylisted || inst.borrowers.is_empty() {
 				continue;
 			}
 			let mut list: Vec<String> = inst.borrowers.iter().map(addr_hex).collect();
@@ -321,9 +342,22 @@ pub struct MmInstance {
 	pub kind: InstanceKind,
 	pub source: InstanceSource,
 	pub borrowers: HashSet<EvmAddress>,
+	/// Consecutive zero-debt reads per borrower. A borrower is pruned only after
+	/// `ZERO_DEBT_READS_BEFORE_PRUNE` of them — one all-zeros read (a proxy upgrade, an eMode or
+	/// config change) returns `Ok` without erroring, and dropping on it loses coverage until the
+	/// next omniwatch re-seed.
+	pub zero_debt_reads: HashMap<EvmAddress, u32>,
 	/// Money market + borrowers from this instance's latest scan — the oracle fast-path cache.
 	pub cached_mm: Option<MoneyMarket>,
 	pub cached_borrowers: Vec<Borrower>,
+	/// Block the cache above was refreshed at. The fast path refuses to decide from a cache
+	/// older than `MAX_FAST_PATH_CACHE_AGE_BLOCKS` — a market whose per-block scan keeps failing
+	/// would otherwise keep submitting against long-repaid debt on every oracle tick.
+	pub cached_at: Option<BlockNumber>,
+	/// Set once the instance's pool resolves to a denylisted address. Kept in the registry (so
+	/// the PAP is not re-instanced every block) but excluded from scanning, BORROW discovery,
+	/// seed routing and the on-disk cache.
+	pub denylisted: bool,
 	/// underlying asset id → aToken asset id, refreshed per block; populated for GigaHdx only.
 	pub atoken_map: HashMap<AssetId, AssetId>,
 	pub log_prefix: String,
@@ -340,8 +374,11 @@ impl MmInstance {
 			kind: InstanceKind::Generic,
 			source,
 			borrowers: HashSet::new(),
+			zero_debt_reads: HashMap::new(),
 			cached_mm: None,
 			cached_borrowers: Vec::new(),
+			cached_at: None,
+			denylisted: false,
 			atoken_map: HashMap::new(),
 			log_prefix,
 		}
@@ -399,6 +436,10 @@ pub fn ensure_instance_for_pool<B: Block, RA: RuntimeApiProvider<B>>(
 
 	// A PAP-pinned instance that has not resolved its pool yet is adopted instead of duplicated.
 	if let Some(idx) = find_instance_by_pap(instances, pap) {
+		if instances[idx].denylisted {
+			log::debug!(target: LOG_TARGET, "{:?} ensure_instance_for_pool(): PAP {pap:?} is bound to a denylisted market, refusing pool {pool:?}", cfg.log_prefix);
+			return None;
+		}
 		match instances[idx].pool {
 			None => {
 				instances[idx].pool = Some(pool);
@@ -463,7 +504,9 @@ pub struct LiquidationWorkerCli {
 	/// Address of a Pool Address Provider contract to watch. Repeatable — one money-market
 	/// instance per address. Optional: instances are auto-discovered from chain state and
 	/// omniwatch; this flag only pins additional markets.
-	#[clap(long)]
+	///
+	/// `--pap-contract` is the v1 spelling, kept so an existing launch config still boots.
+	#[clap(long, alias = "pap-contract")]
 	pub pool_address_provider: Vec<EvmAddress>,
 
 	/// Money-market pool addresses that must never be instantiated, even if discovered.
@@ -485,7 +528,9 @@ pub struct LiquidationWorkerCli {
 	pub runtime_api_caller: Option<EvmAddress>,
 
 	/// EVM address of the account that signs DIA oracle update.
-	#[clap(long)]
+	///
+	/// `--oracle-update-signer` is the v1 spelling, kept so an existing launch config still boots.
+	#[clap(long, alias = "oracle-update-signer")]
 	pub oracle_signer: Option<Vec<EvmAddress>>,
 
 	/// EVM address of the DIA oracle update call.
@@ -503,6 +548,12 @@ pub struct LiquidationWorkerCli {
 	/// Number of liquidation transaction submitted per block.
 	#[clap(long)]
 	pub liquidations_per_block: Option<u8>,
+
+	/// Percentage of the block weight reserved for other transactions. v1 only: v2 has no
+	/// worker-side block budget (the tx pool orders liquidations by `unsigned_priority`), so the
+	/// value is ignored there. Accepted so an existing launch config still boots.
+	#[clap(long)]
+	pub weight_reserve: Option<u8>,
 
 	/// Run the legacy (v1) liquidation worker instead of the default v2 worker.
 	#[clap(long)]
@@ -566,6 +617,9 @@ pub struct LiquidationTaskConfig {
 
 impl From<LiquidationWorkerCli> for LiquidationTaskConfig {
 	fn from(v: LiquidationWorkerCli) -> Self {
+		if v.weight_reserve.is_some() {
+			log::warn!(target: LOG_TARGET, "--weight-reserve is a v1 flag and is IGNORED by the v2 worker: there is no worker-side block budget, the tx pool orders liquidations by unsigned_priority");
+		}
 		Self {
 			pool_address_providers: v.pool_address_provider,
 			pool_denylist: v.mm_pool_denylist,
@@ -688,18 +742,12 @@ pub fn decide_liquidation(
 	})
 }
 
-/// Build the opaque `liquidate_with_pool` extrinsic (sync — no tx pool needed). Shared by
-/// `submit_liquidation` and the parallel submit-on-find scan (which spawns the async `submit_one`
-/// onto a tokio handle from a worker thread). The unsigned tx carries `unsigned_priority =
-/// collateral-at-risk`, so the tx pool orders competing liquidations for the block builder.
-/// `pool` is the market the decision was made against; the pallet rejects the call if it is not
-/// the pool the liquidation would execute on.
-pub fn encode_liquidation_opaque(
-	decision: &LiquidationDecision,
-	pool: EvmAddress,
-	log_prefix: &str,
-) -> Option<OpaqueExtrinsic> {
-	let tx = RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
+/// The unsigned `liquidate_with_pool` call for a decision. `pool` is the market the decision was
+/// made against; the pallet rejects the call if it is not the pool the liquidation would execute
+/// on. The call carries `unsigned_priority = collateral-at-risk`, so the tx pool orders competing
+/// liquidations for the block builder.
+pub fn liquidation_call(decision: &LiquidationDecision, pool: EvmAddress) -> RuntimeCall {
+	RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
 		pool,
 		collateral_asset: decision.collateral_asset,
 		debt_asset: decision.debt_asset,
@@ -707,28 +755,136 @@ pub fn encode_liquidation_opaque(
 		debt_to_cover: decision.debt_to_cover,
 		route: BoundedVec::new(),
 		unsigned_priority: Some(decision.priority),
-	});
+	})
+}
 
+/// Verdict of simulating a liquidation before submitting it.
+pub enum DryRun {
+	WouldSucceed,
+	WouldFail(sp_runtime::DispatchError),
+	/// The simulation itself could not run. Never blocks a submission — a broken dry-run API must
+	/// not silently stop the worker from liquidating.
+	Unknown,
+}
+
+/// Simulate a liquidation against `at`. Ports v1's pre-submit dry run, which existed "to prevent
+/// spamming with extrinsic that will fail (e.g. because of not being profitable)":
+/// `decide_liquidation` never models the collateral sale, so a position that is underwater by the
+/// worker's own math can still revert with `NotProfitable`.
+pub fn dry_run_liquidation<B, Api>(api: &Api, at: B::Hash, call: RuntimeCall) -> DryRun
+where
+	B: Block,
+	Api: DryRunApi<B, RuntimeCall, RuntimeEvent, hydradx_runtime::OriginCaller>,
+{
+	// XCM version for any message the call would emit; a liquidation emits none, so this only
+	// has to be a version the runtime accepts.
+	const DRY_RUN_XCM_VERSION: u32 = 5;
+
+	match api.dry_run_call(
+		at,
+		hydradx_runtime::RuntimeOrigin::none().caller,
+		call,
+		DRY_RUN_XCM_VERSION,
+	) {
+		Ok(Ok(effects)) => match effects.execution_result {
+			Ok(_) => DryRun::WouldSucceed,
+			Err(e) => DryRun::WouldFail(e.error),
+		},
+		_ => DryRun::Unknown,
+	}
+}
+
+/// Wrap a call as the opaque unsigned extrinsic the tx pool takes (sync — no tx pool needed).
+/// Shared by `submit_liquidation` and the parallel submit-on-find scan, which spawns the async
+/// `submit_one` onto a tokio handle from a worker thread.
+pub fn encode_liquidation_opaque(call: RuntimeCall, log_prefix: &str) -> Option<OpaqueExtrinsic> {
 	let encoded_tx: fp_self_contained::UncheckedExtrinsic<
 		hydradx_runtime::Address,
 		RuntimeCall,
 		hydradx_runtime::Signature,
 		hydradx_runtime::SignedExtra,
-	> = fp_self_contained::UncheckedExtrinsic::new_bare(tx.clone());
+	> = fp_self_contained::UncheckedExtrinsic::new_bare(call.clone());
 	let encoded = encoded_tx.encode();
 
 	OpaqueExtrinsic::decode(&mut &encoded[..])
 		.map_err(|e| {
-			log::error!(target: LOG_TARGET, "{log_prefix:?} encode_liquidation_opaque(): failed to decode tx. THIS SHOULD NEVER HAPPEN, please report to project maintainers: err: {e:?}, tx: {tx:?}");
+			log::error!(target: LOG_TARGET, "{log_prefix:?} encode_liquidation_opaque(): failed to decode tx. THIS SHOULD NEVER HAPPEN, please report to project maintainers: err: {e:?}, tx: {call:?}");
 		})
 		.ok()
+}
+
+/// A scan older than this makes `liquidation_isRunning` report false. Comfortably above the
+/// block time so a single slow block does not read as a dead worker.
+pub const WORKER_LIVENESS_WINDOW: Duration = Duration::from_secs(120);
+
+/// Liveness + coverage snapshot published by the running worker, read by the `liquidation_*`
+/// RPCs. Monitoring depends on these to tell a live worker from a dead one, so every accessor
+/// degrades to "unknown" rather than blocking or panicking on a poisoned lock.
+#[derive(Default)]
+pub struct WorkerStatus {
+	inner: std::sync::Mutex<WorkerStatusInner>,
+}
+
+#[derive(Default)]
+struct WorkerStatusInner {
+	last_scan: Option<Instant>,
+	last_scanned_block: BlockNumber,
+	/// `(pool, borrower)` across every watched market.
+	borrowers: PoolTaggedBorrowers,
+	liquidations_per_block: u8,
+}
+
+impl WorkerStatus {
+	/// Publish the working set after a completed scan.
+	pub fn record_scan(&self, block: BlockNumber, borrowers: PoolTaggedBorrowers, liquidations_per_block: u8) {
+		if let Ok(mut inner) = self.inner.lock() {
+			inner.last_scan = Some(Instant::now());
+			inner.last_scanned_block = block;
+			inner.borrowers = borrowers;
+			inner.liquidations_per_block = liquidations_per_block;
+		}
+	}
+
+	/// Whether a scan completed inside `WORKER_LIVENESS_WINDOW`.
+	pub fn is_running(&self) -> bool {
+		self.inner
+			.lock()
+			.ok()
+			.and_then(|inner| inner.last_scan)
+			.is_some_and(|at| at.elapsed() < WORKER_LIVENESS_WINDOW)
+	}
+
+	/// `(pool, borrower)` pairs currently covered.
+	pub fn borrowers(&self) -> PoolTaggedBorrowers {
+		self.inner
+			.lock()
+			.map(|inner| inner.borrowers.clone())
+			.unwrap_or_default()
+	}
+
+	pub fn last_scanned_block(&self) -> BlockNumber {
+		self.inner
+			.lock()
+			.map(|inner| inner.last_scanned_block)
+			.unwrap_or_default()
+	}
+
+	pub fn liquidations_per_block(&self) -> u8 {
+		self.inner
+			.lock()
+			.map(|inner| inner.liquidations_per_block)
+			.unwrap_or_default()
+	}
 }
 
 pub struct LiquidationTask<C, B, TP> {
 	client: C,
 	pub https: https::Client,
-	pub url: Uri,
+	/// `None` when `--omniwatch-url` did not parse: seeding is disabled, the worker still runs.
+	pub url: Option<Uri>,
 	pub transaction_pool: Arc<TP>,
+	/// Shared with the node's `liquidation_*` RPCs; clone it before moving the task into `run`.
+	pub status: Arc<WorkerStatus>,
 	system_events_key: StorageKey,
 	_phantom: PhantomData<B>,
 	cfg: LiquidationTaskConfig,
@@ -742,18 +898,23 @@ where
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
 {
 	pub fn new(client: C, transaction_pool: Arc<TP>, cfg: LiquidationTaskConfig) -> Self {
-		// Fail fast: a mistyped --omniwatch-url panics at startup so the operator notices
-		// immediately, rather than the worker running silently against a dead endpoint.
-		let url = cfg
-			.omniwatch_url
-			.parse()
-			.expect("LiquidationTask: failed to parse omniwatch_url, provide correct --omniwatch-url or disable liquidation worker");
+		// `new` runs inside `start_node_impl`, so a mistyped --omniwatch-url must not panic: that
+		// would take the whole collator down over an optional worker flag. Degrade to no seeding —
+		// on-chain BORROW-event discovery and the borrower cache still cover borrowers.
+		let url = match cfg.omniwatch_url.parse::<Uri>() {
+			Ok(url) => Some(url),
+			Err(e) => {
+				log::error!(target: LOG_TARGET, "{:?} LiquidationTask::new(): failed to parse omniwatch_url {:?}, err: {:?}; omniwatch seeding is DISABLED, coverage falls back to on-chain BORROW-event discovery and the borrower cache", cfg.log_prefix, cfg.omniwatch_url, e);
+				None
+			}
+		};
 
 		Self {
 			client,
 			https: https::new(),
 			transaction_pool,
 			url,
+			status: Arc::new(WorkerStatus::default()),
 			system_events_key: StorageKey(storage_key::SYSTEM_EVENTS.to_vec()),
 			_phantom: PhantomData,
 			cfg,
@@ -767,7 +928,7 @@ where
 		decision: &LiquidationDecision,
 	) -> Result<(), ()> {
 		let log_prefix = self.cfg.log_prefix.as_str();
-		let opaque_tx = encode_liquidation_opaque(decision, pool, log_prefix).ok_or(())?;
+		let opaque_tx = encode_liquidation_opaque(liquidation_call(decision, pool), log_prefix).ok_or(())?;
 
 		match self
 			.transaction_pool
@@ -873,6 +1034,42 @@ async fn fetch_borrowers_list(
 
 	log::info!(target: LOG_TARGET, "{:?} fetch_borrowers(): finished fetching {:?} borrowers elapsed: {:?}", log_prefix, b.len(), timer.elapsed().as_nanos());
 	Some(b)
+}
+
+/// `fetch_borrowers_list`, skipped entirely (no request, `None`) when `--omniwatch-url` did not
+/// parse.
+async fn fetch_borrowers_list_opt(
+	https: &https::Client,
+	url: Option<Uri>,
+	log_prefix: &str,
+) -> Option<Vec<(EvmAddress, EvmAddress)>> {
+	fetch_borrowers_list(https, url?, log_prefix).await
+}
+
+/// Spawn the startup borrower seed onto a oneshot channel, harvested by the block loop like any
+/// periodic re-seed. `None` when there is no usable URL, so the loop never waits on a fetch that
+/// cannot happen.
+fn spawn_seed_fetch(
+	https: &https::Client,
+	url: Option<Uri>,
+	log_prefix: String,
+) -> Option<tokio::sync::oneshot::Receiver<Option<PoolTaggedBorrowers>>> {
+	let url = url?;
+	let https = https.clone();
+	let (tx, rx) = tokio::sync::oneshot::channel();
+	tokio::spawn(async move {
+		let seed = fetch_borrowers_list_with_retry(
+			&https,
+			url,
+			log_prefix.as_str(),
+			OMNIWATCH_FETCH_ATTEMPTS,
+			OMNIWATCH_FETCH_BACKOFF,
+			OMNIWATCH_FETCH_TIMEOUT,
+		)
+		.await;
+		let _ = tx.send(seed);
+	});
+	Some(rx)
 }
 
 /// Fetches the omniwatch borrower list with bounded retries + backoff. Each attempt is bounded by
@@ -1084,11 +1281,16 @@ pub(crate) fn parse_oracle_price_updates(transaction: &Transaction) -> Vec<(Stri
 /// e.g. `gDOT`/`vDOT` for a `DOT` update) are repriced. A derived reserve is scaled by the ratio
 /// `new_base / old_base`: the LST/strategy exchange rate is unchanged by a USD-price move, so
 /// scaling its current price tracks the underlying correctly.
+///
+/// `base_prices` (lowercased symbol → old price, collected across every watched market) supplies
+/// the ratio denominator when this market lists no reserve named exactly `base` — the gigahdx
+/// market holds stHDX but no plain HDX, and without it every HDX update was a no-op there.
 pub fn apply_oracle_updates_and_decide(
 	cfg: &LiquidationTaskConfig,
 	money_market: &mut MoneyMarket,
 	updates: &[(String, U256)],
 	borrowers: &[Borrower],
+	base_prices: &HashMap<String, U256>,
 ) -> Vec<LiquidationDecision> {
 	use ethabi::ethereum_types::U512;
 
@@ -1106,11 +1308,13 @@ pub fn apply_oracle_updates_and_decide(
 
 	for (base, new_price) in updates {
 		// Old price of the directly-quoted reserve (symbol == base) — the ratio denominator.
+		// Falls back to the cross-market price so a market holding only derivatives still reprices.
 		let old_base_price = money_market
 			.reserves
 			.values()
 			.find(|r| r.symbol.to_ascii_lowercase() == *base)
-			.map(|r| r.price);
+			.map(|r| r.price)
+			.or_else(|| base_prices.get(base).copied());
 
 		// Collect (address, old_price, new_price) first to avoid a mutable borrow while iterating.
 		let mut repriced: Vec<(EvmAddress, U256, U256)> = Vec::new();
@@ -1131,8 +1335,13 @@ pub fn apply_oracle_updates_and_decide(
 		for (addr, old, np) in repriced {
 			if money_market.update_price(addr, np).is_ok() {
 				if let Some(r) = money_market.reserves.get(&addr) {
-					if !affected.iter().any(|(i, _, _)| *i == r.idx) {
-						affected.push((r.idx, old, np));
+					// A batch can touch one reserve twice (e.g. `DOT/USD` scales gDOT by substring,
+					// then `GDOT/USD` sets it directly). Borrower amounts are rescaled by
+					// `new/old`, so that ratio must span the ORIGINAL price to the FINAL one —
+					// keeping the first pair would rescale by a ratio the market no longer holds.
+					match affected.iter_mut().find(|(i, _, _)| *i == r.idx) {
+						Some(entry) => entry.2 = np,
+						None => affected.push((r.idx, old, np)),
 					}
 				}
 			}
@@ -1181,7 +1390,10 @@ where
 	CL: BlockchainEvents<B> + 'static,
 	CL: HeaderBackend<B>,
 	CL: ProvideRuntimeApi<B>,
-	CL::Api: EthereumRuntimeRPCApi<B> + Erc20MappingApi<B> + CurrenciesApi<B, AssetId, AccountId, Balance>,
+	CL::Api: EthereumRuntimeRPCApi<B>
+		+ Erc20MappingApi<B>
+		+ CurrenciesApi<B, AssetId, AccountId, Balance>
+		+ DryRunApi<B, RuntimeCall, hydradx_runtime::RuntimeEvent, hydradx_runtime::OriginCaller>,
 	B: hydradx_runtime::BlockT,
 	<B as Block>::Extrinsic: From<OpaqueExtrinsic>,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
@@ -1211,49 +1423,31 @@ where
 		));
 	}
 
-	// A down/unreachable omniwatch must NOT panic or kill the worker: retry with backoff and start
-	// unseeded if it stays down. Coverage is a UNION of omniwatch seeds and on-chain BORROW-event
-	// discovery: the sets only grow on external input and only shrink on on-chain evidence (a
-	// scanned borrower with zero debt) — an omniwatch response that omits a known borrower must
-	// never evict it.
-	let seed = fetch_borrowers_list_with_retry(
-		&task.https,
-		task.url.clone(),
-		task.cfg.log_prefix.as_str(),
-		OMNIWATCH_FETCH_ATTEMPTS,
-		OMNIWATCH_FETCH_BACKOFF,
-		OMNIWATCH_FETCH_TIMEOUT,
-	)
-	.await;
-	// An empty-but-successful response (e.g. omniwatch restarted with a cold DB) does NOT count
-	// as seeded — pre-existing borrowers are still unknown, keep the fast re-seed cadence.
-	let mut seeded = matches!(&seed, Some(list) if !list.is_empty());
-	// Pool-tagged borrowers awaiting routing: bucketing needs resolved pools (and may create
-	// instances), which needs the runtime API — drained inside each block's API scope.
+	// Coverage is a UNION of omniwatch seeds and on-chain BORROW-event discovery: the sets only
+	// grow on external input and only shrink on on-chain evidence (a scanned borrower with zero
+	// debt) — an omniwatch response that omits a known borrower must never evict it.
 	//
-	// The on-disk cache is a fallback, read only when omniwatch is unreachable at startup (fetch
-	// returned None) and a file exists. It recovers last-known coverage without setting `seeded`,
-	// so a live fetch stays authoritative and the fast re-seed cadence keeps running. A live fetch
-	// (even empty) does not read the file. `persist_after_scan` requests a cache write once a
-	// successful fetch has been routed into the instances (see the save site after the scan).
-	let mut persist_after_scan;
-	let mut pending_seed: PoolTaggedBorrowers = match seed {
-		Some(list) => {
-			persist_after_scan = true;
-			list
-		}
-		None => {
-			persist_after_scan = false; // a stale load must not be written back
-			match task.cfg.borrower_cache_path.as_deref() {
-				Some(path) => borrower_cache::load(path, task.cfg.log_prefix.as_str()),
-				None => Vec::new(),
-			}
-		}
+	// The on-disk cache is a FLOOR, not a fallback: it is always loaded and unioned with the live
+	// fetch. Reading it only on fetch failure meant a successful-but-partial response (omniwatch
+	// restarted with a cold DB) was persisted straight back over the file, evicting borrowers the
+	// union invariant says may only shrink on on-chain evidence. It does not set `seeded` — that
+	// keys on the live fetch alone, so a cache-only start keeps the fast re-seed cadence.
+	// `persist_after_scan` requests a cache write once a successful fetch has been routed into the
+	// instances (see the save site after the scan).
+	let mut persist_after_scan = false;
+	let mut seeded = false;
+	let mut pending_seed: PoolTaggedBorrowers = match task.cfg.borrower_cache_path.as_deref() {
+		Some(path) => borrower_cache::load(path, task.cfg.log_prefix.as_str()),
+		None => Vec::new(),
 	};
 	let mut blocks_since_refetch: u32 = 0;
-	// In-flight background re-seed: never awaited inline — a slow omniwatch must not stall the
-	// scan loop and cost a block's liquidation round.
-	let mut refetch_rx: Option<tokio::sync::oneshot::Receiver<Option<PoolTaggedBorrowers>>> = None;
+	// In-flight re-seed: never awaited inline — a slow omniwatch must not stall the scan loop and
+	// cost a block's liquidation round. The STARTUP seed uses the same channel: awaiting it here
+	// cost up to `ATTEMPTS * TIMEOUT + (ATTEMPTS - 1) * BACKOFF` (~62s, ~10 blocks) against a dead
+	// omniwatch, during which the worker scanned nothing at all — not even the disk cache it
+	// already holds.
+	let mut refetch_rx: Option<tokio::sync::oneshot::Receiver<Option<PoolTaggedBorrowers>>> =
+		spawn_seed_fetch(&task.https, task.url.clone(), task.cfg.log_prefix.clone());
 	// Blocks whose BORROW logs have not been scanned yet: discovery needs the resolved pool
 	// addresses, so a block skipped on a timestamp/money-market fetch failure (or imported as
 	// non-best and canonicalized later) must stay queued — a BORROW log must never be lost.
@@ -1263,6 +1457,16 @@ where
 	// eventual full drain — borrower insertion is idempotent). This watermark tracks how far
 	// that partial scanning has progressed, so each block's logs are read at most once.
 	let mut event_scan_watermark: usize = 0;
+	// pool → (consecutive resolve failures, first block to retry at). Resolving a pool costs two
+	// runtime-API EVM calls, so failures must be remembered ACROSS blocks: a corrupt omniwatch
+	// response naming N unresolvable pools would otherwise cost 2N EVM calls every block for the
+	// life of the process and starve the per-block scan.
+	let mut pool_resolve_backoff: HashMap<EvmAddress, (u32, BlockNumber)> = HashMap::new();
+	// (pool, borrower) → block the next submission is allowed at. Replaces v1's `liquidated_users`
+	// dedup and `tx_waitlist`: a decision that reverts on chain (the dry run cannot catch every
+	// case) is re-derived identically next block, and with `longevity(1)` it would be re-included
+	// every block at no cost to the submitter.
+	let mut submit_cooldown: HashMap<(EvmAddress, EvmAddress), BlockNumber> = HashMap::new();
 	// Per-instance money market + borrowers are cached on each instance from its latest scan.
 	// The oracle fast-path reuses them (applying only the pending price delta) instead of
 	// re-fetching — a fetch is ~200ms of runtime-API EVM calls, too slow to beat the block that
@@ -1270,6 +1474,16 @@ where
 	// a millisecond, so the liquidation is in the pool before that block seals and lands in it,
 	// ordered right after the oracle update by the tx-priority ladder. A few-seconds-stale cache
 	// is fine: the per-block scan is the source of truth and corrects any miss next block.
+
+	/// What one scanned borrower reports back to the main task.
+	struct ScanResult {
+		idx: usize,
+		addr: EvmAddress,
+		/// `None` = read succeeded with zero debt (prune candidate).
+		borrower: Option<Borrower>,
+		/// A liquidation for this borrower was handed to the tx pool this block.
+		submitted: bool,
+	}
 
 	// Per-instance scan context, rebuilt each block inside the API scope and moved out as plain
 	// (`Send`) data for the parallel scan.
@@ -1285,11 +1499,14 @@ where
 		tokio::select! {
 		  Some(b) = blocks_stream.next() => {
 		  pending_event_blocks.push(b.hash);
+		  // Memory backstop only. The drain below forces itself once the queue reaches capacity, so
+		  // reaching this means blocks arrived without the scan running at all (non-best imports, a
+		  // failing timestamp read) — their BORROW logs are genuinely lost, hence `error`.
 		  if pending_event_blocks.len() > MAX_PENDING_EVENT_BLOCKS {
 			  let dropped = pending_event_blocks.len() - MAX_PENDING_EVENT_BLOCKS;
 			  pending_event_blocks.drain(..dropped);
 			  event_scan_watermark = event_scan_watermark.saturating_sub(dropped);
-			  log::warn!(target: LOG_TARGET, "{:?} run(): dropped {} unscanned block(s) from the event-discovery queue", task.cfg.log_prefix, dropped);
+			  log::error!(target: LOG_TARGET, "{:?} run(): event-discovery queue overflowed, dropped {} unscanned block(s) — borrowers who first borrowed in them are only recoverable from omniwatch", task.cfg.log_prefix, dropped);
 		  }
 
 		  if !b.is_new_best {
@@ -1329,7 +1546,7 @@ where
 			  tokio::spawn(async move {
 				  let refreshed = match tokio::time::timeout(
 					  OMNIWATCH_FETCH_TIMEOUT,
-					  fetch_borrowers_list(&https, url, log_prefix.as_str()),
+					  fetch_borrowers_list_opt(&https, url, log_prefix.as_str()),
 				  )
 				  .await
 				  {
@@ -1371,7 +1588,8 @@ where
 					  }
 				  }
 			  };
-			  match read_pool_storage(storage_key::borrowing_contract()) {
+			  let main_pool = read_pool_storage(storage_key::borrowing_contract());
+			  match main_pool {
 				  Some(main_pool) => {
 					  let _ = ensure_instance_for_pool(&mut instances, &api, b.hash, main_pool, InstanceSource::Chain, &task.cfg);
 				  }
@@ -1395,6 +1613,19 @@ where
 			  if let Some(giga) = giga_pool {
 				  let _ = ensure_instance_for_pool(&mut instances, &api, b.hash, giga, InstanceSource::Chain, &task.cfg);
 			  }
+			  // `liquidate_with_pool` resolves the pool itself and rejects any other value with
+			  // `PoolAddressMismatch` (gigahdx pool for GIGAHDX collateral, `BorrowingContract`
+			  // otherwise). A discovered third market is therefore something the pallet cannot act
+			  // on: scanning it would only produce extrinsics that burn block weight and never
+			  // liquidate. Re-read every block so a governance change takes effect without a
+			  // restart. `None` when `BorrowingContract` is absent — it is ValueQuery, so the
+			  // pallet is on a default address we cannot read generically, and gating on a partial
+			  // list would wrongly disable the main market.
+			  let submittable_pools: Option<Vec<EvmAddress>> = main_pool.map(|main| {
+				  let mut pools = vec![main];
+				  pools.extend(giga_pool);
+				  pools
+			  });
 
 			  // --- Route pool-tagged omniwatch borrowers; unknown pools create instances ---
 			  // A pair that fails only TRANSIENTLY (PAP resolution / sanity round-trip on a
@@ -1420,6 +1651,12 @@ where
 					  }
 					  continue;
 				  }
+				  // Still backing off from an earlier resolve failure — re-queue without spending
+				  // the two EVM calls again.
+				  if pool_resolve_backoff.get(&pool).is_some_and(|(_, next)| block_number < *next) {
+					  seed_retry.push((addr, pool));
+					  continue;
+				  }
 				  if !task.cfg.discovery_enabled {
 					  log::debug!(target: LOG_TARGET, "{:?} run(): discovery disabled — dropping borrower {addr:?} of unknown pool {pool:?}", task.cfg.log_prefix);
 					  continue;
@@ -1429,14 +1666,22 @@ where
 				  }
 				  match ensure_instance_for_pool(&mut instances, &api, b.hash, pool, InstanceSource::Discovered, &task.cfg) {
 					  Some(idx) => {
+						  pool_resolve_backoff.remove(&pool);
 						  if instances[idx].borrowers.insert(addr) {
 							  seed_new.entry(idx).or_default().push(addr);
 						  }
 					  }
-					  // Transient resolve/sanity failure — retry next block (one attempt per
-					  // pool per block; further pairs for the same pool go straight to retry).
+					  // Resolve/sanity failure — retry with exponential backoff (one attempt per
+					  // pool per block; further pairs for the same pool go straight to retry). The
+					  // pairs stay queued: the borrower set must only shrink on on-chain evidence.
 					  None => {
 						  failed_pools.insert(pool);
+						  let entry = pool_resolve_backoff.entry(pool).or_insert((0, 0));
+						  entry.0 = entry.0.saturating_add(1);
+						  let wait = POOL_RESOLVE_RETRY_BASE_BLOCKS
+							  .saturating_mul(1u32 << entry.0.min(8)) // capped shift — cannot overflow
+							  .min(MAX_POOL_RESOLVE_BACKOFF_BLOCKS);
+						  entry.1 = block_number.saturating_add(wait);
 						  seed_retry.push((addr, pool));
 					  }
 				  }
@@ -1457,6 +1702,19 @@ where
 			  // --- Per-instance money market fetch + kind detection + aToken map refresh ---
 			  let mut ctxs: Vec<Option<ScanCtx>> = Vec::with_capacity(instances.len());
 			  for inst in instances.iter_mut() {
+				  if inst.denylisted {
+					  ctxs.push(None);
+					  continue; // already resolved to a denylisted pool — do not spend EVM calls on it again
+				  }
+				  // Already-resolved pool the pallet cannot execute against: skip before paying for
+				  // the money-market fetch.
+				  if let (Some(pool), Some(allowed)) = (inst.pool, submittable_pools.as_ref()) {
+					  if !allowed.contains(&pool) {
+						  log::warn!(target: LOG_TARGET, "{:?} run(): pool {pool:?} is not one the liquidation pallet accepts ({allowed:?}) — not scanning; any submission would fail with PoolAddressMismatch", inst.log_prefix);
+						  ctxs.push(None);
+						  continue;
+					  }
+				  }
 				  let hydration = Hydration::new(task.cfg.api_caller, inst.pap, inst.log_prefix.as_str());
 				  let Some(mm) = hydration.fetch_money_market(&api, b.hash) else {
 					  // One broken market must not disable the rest: skip only this instance's
@@ -1465,11 +1723,24 @@ where
 					  ctxs.push(None);
 					  continue;
 				  };
-				  inst.pool = Some(mm.pool);
 				  // The denylist is authoritative even for pinned/fallback instances whose pool
-				  // only becomes known here: never scan or submit against a denylisted pool.
+				  // only becomes known here. `pool` stays unset and the instance is marked, so it
+				  // is excluded from BORROW discovery, seed routing and the on-disk cache too —
+				  // assigning it first left a denylisted market silently accumulating borrowers.
 				  if task.cfg.pool_denylist.contains(&mm.pool) {
-					  log::error!(target: LOG_TARGET, "{:?} run(): pinned PAP {:?} resolves to DENYLISTED pool {:?} — this market will not be scanned", inst.log_prefix, inst.pap, mm.pool);
+					  log::error!(target: LOG_TARGET, "{:?} run(): pinned PAP {:?} resolves to DENYLISTED pool {:?} — this market will not be scanned and its borrowers are dropped", inst.log_prefix, inst.pap, mm.pool);
+					  inst.denylisted = true;
+					  inst.borrowers.clear();
+					  inst.cached_mm = None;
+					  inst.cached_borrowers.clear();
+					  inst.cached_at = None;
+					  ctxs.push(None);
+					  continue;
+				  }
+				  inst.pool = Some(mm.pool);
+				  // Same gate as above, for a pool that only becomes known here.
+				  if submittable_pools.as_ref().is_some_and(|allowed| !allowed.contains(&mm.pool)) {
+					  log::warn!(target: LOG_TARGET, "{:?} run(): pool {:?} is not one the liquidation pallet accepts — not scanning; any submission would fail with PoolAddressMismatch", inst.log_prefix, mm.pool);
 					  ctxs.push(None);
 					  continue;
 				  }
@@ -1531,7 +1802,11 @@ where
 			  // block read once) so one unresolvable instance cannot stall discovery for the
 			  // rest — the late market gets its logs from the eventual full drain (borrower
 			  // insertion is idempotent). An empty registry never consumes the queue.
-			  let pools: Vec<EvmAddress> = instances.iter().filter_map(|inst| inst.pool).collect();
+			  let pools: Vec<EvmAddress> = instances
+				  .iter()
+				  .filter(|inst| !inst.denylisted)
+				  .filter_map(|inst| inst.pool)
+				  .collect();
 			  if !pools.is_empty() {
 				  let route_discovered = |discovered: Vec<(EvmAddress, EvmAddress)>, instances: &mut Vec<MmInstance>| {
 					  for (pool, addr) in discovered {
@@ -1542,7 +1817,20 @@ where
 						  }
 					  }
 				  };
-				  if instances.iter().all(|inst| inst.pool.is_some()) {
+				  // An instance that never resolves its pool must not hold the queue forever: at
+				  // capacity we drain for the pools we DO have. The alternative — shedding a block
+				  // from the front on every subsequent block — loses those logs for every market
+				  // rather than only for the late one, and never stops.
+				  let force_drain = pending_event_blocks.len() >= MAX_PENDING_EVENT_BLOCKS;
+				  if force_drain {
+					  let stalled: Vec<&str> = instances
+						  .iter()
+						  .filter(|inst| inst.pool.is_none() && !inst.denylisted)
+						  .map(|inst| inst.log_prefix.as_str())
+						  .collect();
+					  log::error!(target: LOG_TARGET, "{:?} run(): event-discovery queue at capacity ({} blocks) because {:?} never resolved a pool — draining now; those market(s) lose their queued BORROW logs and depend on omniwatch until they resolve", task.cfg.log_prefix, pending_event_blocks.len(), stalled);
+				  }
+				  if force_drain || instances.iter().all(|inst| inst.pool.is_some() || inst.denylisted) {
 					  for hash in pending_event_blocks.drain(..) {
 						  let found = process_events_multi(task.load_events(hash), &pools, task.cfg.log_prefix.as_str());
 						  route_discovered(found, &mut instances);
@@ -1575,7 +1863,7 @@ where
 		  // Threads report zero-debt borrowers (to prune) and fetched borrowers (for the fast-path
 		  // cache) back over a channel; the per-instance scan contexts are shared read-only.
 		  let handle = tokio::runtime::Handle::current();
-		  let (result_tx, result_rx) = std::sync::mpsc::channel::<(usize, EvmAddress, Option<Borrower>)>();
+		  let (result_tx, result_rx) = std::sync::mpsc::channel::<ScanResult>();
 		  let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).max(1);
 		  let chunk_size = scan_list.len().div_ceil(cores).max(1);
 		  // Counts liquidations FOUND and handed to the pool, not accepted ones — the spawned
@@ -1593,6 +1881,7 @@ where
 					  let cfg = &task.cfg;
 					  let found = &found;
 					  let best = b.hash;
+					  let submit_cooldown = &submit_cooldown;
 					  scope.spawn(move || {
 						  let runtime_api = client.runtime_api();
 						  let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
@@ -1607,32 +1896,57 @@ where
 								  continue;
 							  };
 							  if borrower.total_debt.is_zero() {
-								  let _ = result_tx.send((*idx, *addr, None)); // prune
+								  let _ = result_tx.send(ScanResult { idx: *idx, addr: *addr, borrower: None, submitted: false });
 								  continue;
 							  }
+							  let mut submitted = false;
 							  if let Some(decision) = decide_liquidation(cfg, &ctx.mm, &borrower) {
 								  // Submit-on-find: build the tx here (sync) and spawn the async submit.
 								  // GigaHdx decisions are re-mapped to the aToken collateral first
 								  // (fail-closed on a missing mapping).
 								  if let Some(mapped) = map_decision_collateral(&decision, ctx.kind, &ctx.atoken_map, log_prefix) {
-									  if let Some(opaque) = encode_liquidation_opaque(&mapped, ctx.mm.pool, log_prefix) {
-										  let pool = pool.clone();
-										  let user = mapped.user;
-										  let prefix = ctx.log_prefix.clone();
-										  found.fetch_add(1, Ordering::Relaxed);
-										  handle.spawn(async move {
-											  // A pool rejection (duplicate, pool limits, `InvalidTransaction` from
-											  // `validate_unsigned`) must never look like a landed liquidation —
-											  // that is the invisible-miss shape the worker exists to eliminate.
-											  match pool.submit_one(best, TransactionSource::Local, opaque.into()).await {
-												  Ok(_) => log::debug!(target: LOG_TARGET, "{prefix:?} run(): submitted liquidation for borrower {user:?}"),
-												  Err(e) => log::error!(target: LOG_TARGET, "{prefix:?} run(): failed to submit liquidation for borrower {user:?}, err: {e:?}"),
+									  let on_cooldown = submit_cooldown
+										  .get(&(ctx.mm.pool, mapped.user))
+										  .is_some_and(|until| block_number < *until);
+									  if on_cooldown {
+										  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): borrower {:?} is on submit cooldown, not resubmitting", mapped.user);
+									  } else {
+										  let call = liquidation_call(&mapped, ctx.mm.pool);
+										  // v1 dry-ran before resubmitting "to prevent spamming with
+										  // extrinsic that will fail (e.g. because of not being
+										  // profitable)". `decide_liquidation` never models the
+										  // collateral sale, so a position that is underwater by the
+										  // worker's math can still revert with `NotProfitable` — and
+										  // with `longevity(1)` it would be rebuilt and re-included
+										  // every block, free, forever. Decisions are rare, so paying
+										  // for one simulation each is cheap.
+										  match dry_run_liquidation(runtime_api.deref(), best, call.clone()) {
+											  DryRun::WouldFail(e) => {
+												  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): dry run says liquidation for {:?} would fail ({e:?}), not submitting", mapped.user);
 											  }
-										  });
+											  DryRun::WouldSucceed | DryRun::Unknown => {
+												  if let Some(opaque) = encode_liquidation_opaque(call, log_prefix) {
+													  let pool = pool.clone();
+													  let user = mapped.user;
+													  let prefix = ctx.log_prefix.clone();
+													  found.fetch_add(1, Ordering::Relaxed);
+													  submitted = true;
+													  handle.spawn(async move {
+														  // A pool rejection (duplicate, pool limits, `InvalidTransaction` from
+														  // `validate_unsigned`) must never look like a landed liquidation —
+														  // that is the invisible-miss shape the worker exists to eliminate.
+														  match pool.submit_one(best, TransactionSource::Local, opaque.into()).await {
+															  Ok(_) => log::debug!(target: LOG_TARGET, "{prefix:?} run(): submitted liquidation for borrower {user:?}"),
+															  Err(e) => log::error!(target: LOG_TARGET, "{prefix:?} run(): failed to submit liquidation for borrower {user:?}, err: {e:?}"),
+														  }
+													  });
+												  }
+											  }
+										  }
 									  }
 								  }
 							  }
-							  let _ = result_tx.send((*idx, *addr, Some(borrower))); // cache
+							  let _ = result_tx.send(ScanResult { idx: *idx, addr: *addr, borrower: Some(borrower), submitted });
 						  }
 					  });
 				  }
@@ -1641,21 +1955,56 @@ where
 		  });
 
 		  // Drain results: prune repaid borrowers, collect the rest for each instance's
-		  // fast-path cache.
+		  // fast-path cache, and arm the submit cooldown for anything handed to the pool.
 		  let mut fetched: Vec<Vec<Borrower>> = instances.iter().map(|_| Vec::new()).collect();
-		  for (idx, addr, maybe_borrower) in result_rx {
-			  match maybe_borrower {
-				  None => {
-					  instances[idx].borrowers.remove(&addr);
-					  log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", instances[idx].log_prefix, addr);
+		  for ScanResult { idx, addr, borrower, submitted } in result_rx {
+			  if submitted {
+				  if let Some(pool) = instances[idx].pool {
+					  submit_cooldown.insert((pool, addr), block_number.saturating_add(SUBMIT_COOLDOWN_BLOCKS));
 				  }
-				  Some(borrower) => fetched[idx].push(borrower),
+			  }
+			  match borrower {
+				  None => {
+					  // One all-zeros read is not proof of repayment — a proxy upgrade or config
+					  // change returns zeros without erroring. Require consecutive confirmations.
+					  let inst = &mut instances[idx];
+					  let seen = inst.zero_debt_reads.entry(addr).or_insert(0);
+					  *seen = seen.saturating_add(1);
+					  let seen = *seen;
+					  if seen >= ZERO_DEBT_READS_BEFORE_PRUNE {
+						  inst.borrowers.remove(&addr);
+						  inst.zero_debt_reads.remove(&addr);
+						  log::info!(target: LOG_TARGET, "{:?} run(): borrower repaid all debt, pruned: {:?}", inst.log_prefix, addr);
+					  } else {
+						  log::debug!(target: LOG_TARGET, "{:?} run(): borrower {:?} read zero debt ({seen}/{ZERO_DEBT_READS_BEFORE_PRUNE}), keeping until confirmed", inst.log_prefix, addr);
+					  }
+				  }
+				  Some(borrower) => {
+					  instances[idx].zero_debt_reads.remove(&addr);
+					  fetched[idx].push(borrower);
+				  }
 			  }
 		  }
+		  // Bounded by the working borrower set; drop entries whose cooldown has elapsed.
+		  submit_cooldown.retain(|_, until| *until > block_number);
+
+		  // Publish liveness + coverage for the `liquidation_*` RPCs. Monitoring has no other way
+		  // to tell a running worker from one that died or never started.
+		  task.status.record_scan(
+			  block_number,
+			  instances
+				  .iter()
+				  .filter(|inst| !inst.denylisted)
+				  .filter_map(|inst| inst.pool.map(|pool| (pool, inst)))
+				  .flat_map(|(pool, inst)| inst.borrowers.iter().map(move |addr| (pool, *addr)))
+				  .collect(),
+			  task.cfg.liquidations_per_block,
+		  );
 		  for (idx, ctx) in scan_ctxs.iter_mut().enumerate() {
 			  if let Some(ctx) = ctx.take() {
 				  instances[idx].cached_borrowers = std::mem::take(&mut fetched[idx]);
 				  instances[idx].cached_mm = Some(ctx.mm);
+				  instances[idx].cached_at = Some(block_number);
 			  }
 		  }
 
@@ -1698,17 +2047,48 @@ where
 		  // NO runtime API call here, so we decide + submit in well under a millisecond and beat
 		  // the block that includes the oracle tx. One DIA update can move several markets, so
 		  // every cached instance is repriced; instances not yet scanned are skipped. GigaHdx
-		  // decisions are re-mapped to the aToken collateral (fail-closed). Note: a market with
-		  // no reserve matching the update's base symbol (e.g. no plain-HDX reserve on the
-		  // gigahdx market) is a fast-path no-op there — the next per-block scan covers it.
+		  // decisions are re-mapped to the aToken collateral (fail-closed).
+		  let info = client.info();
+		  let best = info.best_hash;
+		  let best_number: BlockNumber = info.best_number.saturated_into();
+		  // A market whose per-block scan keeps failing keeps serving its last good snapshot.
+		  // Deciding from it submits liquidations sized against long-repaid debt on every oracle
+		  // tick — each rejected on chain — so bound how stale a cache may be, both as a decision
+		  // source and as a price source below. The scan failure is already logged per block.
+		  let cache_age = |inst: &MmInstance| inst.cached_at.map(|at| best_number.saturating_sub(at));
+		  let is_fresh = |inst: &MmInstance| cache_age(inst).is_some_and(|age| age <= MAX_FAST_PATH_CACHE_AGE_BLOCKS);
+		  // The ratio denominator for a derived reserve (stHDX, gDOT) is the base asset's OLD
+		  // price, which may only exist on a DIFFERENT market — the gigahdx market lists stHDX but
+		  // no plain HDX. Collect it across every fresh market BEFORE any of them is repriced.
+		  let mut base_prices: HashMap<String, U256> = HashMap::new();
+		  for inst in instances.iter().filter(|inst| is_fresh(inst)) {
+			  let Some(mm) = inst.cached_mm.as_ref() else { continue };
+			  for r in mm.reserves.values() {
+				  base_prices.entry(r.symbol.to_ascii_lowercase()).or_insert(r.price);
+			  }
+		  }
 		  let mut decisions: Vec<(EvmAddress, LiquidationDecision)> = Vec::new();
 		  for inst in &instances {
 			  let Some(mm_cache) = inst.cached_mm.as_ref() else { continue };
+			  if !is_fresh(inst) {
+				  log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path skipping market — cache is {:?} block(s) old (max {MAX_FAST_PATH_CACHE_AGE_BLOCKS})", inst.log_prefix, cache_age(inst));
+				  continue;
+			  }
 			  let mut mm = mm_cache.clone();
-			  for decision in apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &inst.cached_borrowers) {
+			  for decision in apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &inst.cached_borrowers, &base_prices) {
 				  if let Some(mapped) =
 					  map_decision_collateral(&decision, inst.kind, &inst.atoken_map, inst.log_prefix.as_str())
 				  {
+					  // Same cooldown as the scan path — the fast path must not re-submit a
+					  // decision the previous block already handed to the pool. No dry run here:
+					  // this path exists to beat the block that carries the oracle update, and a
+					  // simulation would cost more than the whole decision.
+					  if submit_cooldown
+						  .get(&(mm.pool, mapped.user))
+						  .is_some_and(|until| best_number < *until)
+					  {
+						  continue;
+					  }
 					  decisions.push((mm.pool, mapped));
 				  }
 			  }
@@ -1721,8 +2101,11 @@ where
 
 		  decisions.sort_by(|a, b| b.1.priority.cmp(&a.1.priority));
 		  let cap = task.cfg.liquidations_per_block as usize;
-		  let best = client.info().best_hash;
 		  for (market_pool, decision) in decisions.iter().take(cap) {
+			  submit_cooldown.insert(
+				  (*market_pool, decision.user),
+				  best_number.saturating_add(SUBMIT_COOLDOWN_BLOCKS),
+			  );
 			  let _ = task.submit_liquidation(best, *market_pool, decision).await;
 		  }
 		  log::info!(target: LOG_TARGET, "{:?} run(): oracle fast-path decided {} liquidations across {} market(s) from a pending DIA update (cached mm), submitted up to {}", task.cfg.log_prefix, decisions.len(), instances.len(), cap);

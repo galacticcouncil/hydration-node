@@ -124,7 +124,7 @@ impl From<&pepl_worker::LiquidationWorkerCli> for LiquidationWorkerConfig {
 			oracle_update_call_address: v.oracle_update_call_address.clone(),
 			target_hf: v.target_hf.unwrap_or(TARGET_HF),
 			omniwatch_url: v.omniwatch_url.clone().unwrap_or_else(|| OMNIWATCH_URL.to_string()),
-			weight_reserve: WEIGHT_RESERVE,
+			weight_reserve: v.weight_reserve.unwrap_or(WEIGHT_RESERVE),
 		}
 	}
 }

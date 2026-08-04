@@ -1,5 +1,4 @@
 use crate::traits::*;
-use ethabi::ethereum_types::U512;
 use evm::ExitReason;
 use fp_evm::{ExitReason::Succeed, ExitSucceed::Returned};
 use num_enum::IntoPrimitive;
@@ -674,7 +673,7 @@ impl Hydration {
 fn convert_to_base_normalized(n: U256, norm_multiplier: U256, r: &Reserve) -> Option<U256> {
 	ray_mul(n, norm_multiplier)?
 		.full_mul(r.price)
-		.checked_div(U512::from(10u128.pow(r.decimals() as u32)))?
+		.checked_div(pow10_u512(r.decimals())?)?
 		.try_into()
 		.ok()
 }
