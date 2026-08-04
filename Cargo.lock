@@ -9269,7 +9269,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispenser"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
