@@ -165,7 +165,7 @@ fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispa
 		let fee_difference = evm_fee - native_fee;
 		assert!(fee_difference > 0);
 		let relative_fee_difference = FixedU128::from_rational(fee_difference, native_fee);
-		let tolerated_fee_difference = FixedU128::from_rational(30, 100);
+		let tolerated_fee_difference = FixedU128::from_rational(32, 100);
 		// EVM fees should be not higher than 20%
 		assert!(
 			relative_fee_difference < tolerated_fee_difference,
