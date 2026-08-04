@@ -67,6 +67,9 @@ resolver = "2"
 [workspace.dependencies]
 codec = { package = "parity-scale-codec", version = "3.7", default-features = false, features = ["derive"] }
 scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+# the node reads the chain's own runtime metadata to decode events; already in the graph
+# via frame-support, pinned here so the node can name the types.
+frame-metadata = { version = "20.0.0", default-features = false, features = ["current", "decode"] }
 serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.13.1", default-features = false }
 borsh = { version = "1.5.7", default-features = false, features = ["derive"] }

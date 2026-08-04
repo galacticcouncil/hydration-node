@@ -121,6 +121,31 @@ runtime_benchmarks! {
 	verify {
 		assert!(EVMAccounts::account(evm_address).is_some());
 	}
+
+	set_ntt_minter {
+		let minter: AccountId = account("minter", 0, 1);
+		let evm_address = EVMAccounts::evm_address(&minter);
+		let asset_id = 0u32;
+		assert!(EVMAccounts::ntt_minter(asset_id).is_none());
+
+	}: _(RawOrigin::Root, asset_id, evm_address)
+	verify {
+		assert_eq!(EVMAccounts::ntt_minter(asset_id), Some(evm_address));
+	}
+
+	clear_ntt_minter {
+		let minter: AccountId = account("minter", 0, 1);
+		let evm_address = EVMAccounts::evm_address(&minter);
+		let asset_id = 0u32;
+
+		EVMAccounts::set_ntt_minter(RawOrigin::Root.into(), asset_id, evm_address)?;
+
+		assert!(EVMAccounts::ntt_minter(asset_id).is_some());
+
+	}: _(RawOrigin::Root, asset_id)
+	verify {
+		assert!(EVMAccounts::ntt_minter(asset_id).is_none());
+	}
 }
 
 #[cfg(test)]

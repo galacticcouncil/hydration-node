@@ -1335,6 +1335,53 @@ fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
 }
 
 #[test]
+fn dca_schedule_should_retry_when_error_is_configured_to_retry_on() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, RETRY_ON_ERROR_ASSET, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: RETRY_ON_ERROR_ASSET,
+					asset_out: BTC,
+					amount_in: ONE,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: RETRY_ON_ERROR_ASSET,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			let schedule_id = 0;
+			set_to_blocknumber(502);
+			assert!(DCA::schedules(schedule_id).is_some());
+			assert_eq!(DCA::retries_on_error(schedule_id), 1);
+			assert_scheduled_ids!(522, vec![schedule_id]);
+
+			set_to_blocknumber(522);
+			assert_eq!(DCA::retries_on_error(schedule_id), 2);
+			assert_scheduled_ids!(562, vec![schedule_id]);
+
+			set_to_blocknumber(562);
+			assert_eq!(DCA::retries_on_error(schedule_id), 3);
+			assert_scheduled_ids!(642, vec![schedule_id]);
+
+			set_to_blocknumber(642);
+			assert_number_of_executed_sell_trades!(0);
+			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::MaxRetryReached.into());
+		});
+}
+
+#[test]
 fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
