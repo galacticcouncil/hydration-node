@@ -66,7 +66,7 @@ runtime_benchmarks! {
 		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(0, &seller, 500_000_000_000_000_u128);
-		Omnipool::sell(RawOrigin::Signed(seller).into(), 0, token_id, 10000000000000, 0)?;
+		Omnipool::sell(RawOrigin::Signed(seller).into(), 0, token_id, 10_000_000_000_000 / 3, 0)?;
 
 		set_period(10);
 		let base_fee_per_gas = <BaseFeePerGas<Runtime>>::get();

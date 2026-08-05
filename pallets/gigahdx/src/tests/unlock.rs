@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::mock::*;
-use crate::{Error, Stakes};
+use crate::{Error, Stakes, TwoSecBlocksSince};
 use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{fungible::Inspect, LockIdentifier};
@@ -122,6 +122,71 @@ fn unlock_should_fail_when_cooldown_not_elapsed() {
 			GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 1),
 			Error::<Test>::CooldownNotElapsed
 		);
+	});
+}
+
+#[test]
+fn unlock_should_preserve_remaining_cooldown_when_position_was_created_before_2s_switch() {
+	ExtBuilder::default().build().execute_with(|| {
+		System::set_block_number(10);
+		stake_alice_100();
+		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		TwoSecBlocksSince::<Test>::put(20);
+
+		// Mock cooldown is 100 new blocks, so the old 6s cooldown is 33 blocks.
+		// At the switch block 23 old blocks remain, which become 69 blocks at 2s.
+		assert_eq!(GigaHdx::cooldown_expires_at(10).unwrap(), 89);
+
+		System::set_block_number(88);
+		assert_noop!(
+			GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 10),
+			Error::<Test>::CooldownNotElapsed
+		);
+
+		System::set_block_number(89);
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 10));
+		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 0);
+	});
+}
+
+#[test]
+fn unlock_should_use_old_deadline_when_pre_switch_position_already_matured_at_switch() {
+	ExtBuilder::default().build().execute_with(|| {
+		System::set_block_number(10);
+		stake_alice_100();
+		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+		TwoSecBlocksSince::<Test>::put(50);
+
+		assert_eq!(GigaHdx::cooldown_expires_at(10).unwrap(), 43);
+
+		System::set_block_number(49);
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 10));
+		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 0);
+	});
+}
+
+#[test]
+fn unlock_should_use_new_cooldown_when_position_was_created_after_2s_switch() {
+	ExtBuilder::default().build().execute_with(|| {
+		TwoSecBlocksSince::<Test>::put(20);
+		System::set_block_number(30);
+		stake_alice_100();
+		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
+
+		assert_eq!(
+			GigaHdx::cooldown_expires_at(30).unwrap(),
+			30 + GigaHdxCooldownPeriod::get()
+		);
+
+		System::set_block_number(30 + GigaHdxCooldownPeriod::get() - 1);
+		assert_noop!(
+			GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 30),
+			Error::<Test>::CooldownNotElapsed
+		);
+
+		System::set_block_number(30 + GigaHdxCooldownPeriod::get());
+		assert_ok!(GigaHdx::unlock(RawOrigin::Signed(ALICE).into(), 30));
+		assert_eq!(lock_amount(ALICE, GIGAHDX_LOCK_ID), 0);
 	});
 }
 
