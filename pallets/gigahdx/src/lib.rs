@@ -85,7 +85,8 @@ pub mod pallet {
 	use frame_support::traits::fungibles::Mutate as FungiblesMutate;
 	use frame_support::traits::tokens::{Fortitude, Precision, Preservation};
 	use frame_support::traits::{
-		fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, WithdrawReasons,
+		fungibles, Currency, ExistenceRequirement, LockIdentifier, LockableCurrency, ReservableCurrency,
+		WithdrawReasons,
 	};
 	use frame_support::{transactional, PalletId};
 	use frame_system::pallet_prelude::*;
@@ -148,7 +149,8 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
-		type NativeCurrency: LockableCurrency<Self::AccountId, Balance = Balance, Moment = BlockNumberFor<Self>>;
+		type NativeCurrency: LockableCurrency<Self::AccountId, Balance = Balance, Moment = BlockNumberFor<Self>>
+			+ ReservableCurrency<Self::AccountId, Balance = Balance>;
 
 		/// Multi-asset register that holds stHDX (and any other registered
 		/// fungible). Only this pallet mints / burns stHDX through it.
@@ -982,39 +984,31 @@ pub mod pallet {
 			Self::refresh_lock(borrower)?;
 
 			if !seize_hdx.is_zero() {
-				// Prefer a clean transfer. If the borrower's remaining locks
-				// (e.g. uncleared `pyconvot`, vesting, or any unmanaged lock)
-				// still block the move, fall back to `slash` + `resolve_creating`
-				// — liquidation is top priority and must always land.
-				let new_balance = T::NativeCurrency::free_balance(borrower)
-					.checked_sub(seize_hdx)
-					.ok_or(Error::<T>::SeizeFailed)?;
-				let can_transfer =
-					T::NativeCurrency::ensure_can_withdraw(borrower, seize_hdx, WithdrawReasons::TRANSFER, new_balance)
-						.is_ok();
+				// Prefer a clean transfer; fall back to slash when a lock blocks it.
+				let free = T::NativeCurrency::free_balance(borrower);
+				let can_transfer = seize_hdx <= free
+					&& T::NativeCurrency::ensure_can_withdraw(
+						borrower,
+						seize_hdx,
+						WithdrawReasons::TRANSFER,
+						free.saturating_sub(seize_hdx),
+					)
+					.is_ok();
 				if can_transfer {
 					T::NativeCurrency::transfer(borrower, recipient, seize_hdx, ExistenceRequirement::AllowDeath)?;
 				} else {
-					// Intentional policy: liquidation outranks every lock. `slash` takes
-					// the HDX regardless of `ormlvest` vesting, `pyconvot`, or any other
-					// foreign lock; the lock owner bears any later `balance < lock`
-					// shortfall. gigahdx's own ledger stays consistent regardless:
-					// `seize_hdx <= active hdx` (snapshot reads only `s.hdx`) and the
-					// lock invariant `balance >= hdx + unstaking` together guarantee
-					// `balance_new >= hdx_new + unstaking`, so `unstaking` /
-					// `PendingUnstakes` are never stranded by the slash.
-					// `slash` ignores locks (unlike `transfer`), but
-					// `pallet_balances` refuses to push a non-reapable
-					// account below ED. Tolerate that ≤ED dust — Aave has
-					// already moved the collateral aToken by this point, so
-					// the seize must land. Larger shortfalls keep the
-					// fail-loud tripwire for a genuinely broken stake/lock
-					// ledger (the `free >= seize_hdx` staking invariant
-					// bounds the shortfall to exactly the ED).
-					let (imbalance, remaining) = T::NativeCurrency::slash(borrower, seize_hdx);
+					// Liquidation outranks locks and reserves. `slash` ignores locks but
+					// reaches only `free`; take any remainder from `reserved`. The
+					// `free + reserved >= frozen >= seize_hdx` invariant covers the seize;
+					// tolerate the ≤ED dust `pallet_balances` leaves on a non-reapable account.
 					let ed = T::NativeCurrency::minimum_balance();
-					ensure!(remaining <= ed, Error::<T>::SeizeFailed);
-					T::NativeCurrency::resolve_creating(recipient, imbalance);
+					let (free_imbalance, remaining) = T::NativeCurrency::slash(borrower, seize_hdx);
+					T::NativeCurrency::resolve_creating(recipient, free_imbalance);
+					if remaining > ed {
+						let (reserved_imbalance, unpaid) = T::NativeCurrency::slash_reserved(borrower, remaining);
+						ensure!(unpaid <= ed, Error::<T>::SeizeFailed);
+						T::NativeCurrency::resolve_creating(recipient, reserved_imbalance);
+					}
 				}
 			}
 

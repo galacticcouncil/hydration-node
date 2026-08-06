@@ -36,6 +36,11 @@ pub enum Function {
 	Transfer = "transfer(address,uint256)",
 	Approve = "approve(address,uint256)",
 	TransferFrom = "transferFrom(address,address,uint256)",
+	// INttToken surface, only served by the MultiCurrency precompile for assets
+	// with a bound NTT minter. There is no setMinter selector on purpose: the
+	// minter is set exclusively via the evm-accounts `set_ntt_minter` extrinsic.
+	Mint = "mint(address,uint256)",
+	Burn = "burn(uint256)",
 }
 
 pub struct Erc20Currency<T>(PhantomData<T>);

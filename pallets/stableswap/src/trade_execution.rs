@@ -1,5 +1,5 @@
 use crate::types::Tradability;
-use crate::{Balance, Config, Error, Pallet, Pools, D_ITERATIONS, Y_ITERATIONS};
+use crate::{Balance, Config, Error, Pallet, Pools, ShareIssuance, D_ITERATIONS, Y_ITERATIONS};
 use frame_support::{ensure, BoundedVec};
 use hydra_dx_math::stableswap::types::AssetReserve;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
@@ -36,7 +36,7 @@ where
 					let balances = pool
 						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
-					let share_issuance = T::Currency::total_issuance(pool_id);
+					let share_issuance = ShareIssuance::<T>::get(pool_id);
 
 					let amplification = Self::get_amplification(&pool);
 					let (trade_fee, asset_pegs) =
@@ -114,7 +114,7 @@ where
 					}
 
 					let amplification = Self::get_amplification(&pool);
-					let share_issuance = T::Currency::total_issuance(pool_id);
+					let share_issuance = ShareIssuance::<T>::get(pool_id);
 					let (trade_fee, asset_pegs) =
 						Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 					let (share_amount, _) = hydra_dx_math::stableswap::calculate_shares::<D_ITERATIONS>(
@@ -157,7 +157,7 @@ where
 					let balances = pool
 						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
-					let share_issuance = T::Currency::total_issuance(pool_id);
+					let share_issuance = ShareIssuance::<T>::get(pool_id);
 					let amplification = Self::get_amplification(&pool);
 					let (trade_fee, asset_pegs) =
 						Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
@@ -184,7 +184,7 @@ where
 					let balances = pool
 						.reserves_with_decimals::<T>(&pool_account)
 						.ok_or_else(|| ExecutorError::Error(Error::<T>::UnknownDecimals.into()))?;
-					let share_issuance = T::Currency::total_issuance(pool_id);
+					let share_issuance = ShareIssuance::<T>::get(pool_id);
 					let amplification = Self::get_amplification(&pool);
 
 					let pool = Pools::<T>::get(pool_id)
@@ -307,7 +307,7 @@ where
 					.map(|(asset_id, reserve)| (*asset_id, *reserve))
 					.collect();
 				let amp = Pallet::<T>::get_amplification(&pool);
-				let share_issuance = T::Currency::total_issuance(pool_id);
+				let share_issuance = ShareIssuance::<T>::get(pool_id);
 				let min_trade_limit = T::MinTradingLimit::get();
 				let (trade_fee, asset_pegs) = Self::get_updated_pegs(pool_id, &pool).map_err(ExecutorError::Error)?;
 

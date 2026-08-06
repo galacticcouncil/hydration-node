@@ -94,32 +94,14 @@ parameter_types! {
 	pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
 }
 
-const MOONBEAM_PARA_ID: u32 = 2004;
-
-pub fn weth_asset_location() -> AssetLocation {
-	AssetLocation(Location {
-		parents: 1,
-		interior: [
-			Junction::Parachain(MOONBEAM_PARA_ID),
-			Junction::PalletInstance(110),
-			Junction::AccountKey20 {
-				network: None,
-				key: hex!["ab3f0245b83feb11d15aaffefd7ad465a59817ed"],
-			},
-		]
-		.into(),
-	})
-}
+// evm gas denomination, pinned by asset id: resolving it through the xcm location would zero the
+// gas asset the moment the registry entry moves (mrl→ntt repoint of asset 20 to the local erc20).
+pub const WETH_ASSET_ID: AssetId = 20;
 
 pub struct WethAssetId;
 impl Get<AssetId> for WethAssetId {
 	fn get() -> AssetId {
-		let invalid_id = pallet_asset_registry::Pallet::<Runtime>::next_asset_id().defensive_unwrap_or(AssetId::MAX);
-
-		match pallet_asset_registry::Pallet::<Runtime>::location_to_asset(weth_asset_location()) {
-			Some(asset_id) => asset_id,
-			None => invalid_id,
-		}
+		WETH_ASSET_ID
 	}
 }
 
@@ -244,6 +226,9 @@ impl pallet_evm_accounts::Config for Runtime {
 	type EvmNonceProvider = EvmNonceProvider;
 	type FeeMultiplier = sp_core::ConstU32<50>;
 	type ControllerOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
+	// faster than ControllerOrigin (TC majority) so NTT mint/burn can be stopped in minutes
+	type NttEmergencyOrigin =
+		EitherOf<EnsureRoot<Self::AccountId>, EitherOf<crate::governance::TechCommitteeMajority, GeneralAdmin>>;
 	type AssetId = AssetId;
 	type Currency = FungibleCurrencies<Runtime>;
 	type ExistentialDeposits = AssetRegistry;

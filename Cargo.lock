@@ -5818,7 +5818,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "430.0.0"
+version = "436.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -9232,7 +9232,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.18.1"
+version = "1.18.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9588,7 +9588,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.6.1"
+version = "1.7.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9811,7 +9811,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-gigahdx"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9992,7 +9992,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.5.1"
+version = "2.6.0"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10320,7 +10320,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10343,7 +10343,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10658,7 +10658,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stableswap"
-version = "7.4.1"
+version = "7.5.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -10865,7 +10865,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.6.0"
+version = "10.6.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -13936,7 +13936,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.101.0"
+version = "1.105.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -14011,6 +14011,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
+ "pallet-otc-settlements",
  "pallet-proxy",
  "pallet-referenda",
  "pallet-referrals",
