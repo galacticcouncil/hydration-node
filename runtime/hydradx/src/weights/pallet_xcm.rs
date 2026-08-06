@@ -348,7 +348,7 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for HydraWeight<T> {
 		//  Measured:  `411`
 		//  Estimated: `4087`
 		// Minimum execution time: 56_554_000 picoseconds.
-		Weight::from_parts(57_425_000, 4087)
+		Weight::from_parts(574_250_000, 4087)
 			.saturating_add(T::DbWeight::get().reads(5_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
