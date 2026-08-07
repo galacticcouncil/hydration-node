@@ -213,8 +213,8 @@ impl<Call> XcmWeightInfo<Call> for HydraXcmWeight<Call> {
 		BaseXcmWeight::get()
 	}
 
-	fn claim_asset(_assets: &Assets, _ticket: &Location) -> Weight {
-		BaseXcmWeight::get()
+	fn claim_asset(assets: &Assets, _ticket: &Location) -> Weight {
+		assets.weigh_assets(BaseXcmWeight::get())
 	}
 	fn trap(_code: &u64) -> Weight {
 		BaseXcmWeight::get()

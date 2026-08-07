@@ -49,8 +49,10 @@ pub mod pallet {
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
-	// max length of a pallet name or function name
-	pub const MAX_STR_LENGTH: u32 = 40;
+	// Max length of a pallet name or function name. Must stay above the longest call name in the
+	// runtime: a longer name cannot be stored, and `PausedTransactionFilter` reads the same
+	// conversion failure as "not paused", making such a call permanently unpausable.
+	pub const MAX_STR_LENGTH: u32 = 64;
 	pub type BoundedName = BoundedVec<u8, ConstU32<MAX_STR_LENGTH>>;
 
 	#[pallet::config]
@@ -166,7 +168,6 @@ where
 			return false;
 		}
 
-		// it's safe to call unwrap here thanks to the test above
 		PausedTransactions::<T>::contains_key((pallet_name_b.unwrap_or_default(), function_name_b.unwrap_or_default()))
 	}
 }
