@@ -42,6 +42,32 @@ mod transaction_pause {
 	pub use super::super::*;
 }
 
+/// Provides a call whose name is longer than any in the other mocked pallets, so that pausing can
+/// be exercised against long names.
+#[frame_support::pallet]
+pub mod long_named_pallet {
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config {}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::zero())]
+		pub fn some_call_with_an_intentionally_very_long_name(origin: OriginFor<T>) -> DispatchResult {
+			ensure_signed(origin)?;
+			Ok(())
+		}
+	}
+}
+
+impl long_named_pallet::Config for Runtime {}
+
 impl frame_system::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type Nonce = u64;
@@ -133,6 +159,7 @@ construct_runtime!(
 		TransactionPause: transaction_pause,
 		Balances: pallet_balances,
 		Tokens: orml_tokens,
+		LongNamedPallet: long_named_pallet,
 	}
 );
 
