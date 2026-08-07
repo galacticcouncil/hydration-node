@@ -397,7 +397,8 @@ fn execute_arbitrage_should_emit_event_profit_matching_receiver_balance_gain() {
 
 			let receiver_balance_before = Tokens::free_balance(DAI, &HsmArbProfitReceiver::get());
 			assert_ok!(HSM::execute_arbitrage(RuntimeOrigin::none(), DAI, opportunity));
-			let receiver_balance_gain = Tokens::free_balance(DAI, &HsmArbProfitReceiver::get()) - receiver_balance_before;
+			let receiver_balance_gain =
+				Tokens::free_balance(DAI, &HsmArbProfitReceiver::get()) - receiver_balance_before;
 			assert_eq!(receiver_balance_gain, 10_875_005_266_593_893);
 
 			let emitted_profit = System::events()
@@ -409,7 +410,7 @@ fn execute_arbitrage_should_emit_event_profit_matching_receiver_balance_gain() {
 						None
 					}
 				})
-				.last()
+				.next_back()
 				.expect("ArbitrageExecuted event must have been emitted");
 
 			assert_eq!(emitted_profit, receiver_balance_gain);
