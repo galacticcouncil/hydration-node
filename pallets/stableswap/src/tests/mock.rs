@@ -495,6 +495,24 @@ pub(crate) fn get_pool_id_at(idx: usize) -> AssetId {
 	POOL_IDS.with(|v| v.borrow()[idx])
 }
 
+/// Burn pool shares while keeping the pallet's tracked issuance in sync.
+/// Simulates share value accrual (higher D per share) — a pool state not
+/// reachable through pallet operations alone.
+pub(crate) fn burn_pool_shares(pool_id: AssetId, who: &AccountId, amount: Balance) {
+	Tokens::withdraw(
+		pool_id,
+		who,
+		amount,
+		frame_support::traits::ExistenceRequirement::AllowDeath,
+	)
+	.unwrap();
+	pallet_stableswap::ShareIssuance::<Test>::mutate(pool_id, |issuance| {
+		*issuance = issuance
+			.checked_sub(amount)
+			.expect("burn_pool_shares: amount exceeds tracked issuance");
+	});
+}
+
 pub struct DummyHookAdapter;
 
 impl StableswapHooks<AssetId> for DummyHookAdapter {
