@@ -609,8 +609,8 @@ impl Contains<AccountId> for DepositLockWhitelist {
 	}
 }
 
-/// True while a route is being executed, which is the only time the router holds a balance
-/// and the only time a deposit error unwinds the deposit itself.
+/// True while a route is being executed - the only time the router holds a balance and a deposit
+/// error unwinds it.
 pub struct InTradeContext;
 
 impl Get<bool> for InTradeContext {

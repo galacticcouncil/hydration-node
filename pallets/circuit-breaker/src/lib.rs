@@ -231,9 +231,8 @@ pub mod pallet {
 
 		/// Whether the current execution is inside a trade.
 		///
-		/// The `DepositLockWhitelist` exemption relies on the caller unwinding the error: it is only
-		/// safe where an error rolls the deposit back. Outside a trade - an inbound XCM deposit, say -
-		/// nothing unwinds, so exempted accounts must take the regular lock instead.
+		/// `DepositLockWhitelist` is honoured only while this holds, since the exemption depends on
+		/// the caller rolling the deposit back on error.
 		type InTradeContext: Get<bool>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
@@ -1086,9 +1085,8 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub(crate) fn do_lock_deposit(who: &T::AccountId, asset_id: T::AssetId, amount: T::Balance) -> DispatchResult {
-		// Prevent locking deposits for whitelisted accounts (e.g., router) to avoid funds being stuck.
-		// Only inside a trade, where the error unwinds the deposit; elsewhere the error would be
-		// swallowed by the caller and leave the credit in place, unlocked.
+		// Whitelisted accounts error instead of locking; only safe inside a trade, where the error
+		// unwinds the deposit.
 		if T::DepositLockWhitelist::contains(who) && T::InTradeContext::get() {
 			return Err(Error::<T>::DepositLimitExceededForWhitelistedAccount.into());
 		}

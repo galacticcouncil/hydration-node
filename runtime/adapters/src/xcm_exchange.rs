@@ -128,9 +128,7 @@ where
 				return Err(give);
 			}
 
-			// `max_sell_amount` is what gets minted below, so it is what the deposit limit must be
-			// checked against - checking the smaller `amount_in` quote would let an over-limit
-			// deposit through and strand the surplus reserved on the shared temp account.
+			// The deposit limit applies to the amount minted below, which is the ceiling, not the quote.
 			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), max_sell_amount.into()) {
 				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {asset_in:?}. Asset will be trapped.");
 				return Err(give);
