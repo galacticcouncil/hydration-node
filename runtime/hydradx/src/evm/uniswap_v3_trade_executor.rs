@@ -10,14 +10,14 @@ use frame_support::pallet_prelude::RuntimeDebug;
 use frame_support::weights::Weight;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, EVM};
+use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_broadcast::types::Asset;
 use pallet_evm::{AddressMapping, GasWeightMapping};
 use primitive_types::U256;
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
-use sp_arithmetic::traits::{SaturatedConversion, Saturating};
+use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::FixedPointNumber;
 use sp_arithmetic::FixedU128;
 use sp_runtime::DispatchError;
@@ -61,6 +61,17 @@ pub fn sort_tokens(a: EvmAddress, b: EvmAddress) -> (EvmAddress, EvmAddress) {
 	} else {
 		(b, a)
 	}
+}
+
+/// Charge the pool fee on an asset_a-per-asset_b price.
+///
+/// The fee means a trade yields less asset_b, so more asset_a is needed per unit
+/// of asset_b: divide by (1 - fee). This is the same convention xyk/omnipool
+/// reach by reciprocating a (1 - fee) scaled B-per-A price — getting the
+/// direction wrong makes the venue look cheaper than it is by roughly 2x the fee.
+fn apply_fee(raw: FixedU128, fee: u32) -> Option<FixedU128> {
+	let fee_factor = FixedU128::from_rational(FEE_DENOMINATOR.saturating_sub(fee as u128), FEE_DENOMINATOR);
+	raw.const_checked_div(fee_factor)
 }
 
 fn price_token1_per_token0(sqrt_price_x96: U256) -> FixedU128 {
@@ -208,14 +219,16 @@ where
 		} else {
 			price
 		};
-		let fee_factor = FixedU128::from_inner(
-			FEE_DENOMINATOR
-				.saturating_sub(fee as u128)
-				.saturating_mul(1_000_000_000_000u128),
-		);
-		Ok(raw.saturating_mul(fee_factor))
+		apply_fee(raw, fee).ok_or(ExecutorError::Error("uniswapv3: zero fee factor".into()))
 	}
 
+	/// Upper bound on tradeable depth, not the tradeable depth itself.
+	///
+	/// Returns the pool's whole `asset_a` balance, which also covers liquidity
+	/// parked outside the current tick range and fees not yet collected. In a
+	/// concentrated pool that can exceed what is actually swappable at the
+	/// current price by a wide margin, so callers sizing trades against this
+	/// value must apply their own safety factor.
 	pub fn liquidity_depth(
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -258,6 +271,41 @@ where
 			.ok_or(ExecutorError::Error("uniswapv3: swap router not configured".into()))
 	}
 
+	/// Set the trader's `token` allowance for the swap router.
+	fn approve_router(
+		token: EvmAddress,
+		trader: EvmAddress,
+		router: EvmAddress,
+		amount: Balance,
+	) -> Result<(), ExecutorError<DispatchError>> {
+		let data = EvmDataWriter::new_with_selector(Function::Approve)
+			.write(router)
+			.write(U256::from(amount))
+			.build();
+		let result = Executor::<T>::call(
+			CallContext::new_call(token, trader),
+			data,
+			U256::zero(),
+			TRADE_GAS_LIMIT,
+		);
+		ensure!(
+			matches!(result.exit_reason, Succeed(_)),
+			ExecutorError::Error("uniswapv3: approve failed".into())
+		);
+		Ok(())
+	}
+
+	/// The amount the router reports having swapped. An empty return means the
+	/// call did not reach the router as expected; the trade limits are bounds,
+	/// not results, so they must never stand in for the real amount.
+	fn decode_swap_amount(result: &CallResult) -> Result<Balance, ExecutorError<DispatchError>> {
+		ensure!(
+			result.value.len() >= 32,
+			ExecutorError::Error("uniswapv3: swap returned no data".into())
+		);
+		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
+	}
+
 	fn do_sell(
 		who: OriginFor<T>,
 		asset_in: AssetId,
@@ -274,20 +322,8 @@ where
 		let token_in = evm_token_address(asset_in);
 		let token_out = evm_token_address(asset_out);
 
-		let approve = EvmDataWriter::new_with_selector(Function::Approve)
-			.write(router)
-			.write(U256::from(amount_in))
-			.build();
-		let approve_result = Executor::<T>::call(
-			CallContext::new_call(token_in, trader),
-			approve,
-			U256::zero(),
-			TRADE_GAS_LIMIT,
-		);
-		ensure!(
-			matches!(approve_result.exit_reason, Succeed(_)),
-			ExecutorError::Error("uniswapv3: approve failed".into())
-		);
+		// exactInput pulls the full amount, so this allowance is spent in full.
+		Self::approve_router(token_in, trader, router, amount_in)?;
 
 		let swap = EvmDataWriter::new_with_selector(Function::ExactInputSingle)
 			.write(token_in)
@@ -309,12 +345,7 @@ where
 			ExecutorError::Error("uniswapv3: swap failed".into())
 		);
 
-		let amount_out = if swap_result.value.len() >= 32 {
-			U256::from_big_endian(&swap_result.value[0..32]).saturated_into::<u128>()
-		} else {
-			min_limit
-		};
-		Ok(amount_out)
+		Self::decode_swap_amount(&swap_result)
 	}
 
 	fn do_buy(
@@ -333,20 +364,9 @@ where
 		let token_in = evm_token_address(asset_in);
 		let token_out = evm_token_address(asset_out);
 
-		let approve = EvmDataWriter::new_with_selector(Function::Approve)
-			.write(router)
-			.write(U256::from(max_limit))
-			.build();
-		let approve_result = Executor::<T>::call(
-			CallContext::new_call(token_in, trader),
-			approve,
-			U256::zero(),
-			TRADE_GAS_LIMIT,
-		);
-		ensure!(
-			matches!(approve_result.exit_reason, Succeed(_)),
-			ExecutorError::Error("uniswapv3: approve failed".into())
-		);
+		// exactOutput pulls only what the swap needs, so the allowance has to be
+		// capped at max_limit up front and cleared again once the amount is known.
+		Self::approve_router(token_in, trader, router, max_limit)?;
 
 		let swap = EvmDataWriter::new_with_selector(Function::ExactOutputSingle)
 			.write(token_in)
@@ -368,11 +388,8 @@ where
 			ExecutorError::Error("uniswapv3: swap failed".into())
 		);
 
-		let amount_in = if swap_result.value.len() >= 32 {
-			U256::from_big_endian(&swap_result.value[0..32]).saturated_into::<u128>()
-		} else {
-			max_limit
-		};
+		let amount_in = Self::decode_swap_amount(&swap_result)?;
+		Self::approve_router(token_in, trader, router, 0)?;
 		Ok(amount_in)
 	}
 }
@@ -550,6 +567,48 @@ mod tests {
 	#[test]
 	fn price_should_saturate_when_sqrt_price_overflows() {
 		assert_eq!(price_token1_per_token0(U256::MAX), FixedU128::from_inner(u128::MAX));
+	}
+
+	#[test]
+	fn apply_fee_should_raise_the_price_paid_per_unit_bought() {
+		// asset_a per asset_b must go UP once the fee is charged, the same way
+		// xyk's reciprocated (1 - fee) price does. Multiplying instead would
+		// quote this venue as cheaper than it really is.
+		let raw = FixedU128::from_rational(1, 2);
+		let with_fee = apply_fee(raw, 3000).unwrap();
+		assert!(with_fee > raw);
+		// 0.5 / 0.997, to within a unit of last-place rounding.
+		let expected = raw / FixedU128::from_rational(997, 1000);
+		let diff = if with_fee > expected {
+			with_fee - expected
+		} else {
+			expected - with_fee
+		};
+		assert!(diff <= FixedU128::from_inner(1), "{with_fee:?} vs {expected:?}");
+	}
+
+	#[test]
+	fn apply_fee_should_match_the_xyk_convention() {
+		// xyk: reciprocal(B-per-A * (1 - fee)) for reserves A=100, B=200.
+		let xyk = (FixedU128::from_rational(200, 100) * FixedU128::from_rational(997, 1000))
+			.reciprocal()
+			.unwrap();
+		// v3: A-per-B spot of 0.5 at the same 0.3% tier.
+		let v3 = apply_fee(FixedU128::from_rational(1, 2), 3000).unwrap();
+		// Allow 1 unit of last-place rounding between the two routes.
+		let diff = if v3 > xyk { v3 - xyk } else { xyk - v3 };
+		assert!(diff <= FixedU128::from_inner(1), "v3 {v3:?} vs xyk {xyk:?}");
+	}
+
+	#[test]
+	fn apply_fee_should_be_identity_for_a_zero_fee_tier() {
+		let raw = FixedU128::from_rational(3, 7);
+		assert_eq!(apply_fee(raw, 0).unwrap(), raw);
+	}
+
+	#[test]
+	fn apply_fee_should_return_none_when_the_fee_consumes_the_whole_trade() {
+		assert_eq!(apply_fee(FixedU128::from(1), FEE_DENOMINATOR as u32), None);
 	}
 
 	#[test]
