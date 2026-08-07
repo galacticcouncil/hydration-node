@@ -223,11 +223,16 @@ where
 		Ok((timestamp, parachain_inherent_data))
 	};
 
+	let logs_journal = Arc::new(fc_rpc::LogsJournal::new(
+		subscription_task_executor.clone(),
+		overrides.clone(),
+		pubsub_notification_sinks.clone(),
+	));
+
 	io.merge(
 		Eth::<_, _, _, _, _, _, HydraDxEthConfig<_, _>>::new(
 			client.clone(),
 			pool.clone(),
-			graph.clone(),
 			converter,
 			sync.clone(),
 			vec![],
@@ -238,6 +243,7 @@ where
 			fee_history_cache,
 			fee_history_cache_limit,
 			execute_gas_limit_multiplier,
+			false,
 			None,
 			pending_create_inherent_data_providers,
 			None,
@@ -256,6 +262,7 @@ where
 			max_past_logs,
 			u32::MAX,
 			block_data_cache,
+			logs_journal.clone(),
 		)
 		.into_rpc(),
 	)?;
@@ -282,6 +289,7 @@ where
 			subscription_task_executor,
 			overrides,
 			pubsub_notification_sinks,
+			logs_journal,
 		)
 		.into_rpc(),
 	)?;

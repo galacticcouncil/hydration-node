@@ -9,7 +9,7 @@ use hydra_dx_math::dynamic_fees::types::FeeParams as MathFeeParams;
 use scale_info::TypeInfo;
 
 /// Parameters for dynamic fee calculation
-#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FeeParams<Fee> {
 	pub min_fee: Fee,
@@ -19,7 +19,7 @@ pub struct FeeParams<Fee> {
 }
 
 /// Fee entry stored in the pallet storage
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct FeeEntry<Fee, Block> {
 	pub asset_fee: Fee,
@@ -29,7 +29,7 @@ pub struct FeeEntry<Fee, Block> {
 }
 
 /// Asset fee configuration
-#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetFeeConfig<Fee> {
 	/// Fixed fee that doesn't change based on oracle data

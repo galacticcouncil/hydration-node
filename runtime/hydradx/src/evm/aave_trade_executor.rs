@@ -34,7 +34,7 @@ use scale_info::prelude::string::String;
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::FixedU128;
 use sp_core::crypto::AccountId32;
-use sp_runtime::{DispatchError, RuntimeDebug};
+use sp_runtime::DispatchError;
 use sp_std::boxed::Box;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
@@ -46,7 +46,7 @@ where
 pub type Aave = AaveTradeExecutor<Runtime>;
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	// Pool
@@ -571,7 +571,7 @@ where
 	}
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, Debug, MaxEncodedLen, TypeInfo)]
 pub struct PoolData<Balance> {
 	pub reserve: AssetId,
 	pub atoken: AssetId,

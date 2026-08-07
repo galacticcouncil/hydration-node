@@ -4,7 +4,6 @@ use frame_support::migrations::VersionedMigration;
 use frame_support::traits::UncheckedOnRuntimeUpgrade;
 use frame_support::Blake2_128Concat;
 use scale_info::TypeInfo;
-use sp_core::RuntimeDebug;
 use sp_runtime::Perbill;
 use types::BoundedPegSources;
 
@@ -14,7 +13,7 @@ mod v0 {
 	use super::*;
 	use frame_support::storage_alias;
 
-	#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 	pub struct PoolPegInfo<AssetId = ()> {
 		pub source: BoundedPegSources<AssetId>,
 		pub max_peg_update: Perbill,

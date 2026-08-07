@@ -29,6 +29,7 @@ use sp_blockchain::{Backend as _, HeaderBackend};
 use sp_consensus::SyncOracle;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, UniqueSaturatedInto, Zero};
 
+use fc_db::kv::NumberMappingWrite;
 use fc_mapping_sync::{
 	emit_block_notification, BlockNotificationContext, EthereumBlockNotification, EthereumBlockNotificationSinks,
 	ReorgInfo, SyncStrategy,
@@ -72,16 +73,22 @@ pub fn sync_block<Block: BlockT, C: HeaderBackend<Block>>(
 			match log {
 				Log::Pre(PreLog::Block(block)) => {
 					let mapping_commitment = gen_from_block(block);
-					backend.mapping().write_hashes(mapping_commitment, block_number)
+					backend
+						.mapping()
+						.write_hashes(mapping_commitment, block_number, NumberMappingWrite::Write)
 				}
 				Log::Post(post_log) => match post_log {
 					PostLog::Hashes(hashes) => {
 						let mapping_commitment = gen_from_hashes(hashes);
-						backend.mapping().write_hashes(mapping_commitment, block_number)
+						backend
+							.mapping()
+							.write_hashes(mapping_commitment, block_number, NumberMappingWrite::Write)
 					}
 					PostLog::Block(block) => {
 						let mapping_commitment = gen_from_block(block);
-						backend.mapping().write_hashes(mapping_commitment, block_number)
+						backend
+							.mapping()
+							.write_hashes(mapping_commitment, block_number, NumberMappingWrite::Write)
 					}
 					PostLog::BlockHash(expect_eth_block_hash) => {
 						let ethereum_block = storage_override.current_block(substrate_block_hash);
@@ -96,7 +103,11 @@ pub fn sync_block<Block: BlockT, C: HeaderBackend<Block>>(
 									))
 								} else {
 									let mapping_commitment = gen_from_block(block);
-									backend.mapping().write_hashes(mapping_commitment, block_number)
+									backend.mapping().write_hashes(
+										mapping_commitment,
+										block_number,
+										NumberMappingWrite::Write,
+									)
 								}
 							}
 							None => backend.mapping().write_none(substrate_block_hash),
@@ -149,7 +160,9 @@ where
 			ethereum_block_hash: block_hash,
 			ethereum_transaction_hashes: Vec::new(),
 		};
-		backend.mapping().write_hashes(mapping_commitment, block_number)?;
+		backend
+			.mapping()
+			.write_hashes(mapping_commitment, block_number, NumberMappingWrite::Write)?;
 	} else {
 		backend.mapping().write_none(substrate_block_hash)?;
 	};

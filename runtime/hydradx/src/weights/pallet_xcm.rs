@@ -370,4 +370,7 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 18_446_744_073_709_551_000 picoseconds.
 		Weight::from_parts(18_446_744_073_709_551_000, 0)
 	}
+	fn weigh_message() -> Weight {
+		Weight::from_parts(100_000, 0)
+	}
 }
