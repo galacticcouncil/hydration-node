@@ -1,7 +1,7 @@
 use crate::tests::mock::*;
 use crate::*;
 use frame_support::{assert_err, assert_noop, assert_ok};
-use orml_traits::MultiCurrency;
+use orml_traits::{MultiCurrency, NamedMultiReservableCurrency};
 use test_utils::assert_balance;
 pub const ASSET_ID: u32 = 10000;
 #[test]
@@ -455,13 +455,14 @@ fn rate_limit_should_not_be_bypassed_by_burning_tokens() {
 }
 
 #[test]
-fn do_lock_deposit_should_fail_for_whitelisted_account() {
+fn do_lock_deposit_should_fail_when_account_is_whitelisted_and_in_trade_context() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
 		.build()
 		.execute_with(|| {
 			// Arrange:
+			Broadcast::set_swapper(ALICE);
 			assert_ok!(Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 100));
 
 			// Act & Assert
@@ -473,7 +474,49 @@ fn do_lock_deposit_should_fail_for_whitelisted_account() {
 }
 
 #[test]
-fn deposit_that_exceeds_limit_should_fail_for_whitelisted_account() {
+fn do_lock_deposit_should_lock_when_account_is_whitelisted_and_not_in_trade_context() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			// Arrange:
+			assert_ok!(Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 100));
+
+			// Act
+			assert_ok!(CircuitBreaker::do_lock_deposit(
+				&DEPOSIT_LOCK_WHITELISTED_ACCOUNT,
+				ASSET_ID,
+				50
+			));
+
+			// Assert
+			assert_eq!(
+				Currencies::reserved_balance_named(&NamedReserveId::get(), ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT),
+				50
+			);
+		});
+}
+
+#[test]
+fn deposit_that_exceeds_limit_should_fail_when_account_is_whitelisted_and_in_trade_context() {
+	ExtBuilder::default()
+		.with_deposit_period(10)
+		.with_asset_limit(ASSET_ID, 100)
+		.build()
+		.execute_with(|| {
+			System::set_block_number(2);
+			Broadcast::set_swapper(ALICE);
+
+			assert_err!(
+				Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 101),
+				Error::<Test>::DepositLimitExceededForWhitelistedAccount
+			);
+		});
+}
+
+#[test]
+fn deposit_that_exceeds_limit_should_reserve_excess_when_account_is_whitelisted_and_not_in_trade_context() {
 	ExtBuilder::default()
 		.with_deposit_period(10)
 		.with_asset_limit(ASSET_ID, 100)
@@ -481,9 +524,12 @@ fn deposit_that_exceeds_limit_should_fail_for_whitelisted_account() {
 		.execute_with(|| {
 			System::set_block_number(2);
 
-			assert_err!(
-				Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 101),
-				Error::<Test>::DepositLimitExceededForWhitelistedAccount
+			assert_ok!(Tokens::deposit(ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT, 101));
+
+			assert_balance!(DEPOSIT_LOCK_WHITELISTED_ACCOUNT, ASSET_ID, 100);
+			assert_eq!(
+				Currencies::reserved_balance_named(&NamedReserveId::get(), ASSET_ID, &DEPOSIT_LOCK_WHITELISTED_ACCOUNT),
+				1
 			);
 		});
 }

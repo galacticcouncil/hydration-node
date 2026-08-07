@@ -123,14 +123,13 @@ where
 			};
 
 			let route = pallet_route_executor::Pallet::<Runtime>::get_route(AssetPair::new(asset_in, asset_out));
-			let Ok(amount_in) =
-				pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into())
-			else {
+			if pallet_route_executor::Pallet::<Runtime>::calculate_expected_amount_in(&route, amount.into()).is_err() {
 				log::warn!(target: "xcm::exchange-asset", "Failed to calculate expected amount in for route: {route:?}");
 				return Err(give);
-			};
+			}
 
-			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), amount_in.into().into()) {
+			// The deposit limit applies to the amount minted below, which is the ceiling, not the quote.
+			if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_in.into(), max_sell_amount.into()) {
 				log::warn!(target: "xcm::exchange-asset", "Circuit breaker triggered for asset {asset_in:?}. Asset will be trapped.");
 				return Err(give);
 			}

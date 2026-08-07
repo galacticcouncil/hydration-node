@@ -188,6 +188,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DepositLockWhitelist = DepositLockWhitelist;
+	type InTradeContext = InTradeContext;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -237,6 +238,14 @@ pub struct DepositLockWhitelist;
 impl Contains<AccountId> for DepositLockWhitelist {
 	fn contains(a: &AccountId) -> bool {
 		DEPOSIT_LOCK_WHITELISTED_ACCOUNT == *a
+	}
+}
+
+pub struct InTradeContext;
+
+impl Get<bool> for InTradeContext {
+	fn get() -> bool {
+		pallet_broadcast::Pallet::<Test>::get_swapper().is_some()
 	}
 }
 

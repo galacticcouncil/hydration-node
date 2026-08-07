@@ -694,6 +694,153 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 	});
 }
 
+fn set_xcm_location(asset_id: AssetId, general_index: u128) -> Location {
+	let location = Location {
+		parents: 1,
+		interior: [
+			Junction::Parachain(ACALA_PARA_ID),
+			Junction::GeneralIndex(general_index),
+		]
+		.into(),
+	};
+	assert_ok!(AssetRegistry::set_location(
+		asset_id,
+		hydradx_runtime::AssetLocation(location.clone())
+	));
+	location
+}
+
+fn xcm_deposit(
+	asset_location: Location,
+	amount: Balance,
+	beneficiary: [u8; 32],
+) -> Result<(), polkadot_xcm::v5::Error> {
+	use xcm_executor::traits::TransactAsset;
+
+	let asset = polkadot_xcm::v5::Asset {
+		id: polkadot_xcm::v5::AssetId(asset_location),
+		fun: polkadot_xcm::v5::Fungibility::Fungible(amount),
+	};
+	let beneficiary = Location {
+		parents: 0,
+		interior: [Junction::AccountId32 {
+			id: beneficiary,
+			network: None,
+		}]
+		.into(),
+	};
+
+	<hydradx_runtime::LocalAssetTransactor as TransactAsset>::deposit_asset(&asset, &beneficiary, None)
+}
+
+#[test]
+fn xcm_deposit_to_router_should_mint_once_when_over_deposit_limit() {
+	Hydra::execute_with(|| {
+		//Arrange
+		let asset_location = set_xcm_location(ACA, 0);
+		let deposit_limit = 10_000 * UNITS;
+		update_deposit_limit(ACA, deposit_limit).unwrap();
+
+		let amount = deposit_limit + 100 * UNITS;
+		let router = Router::router_account();
+		let alternative = hydradx_runtime::Alternative::get();
+		let issuance_before = Currencies::total_issuance(ACA);
+
+		//Act
+		assert_ok!(xcm_deposit(asset_location, amount, router.into()));
+
+		//Assert
+		assert_eq!(Currencies::total_issuance(ACA), issuance_before + amount);
+
+		// The deposit was accounted for on the beneficiary, so the fallback account stays untouched.
+		assert_eq!(Currencies::free_balance(ACA, &alternative), 0);
+		assert_reserved_balance!(&alternative, ACA, 0);
+	});
+}
+
+#[test]
+fn xcm_deposit_to_router_should_reserve_excess_when_over_deposit_limit() {
+	Hydra::execute_with(|| {
+		//Arrange
+		let asset_location = set_xcm_location(ACA, 0);
+		let deposit_limit = 10_000 * UNITS;
+		update_deposit_limit(ACA, deposit_limit).unwrap();
+
+		let amount = deposit_limit + 100 * UNITS;
+		let router = Router::router_account();
+
+		//Act
+		assert_ok!(xcm_deposit(asset_location, amount, router.clone().into()));
+
+		//Assert
+		assert_eq!(Currencies::free_balance(ACA, &router), deposit_limit);
+		assert_reserved_balance!(&router, ACA, amount - deposit_limit);
+	});
+}
+
+#[test]
+fn xcm_deposit_to_non_whitelisted_account_should_mint_once_when_over_deposit_limit() {
+	Hydra::execute_with(|| {
+		//Arrange
+		let asset_location = set_xcm_location(ACA, 0);
+		let deposit_limit = 10_000 * UNITS;
+		update_deposit_limit(ACA, deposit_limit).unwrap();
+
+		let amount = deposit_limit + 100 * UNITS;
+		let beneficiary: hydradx_runtime::AccountId = ALICE.into();
+		let alternative = hydradx_runtime::Alternative::get();
+
+		let issuance_before = Currencies::total_issuance(ACA);
+		let free_before = Currencies::free_balance(ACA, &beneficiary);
+
+		//Act
+		assert_ok!(xcm_deposit(asset_location, amount, ALICE));
+
+		//Assert
+		assert_eq!(Currencies::total_issuance(ACA), issuance_before + amount);
+		assert_eq!(Currencies::free_balance(ACA, &beneficiary), free_before + deposit_limit);
+		assert_reserved_balance!(&beneficiary, ACA, amount - deposit_limit);
+		assert_eq!(Currencies::free_balance(ACA, &alternative), 0);
+	});
+}
+
+#[test]
+fn route_execution_should_not_release_reserved_deposit_of_router() {
+	Hydra::execute_with(|| {
+		//Arrange
+		crate::circuit_breaker::init_omnipool();
+
+		let asset_location = set_xcm_location(DAI, DAI as u128);
+		let deposit_limit = 10_000 * UNITS;
+		update_deposit_limit(DAI, deposit_limit).unwrap();
+
+		let trader: hydradx_runtime::AccountId = BOB.into();
+		assert_ok!(Currencies::deposit(HDX, &trader, 1_000_000 * UNITS));
+
+		let amount = deposit_limit + 100 * UNITS;
+		let router = Router::router_account();
+		assert_ok!(xcm_deposit(asset_location, amount, router.clone().into()));
+
+		let reserved = amount - deposit_limit;
+		assert_reserved_balance!(&router, DAI, reserved);
+		let issuance_before = Currencies::total_issuance(DAI);
+
+		//Act
+		assert_ok!(Router::sell(
+			RuntimeOrigin::signed(trader),
+			HDX,
+			DAI,
+			2_000 * UNITS,
+			0,
+			vec![].try_into().unwrap(),
+		));
+
+		//Assert: route execution moves only free balance, the reserved deposit stays put.
+		assert_reserved_balance!(&router, DAI, reserved);
+		assert_eq!(Currencies::total_issuance(DAI), issuance_before);
+	});
+}
+
 pub fn update_deposit_limit(asset_id: AssetId, limit: Balance) -> Result<(), ()> {
 	with_transaction(|| {
 		TransactionOutcome::Commit(AssetRegistry::update(
