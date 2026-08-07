@@ -33,6 +33,11 @@ const TOKENS_TRANSFER: &<Runtime as frame_system::Config>::RuntimeCall =
 		currency_id: AUSD,
 		amount: 10,
 	});
+const LONG_NAMED_CALL: &<Runtime as frame_system::Config>::RuntimeCall =
+	&mock::RuntimeCall::LongNamedPallet(long_named_pallet::Call::some_call_with_an_intentionally_very_long_name {});
+
+const LONG_PALLET_NAME: &[u8] = b"LongNamedPallet";
+const LONG_FUNCTION_NAME: &[u8] = b"some_call_with_an_intentionally_very_long_name";
 
 #[test]
 fn pause_transaction_work() {
@@ -193,5 +198,56 @@ fn paused_transaction_filter_work() {
 		));
 		assert!(!PausedTransactionFilter::<Runtime>::contains(BALANCE_TRANSFER));
 		assert!(!PausedTransactionFilter::<Runtime>::contains(TOKENS_TRANSFER));
+	});
+}
+
+#[test]
+fn pause_transaction_should_succeed_when_function_name_exceeds_forty_bytes() {
+	ExtBuilder.build().execute_with(|| {
+		System::set_block_number(1);
+
+		assert_eq!(LONG_FUNCTION_NAME.len(), 46);
+
+		assert_ok!(TransactionPause::pause_transaction(
+			RuntimeOrigin::signed(1),
+			LONG_PALLET_NAME.to_vec(),
+			LONG_FUNCTION_NAME.to_vec()
+		));
+
+		System::assert_last_event(Event::TransactionPause(crate::Event::TransactionPaused {
+			pallet_name_bytes: LONG_PALLET_NAME.to_vec(),
+			function_name_bytes: LONG_FUNCTION_NAME.to_vec(),
+		}));
+
+		assert_eq!(
+			TransactionPause::paused_transactions((
+				BoundedName::try_from(LONG_PALLET_NAME.to_vec()).unwrap(),
+				BoundedName::try_from(LONG_FUNCTION_NAME.to_vec()).unwrap()
+			)),
+			Some(())
+		);
+	});
+}
+
+#[test]
+fn paused_transaction_filter_should_block_call_when_function_name_exceeds_forty_bytes() {
+	ExtBuilder.build().execute_with(|| {
+		assert!(!PausedTransactionFilter::<Runtime>::contains(LONG_NAMED_CALL));
+
+		assert_ok!(TransactionPause::pause_transaction(
+			RuntimeOrigin::signed(1),
+			LONG_PALLET_NAME.to_vec(),
+			LONG_FUNCTION_NAME.to_vec()
+		));
+
+		assert!(PausedTransactionFilter::<Runtime>::contains(LONG_NAMED_CALL));
+
+		assert_ok!(TransactionPause::unpause_transaction(
+			RuntimeOrigin::signed(1),
+			LONG_PALLET_NAME.to_vec(),
+			LONG_FUNCTION_NAME.to_vec()
+		));
+
+		assert!(!PausedTransactionFilter::<Runtime>::contains(LONG_NAMED_CALL));
 	});
 }
