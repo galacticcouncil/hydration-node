@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "15.1.7"
+version = "15.2.0"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -45,6 +45,8 @@ primitives = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
+pepl-worker = { workspace = true }
+pepl-worker-support = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
