@@ -28,3 +28,38 @@ available Codex equivalent:
 Available shared skills:
 - `hydration_cl0wdit` - security audit workflow for Substrate runtime and pallet
   code.
+
+## runtime interaction graph
+
+For runtime dependency and interaction questions, use the bounded AI-facing
+query interface documented in `scripts/runtime-interaction-graph/README.md`.
+Prefer `query_graph.py` over loading `interaction-graph.json` or the interactive
+HTML into model context. Use the generated `graph-scale.svg` for a compact visual
+overview of graph size, activity, domains, edge kinds, and evidence provenance.
+
+## User working preferences
+
+- Do not run `git commit` or stage changes unless the user explicitly authorizes
+  that specific commit. Leave completed changes unstaged by default.
+- When authorized to commit, stay on the current branch unless the user asks for
+  a new branch.
+- Use a single short commit subject with no body or trailers. Do not add AI
+  attribution. Follow wording supplied by the user; otherwise use the repository
+  convention where applicable.
+- Prefer lowercase prose in responses, summaries, headings, and proposed commit
+  messages. Preserve the canonical capitalization of code identifiers and names.
+- Default to no new explanatory comments. Add comments only for non-obvious
+  runtime invariants or constraints, never to narrate a diff.
+- Run `cargo fmt` after Rust changes.
+- Prefer Makefile targets for builds and tests. For direct cargo commands, export
+  the Makefile's required `RUSTFLAGS` and `CXXFLAGS` separately before running
+  cargo; do not use inline environment prefixes.
+- After version changes, run an appropriate cargo check so `Cargo.lock` remains
+  synchronized. Version every changed crate: use a minor bump for source changes
+  and a patch bump for test-only changes, and keep the runtime crate version and
+  `spec_version` aligned.
+- For comparison tests, use the reference implementation in its original
+  language and toolchain instead of translating it.
+- When the user needs to copy generated data such as an encoded call or a long
+  hex value, write it to a suitable untracked project file so it is available in
+  the IDE changes view.

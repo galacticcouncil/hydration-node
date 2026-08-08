@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydration.net/schemas/runtime-interaction-graph-query-response.schema.json",
+  "title": "Runtime interaction graph query response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "graph",
+    "query",
+    "result",
+    "truncated",
+    "truncation_reasons",
+    "warnings",
+    "budget"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tool": {
+      "const": "runtime-interaction-graph-query"
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "companions"],
+      "properties": {
+        "fingerprint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "value"],
+          "properties": {
+            "algorithm": {
+              "const": "sha256"
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "companions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "parameters"],
+      "properties": {
+        "operation": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matched", "returned", "total_is_exact", "omitted", "records", "metadata"],
+      "properties": {
+        "matched": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_is_exact": {
+          "type": "boolean"
+        },
+        "omitted": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "truncation_reasons": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "depth-limit",
+          "expansion-limit",
+          "field-limit",
+          "path-limit",
+          "record-limit",
+          "token-limit"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "message"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": ["error", "info", "warning"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_records", "max_tokens", "estimation", "estimated_tokens"],
+      "properties": {
+        "max_records": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 256
+        },
+        "estimation": {
+          "const": "ceil(serialized ASCII characters / 4)"
+        },
+        "estimated_tokens": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

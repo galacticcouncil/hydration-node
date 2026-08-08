@@ -1,0 +1,12 @@
+{
+  "required_component_paths": [
+    ["pallet:route-executor", "pallet:hsm", "boundary:evm-execution"],
+    ["boundary:evm-execution", "precompile:dispatch", "boundary:frame-dispatch"]
+  ],
+  "required_runtime_properties": [
+    "call-permit-nonce-write-before-subcall",
+    "router-resolves-all-amm-backends",
+    "asset-kinds-cover-native-tokens-pool-shares-and-erc20",
+    "xcm-connects-message-and-asset-boundaries"
+  ]
+}

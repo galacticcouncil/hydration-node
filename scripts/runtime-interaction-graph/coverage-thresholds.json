@@ -1,0 +1,83 @@
+{
+  "minimum": {
+    "nodes": 7900,
+    "edges": 27000,
+    "components": 220,
+    "entrypoints": 450,
+    "entrypoint_kinds": 12,
+    "state_invariants": 7,
+    "asset_operations": 9,
+    "inventory_only_targets": 6,
+    "integration_tests_linked": 800,
+    "integration_components_linked": 45,
+    "integration_entrypoints_linked": 180,
+    "active_integration_tests_linked": 800,
+    "active_integration_components_linked": 45,
+    "active_integration_entrypoints_linked": 180,
+    "asset_projection_edges": 300,
+    "authorization_projection_edges": 600,
+    "callback_projection_edges": 4100,
+    "configuration_projection_edges": 3930,
+    "execution_projection_edges": 3650,
+    "state_projection_edges": 1300,
+    "active_asset_projection_edges": 300,
+    "active_authorization_projection_edges": 640,
+    "active_callback_projection_edges": 4100,
+    "active_configuration_projection_edges": 3800,
+    "active_execution_projection_edges": 3650,
+    "active_state_projection_edges": 1200
+  },
+  "maximum": {
+    "unresolved_targets": 0,
+    "inventory_only_targets": 6
+  },
+  "regression": {
+    "maximum_drop": {
+      "nodes": 50,
+      "edges": 100,
+      "components": 2,
+      "entrypoints": 2,
+      "entrypoint_kinds": 0,
+      "state_invariants": 0,
+      "asset_operations": 0,
+      "inventory_only_targets": 0,
+      "integration_tests_linked": 5,
+      "integration_components_linked": 0,
+      "integration_entrypoints_linked": 2,
+      "active_integration_tests_linked": 5,
+      "active_integration_components_linked": 0,
+      "active_integration_entrypoints_linked": 2,
+      "asset_projection_edges": 5,
+      "authorization_projection_edges": 5,
+      "callback_projection_edges": 20,
+      "configuration_projection_edges": 20,
+      "execution_projection_edges": 20,
+      "state_projection_edges": 5,
+      "active_asset_projection_edges": 5,
+      "active_authorization_projection_edges": 5,
+      "active_callback_projection_edges": 20,
+      "active_configuration_projection_edges": 20,
+      "active_execution_projection_edges": 20,
+      "active_state_projection_edges": 5
+    },
+    "maximum_increase": {
+      "unresolved_targets": 0,
+      "inventory_only_targets": 0
+    }
+  },
+  "exact": {
+    "inventory_only_target_ids": [
+      "associated:pallet:aura:PalletPrefix",
+      "associated:pallet:cumulus-pallet-xcmp-queue:ChannelList",
+      "associated:pallet:nft:Permissions",
+      "associated:pallet:session:historical:FullIdentificationOf",
+      "associated:pallet:xcm-rate-limiter:CurrencyIdConvert",
+      "associated:pallet:xcm-rate-limiter:RelayBlockNumberProvider"
+    ],
+    "inventory_only_targets_by_reason": {
+      "component-not-instantiated": 3,
+      "config-trait-not-implemented": 1,
+      "migration-not-configured": 2
+    }
+  }
+}

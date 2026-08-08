@@ -1,6 +1,6 @@
 [package]
 name = "pallet-broadcast"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -42,6 +42,7 @@ std = [
     "sp-core/std",
     "sp-io/std",
     "primitives/std",
+    "hydradx-traits/std",
     "frame-support-procedural/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

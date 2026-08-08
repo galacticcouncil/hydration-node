@@ -1,0 +1,1156 @@
+{
+  "schema_version": 1,
+  "nodes": [
+    {
+      "id": "component:balances",
+      "kind": "component",
+      "domain": "asset-routing",
+      "label": "Balances pallet",
+      "description": "Runtime component that owns the native asset balance implementation.",
+      "evidence": [{"file": "runtime/hydradx/src/lib.rs", "symbol": "Balances: pallet_balances = 7,"}]
+    },
+    {
+      "id": "ledger:native-balances",
+      "kind": "ledger",
+      "domain": "asset-routing",
+      "label": "Native balances ledger",
+      "description": "Native currency account balances and total issuance exposed through the Balances adapter.",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_balances::Config for Runtime"}]
+    },
+    {
+      "id": "component:orml-tokens",
+      "kind": "component",
+      "domain": "asset-routing",
+      "label": "ORML Tokens pallet",
+      "description": "Runtime component that owns balances and issuance for non-native, non-ERC20 assets.",
+      "evidence": [{"file": "runtime/hydradx/src/lib.rs", "symbol": "Tokens: orml_tokens = 77,"}]
+    },
+    {
+      "id": "ledger:orml-tokens",
+      "kind": "ledger",
+      "domain": "asset-routing",
+      "label": "ORML multi-token ledger",
+      "description": "Per-asset account balances and issuance maintained by ORML Tokens.",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl orml_tokens::Config for Runtime"}]
+    },
+    {
+      "id": "component:erc20-currency",
+      "kind": "component",
+      "domain": "asset-routing",
+      "label": "ERC20 currency adapter",
+      "description": "Runtime MultiCurrency adapter that executes ERC20 supply, balance, and transfer calls.",
+      "evidence": [{"file": "runtime/hydradx/src/evm/erc20_currency.rs", "symbol": "pub struct Erc20Currency<T>(PhantomData<T>);"}]
+    },
+    {
+      "id": "ledger:erc20-contracts",
+      "kind": "ledger",
+      "domain": "asset-routing",
+      "label": "ERC20 contract ledgers",
+      "description": "External EVM contract storage queried through totalSupply and balanceOf and mutated through ERC20 calls.",
+      "evidence": [
+        {"file": "runtime/hydradx/src/evm/erc20_currency.rs", "symbol": "TotalSupply = \"totalSupply()\""},
+        {"file": "runtime/hydradx/src/evm/erc20_currency.rs", "symbol": "BalanceOf = \"balanceOf(address)\""}
+      ]
+    },
+    {
+      "id": "router:currencies",
+      "kind": "router",
+      "domain": "asset-routing",
+      "label": "Currencies ledger router",
+      "description": "MultiCurrency facade that dispatches operations to native Balances, bound ERC20 contracts, or ORML Tokens.",
+      "evidence": [{"file": "pallets/currencies/src/lib.rs", "symbol": "impl<T: Config> MultiCurrency<T::AccountId> for Pallet<T>"}]
+    },
+    {
+      "id": "router:routed-total-issuance",
+      "kind": "router",
+      "domain": "asset-routing",
+      "label": "Routed total issuance provider",
+      "description": "GetByKey provider that resolves an asset's total issuance through the Currencies routing rules.",
+      "evidence": [{"file": "pallets/currencies/src/lib.rs", "symbol": "pub struct AssetTotalIssuance<T>(PhantomData<T>);"}]
+    },
+
+    {
+      "id": "component:stableswap",
+      "kind": "component",
+      "domain": "stableswap",
+      "label": "StableSwap pallet",
+      "description": "StableSwap pool component whose assets and share tokens use the routed currency interface.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "pub type Pools<T: Config>"}]
+    },
+    {
+      "id": "state:stableswap-pools",
+      "kind": "pool-state",
+      "domain": "stableswap",
+      "label": "StableSwap Pools storage",
+      "description": "Pool configuration and asset membership keyed by the pool share asset identifier.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "pub type Pools<T: Config> = StorageMap"}]
+    },
+    {
+      "id": "ledger:stableswap-reserves",
+      "kind": "ledger",
+      "domain": "stableswap",
+      "label": "StableSwap reserve balances",
+      "description": "Actual routed currency balances held by each StableSwap pool account.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "T::Currency::free_balance(*pool_asset, &pool_account)"}]
+    },
+    {
+      "id": "ledger:stableswap-shares",
+      "kind": "ledger",
+      "domain": "stableswap",
+      "label": "StableSwap routed share ledger",
+      "description": "Routed account balances and actual total issuance for the pool-id share asset.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let total = T::Currency::total_issuance(pool_id);"}]
+    },
+    {
+      "id": "state:stableswap-share-issuance",
+      "kind": "pool-state",
+      "domain": "stableswap",
+      "label": "StableSwap virtual share issuance",
+      "description": "Pallet-tracked share issuance used for pool math and changed only by StableSwap mint and burn helpers.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "pub type ShareIssuance<T: Config> = StorageMap"}]
+    },
+    {
+      "id": "invariant:stableswap-share-issuance-sync",
+      "kind": "invariant",
+      "domain": "stableswap",
+      "label": "StableSwap share issuance synchronization",
+      "description": "Debug builds require exact equality; production rejects actual routed issuance greater than pallet-tracked virtual issuance.",
+      "evidence": [
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "stableswap: virtual share issuance out of sync with total issuance for pool {pool_id:?}"},
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "ensure!(total <= tracked, Error::<T>::UnaccountedShareIssuance);"}
+      ]
+    },
+    {
+      "id": "operation:stableswap-add-liquidity",
+      "kind": "operation",
+      "domain": "stableswap",
+      "label": "StableSwap add liquidity",
+      "description": "Transactional operation that transfers reserves, mints pool shares, and checks the post-state invariant.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "fn do_add_liquidity("}]
+    },
+    {
+      "id": "operation:stableswap-remove-liquidity",
+      "kind": "operation",
+      "domain": "stableswap",
+      "label": "StableSwap remove liquidity",
+      "description": "Transactional operation that transfers reserves out, burns pool shares, and checks the post-state invariant.",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "fn do_remove_liquidity("}]
+    },
+    {
+      "id": "invariant:stableswap-add-liquidity",
+      "kind": "invariant",
+      "domain": "stableswap",
+      "label": "StableSwap add-liquidity invariant",
+      "description": "Release-mode checks require D and D divided by issued shares to be non-decreasing after an add, except the initial issuance case.",
+      "evidence": [
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "fn ensure_add_liquidity_invariant("},
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "ensure!(final_d >= initial_d, Error::<T>::InvariantError);"}
+      ]
+    },
+    {
+      "id": "invariant:stableswap-remove-liquidity",
+      "kind": "invariant",
+      "domain": "stableswap",
+      "label": "StableSwap remove-liquidity invariant",
+      "description": "Release-mode checks require D to fall while D divided by issued shares does not fall after a partial withdrawal.",
+      "evidence": [
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "fn ensure_remove_liquidity_invariant("},
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "ensure!(final_d <= initial_d, Error::<T>::InvariantError);"}
+      ]
+    },
+
+    {
+      "id": "component:xyk",
+      "kind": "component",
+      "domain": "xyk",
+      "label": "XYK pallet",
+      "description": "Constant-product pool component with routed reserve and share ledgers plus local liquidity accounting.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "pub(crate) type PoolAssets<T: Config>"}]
+    },
+    {
+      "id": "state:xyk-share-token",
+      "kind": "pool-state",
+      "domain": "xyk",
+      "label": "XYK ShareToken mapping",
+      "description": "Mapping from a pair account to the routed asset identifier used for pool shares.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "pub(crate) type ShareToken<T: Config>"}]
+    },
+    {
+      "id": "state:xyk-total-liquidity",
+      "kind": "pool-state",
+      "domain": "xyk",
+      "label": "XYK TotalLiquidity",
+      "description": "Pallet-local share total used as the issuance input to XYK liquidity calculations.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "pub(crate) type TotalLiquidity<T: Config>"}]
+    },
+    {
+      "id": "ledger:xyk-reserves",
+      "kind": "ledger",
+      "domain": "xyk",
+      "label": "XYK pair-account reserves",
+      "description": "Actual routed balances of both pool assets held by the deterministic pair account.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);"}]
+    },
+    {
+      "id": "ledger:xyk-shares",
+      "kind": "ledger",
+      "domain": "xyk",
+      "label": "XYK routed share ledger",
+      "description": "Account balances and issuance of the share-token asset selected by ShareToken.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "T::Currency::deposit(share_token, &who, shares_added)?;"}]
+    },
+    {
+      "id": "operation:xyk-add-liquidity",
+      "kind": "operation",
+      "domain": "xyk",
+      "label": "XYK add liquidity",
+      "description": "Transactional reserve transfer and coupled update of share balances and TotalLiquidity.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "fn do_add_liquidity("}]
+    },
+    {
+      "id": "operation:xyk-remove-liquidity",
+      "kind": "operation",
+      "domain": "xyk",
+      "label": "XYK remove liquidity",
+      "description": "Transactional proportional reserve withdrawal and coupled reduction of shares and TotalLiquidity.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "fn do_remove_liquidity("}]
+    },
+    {
+      "id": "invariant:xyk-ledger-total-liquidity",
+      "kind": "invariant",
+      "domain": "xyk",
+      "label": "XYK share ledger equals TotalLiquidity",
+      "description": "Expected equality maintained by adjacent mint-or-burn and TotalLiquidity writes; the liquidity paths do not perform an independent issuance equality assertion.",
+      "evidence": [
+        {"file": "pallets/xyk/src/lib.rs", "symbol": "T::Currency::deposit(share_token, &who, shares_added)?;"},
+        {"file": "pallets/xyk/src/lib.rs", "symbol": "<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);"}
+      ]
+    },
+    {
+      "id": "invariant:xyk-reserve-backing",
+      "kind": "invariant",
+      "domain": "xyk",
+      "label": "XYK proportional reserve backing",
+      "description": "Liquidity-out calculations derive withdrawals from pair-account reserves, burned shares, and TotalLiquidity rather than asserting a separate global backing equation.",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "hydra_dx_math::xyk::calculate_liquidity_out"}]
+    },
+
+    {
+      "id": "component:omnipool",
+      "kind": "component",
+      "domain": "omnipool",
+      "label": "Omnipool pallet",
+      "description": "Shared-liquidity pool component with stored asset state, NFT positions, and protocol-account ledgers.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub(super) type Assets<T: Config>"}]
+    },
+    {
+      "id": "state:omnipool-assets",
+      "kind": "pool-state",
+      "domain": "omnipool",
+      "label": "Omnipool Assets state",
+      "description": "Per-asset stored hub reserve, total shares, protocol shares, cap, and tradability; the asset reserve is loaded from the protocol account ledger.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub(super) type Assets<T: Config> = StorageMap"}]
+    },
+    {
+      "id": "state:omnipool-positions",
+      "kind": "pool-state",
+      "domain": "omnipool",
+      "label": "Omnipool Positions state",
+      "description": "NFT-position keyed liquidity ownership records containing an asset identifier and LP share amount.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub(super) type Positions<T: Config>"}]
+    },
+    {
+      "id": "state:omnipool-lp-shares",
+      "kind": "pool-state",
+      "domain": "omnipool",
+      "label": "Omnipool total shares",
+      "description": "Assets.shares total from which protocol-owned shares are separated to derive user-position ownership.",
+      "evidence": [{"file": "pallets/omnipool/src/types.rs", "symbol": "pub(super) shares: Balance,"}]
+    },
+    {
+      "id": "state:omnipool-protocol-shares",
+      "kind": "pool-state",
+      "domain": "omnipool",
+      "label": "Omnipool protocol shares",
+      "description": "Subset of an asset's total pool shares owned by the protocol rather than LP positions.",
+      "evidence": [{"file": "pallets/omnipool/src/types.rs", "symbol": "pub(super) protocol_shares: Balance,"}]
+    },
+    {
+      "id": "ledger:omnipool-asset-reserves",
+      "kind": "ledger",
+      "domain": "omnipool",
+      "label": "Omnipool asset reserve ledger",
+      "description": "Actual routed asset balances held in the Omnipool protocol account and joined with Assets state at load time.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());"}]
+    },
+    {
+      "id": "ledger:omnipool-hub-reserve",
+      "kind": "ledger",
+      "domain": "omnipool",
+      "label": "Omnipool hub asset ledger",
+      "description": "Hub asset balance held by the protocol account and expected to equal the aggregate stored hub reserves.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())"}]
+    },
+    {
+      "id": "operation:omnipool-add-liquidity",
+      "kind": "operation",
+      "domain": "omnipool",
+      "label": "Omnipool add liquidity",
+      "description": "Transactional operation that creates a position, moves the asset reserve, updates hub liquidity and Assets, then checks the curve invariant.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub fn do_add_liquidity("}]
+    },
+    {
+      "id": "operation:omnipool-remove-liquidity",
+      "kind": "operation",
+      "domain": "omnipool",
+      "label": "Omnipool remove liquidity",
+      "description": "Transactional operation that reduces or removes a position, transfers reserve value, updates hub liquidity and Assets, then checks the curve invariant.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub fn do_remove_liquidity("}]
+    },
+    {
+      "id": "invariant:omnipool-position-shares",
+      "kind": "invariant",
+      "domain": "omnipool",
+      "label": "Omnipool LP position share sum",
+      "description": "Try-runtime assertion that summed Position.shares equals Assets.shares minus Assets.protocol_shares for each represented asset.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "state.shares - state.protocol_shares,"}]
+    },
+    {
+      "id": "invariant:omnipool-hub-backing",
+      "kind": "invariant",
+      "domain": "omnipool",
+      "label": "Omnipool hub reserve backing",
+      "description": "Try-runtime assertion that the protocol account hub balance equals the sum of Assets.hub_reserve.",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "let asset_hub_amount: Balance = Assets::<T>::iter_values().map(|v| v.hub_reserve).sum();"}]
+    },
+    {
+      "id": "invariant:omnipool-liquidity-curve",
+      "kind": "invariant",
+      "domain": "omnipool",
+      "label": "Omnipool liquidity curve invariant",
+      "description": "Release-mode bounded-product check between old and new asset and hub reserves after liquidity changes.",
+      "evidence": [
+        {"file": "pallets/omnipool/src/lib.rs", "symbol": "fn ensure_liquidity_invariant("},
+        {"file": "pallets/omnipool/src/lib.rs", "symbol": "ensure!(left <= middle, Error::<T>::InvariantError);"}
+      ]
+    },
+
+    {
+      "id": "component:circuit-breaker",
+      "kind": "component",
+      "domain": "circuit-breaker",
+      "label": "Circuit breaker pallet",
+      "description": "Runtime component configured as the asset deposit limiter for issuance-rate protection.",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "type DepositLimiter = DepositCircuitBreaker;"}]
+    },
+    {
+      "id": "operation:orml-token-deposit",
+      "kind": "operation",
+      "domain": "circuit-breaker",
+      "label": "ORML token deposit hook",
+      "description": "ORML Tokens post-deposit hook boundary at which issuance increases are classified and excess deposits may be locked.",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;"}]
+    },
+    {
+      "id": "guard:issuance-increase-fuse",
+      "kind": "guard",
+      "domain": "circuit-breaker",
+      "label": "Issuance increase fuse",
+      "description": "Preflight can_mint guard and post-deposit handler using current routed issuance, configured limits, and lockdown state; post-deposit handling locks excess rather than undoing issuance.",
+      "evidence": [
+        {"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "pub struct IssuanceIncreaseFuse<T: Config>"},
+        {"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "pub fn can_mint(currency_id: T::AssetId, amount: T::Balance) -> bool"}
+      ]
+    },
+    {
+      "id": "state:asset-lockdown",
+      "kind": "pool-state",
+      "domain": "circuit-breaker",
+      "label": "Asset lockdown state",
+      "description": "Per-asset locked or unlocked issuance-period state used by the deposit fuse.",
+      "evidence": [{"file": "pallets/circuit-breaker/src/lib.rs", "symbol": "pub type AssetLockdownState<T: Config>"}]
+    },
+    {
+      "id": "configuration:xcm-rate-limit",
+      "kind": "configuration",
+      "domain": "circuit-breaker",
+      "label": "Asset registry XCM rate limit",
+      "description": "Optional per-asset issuance increase limit read from asset registry metadata.",
+      "evidence": [{"file": "pallets/asset-registry/src/lib.rs", "symbol": "pub struct XcmRateLimitsInRegistry<T>(PhantomData<T>);"}]
+    }
+  ],
+  "edges": [
+    {
+      "source": "component:balances",
+      "target": "ledger:native-balances",
+      "kind": "owns",
+      "semantics": "Balances is the configured runtime implementation for the native asset ledger.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_balances::Config for Runtime"}]
+    },
+    {
+      "source": "component:orml-tokens",
+      "target": "ledger:orml-tokens",
+      "kind": "owns",
+      "semantics": "ORML Tokens owns non-native multi-asset balances and issuance.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl orml_tokens::Config for Runtime"}]
+    },
+    {
+      "source": "component:erc20-currency",
+      "target": "ledger:erc20-contracts",
+      "kind": "routes-to",
+      "semantics": "The adapter exposes ERC20 contract storage through the runtime currency interface; the contracts remain the system of record.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "runtime/hydradx/src/evm/erc20_currency.rs", "symbol": "impl<T> MultiCurrency<AccountId> for Erc20Currency<T>"}]
+    },
+    {
+      "source": "router:currencies",
+      "target": "ledger:native-balances",
+      "kind": "routes-to",
+      "semantics": "The native currency id is dispatched through the BasicCurrencyAdapter backed by Balances.",
+      "enforcement": "runtime",
+      "evidence": [
+        {"file": "pallets/currencies/src/lib.rs", "symbol": "if currency_id == T::GetNativeCurrencyId::get()"},
+        {"file": "runtime/hydradx/src/assets.rs", "symbol": "type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;"}
+      ]
+    },
+    {
+      "source": "router:currencies",
+      "target": "ledger:erc20-contracts",
+      "kind": "routes-to",
+      "semantics": "Asset ids bound to an ERC20 address are dispatched to the Erc20Currency adapter.",
+      "enforcement": "runtime",
+      "evidence": [
+        {"file": "pallets/currencies/src/lib.rs", "symbol": "match T::BoundErc20::contract_address(currency_id)"},
+        {"file": "runtime/hydradx/src/assets.rs", "symbol": "type Erc20Currency = Erc20Currency<Runtime>;"}
+      ]
+    },
+    {
+      "source": "router:currencies",
+      "target": "ledger:orml-tokens",
+      "kind": "routes-to",
+      "semantics": "Non-native asset ids without an ERC20 binding are dispatched to ORML Tokens.",
+      "enforcement": "runtime",
+      "evidence": [
+        {"file": "pallets/currencies/src/lib.rs", "symbol": "None => T::MultiCurrency::total_issuance(currency_id)"},
+        {"file": "runtime/hydradx/src/assets.rs", "symbol": "type MultiCurrency = Tokens;"}
+      ]
+    },
+    {
+      "source": "router:routed-total-issuance",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "The issuance provider delegates to Currencies.total_issuance and therefore inherits its three-way ledger routing.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/currencies/src/lib.rs", "symbol": "Pallet::<T>::total_issuance(*currency_id)"}]
+    },
+    {
+      "source": "ledger:stableswap-reserves",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "StableSwap reserve reads and transfers use Currencies, so each reserve resolves to Balances, ORML Tokens, or an ERC20 contract according to its asset id.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_stableswap::Config for Runtime"}]
+    },
+    {
+      "source": "ledger:stableswap-shares",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "StableSwap share issuance and balances use the configured Currencies implementation.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_stableswap::Config for Runtime"}]
+    },
+    {
+      "source": "ledger:xyk-reserves",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "XYK reserve reads and transfers use Currencies, preserving native, ORML, and ERC20 routing.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_xyk::Config for Runtime"}]
+    },
+    {
+      "source": "ledger:xyk-shares",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "XYK share mint and burn operations use the configured Currencies implementation.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_xyk::Config for Runtime"}]
+    },
+    {
+      "source": "ledger:omnipool-asset-reserves",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "Omnipool asset reserve balances use Currencies and therefore may reside in native, ORML, or ERC20 ledgers.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_omnipool::Config for Runtime"}]
+    },
+    {
+      "source": "ledger:omnipool-hub-reserve",
+      "target": "router:currencies",
+      "kind": "derives-from",
+      "semantics": "Omnipool hub asset accounting uses the configured Currencies implementation.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "impl pallet_omnipool::Config for Runtime"}]
+    },
+
+    {
+      "source": "component:stableswap",
+      "target": "state:stableswap-pools",
+      "kind": "owns",
+      "semantics": "StableSwap owns pool configuration and asset membership storage.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "pub type Pools<T: Config> = StorageMap"}]
+    },
+    {
+      "source": "component:stableswap",
+      "target": "ledger:stableswap-reserves",
+      "kind": "owns",
+      "semantics": "StableSwap controls reserve balances held in its pool accounts through routed transfers.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let pool_account = Self::pool_account(pool_id);"}]
+    },
+    {
+      "source": "component:stableswap",
+      "target": "ledger:stableswap-shares",
+      "kind": "owns",
+      "semantics": "The pool id is also the routed share asset minted and burned by StableSwap.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "T::Currency::deposit(pool_id, who, amount)"}]
+    },
+    {
+      "source": "component:stableswap",
+      "target": "state:stableswap-share-issuance",
+      "kind": "owns",
+      "semantics": "StableSwap owns the virtual issuance used for all share calculations.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "pub type ShareIssuance<T: Config> = StorageMap"}]
+    },
+    {
+      "source": "component:stableswap",
+      "target": "invariant:stableswap-share-issuance-sync",
+      "kind": "owns",
+      "semantics": "StableSwap checks its virtual issuance against the routed ledger after guarded state transitions.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "fn ensure_issuance_in_sync(pool_id: T::AssetId) -> DispatchResult"}]
+    },
+    {
+      "source": "component:stableswap",
+      "target": "operation:stableswap-add-liquidity",
+      "kind": "owns",
+      "semantics": "StableSwap implements the add-liquidity state transition.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "fn do_add_liquidity("}]
+    },
+    {
+      "source": "component:stableswap",
+      "target": "operation:stableswap-remove-liquidity",
+      "kind": "owns",
+      "semantics": "StableSwap implements the remove-liquidity state transition.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "fn do_remove_liquidity("}]
+    },
+    {
+      "source": "operation:stableswap-add-liquidity",
+      "target": "ledger:stableswap-reserves",
+      "kind": "reads",
+      "semantics": "Share calculation begins from actual pool-account balances.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "T::Currency::free_balance(*pool_asset, &pool_account)"}]
+    },
+    {
+      "source": "operation:stableswap-add-liquidity",
+      "target": "state:stableswap-share-issuance",
+      "kind": "reads",
+      "semantics": "Share calculation and the invariant use pallet-tracked virtual share issuance.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let share_issuance = ShareIssuance::<T>::get(pool_id);"}]
+    },
+    {
+      "source": "operation:stableswap-add-liquidity",
+      "target": "ledger:stableswap-shares",
+      "kind": "mints",
+      "semantics": "The calculated pool shares are deposited to the provider's routed share balance.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "T::Currency::deposit(pool_id, who, amount)"}]
+    },
+    {
+      "source": "operation:stableswap-add-liquidity",
+      "target": "state:stableswap-share-issuance",
+      "kind": "updates",
+      "semantics": "The virtual issuance is increased before the routed share deposit in the same transaction.",
+      "enforcement": "coupled-update",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "*issuance = issuance.checked_add(amount).ok_or(ArithmeticError::Overflow)?;"}]
+    },
+    {
+      "source": "operation:stableswap-add-liquidity",
+      "target": "ledger:stableswap-reserves",
+      "kind": "transfers-to",
+      "semantics": "Provided assets are transferred into the pool account before the final invariant check.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "&pool_account,"}]
+    },
+    {
+      "source": "operation:stableswap-add-liquidity",
+      "target": "invariant:stableswap-add-liquidity",
+      "kind": "enforces",
+      "semantics": "A failing D or per-share D check returns InvariantError and rolls back the transactional operation.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "Self::ensure_add_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;"}]
+    },
+    {
+      "source": "invariant:stableswap-add-liquidity",
+      "target": "ledger:stableswap-reserves",
+      "kind": "reads",
+      "semantics": "The invariant recomputes D from post-transfer pool-account reserves.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let final_d ="}]
+    },
+    {
+      "source": "invariant:stableswap-add-liquidity",
+      "target": "state:stableswap-share-issuance",
+      "kind": "reads",
+      "semantics": "The invariant uses current virtual issuance as the denominator of post-add D per share.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let current_share_issuance = ShareIssuance::<T>::get(pool_id);"}]
+    },
+    {
+      "source": "invariant:stableswap-add-liquidity",
+      "target": "invariant:stableswap-share-issuance-sync",
+      "kind": "invokes",
+      "semantics": "The post-add invariant first verifies virtual issuance against routed total issuance.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "Self::ensure_issuance_in_sync(pool_id)?;"}]
+    },
+    {
+      "source": "operation:stableswap-remove-liquidity",
+      "target": "ledger:stableswap-reserves",
+      "kind": "reads",
+      "semantics": "Withdrawal amounts are calculated from actual pool-account reserves.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let reserve = T::Currency::free_balance(*asset_id, &pool_account);"}]
+    },
+    {
+      "source": "operation:stableswap-remove-liquidity",
+      "target": "state:stableswap-share-issuance",
+      "kind": "reads",
+      "semantics": "The operation reads current virtual share issuance to calculate proportional reserve output.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let share_issuance = ShareIssuance::<T>::get(pool_id);"}]
+    },
+    {
+      "source": "operation:stableswap-remove-liquidity",
+      "target": "ledger:stableswap-shares",
+      "kind": "burns",
+      "semantics": "The withdrawn pool share amount is burned from the provider's routed balance.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "T::Currency::withdraw(pool_id, who, amount, ExistenceRequirement::AllowDeath)"}]
+    },
+    {
+      "source": "operation:stableswap-remove-liquidity",
+      "target": "state:stableswap-share-issuance",
+      "kind": "updates",
+      "semantics": "The virtual issuance is decreased before the routed share withdrawal in the same transaction.",
+      "enforcement": "coupled-update",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": ".checked_sub(amount)"}]
+    },
+    {
+      "source": "operation:stableswap-remove-liquidity",
+      "target": "ledger:stableswap-reserves",
+      "kind": "transfers-from",
+      "semantics": "Calculated amounts leave the pool account before the post-state check.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "T::Currency::transfer(*asset_id, &pool_account, who, amount, ExistenceRequirement::AllowDeath)?;"}]
+    },
+    {
+      "source": "operation:stableswap-remove-liquidity",
+      "target": "invariant:stableswap-remove-liquidity",
+      "kind": "enforces",
+      "semantics": "A failing D or per-share D check returns InvariantError and rolls back the transactional withdrawal.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "Self::ensure_remove_liquidity_invariant(pool_id, &initial_reserves, share_issuance)?;"}]
+    },
+    {
+      "source": "invariant:stableswap-remove-liquidity",
+      "target": "ledger:stableswap-reserves",
+      "kind": "reads",
+      "semantics": "The invariant recomputes D from post-transfer pool-account reserves.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "final_reserves.iter().map(|v| v.amount)"}]
+    },
+    {
+      "source": "invariant:stableswap-remove-liquidity",
+      "target": "state:stableswap-share-issuance",
+      "kind": "reads",
+      "semantics": "The invariant uses current virtual issuance as the denominator of post-withdrawal D per share.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let current_share_issuance = ShareIssuance::<T>::get(pool_id);"}]
+    },
+    {
+      "source": "invariant:stableswap-remove-liquidity",
+      "target": "invariant:stableswap-share-issuance-sync",
+      "kind": "invokes",
+      "semantics": "The post-withdrawal invariant first verifies virtual issuance against routed total issuance.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "Self::ensure_issuance_in_sync(pool_id)?;"}]
+    },
+    {
+      "source": "state:stableswap-share-issuance",
+      "target": "ledger:stableswap-shares",
+      "kind": "tracks",
+      "semantics": "Mint and burn helpers couple virtual issuance updates with routed ledger mutations; the synchronization invariant detects excess routed issuance.",
+      "enforcement": "coupled-update",
+      "evidence": [
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "fn mint_shares(pool_id: T::AssetId"},
+        {"file": "pallets/stableswap/src/lib.rs", "symbol": "fn burn_shares(pool_id: T::AssetId"}
+      ]
+    },
+    {
+      "source": "invariant:stableswap-share-issuance-sync",
+      "target": "state:stableswap-share-issuance",
+      "kind": "reads",
+      "semantics": "The synchronization check reads pallet-tracked virtual issuance.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let tracked = ShareIssuance::<T>::get(pool_id);"}]
+    },
+    {
+      "source": "invariant:stableswap-share-issuance-sync",
+      "target": "ledger:stableswap-shares",
+      "kind": "reads",
+      "semantics": "The synchronization check reads routed total issuance and rejects values above virtual issuance.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/stableswap/src/lib.rs", "symbol": "let total = T::Currency::total_issuance(pool_id);"}]
+    },
+
+    {
+      "source": "component:xyk",
+      "target": "state:xyk-share-token",
+      "kind": "owns",
+      "semantics": "XYK owns the pair-account to share-asset mapping.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "pub(crate) type ShareToken<T: Config>"}]
+    },
+    {
+      "source": "component:xyk",
+      "target": "state:xyk-total-liquidity",
+      "kind": "owns",
+      "semantics": "XYK owns its local total-liquidity accounting value.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "pub(crate) type TotalLiquidity<T: Config>"}]
+    },
+    {
+      "source": "component:xyk",
+      "target": "ledger:xyk-reserves",
+      "kind": "owns",
+      "semantics": "XYK controls routed reserve balances at the pair account.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let pair_account = Self::get_pair_id(asset_pair);"}]
+    },
+    {
+      "source": "component:xyk",
+      "target": "ledger:xyk-shares",
+      "kind": "owns",
+      "semantics": "XYK mints and burns the share asset selected by ShareToken.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let share_token = Self::share_token(&pair_account);"}]
+    },
+    {
+      "source": "state:xyk-share-token",
+      "target": "ledger:xyk-shares",
+      "kind": "tracks",
+      "semantics": "The mapping selects which routed asset id represents shares for a pair account.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let share_token = Self::share_token(&pair_account);"}]
+    },
+    {
+      "source": "operation:xyk-add-liquidity",
+      "target": "ledger:xyk-reserves",
+      "kind": "reads",
+      "semantics": "The add calculation reads both actual pair-account reserves.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);"}]
+    },
+    {
+      "source": "operation:xyk-add-liquidity",
+      "target": "state:xyk-total-liquidity",
+      "kind": "reads",
+      "semantics": "TotalLiquidity is used as share issuance in the add-liquidity calculation.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let share_issuance = Self::total_liquidity(&pair_account);"}]
+    },
+    {
+      "source": "operation:xyk-add-liquidity",
+      "target": "ledger:xyk-reserves",
+      "kind": "transfers-to",
+      "semantics": "Both supplied assets are transferred to the pair account transactionally.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "T::Currency::transfer(asset_a, &who, &pair_account, amount_a, ExistenceRequirement::AllowDeath)?;"}]
+    },
+    {
+      "source": "operation:xyk-add-liquidity",
+      "target": "ledger:xyk-shares",
+      "kind": "mints",
+      "semantics": "Calculated shares are deposited into the routed share ledger.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "T::Currency::deposit(share_token, &who, shares_added)?;"}]
+    },
+    {
+      "source": "operation:xyk-add-liquidity",
+      "target": "state:xyk-total-liquidity",
+      "kind": "updates",
+      "semantics": "The local total is increased immediately after the routed share mint in the same transaction.",
+      "enforcement": "coupled-update",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);"}]
+    },
+    {
+      "source": "operation:xyk-remove-liquidity",
+      "target": "ledger:xyk-reserves",
+      "kind": "reads",
+      "semantics": "The withdrawal calculation reads actual pair-account reserves.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);"}]
+    },
+    {
+      "source": "operation:xyk-remove-liquidity",
+      "target": "state:xyk-total-liquidity",
+      "kind": "reads",
+      "semantics": "TotalLiquidity supplies the share denominator for proportional output.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "let total_shares = Self::total_liquidity(&pair_account);"}]
+    },
+    {
+      "source": "operation:xyk-remove-liquidity",
+      "target": "ledger:xyk-reserves",
+      "kind": "transfers-from",
+      "semantics": "Calculated reserve amounts are transferred from the pair account.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "&pair_account,"}]
+    },
+    {
+      "source": "operation:xyk-remove-liquidity",
+      "target": "ledger:xyk-shares",
+      "kind": "burns",
+      "semantics": "Removed shares are withdrawn from the routed share ledger.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "T::Currency::withdraw(share_token, &who, share_amount, ExistenceRequirement::AllowDeath)?;"}]
+    },
+    {
+      "source": "operation:xyk-remove-liquidity",
+      "target": "state:xyk-total-liquidity",
+      "kind": "updates",
+      "semantics": "The local total is reduced immediately after the routed share burn in the same transaction.",
+      "enforcement": "coupled-update",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);"}]
+    },
+    {
+      "source": "state:xyk-total-liquidity",
+      "target": "ledger:xyk-shares",
+      "kind": "must-equal",
+      "semantics": "TotalLiquidity is expected to equal routed share issuance, but production liquidity paths maintain this through coupled writes rather than an independent equality check.",
+      "enforcement": "coupled-update",
+      "evidence": [
+        {"file": "pallets/xyk/src/lib.rs", "symbol": "T::Currency::deposit(share_token, &who, shares_added)?;"},
+        {"file": "pallets/xyk/src/lib.rs", "symbol": "<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);"}
+      ]
+    },
+    {
+      "source": "ledger:xyk-reserves",
+      "target": "ledger:xyk-shares",
+      "kind": "backs",
+      "semantics": "A share's withdrawal value is calculated proportionally from actual reserves and TotalLiquidity; no separate global backing assertion is made here.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "hydra_dx_math::xyk::calculate_liquidity_out"}]
+    },
+    {
+      "source": "component:xyk",
+      "target": "invariant:xyk-ledger-total-liquidity",
+      "kind": "owns",
+      "semantics": "The equality is a semantic obligation created by XYK's duplicate share accounting.",
+      "enforcement": "observation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "pub(crate) type TotalLiquidity<T: Config>"}]
+    },
+    {
+      "source": "component:xyk",
+      "target": "invariant:xyk-reserve-backing",
+      "kind": "owns",
+      "semantics": "XYK liquidity calculations define proportional reserve backing for its shares.",
+      "enforcement": "calculation",
+      "evidence": [{"file": "pallets/xyk/src/lib.rs", "symbol": "hydra_dx_math::xyk::calculate_liquidity_out"}]
+    },
+
+    {
+      "source": "component:omnipool",
+      "target": "state:omnipool-assets",
+      "kind": "owns",
+      "semantics": "Omnipool owns per-asset aggregate state.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub(super) type Assets<T: Config> = StorageMap"}]
+    },
+    {
+      "source": "component:omnipool",
+      "target": "state:omnipool-positions",
+      "kind": "owns",
+      "semantics": "Omnipool owns NFT-position keyed LP state.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "pub(super) type Positions<T: Config>"}]
+    },
+    {
+      "source": "state:omnipool-assets",
+      "target": "state:omnipool-lp-shares",
+      "kind": "tracks",
+      "semantics": "Assets stores the aggregate shares field for each pool asset.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/types.rs", "symbol": "pub(super) shares: Balance,"}]
+    },
+    {
+      "source": "state:omnipool-assets",
+      "target": "state:omnipool-protocol-shares",
+      "kind": "tracks",
+      "semantics": "Assets separately stores the protocol-owned subset of aggregate shares.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/types.rs", "symbol": "pub(super) protocol_shares: Balance,"}]
+    },
+    {
+      "source": "ledger:omnipool-asset-reserves",
+      "target": "state:omnipool-assets",
+      "kind": "backs",
+      "semantics": "Loading a usable reserve state joins stored Assets fields with the actual protocol-account asset balance.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Ok((state, reserve).into())"}]
+    },
+    {
+      "source": "state:omnipool-positions",
+      "target": "state:omnipool-lp-shares",
+      "kind": "must-equal",
+      "semantics": "For each asset, summed Position.shares must equal Assets.shares minus Assets.protocol_shares.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "state.shares - state.protocol_shares,"}]
+    },
+    {
+      "source": "state:omnipool-assets",
+      "target": "ledger:omnipool-hub-reserve",
+      "kind": "must-equal",
+      "semantics": "The sum of Assets.hub_reserve must equal the protocol account's hub asset balance.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "account_balance, asset_hub_amount,"}]
+    },
+    {
+      "source": "operation:omnipool-add-liquidity",
+      "target": "ledger:omnipool-asset-reserves",
+      "kind": "transfers-to",
+      "semantics": "The supplied asset amount is transferred to the protocol account.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "*state_changes.asset.delta_reserve,"}]
+    },
+    {
+      "source": "operation:omnipool-add-liquidity",
+      "target": "state:omnipool-positions",
+      "kind": "writes",
+      "semantics": "A new LP position containing the calculated shares is inserted.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "<Positions<T>>::insert(instance_id, lp_position);"}]
+    },
+    {
+      "source": "operation:omnipool-add-liquidity",
+      "target": "state:omnipool-assets",
+      "kind": "writes",
+      "semantics": "The updated aggregate asset state is persisted after reserve and hub updates.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Self::set_asset_state(asset, new_asset_state);"}]
+    },
+    {
+      "source": "operation:omnipool-add-liquidity",
+      "target": "ledger:omnipool-hub-reserve",
+      "kind": "updates",
+      "semantics": "Hub asset liquidity is updated from the calculated delta in the same transaction.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Self::update_hub_asset_liquidity(&state_changes.asset.total_delta_hub_reserve())?;"}]
+    },
+    {
+      "source": "operation:omnipool-add-liquidity",
+      "target": "invariant:omnipool-liquidity-curve",
+      "kind": "enforces",
+      "semantics": "The completed transition calls the release-mode curve check and rolls back on error.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Self::ensure_liquidity_invariant((asset, asset_state, new_asset_state))?;"}]
+    },
+    {
+      "source": "operation:omnipool-remove-liquidity",
+      "target": "ledger:omnipool-asset-reserves",
+      "kind": "transfers-from",
+      "semantics": "Calculated asset value is transferred out of the protocol account.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "&Self::protocol_account(),"}]
+    },
+    {
+      "source": "operation:omnipool-remove-liquidity",
+      "target": "state:omnipool-positions",
+      "kind": "writes",
+      "semantics": "The LP position is reduced or removed according to the withdrawn shares.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "<Positions<T>>::remove(position_id);"}]
+    },
+    {
+      "source": "operation:omnipool-remove-liquidity",
+      "target": "state:omnipool-assets",
+      "kind": "writes",
+      "semantics": "The updated aggregate asset state is persisted after withdrawal calculations.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Self::set_asset_state(asset_id, new_asset_state);"}]
+    },
+    {
+      "source": "operation:omnipool-remove-liquidity",
+      "target": "ledger:omnipool-hub-reserve",
+      "kind": "updates",
+      "semantics": "Hub asset liquidity is adjusted from the calculated removal delta.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Self::update_hub_asset_liquidity("}]
+    },
+    {
+      "source": "operation:omnipool-remove-liquidity",
+      "target": "invariant:omnipool-liquidity-curve",
+      "kind": "enforces",
+      "semantics": "The completed transition calls the release-mode curve check and rolls back on error.",
+      "enforcement": "transactional",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "Self::ensure_liquidity_invariant((asset_id, asset_state, new_asset_state))?;"}]
+    },
+    {
+      "source": "invariant:omnipool-liquidity-curve",
+      "target": "ledger:omnipool-asset-reserves",
+      "kind": "reads",
+      "semantics": "The bounded-product check uses old and new actual asset reserve values.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "let new_reserve = U256::from(new_state.reserve);"}]
+    },
+    {
+      "source": "invariant:omnipool-liquidity-curve",
+      "target": "state:omnipool-assets",
+      "kind": "reads",
+      "semantics": "The bounded-product check uses old and new hub reserve state.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "let new_hub_reserve = U256::from(new_state.hub_reserve);"}]
+    },
+    {
+      "source": "invariant:omnipool-position-shares",
+      "target": "state:omnipool-positions",
+      "kind": "reads",
+      "semantics": "Try-runtime aggregates shares from every stored LP position.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "for position in Positions::<T>::iter_values()"}]
+    },
+    {
+      "source": "invariant:omnipool-position-shares",
+      "target": "state:omnipool-lp-shares",
+      "kind": "reads",
+      "semantics": "Try-runtime compares the aggregate position total with the per-asset total shares field.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "state.shares - state.protocol_shares,"}]
+    },
+    {
+      "source": "invariant:omnipool-position-shares",
+      "target": "state:omnipool-protocol-shares",
+      "kind": "reads",
+      "semantics": "Protocol-owned shares are subtracted before comparison with user LP positions.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "state.shares - state.protocol_shares,"}]
+    },
+    {
+      "source": "invariant:omnipool-hub-backing",
+      "target": "state:omnipool-assets",
+      "kind": "reads",
+      "semantics": "Try-runtime sums every stored Assets.hub_reserve before comparing it with the ledger balance.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "let asset_hub_amount: Balance = Assets::<T>::iter_values().map(|v| v.hub_reserve).sum();"}]
+    },
+    {
+      "source": "invariant:omnipool-hub-backing",
+      "target": "ledger:omnipool-hub-reserve",
+      "kind": "reads",
+      "semantics": "Try-runtime reads the protocol account hub asset balance for comparison.",
+      "enforcement": "try-runtime",
+      "evidence": [{"file": "pallets/omnipool/src/lib.rs", "symbol": "let account_balance = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());"}]
+    },
+
+    {
+      "source": "component:circuit-breaker",
+      "target": "guard:issuance-increase-fuse",
+      "kind": "owns",
+      "semantics": "The circuit breaker provides the issuance fuse used by the token deposit hook.",
+      "enforcement": "configuration",
+      "evidence": [{"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "pub struct IssuanceIncreaseFuse<T: Config>"}]
+    },
+    {
+      "source": "component:circuit-breaker",
+      "target": "state:asset-lockdown",
+      "kind": "owns",
+      "semantics": "The circuit breaker stores each asset's issuance period or lockdown state.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/circuit-breaker/src/lib.rs", "symbol": "pub type AssetLockdownState<T: Config>"}]
+    },
+    {
+      "source": "operation:orml-token-deposit",
+      "target": "guard:issuance-increase-fuse",
+      "kind": "invokes",
+      "semantics": "ORML Tokens invokes the fuse after a deposit through CurrencyHooks.PostDeposit.",
+      "enforcement": "configuration",
+      "evidence": [
+        {"file": "runtime/hydradx/src/assets.rs", "symbol": "type PostDeposit = pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse<Runtime>;"},
+        {"file": "runtime/hydradx/src/assets.rs", "symbol": "type CurrencyHooks = CurrencyHooks;"}
+      ]
+    },
+    {
+      "source": "guard:issuance-increase-fuse",
+      "target": "router:routed-total-issuance",
+      "kind": "reads",
+      "semantics": "The fuse obtains current issuance through AssetTotalIssuance, so native, ERC20, and ORML routing semantics apply.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "runtime/hydradx/src/assets.rs", "symbol": "type Issuance = AssetTotalIssuance<Runtime>;"}]
+    },
+    {
+      "source": "guard:issuance-increase-fuse",
+      "target": "configuration:xcm-rate-limit",
+      "kind": "configured-by",
+      "semantics": "The per-asset deposit limit is supplied from Asset Registry xcm_rate_limit metadata.",
+      "enforcement": "configuration",
+      "evidence": [
+        {"file": "runtime/hydradx/src/assets.rs", "symbol": "type DepositLimit = XcmRateLimitsInRegistry<Runtime>;"},
+        {"file": "pallets/asset-registry/src/lib.rs", "symbol": "Pallet::<T>::assets(k).and_then(|details| details.xcm_rate_limit)"}
+      ]
+    },
+    {
+      "source": "guard:issuance-increase-fuse",
+      "target": "state:asset-lockdown",
+      "kind": "reads",
+      "semantics": "Classification depends on whether the asset is unlocked, actively locked, or has an expired period.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "let state = AssetLockdownState::<T>::get(currency_id);"}]
+    },
+    {
+      "source": "guard:issuance-increase-fuse",
+      "target": "state:asset-lockdown",
+      "kind": "writes",
+      "semantics": "Post-deposit handling resets the issuance window or records lockdown through circuit-breaker state transitions.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "Pallet::<T>::do_lockdown_asset(currency_id, context.lockdown_until)?;"}]
+    },
+    {
+      "source": "guard:issuance-increase-fuse",
+      "target": "state:asset-lockdown",
+      "kind": "locks",
+      "semantics": "When post-deposit growth exceeds the limit, excess balance is reserved and the asset enters lockdown; issuance itself is not rolled back by this hook.",
+      "enforcement": "runtime",
+      "evidence": [
+        {"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "Pallet::<T>::do_lock_deposit(who, currency_id, to_lock)?;"},
+        {"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "Pallet::<T>::do_lockdown_asset(currency_id, context.lockdown_until)?;"}
+      ]
+    },
+    {
+      "source": "guard:issuance-increase-fuse",
+      "target": "operation:orml-token-deposit",
+      "kind": "guards",
+      "semantics": "can_mint can reject a proposed mint before execution when its caller uses the preflight API; the configured ORML hook is separately post-deposit.",
+      "enforcement": "runtime",
+      "evidence": [{"file": "pallets/circuit-breaker/src/fuses/issuance.rs", "symbol": "pub fn can_mint(currency_id: T::AssetId, amount: T::Balance) -> bool"}]
+    }
+  ]
+}

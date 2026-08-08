@@ -1,0 +1,55 @@
+{
+  "$schema": "deployment-sources.schema.json",
+  "schema_version": 2,
+  "chains": [
+    {
+      "id": "hydration-mainnet",
+      "evm_chain_id": 222222,
+      "substrate_genesis_hash": "0xafdc188f45c71dacbaa0b62e16a91f726c7b8699a9748cdf715459de6b7f366d",
+      "substrate_spec_name": "hydradx",
+      "runtime_configuration_minimums": {
+        "total": 4,
+        "asset_registry_erc20": 1,
+        "required_bindings": {
+          "gigaHdx.gigaHdxPoolContract": 1,
+          "hsm.flashMinter": 1,
+          "liquidation.borrowingContract": 1
+        }
+      },
+      "deployment_networks": [
+        "gigahdx",
+        "hydration"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "project": "aave-v3-deploy",
+      "kind": "hardhat",
+      "root": "../../../aave-v3-deploy/deployments",
+      "networks": [
+        "gigahdx",
+        "hydration"
+      ]
+    },
+    {
+      "project": "hollar",
+      "kind": "hardhat",
+      "root": "../../../hollar/deployments",
+      "networks": [
+        "gigahdx",
+        "hydration"
+      ]
+    },
+    {
+      "project": "whm",
+      "kind": "whm",
+      "root": "../../../whm/deployments/prod",
+      "networks": [
+        "basejump-base",
+        "nintent-ethereum-alpha",
+        "oracle-relay-solana"
+      ]
+    }
+  ]
+}

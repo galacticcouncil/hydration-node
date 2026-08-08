@@ -1,0 +1,261 @@
+{
+  "schema_version": 2,
+  "chains": [
+    {
+      "id": "hydration-mainnet-ci",
+      "evm_chain_id": 222222,
+      "substrate_genesis_hash": "0xafdc188f45c71dacbaa0b62e16a91f726c7b8699a9748cdf715459de6b7f366d",
+      "substrate_spec_name": "hydradx",
+      "runtime_configuration_minimums": {
+        "total": 4,
+        "asset_registry_erc20": 1,
+        "required_bindings": {
+          "gigaHdx.gigaHdxPoolContract": 1,
+          "hsm.flashMinter": 1,
+          "liquidation.borrowingContract": 1
+        }
+      },
+      "deployment_networks": [
+        "hydration",
+        "gigahdx"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "project": "aave-v3-deploy",
+      "network": "hydration",
+      "name": "Pool-Proxy",
+      "address": "0x1111111111111111111111111111111111111111",
+      "artifact": "fixtures/aave/Pool-Proxy.json",
+      "abi_functions": [
+        {
+          "signature": "supply(address,uint256,address,uint16)",
+          "selector": "0x617ba037"
+        },
+        {
+          "signature": "withdraw(address,uint256,address)",
+          "selector": "0x69328dec"
+        }
+      ]
+    },
+    {
+      "project": "aave-v3-deploy",
+      "network": "hydration",
+      "name": "Pool-Implementation",
+      "address": "0x2222222222222222222222222222222222222222",
+      "artifact": "fixtures/aave/Pool-Implementation.json",
+      "abi_functions": []
+    },
+    {
+      "project": "aave-v3-deploy",
+      "network": "gigahdx",
+      "name": "GigaHDXPool",
+      "address": "0x3333333333333333333333333333333333333333",
+      "artifact": "fixtures/gigahdx/GigaHDXPool.json",
+      "abi_functions": []
+    },
+    {
+      "project": "hollar",
+      "network": "hydration",
+      "name": "HollarFlashMinter",
+      "address": "0x4444444444444444444444444444444444444444",
+      "artifact": "fixtures/hollar/HollarFlashMinter.json",
+      "abi_functions": []
+    },
+    {
+      "project": "hollar",
+      "network": "hydration",
+      "name": "BorrowingContract",
+      "address": "0x5555555555555555555555555555555555555555",
+      "artifact": "fixtures/hollar/BorrowingContract.json",
+      "abi_functions": []
+    },
+    {
+      "project": "hollar",
+      "network": "hydration",
+      "name": "BridgedAsset",
+      "address": "0x6666666666666666666666666666666666666666",
+      "artifact": "fixtures/hollar/BridgedAsset.json",
+      "abi_functions": [
+        {
+          "signature": "balanceOf(address)",
+          "selector": "0x70a08231"
+        },
+        {
+          "signature": "transfer(address,uint256)",
+          "selector": "0xa9059cbb"
+        }
+      ]
+    }
+  ],
+  "observations": [
+    {
+      "project": "aave-v3-deploy",
+      "network": "hydration",
+      "chain_id": 222222,
+      "address": "0x1111111111111111111111111111111111111111",
+      "chain_address_id": "eip155:222222:0x1111111111111111111111111111111111111111",
+      "has_code": true,
+      "implementation": "0x2222222222222222222222222222222222222222",
+      "implementation_chain_address_id": "eip155:222222:0x2222222222222222222222222222222222222222",
+      "embedded_addresses": [
+        "0x2222222222222222222222222222222222222222"
+      ]
+    },
+    {
+      "project": "aave-v3-deploy",
+      "network": "hydration",
+      "chain_id": 222222,
+      "address": "0x2222222222222222222222222222222222222222",
+      "chain_address_id": "eip155:222222:0x2222222222222222222222222222222222222222",
+      "has_code": true,
+      "implementation": null,
+      "implementation_chain_address_id": null,
+      "embedded_addresses": []
+    },
+    {
+      "project": "aave-v3-deploy",
+      "network": "gigahdx",
+      "chain_id": 222222,
+      "address": "0x3333333333333333333333333333333333333333",
+      "chain_address_id": "eip155:222222:0x3333333333333333333333333333333333333333",
+      "has_code": true,
+      "implementation": null,
+      "implementation_chain_address_id": null,
+      "embedded_addresses": []
+    },
+    {
+      "project": "hollar",
+      "network": "hydration",
+      "chain_id": 222222,
+      "address": "0x4444444444444444444444444444444444444444",
+      "chain_address_id": "eip155:222222:0x4444444444444444444444444444444444444444",
+      "has_code": true,
+      "implementation": null,
+      "implementation_chain_address_id": null,
+      "embedded_addresses": []
+    },
+    {
+      "project": "hollar",
+      "network": "hydration",
+      "chain_id": 222222,
+      "address": "0x5555555555555555555555555555555555555555",
+      "chain_address_id": "eip155:222222:0x5555555555555555555555555555555555555555",
+      "has_code": true,
+      "implementation": null,
+      "implementation_chain_address_id": null,
+      "embedded_addresses": []
+    },
+    {
+      "project": "hollar",
+      "network": "hydration",
+      "chain_id": 222222,
+      "address": "0x6666666666666666666666666666666666666666",
+      "chain_address_id": "eip155:222222:0x6666666666666666666666666666666666666666",
+      "has_code": true,
+      "implementation": null,
+      "implementation_chain_address_id": null,
+      "embedded_addresses": []
+    }
+  ],
+  "rpc_snapshot": {
+    "chain_id": 222222,
+    "block_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "block_number": 13161523
+  },
+  "substrate_snapshot": {
+    "genesis_hash": "0xafdc188f45c71dacbaa0b62e16a91f726c7b8699a9748cdf715459de6b7f366d",
+    "block_hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "block_number": 13161523,
+    "spec_name": "hydradx"
+  },
+  "chain_context": {
+    "evm_chain_id": 222222,
+    "evm_block_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "substrate_genesis_hash": "0xafdc188f45c71dacbaa0b62e16a91f726c7b8699a9748cdf715459de6b7f366d",
+    "substrate_block_hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "substrate_spec_name": "hydradx",
+    "block_number": 13161523
+  },
+  "collection_provenance": {
+    "descriptor_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "enrichment_provenance": {
+    "input_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "runtime_collection_provenance": {
+    "input_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "query_coverage": {
+      "required_query_count": 5,
+      "available_query_count": 5,
+      "collected_configuration_count": 4,
+      "unique_configuration_count": 4,
+      "queries": {
+        "gigaHdx.gigaHdxPoolContract": {
+          "available": true,
+          "calls": 1,
+          "records": 1,
+          "configurations": 1
+        },
+        "hsm.flashMinter": {
+          "available": true,
+          "calls": 1,
+          "records": 1,
+          "configurations": 1
+        },
+        "liquidation.borrowingContract": {
+          "available": true,
+          "calls": 1,
+          "records": 1,
+          "configurations": 1
+        },
+        "assetRegistry.assets": {
+          "available": true,
+          "calls": 1,
+          "records": 1,
+          "configurations": 0,
+          "erc20_assets": 1
+        },
+        "assetRegistry.assetLocations": {
+          "available": true,
+          "calls": 1,
+          "records": 1,
+          "configurations": 1
+        }
+      }
+    }
+  },
+  "runtime_configurations": [
+    {
+      "component": "pallet:gigahdx",
+      "storage": "gigaHdx.gigaHdxPoolContract",
+      "chain_id": 222222,
+      "address": "0x3333333333333333333333333333333333333333",
+      "chain_address_id": "eip155:222222:0x3333333333333333333333333333333333333333"
+    },
+    {
+      "component": "pallet:hsm",
+      "storage": "hsm.flashMinter",
+      "chain_id": 222222,
+      "address": "0x4444444444444444444444444444444444444444",
+      "chain_address_id": "eip155:222222:0x4444444444444444444444444444444444444444"
+    },
+    {
+      "component": "pallet:liquidation",
+      "storage": "liquidation.borrowingContract",
+      "chain_id": 222222,
+      "address": "0x5555555555555555555555555555555555555555",
+      "chain_address_id": "eip155:222222:0x5555555555555555555555555555555555555555"
+    },
+    {
+      "component": "pallet:asset-registry",
+      "storage": "assetRegistry.assetLocations",
+      "asset_id": "1000000",
+      "asset_type": "erc20",
+      "chain_id": 222222,
+      "address": "0x6666666666666666666666666666666666666666",
+      "chain_address_id": "eip155:222222:0x6666666666666666666666666666666666666666"
+    }
+  ]
+}

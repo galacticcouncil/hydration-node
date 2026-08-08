@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "semantic-inventory.schema.json",
+  "title": "Hydration runtime semantic interaction inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "nodes", "edges"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "nodes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/node"}
+    },
+    "edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/edge"}
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+$"
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "symbol"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1, "pattern": "^[^/].*\\.rs$"},
+        "symbol": {"type": "string", "minLength": 1}
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "domain", "label", "description", "evidence"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "kind": {
+          "enum": ["component", "configuration", "guard", "invariant", "ledger", "operation", "pool-state", "router"]
+        },
+        "domain": {
+          "enum": ["asset-routing", "circuit-breaker", "omnipool", "stableswap", "xyk"]
+        },
+        "label": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence"}}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "kind", "semantics", "enforcement", "evidence"],
+      "properties": {
+        "source": {"$ref": "#/$defs/id"},
+        "target": {"$ref": "#/$defs/id"},
+        "kind": {
+          "enum": ["backs", "burns", "configured-by", "derives-from", "enforces", "guards", "invokes", "locks", "mints", "must-equal", "owns", "reads", "routes-to", "tracks", "transfers-from", "transfers-to", "updates", "writes"]
+        },
+        "semantics": {"type": "string", "minLength": 1},
+        "enforcement": {
+          "enum": ["calculation", "configuration", "coupled-update", "observation", "runtime", "transactional", "try-runtime"]
+        },
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence"}}
+      }
+    }
+  }
+}

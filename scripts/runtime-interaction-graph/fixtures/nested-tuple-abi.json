@@ -1,0 +1,46 @@
+[
+  {
+    "type": "function",
+    "name": "bar",
+    "inputs": [
+      {
+        "name": "entries",
+        "type": "tuple[]",
+        "components": [
+          {
+            "name": "account",
+            "type": "address"
+          },
+          {
+            "name": "values",
+            "type": "tuple[]",
+            "components": [
+              {
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "name": "key",
+                "type": "bytes32"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "transfer",
+    "inputs": [
+      {
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256"
+      }
+    ]
+  }
+]

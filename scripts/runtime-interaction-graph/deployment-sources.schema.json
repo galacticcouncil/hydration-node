@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hydration.net/schemas/runtime-interaction-graph/deployment-sources.schema.json",
+  "title": "Runtime interaction graph deployment sources",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "chains",
+    "sources"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "chains": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "evm_chain_id",
+          "substrate_genesis_hash",
+          "substrate_spec_name",
+          "runtime_configuration_minimums",
+          "deployment_networks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evm_chain_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "substrate_genesis_hash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{64}$"
+          },
+          "substrate_spec_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "runtime_configuration_minimums": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "total",
+              "asset_registry_erc20",
+              "required_bindings"
+            ],
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "asset_registry_erc20": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "required_bindings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "gigaHdx.gigaHdxPoolContract",
+                  "hsm.flashMinter",
+                  "liquidation.borrowingContract"
+                ],
+                "properties": {
+                  "gigaHdx.gigaHdxPoolContract": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "hsm.flashMinter": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "liquidation.borrowingContract": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          },
+          "deployment_networks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project",
+          "kind",
+          "root",
+          "networks"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "hardhat",
+              "whm"
+            ]
+          },
+          "root": {
+            "type": "string",
+            "minLength": 1
+          },
+          "networks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}
