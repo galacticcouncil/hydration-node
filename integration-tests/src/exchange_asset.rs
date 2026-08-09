@@ -338,6 +338,35 @@ fn exchange_asset_should_fail_when_buy_max_sell_amount_exceeds_deposit_limit() {
 }
 
 #[test]
+fn exchange_asset_should_clear_broadcast_context_when_buy_max_sell_amount_exceeds_deposit_limit() {
+	use xcm_executor::traits::AssetExchange;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		setup_aca_omnipool();
+
+		let deposit_limit = 1_000 * UNITS;
+		let max_sell_amount = 3_000 * UNITS;
+		let want_out = 100 * UNITS;
+		assert_ok!(update_deposit_limit(ACA, deposit_limit));
+
+		let give: xcm_executor::AssetsInHolding = Asset::from((aca_location(), max_sell_amount)).into();
+		let want: polkadot_xcm::v5::Assets = Asset::from((hdx_location(), want_out)).into();
+
+		// Act
+		let result = <XcmBuyExchanger as AssetExchange>::exchange_asset(None, give, &want, false);
+
+		// Assert
+		assert!(result.is_err());
+		assert_eq!(
+			pallet_broadcast::Pallet::<hydradx_runtime::Runtime>::get_context(),
+			vec![]
+		);
+	});
+}
+
+#[test]
 fn exchange_asset_should_refund_full_leftover_when_buy_max_sell_amount_is_within_deposit_limit() {
 	use orml_traits::MultiReservableCurrency;
 	use xcm_executor::traits::AssetExchange;
