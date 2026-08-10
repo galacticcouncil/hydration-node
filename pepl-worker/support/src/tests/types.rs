@@ -138,7 +138,29 @@ fn reserve(idx: usize, addr: u8, price: u128, existential_deposit: u128, configu
 		price: U256::from(price),
 		existential_deposit,
 		emode: None,
+		has_stable_debt: false,
 	}
+}
+
+// Aave reserve configuration bit 59.
+#[test]
+fn stable_rate_borrowing_enabled_should_read_bit_59() {
+	let off = reserve(0, 0x01, 1, 0, reserve_config(8_000, 10_500, 8));
+	let on = reserve(0, 0x01, 1, 0, reserve_config(8_000, 10_500, 8) | (U256::one() << 59));
+
+	assert!(!off.data.stable_rate_borrowing_enabled());
+	assert!(on.data.stable_rate_borrowing_enabled());
+	// The neighbouring flags (58 borrowing-enabled, 60 paused) must not be mistaken for it.
+	assert!(
+		!(reserve(0, 0x01, 1, 0, U256::one() << 58)
+			.data
+			.stable_rate_borrowing_enabled())
+	);
+	assert!(
+		!(reserve(0, 0x01, 1, 0, U256::one() << 60)
+			.data
+			.stable_rate_borrowing_enabled())
+	);
 }
 
 // A borrower far below HF 1 whose theoretical seize (1050) exceeds the collateral they actually

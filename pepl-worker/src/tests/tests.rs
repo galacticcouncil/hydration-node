@@ -767,6 +767,7 @@ fn reserve_named(idx: usize, symbol: &str, addr: u8, price: u128) -> pepl_worker
 		price: U256::from(price),
 		existential_deposit: 0,
 		emode: None,
+		has_stable_debt: false,
 	}
 }
 

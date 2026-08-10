@@ -51,6 +51,7 @@ pub enum Function {
 	GetEModeCategoryData = "getEModeCategoryData(uint8)",
 	ScaledBalanceOf = "scaledBalanceOf(address)",
 	BalanceOf = "balanceOf(address)",
+	TotalSupply = "totalSupply()",
 	SetValue = "setValue(string,uint128,uint128)",
 	SetMultipleValues = "setMultipleValues(string[],uint256[])",
 	GetValue = "getValue(string)",
@@ -229,6 +230,27 @@ impl Hydration {
 				continue;
 			};
 
+			// Probe the stable debt token once per market instead of once per borrower: with zero
+			// supply no borrower can hold stable debt, so the per-borrower read is provably
+			// unnecessary and the scan hot path stays at one debt call per borrowed reserve. On a
+			// probe failure assume the worst and pay for the per-borrower read — under-reporting
+			// debt overstates HF and silently prunes stable-only borrowers as "repaid".
+			let has_stable_debt = if reserve.stable_debt_token_address.is_zero() {
+				false
+			} else {
+				match self.fetch_total_supply(api, block, reserve.stable_debt_token_address) {
+					Ok(supply) => !supply.is_zero(),
+					Err(e) => {
+						log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): failed to fetch stable debt supply, assuming the reserve carries stable debt, reserve: {:?}, symbol: {:?}, err: {:?}, duration: {:?}", self.log_prefix, reserve_addr, symbol, e, timer.elapsed().as_nanos());
+						true
+					}
+				}
+			};
+
+			if has_stable_debt || reserve.stable_rate_borrowing_enabled() {
+				log::error!(target: LOG_TARGET, "{:?}: fetch_money_market(): reserve has stable-rate borrowing live (new borrows enabled: {}, outstanding supply: {}) — the stable leg is counted, but no PEPL liquidation has ever executed against real stable debt, reserve: {:?}, symbol: {:?}", self.log_prefix, reserve.stable_rate_borrowing_enabled(), has_stable_debt, reserve_addr, symbol);
+			}
+
 			reserves.insert(
 				reserve_addr,
 				Reserve {
@@ -240,6 +262,7 @@ impl Hydration {
 					price,
 					existential_deposit,
 					emode,
+					has_stable_debt,
 				},
 			);
 		}
@@ -368,8 +391,9 @@ impl Hydration {
 			.ok_or(Error::Arithmetic("convert to base calculation overflow"))
 	}
 
-	// Function fetches and convert variable debt to [BASE] currency.
-	// NOTE: stable debt is deprecated and we are not using it so this function doesn't account for it.
+	/// Function fetches and converts the borrower's total debt (variable + stable) to [BASE]
+	/// currency. The stable leg is skipped unless `Reserve::has_stable_debt` says the reserve
+	/// carries any — see `fetch_money_market`.
 	fn fetch_borrower_debt_and_convert_to_base<B: Block, RA: RuntimeApiProvider<B>>(
 		&self,
 		api: &RA,
@@ -378,18 +402,35 @@ impl Hydration {
 		reserve: &Reserve,
 		now: Timestamp,
 	) -> Result<U256, Error> {
-		let b = self.fetch_scaled_balance_of(api, block, who, reserve.data.variable_debt_token_address)?;
+		let scaled = self.fetch_scaled_balance_of(api, block, who, reserve.data.variable_debt_token_address)?;
 
-		if b.is_zero() {
-			return Ok(b);
+		let variable = if scaled.is_zero() {
+			scaled
+		} else {
+			let Some(norm_debt) = reserve.get_normalized_debt(now) else {
+				return Err(Error::Arithmetic("normalized debt calculation overflow"));
+			};
+
+			ray_mul(scaled, norm_debt).ok_or(Error::Arithmetic("variable debt calculation overflow"))?
 		};
 
-		let Some(norm_debt) = reserve.get_normalized_debt(now) else {
-			return Err(Error::Arithmetic("normalized debt calculation overflow"));
+		// `StableDebtToken.balanceOf` is already compounded to `now` — unlike the variable leg it
+		// must NOT be scaled by an index.
+		let stable = if reserve.has_stable_debt {
+			self.fetch_balance_of(api, block, who, reserve.data.stable_debt_token_address)?
+		} else {
+			U256::zero()
 		};
 
-		convert_to_base_normalized(b, norm_debt, reserve)
-			.ok_or(Error::Arithmetic("convert to base calculation overflow"))
+		let total = variable
+			.checked_add(stable)
+			.ok_or(Error::Arithmetic("total debt calculation overflow"))?;
+
+		if total.is_zero() {
+			return Ok(total);
+		}
+
+		convert_to_base(total, reserve).ok_or(Error::Arithmetic("convert to base calculation overflow"))
 	}
 
 	fn fetch_scaled_balance_of<B: Block, RA: RuntimeApiProvider<B>>(
@@ -399,8 +440,40 @@ impl Hydration {
 		user: EvmAddress,
 		token: EvmAddress,
 	) -> Result<U256, Error> {
-		let mut data = Into::<u32>::into(Function::ScaledBalanceOf).to_be_bytes().to_vec();
-		data.extend_from_slice(H256::from(user).as_bytes());
+		self.fetch_token_uint(api, block, token, Function::ScaledBalanceOf, Some(user))
+	}
+
+	fn fetch_balance_of<B: Block, RA: RuntimeApiProvider<B>>(
+		&self,
+		api: &RA,
+		block: B::Hash,
+		user: EvmAddress,
+		token: EvmAddress,
+	) -> Result<U256, Error> {
+		self.fetch_token_uint(api, block, token, Function::BalanceOf, Some(user))
+	}
+
+	fn fetch_total_supply<B: Block, RA: RuntimeApiProvider<B>>(
+		&self,
+		api: &RA,
+		block: B::Hash,
+		token: EvmAddress,
+	) -> Result<U256, Error> {
+		self.fetch_token_uint(api, block, token, Function::TotalSupply, None)
+	}
+
+	fn fetch_token_uint<B: Block, RA: RuntimeApiProvider<B>>(
+		&self,
+		api: &RA,
+		block: B::Hash,
+		token: EvmAddress,
+		function: Function,
+		user: Option<EvmAddress>,
+	) -> Result<U256, Error> {
+		let mut data = Into::<u32>::into(function).to_be_bytes().to_vec();
+		if let Some(user) = user {
+			data.extend_from_slice(H256::from(user).as_bytes());
+		}
 
 		let gas_limit = U256::from(500_000);
 		let res = api.call(block, self.caller, token, data, gas_limit)?;
@@ -670,10 +743,14 @@ impl Hydration {
 }
 
 #[inline(always)]
-fn convert_to_base_normalized(n: U256, norm_multiplier: U256, r: &Reserve) -> Option<U256> {
-	ray_mul(n, norm_multiplier)?
-		.full_mul(r.price)
+fn convert_to_base(n: U256, r: &Reserve) -> Option<U256> {
+	n.full_mul(r.price)
 		.checked_div(pow10_u512(r.decimals())?)?
 		.try_into()
 		.ok()
+}
+
+#[inline(always)]
+fn convert_to_base_normalized(n: U256, norm_multiplier: U256, r: &Reserve) -> Option<U256> {
+	convert_to_base(ray_mul(n, norm_multiplier)?, r)
 }

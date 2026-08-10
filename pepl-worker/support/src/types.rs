@@ -260,6 +260,14 @@ impl ReserveData {
 
 		Some(r.into())
 	}
+
+	/// Whether the pool admin currently allows NEW stable-rate borrows on this reserve.
+	/// Turning the flag back off leaves already-issued stable debt outstanding, so this must
+	/// never be used to decide whether stable debt needs to be read — only to warn.
+	pub fn stable_rate_borrowing_enabled(&self) -> bool {
+		// bit 59
+		self.configuration.bit(59)
+	}
 }
 
 /// State of asset reserve.
@@ -274,6 +282,12 @@ pub struct Reserve {
 	pub price: U256,
 	pub existential_deposit: Balance,
 	pub emode: Option<EModeCategory>,
+	/// Whether the reserve's stable debt token had any supply at the scanned block. Gates the
+	/// per-borrower stable-debt read: today every Hydration reserve has stable-rate borrowing
+	/// disabled and zero stable supply, so the read is skipped — but the deployed Aave is v3.0/3.1
+	/// and still ships `Pool.swapBorrowRateMode` / `PoolConfigurator.setReserveStableRateBorrowing`,
+	/// so this is a live observation, not a protocol guarantee.
+	pub has_stable_debt: bool,
 }
 
 impl Reserve {

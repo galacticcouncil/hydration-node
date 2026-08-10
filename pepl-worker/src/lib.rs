@@ -62,8 +62,22 @@ const ONE_BASE: u128 = 100_000_000;
 // URL of serve to fetch borrowers list
 const OMNIWATCH_URL: &str = "https://omniwatch.play.hydration.cloud/api/borrowers/by-health";
 
-// Number of liquidation transactions submitted per 1 block
+// Number of liquidation transactions the ORACLE FAST PATH submits per block. The per-block scan is
+// deliberately uncapped — see `MAX_SCAN_DRY_RUNS_PER_BLOCK`.
 const LIQUIDATIONS_PER_BLOCK: u8 = 20;
+
+// Safety valve on the per-block scan, which submits on find rather than sorting and truncating:
+// every decision costs a full flash-loan + Omnipool `dry_run_liquidation` on the collator's
+// block-import path, so a mass-liquidation event must not be able to spend unbounded time there.
+//
+// This is NOT the operator-facing `liquidations_per_block` policy. Capping the scan at a small
+// number would be worse than not capping it: the shards run in parallel with no global sort, so the
+// survivors would be an arbitrary subset rather than the largest positions — the tx pool already
+// picks the right ones, ordering by `unsigned_priority` (= collateral at risk). The valve is
+// therefore set above what a block can execute anyway (~250-600 `liquidate` calls fit the normal
+// PoV budget), so it only ever trims work that could not have landed this block, and `longevity(1)`
+// plus the next block's scan re-finds whatever was trimmed.
+pub const MAX_SCAN_DRY_RUNS_PER_BLOCK: usize = 256;
 
 // Default worker log prefix (overridable once a CLI flag exists).
 const DEFAULT_LOG_PREFIX: &str = "pepl-worker";
@@ -545,7 +559,10 @@ pub struct LiquidationWorkerCli {
 	#[clap(long)]
 	pub omniwatch_url: Option<String>,
 
-	/// Number of liquidation transaction submitted per block.
+	/// Number of liquidation transactions the oracle fast path submits per block.
+	///
+	/// It does NOT bound the per-block scan, which submits on find and lets the tx pool order by
+	/// `unsigned_priority`; the scan's own backstop is `MAX_SCAN_DRY_RUNS_PER_BLOCK`.
 	#[clap(long)]
 	pub liquidations_per_block: Option<u8>,
 
@@ -605,7 +622,8 @@ pub struct LiquidationTaskConfig {
 	/// URL to fetch list of borrowers.
 	pub omniwatch_url: String,
 
-	/// Number of liquidation transaction submitted per block.
+	/// Number of liquidation transactions the oracle fast path submits per block. The per-block
+	/// scan is uncapped by design — see `MAX_SCAN_DRY_RUNS_PER_BLOCK`.
 	pub liquidations_per_block: u8,
 
 	/// Min. borrower's collateral in [BASE] to calculate liquidation.
@@ -1869,6 +1887,9 @@ where
 		  // Counts liquidations FOUND and handed to the pool, not accepted ones — the spawned
 		  // submits outlive this scope, so their results are logged per-tx inside the task.
 		  let found = AtomicUsize::new(0);
+		  // Permits for the expensive half of a decision (`dry_run_liquidation`), reserved
+		  // atomically across the shards. See `MAX_SCAN_DRY_RUNS_PER_BLOCK`.
+		  let dry_runs = AtomicUsize::new(0);
 
 		  tokio::task::block_in_place(|| {
 			  std::thread::scope(|scope| {
@@ -1880,6 +1901,7 @@ where
 					  let scan_ctxs = &scan_ctxs;
 					  let cfg = &task.cfg;
 					  let found = &found;
+					  let dry_runs = &dry_runs;
 					  let best = b.hash;
 					  let submit_cooldown = &submit_cooldown;
 					  scope.spawn(move || {
@@ -1910,6 +1932,8 @@ where
 										  .is_some_and(|until| block_number < *until);
 									  if on_cooldown {
 										  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): borrower {:?} is on submit cooldown, not resubmitting", mapped.user);
+									  } else if dry_runs.fetch_add(1, Ordering::Relaxed) >= MAX_SCAN_DRY_RUNS_PER_BLOCK {
+										  log::warn!(target: LOG_TARGET, "{log_prefix:?} run(): per-block scan valve of {MAX_SCAN_DRY_RUNS_PER_BLOCK} decisions reached, deferring borrower {:?} to the next block", mapped.user);
 									  } else {
 										  let call = liquidation_call(&mapped, ctx.mm.pool);
 										  // v1 dry-ran before resubmitting "to prevent spamming with

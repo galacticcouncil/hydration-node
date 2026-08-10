@@ -90,6 +90,9 @@ pub mod liquidation {
 		#[method(name = "liquidation_isRunning")]
 		async fn is_running(&self) -> RpcResult<bool>;
 
+		/// The oracle fast path's per-block submission cap. Kept under the v1 name for existing
+		/// monitors, but v1 returned a weight-derived cap that bounded every submission path; in v2
+		/// the per-block scan is uncapped by design and this value does not bound it.
 		#[method(name = "liquidation_maxTransactionsPerBlock")]
 		async fn max_transactions_per_block(&self) -> RpcResult<usize>;
 
