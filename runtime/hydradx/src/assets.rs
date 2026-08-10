@@ -32,7 +32,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
+		Get, Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -609,6 +609,16 @@ impl Contains<AccountId> for DepositLockWhitelist {
 	}
 }
 
+/// True while a route is being executed - the only time the router holds a balance and a deposit
+/// error unwinds it.
+pub struct InTradeContext;
+
+impl Get<bool> for InTradeContext {
+	fn get() -> bool {
+		pallet_broadcast::Pallet::<Runtime>::get_swapper().is_some()
+	}
+}
+
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
@@ -620,6 +630,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DepositLockWhitelist = DepositLockWhitelist;
+	type InTradeContext = InTradeContext;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
