@@ -24,11 +24,16 @@ use hydradx_traits::evm::{CallContext, CallResult, Erc20Encoding, Erc20Mapping, 
 use orml_traits::parameter_type_with_key;
 use pallet_transaction_payment::FungibleAdapter;
 use primitives::{AssetId, Balance, EvmAddress};
+use sp_core::offchain::{
+	testing::{PoolState, TestTransactionPoolExt},
+	TransactionPoolExt,
+};
 use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	traits::{BlakeTwo256, Convert, IdentityLookup},
 	AccountId32, BuildStorage, DispatchError, SaturatedConversion,
 };
+use sp_std::sync::Arc;
 
 use crate::{self as pallet_lazy_executor, pallet, Function};
 
@@ -399,5 +404,15 @@ impl ExtBuilder {
 		});
 
 		r
+	}
+
+	/// Externalities with a transaction pool attached, so the offchain worker's unsigned
+	/// submissions land somewhere inspectable.
+	pub fn build_with_pool(self) -> (sp_io::TestExternalities, Arc<parking_lot::RwLock<PoolState>>) {
+		let mut ext = self.build();
+		let (pool, pool_state) = TestTransactionPoolExt::new();
+		ext.register_extension(TransactionPoolExt::new(pool));
+
+		(ext, pool_state)
 	}
 }

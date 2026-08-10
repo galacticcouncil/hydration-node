@@ -1,6 +1,6 @@
 [package]
 name = "pallet-lazy-executor"
-version = "1.1.0"
+version = "1.1.1"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -43,6 +43,7 @@ pretty_assertions = { workspace = true }
 pallet-balances = { workspace = true }
 hex-literal = { workspace = true }
 orml-tokens = { workspace = true, features = ["std"] }
+parking_lot = { workspace = true }
 
 [features]
 default = ["std"]

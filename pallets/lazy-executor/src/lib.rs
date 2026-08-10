@@ -226,25 +226,29 @@ pub mod pallet {
 		fn offchain_worker(block_number: BlockNumberFor<T>) {
 			log::debug!(target: LOG_TARGET, "run offchain worker on block: {block_number:?}");
 
+			// Probe AT the cursor, never ahead of it: `dispatch_top` consumes the job at
+			// `DispatchNextId`, so checking `cursor + 1` left the newest queue entry
+			// undrainable and stalled any consumer whose queue depth was one.
 			let mut next_id = Self::dispatch_next_id();
 			for _ in 0..Self::max_txs_per_block() {
+				if !CallQueue::<T>::contains_key(next_id) {
+					log::debug!(target: LOG_TARGET, "nothing queued at {next_id:?}");
+					break;
+				}
+
+				let call = Call::dispatch_top { id: next_id };
+				let tx = T::create_bare(call.into());
+				if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
+					// Submission is best-effort — a full pool is not a bug, and the job stays
+					// queued for the next block.
+					log::error!(target: LOG_TARGET, "failed to submit dispatch_top call, err: {e:?}");
+				}
+
 				next_id = if let Some(n) = next_id.checked_add(1_u128) {
 					n
 				} else {
-					log::debug!(target: LOG_TARGET, "queue is empty");
 					break;
 				};
-
-				if CallQueue::<T>::contains_key(next_id) {
-					let call = Call::dispatch_top { id: next_id };
-					let tx = T::create_bare(call.into());
-					if let Err(e) = SubmitTransaction::<T, Call<T>>::submit_transaction(tx) {
-						debug_assert!(false, "laxy-executorn: failed to submit dispatch_top transaction");
-						log::error!(target: LOG_TARGET, "to submit dispatch_top call, err: {e:?}");
-					}
-				} else {
-					break;
-				}
 			}
 		}
 	}
