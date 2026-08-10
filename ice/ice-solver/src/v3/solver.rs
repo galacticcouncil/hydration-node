@@ -95,11 +95,11 @@ const MAX_SEARCH_ITERATIONS: u32 = 64;
 const MAX_STABILIZATION_ROUNDS: u32 = 6;
 
 fn empty_solution() -> Solution {
-	Solution {
-		resolved_intents: ResolvedIntents::truncate_from(Vec::new()),
-		trades: SolutionTrades::truncate_from(Vec::new()),
-		score: 0,
-	}
+	Solution::new(
+		ResolvedIntents::truncate_from(Vec::new()),
+		SolutionTrades::truncate_from(Vec::new()),
+		0,
+	)
 }
 
 fn unordered_pair(a: AssetId, b: AssetId) -> AssetPair {
@@ -347,11 +347,11 @@ impl<A: AMMInterface> Solver<A> {
 				round, resolved_intents.len(), executed_trades.len(), total_score, included.len());
 
 			if resolved_intents.len() == included.len() {
-				return Ok(Solution {
-					resolved_intents: ResolvedIntents::truncate_from(resolved_intents),
-					trades: SolutionTrades::truncate_from(executed_trades),
-					score: total_score,
-				});
+				return Ok(Solution::new(
+					ResolvedIntents::truncate_from(resolved_intents),
+					SolutionTrades::truncate_from(executed_trades),
+					total_score,
+				));
 			}
 
 			let resolved_ids: BTreeSet<IntentId> = resolved_intents.iter().map(|r| r.id).collect();
@@ -1207,15 +1207,15 @@ impl<A: AMMInterface> Solver<A> {
 			}),
 		};
 
-		Ok(Solution {
-			resolved_intents: ResolvedIntents::truncate_from(vec![resolved]),
-			trades: SolutionTrades::truncate_from(vec![PoolTrade {
+		Ok(Solution::new(
+			ResolvedIntents::truncate_from(vec![resolved]),
+			SolutionTrades::truncate_from(vec![PoolTrade {
 				direction: SwapType::ExactIn,
 				amount_in: actual_fill,
 				amount_out: net_out,
 				route,
 			}]),
-			score: surplus,
-		})
+			surplus,
+		))
 	}
 }

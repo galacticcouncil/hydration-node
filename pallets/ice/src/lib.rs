@@ -47,6 +47,7 @@ use hydradx_traits::evm::ExtraGasSupport;
 use hydradx_traits::registry::Inspect;
 use ice_support::AssetId;
 use ice_support::Balance;
+use ice_support::BlockNumber;
 use ice_support::Intent;
 use ice_support::IntentData;
 use ice_support::IntentId;
@@ -59,6 +60,7 @@ use pallet_route_executor::AmmTradeWeights;
 use sp_core::U256;
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedConversion;
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_runtime::Permill;
 use sp_std::borrow::ToOwned;
 use sp_std::collections::btree_map::BTreeMap;
@@ -150,6 +152,9 @@ pub mod pallet {
 			intents_executed: u64,
 			trades_executed: u64,
 			score: Score,
+			/// Block the solution was built against — subtract from the block
+			/// carrying this event to get submit-to-execution drift.
+			built_at: BlockNumber,
 		},
 		/// Protocol fee has been updated.
 		ProtocolFeeSet { fee: Permill },
@@ -381,6 +386,7 @@ pub mod pallet {
 				intents_executed: solution.resolved_intents.len() as u64,
 				trades_executed: solution.trades.len() as u64,
 				score: solution.score,
+				built_at: solution.built_at,
 			});
 
 			Ok(())
@@ -730,10 +736,11 @@ impl<T: Config> Pallet<T> {
 
 		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
 
-		let Some(solution) = solve(intents, min_amounts_out, state) else {
+		let Some(mut solution) = solve(intents, min_amounts_out, state) else {
 			log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver returned no solution, block: {block_no:?}");
 			return None;
 		};
+		solution.built_at = block_no.unique_saturated_into();
 
 		if solution.resolved_intents.is_empty() {
 			log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver returned empty solution (no resolvable intents), block: {block_no:?}");

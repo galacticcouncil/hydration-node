@@ -147,11 +147,11 @@ fn validate_unsingned_should_work_when_submitted_solution_is_valid() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 1_000_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				1_000_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s };
 
@@ -303,11 +303,11 @@ fn validate_unsingned_should_not_work_when_submitted_solution_score_is_not_corre
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 1_000_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				1_000_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s.clone() };
 
@@ -499,11 +499,11 @@ fn validate_unsingned_should_not_work_when_intentent_not_found() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s.clone() };
 
@@ -650,11 +650,11 @@ fn validate_unsingned_should_not_work_when_solution_has_duplicate_intents() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s.clone() };
 
@@ -800,11 +800,11 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_in_l
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s };
 
@@ -950,11 +950,11 @@ fn validate_unsingned_should_not_work_when_solution_have_intent_with_amount_out_
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s };
 
@@ -1082,11 +1082,11 @@ fn validate_unsigned_should_not_work_when_execution_prices_are_not_consistent() 
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s };
 
@@ -1214,11 +1214,11 @@ fn validate_unsigned_should_not_work_when_intent_is_not_resolved_at_execution_pr
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			let call = Call::submit_solution { solution: s };
 

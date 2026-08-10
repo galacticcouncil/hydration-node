@@ -149,11 +149,11 @@ fn solution_execution_should_work_when_solution_is_valid() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 1_000_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				1_000_000_030_000_000_000_u128,
+			);
 
 			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s));
 		});
@@ -294,11 +294,11 @@ fn solution_execution_should_not_work_when_score_is_not_valid() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_000_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_000_000_000_000_u128,
+			);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),
@@ -466,11 +466,7 @@ fn solution_execution_should_not_work_when_contains_duplicate_intents() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 0_u128,
-			};
+			let s = Solution::new(resolved.try_into().unwrap(), trades.try_into().unwrap(), 0_u128);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),
@@ -614,11 +610,11 @@ fn solution_execution_should_not_work_when_intent_owner_is_not_found() {
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),
@@ -717,11 +713,11 @@ fn solution_execution_should_work_when_solution_has_single_intent() {
 				.unwrap(),
 			}];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 10_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				10_000_000_000_u128,
+			);
 
 			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s));
 		});
@@ -817,11 +813,7 @@ fn solution_execution_should_work_when_solution_has_zero_score() {
 				.unwrap(),
 			}];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 0_u128,
-			};
+			let s = Solution::new(resolved.try_into().unwrap(), trades.try_into().unwrap(), 0_u128);
 
 			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s));
 		});
@@ -962,11 +954,11 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_in_l
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),
@@ -1110,11 +1102,11 @@ fn solution_execution_should_not_work_when_solution_have_intent_with_amount_out_
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 500_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				500_000_030_000_000_000_u128,
+			);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),
@@ -1258,11 +1250,11 @@ fn solution_execution_should_not_work_when_intent_is_not_resolved_at_execution_p
 				},
 			];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: 1_000_000_030_000_000_000_u128,
-			};
+			let s = Solution::new(
+				resolved.try_into().unwrap(),
+				trades.try_into().unwrap(),
+				1_000_000_030_000_000_000_u128,
+			);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),

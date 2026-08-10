@@ -5662,7 +5662,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.2.0"
+version = "15.3.0"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5822,7 +5822,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "435.0.0"
+version = "436.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -6135,7 +6135,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -6179,7 +6179,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9937,7 +9937,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",

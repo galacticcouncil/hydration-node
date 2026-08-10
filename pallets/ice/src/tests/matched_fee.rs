@@ -79,11 +79,7 @@ fn submit_solution_should_sweep_matched_fee_to_fee_receiver_when_intents_offset_
 			// surplus = net_out - min_out, summed across intents (raw u128 sum).
 			let score = (net_dot - 900 * ONE_DOT) + (net_hdx - 900 * ONE_HDX);
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: Default::default(),
-				score,
-			};
+			let s = Solution::new(resolved.try_into().unwrap(), Default::default(), score);
 
 			let pot = ICE::get_pallet_account();
 			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s));
@@ -146,11 +142,7 @@ fn submit_solution_should_collect_no_fee_when_all_volume_amm_routed() {
 				.unwrap(),
 			}];
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: trades.try_into().unwrap(),
-				score: ONE_DOT,
-			};
+			let s = Solution::new(resolved.try_into().unwrap(), trades.try_into().unwrap(), ONE_DOT);
 
 			assert_ok!(ICE::submit_solution(RuntimeOrigin::none(), s));
 
@@ -204,11 +196,7 @@ fn submit_solution_should_fail_when_holding_pot_residual_below_expected_fee() {
 
 			let score = (1_000 * ONE_DOT - 900 * ONE_DOT) + (1_000 * ONE_HDX - 900 * ONE_HDX);
 
-			let s = Solution {
-				resolved_intents: resolved.try_into().unwrap(),
-				trades: Default::default(),
-				score,
-			};
+			let s = Solution::new(resolved.try_into().unwrap(), Default::default(), score);
 
 			assert_noop!(
 				ICE::submit_solution(RuntimeOrigin::none(), s),

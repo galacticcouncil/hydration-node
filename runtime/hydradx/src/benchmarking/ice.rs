@@ -96,11 +96,7 @@ runtime_benchmarks! {
 		}
 
 		let score = 0;
-		let s = Solution {
-			resolved_intents: resolved_intents.try_into().unwrap(),
-			trades: BoundedVec::new(),
-			score,
-		};
+		let s = Solution::new(resolved_intents.try_into().unwrap(), BoundedVec::new(), score);
 
 		assert!(LazyExecutor::call_queue(0).is_none());
 		assert!(Intent::get_intent(id).is_some());

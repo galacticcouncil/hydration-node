@@ -98,11 +98,11 @@ struct DirAccum {
 }
 
 fn empty_solution() -> Solution {
-	Solution {
-		resolved_intents: ResolvedIntents::truncate_from(Vec::new()),
-		trades: SolutionTrades::truncate_from(Vec::new()),
-		score: 0,
-	}
+	Solution::new(
+		ResolvedIntents::truncate_from(Vec::new()),
+		SolutionTrades::truncate_from(Vec::new()),
+		0,
+	)
 }
 
 fn unordered_pair(a: AssetId, b: AssetId) -> (AssetId, AssetId) {
@@ -784,11 +784,11 @@ impl<A: AMMInterface> Solver<A> {
 				stabilization_round, resolved_intents.len(), executed_trades.len(), total_score, included.len());
 
 			if resolved_intents.len() == included.len() {
-				return Ok(Solution {
-					resolved_intents: ResolvedIntents::truncate_from(resolved_intents),
-					trades: SolutionTrades::truncate_from(executed_trades),
-					score: total_score,
-				});
+				return Ok(Solution::new(
+					ResolvedIntents::truncate_from(resolved_intents),
+					SolutionTrades::truncate_from(executed_trades),
+					total_score,
+				));
 			}
 
 			// Shrink and retry
@@ -880,16 +880,16 @@ impl<A: AMMInterface> Solver<A> {
 			}),
 		};
 
-		Ok(Solution {
-			resolved_intents: ResolvedIntents::truncate_from(vec![resolved]),
-			trades: SolutionTrades::truncate_from(vec![PoolTrade {
+		Ok(Solution::new(
+			ResolvedIntents::truncate_from(vec![resolved]),
+			SolutionTrades::truncate_from(vec![PoolTrade {
 				direction: SwapType::ExactIn,
 				amount_in: actual_fill,
 				amount_out: adjust_amm_output(amount_out),
 				route,
 			}]),
-			score: surplus,
-		})
+			surplus,
+		))
 	}
 
 	/// Binary search for the maximum partial fill amount where AMM output meets the minimum rate.

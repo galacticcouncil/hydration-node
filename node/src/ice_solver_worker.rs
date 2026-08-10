@@ -105,7 +105,10 @@ impl Drop for BusyGuard {
 /// stream, or tx-pool — directly unit-testable. Returns the opaque extrinsic plus
 /// the decode and solve durations (ms). `None` when the snapshot fails to decode,
 /// the solve fails, or the solution resolves no intents.
-pub(crate) fn build_extrinsic(input: SolverInput) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
+///
+/// `built_at` is the block the input state was read at; it is stamped into the
+/// solution so consecutive solutions never share an extrinsic hash.
+pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
 	let t_decode = Instant::now();
 	let state: <HydrationSimulators as SimulatorSet>::State = match Decode::decode(&mut &input.state[..]) {
 		Ok(state) => state,
@@ -126,7 +129,7 @@ pub(crate) fn build_extrinsic(input: SolverInput) -> Option<(sp_runtime::OpaqueE
 
 	let t_solve = Instant::now();
 	let min_outs = input.min_amount_out.into_iter().collect();
-	let solution =
+	let mut solution =
 		Solver::<HydrationSimulator<NodeSimulatorConfig>>::solve_with_limits(input.intents, min_outs, state, input.fee)
 			.ok()?;
 	let solve_ms = t_solve.elapsed().as_millis();
@@ -134,6 +137,8 @@ pub(crate) fn build_extrinsic(input: SolverInput) -> Option<(sp_runtime::OpaqueE
 	if solution.resolved_intents.is_empty() {
 		return None;
 	}
+
+	solution.built_at = built_at;
 
 	let call = RuntimeCall::ICE(pallet_ice::Call::submit_solution { solution });
 	let xt = HydraUncheckedExtrinsic::new_bare(call);
@@ -222,7 +227,7 @@ where
 				let state_query_ms = t_state.elapsed().as_millis();
 				let intents = input.intents.len() as u32;
 
-				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input) else {
+				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no) else {
 					tracing::debug!(target: LOG_TARGET, "no solution for block {block_no}");
 					return;
 				};
@@ -322,7 +327,7 @@ mod tests {
 			min_amount_out: Vec::new(),
 			fee: Permill::zero(),
 		};
-		assert!(build_extrinsic(input).is_none());
+		assert!(build_extrinsic(input, 1).is_none());
 	}
 
 	#[test]

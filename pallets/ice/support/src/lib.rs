@@ -12,6 +12,7 @@ use sp_core::U256;
 
 pub type AssetId = u32;
 pub type Balance = u128;
+pub type BlockNumber = u32;
 pub type IntentId = u128;
 pub type Score = u128;
 
@@ -315,6 +316,28 @@ pub struct Solution {
 	pub resolved_intents: ResolvedIntents,
 	pub trades: SolutionTrades,
 	pub score: Score,
+	/// Block whose state the solution was built against, stamped by the submitter.
+	///
+	/// Never read by the runtime — it exists so that two solutions built one block
+	/// apart never encode to the same bytes (an identical extrinsic hash gets
+	/// refused by the tx pool as `TemporarilyBanned` after the previous one was
+	/// rejected or went stale), and so submit→execute drift is observable.
+	/// Unforgeable today only because `submit_solution` is `Local`-only; if solver
+	/// competition opens the call up, gate it with `built_at < current_block`.
+	pub built_at: BlockNumber,
+}
+
+impl Solution {
+	/// Solvers do not know which block their input snapshot came from — the
+	/// submitter stamps `built_at`.
+	pub fn new(resolved_intents: ResolvedIntents, trades: SolutionTrades, score: Score) -> Self {
+		Self {
+			resolved_intents,
+			trades,
+			score,
+			built_at: 0,
+		}
+	}
 }
 
 #[derive(Debug, DecodeWithMemTracking, Clone, Encode, Decode, TypeInfo, PartialEq, Eq)]
@@ -327,4 +350,39 @@ pub struct PoolTrade {
 	pub amount_out: Balance,
 	/// Type of pool used for this transaction
 	pub route: Route<AssetId>,
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn solution_at(built_at: BlockNumber) -> Solution {
+		let mut s = Solution::new(
+			ResolvedIntents::truncate_from(Vec::new()),
+			SolutionTrades::truncate_from(Vec::new()),
+			42,
+		);
+		s.built_at = built_at;
+		s
+	}
+
+	#[test]
+	fn solution_should_encode_differently_when_built_at_differs() {
+		assert_ne!(solution_at(747_864).encode(), solution_at(747_865).encode());
+	}
+
+	#[test]
+	fn solution_should_encode_identically_when_built_at_matches() {
+		assert_eq!(solution_at(747_864).encode(), solution_at(747_864).encode());
+	}
+
+	#[test]
+	fn solution_new_should_leave_built_at_unstamped() {
+		let s = Solution::new(
+			ResolvedIntents::truncate_from(Vec::new()),
+			SolutionTrades::truncate_from(Vec::new()),
+			42,
+		);
+		assert_eq!(s.built_at, 0);
+	}
 }

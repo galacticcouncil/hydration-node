@@ -31,7 +31,6 @@ use hydradx_traits::PriceOracle;
 use ice_support::SwapType;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
-use pallet_intent::types::CallData;
 use pallet_intent::types::IntentInput;
 use pallet_route_executor::ExecutorError;
 use pallet_route_executor::Trade;
@@ -182,12 +181,11 @@ impl pallet_timestamp::Config for Test {
 pub struct DummyLazyExecutor<T>(sp_std::marker::PhantomData<T>);
 impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyExecutor<T> {
 	type Error = DispatchError;
-	type BoundedCall = CallData;
 
 	fn queue(
 		_src: hydradx_traits::lazy_executor::Source,
 		_origin: AccountId,
-		_call: Self::BoundedCall,
+		_forward: hydradx_traits::lazy_executor::ForwardAction,
 	) -> Result<(), Self::Error> {
 		Ok(())
 	}
