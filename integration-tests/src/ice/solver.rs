@@ -5,7 +5,7 @@ use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::{Get, Time};
 use hydradx_runtime::{
-	ice_simulator_provider, AssetRegistry, Currencies, Omnipool, Router, Runtime, RuntimeOrigin, Timestamp,
+	ice_simulator_provider, AssetRegistry, Currencies, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
 };
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::registry::Inspect as RegistryInspect;
@@ -2565,10 +2565,38 @@ fn _eth_3pool_two_opposing_intents() {
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), eth, alice_eth_amount * 100)
-		.endow_account(bob.clone(), pool3, bob_3pool_amount * 100)
 		// Also give some of the opposite asset
-		.endow_account(alice.clone(), pool3, unit)
 		.endow_account(bob.clone(), eth, unit)
+		// 3pool shares are minted through the pallet and moved by transfer: endowing them
+		// would mint share tokens outside pallet-stableswap, which its issuance invariant forbids.
+		.execute(|| {
+			let pool = pallet_stableswap::Pools::<Runtime>::get(pool3).expect("3pool in snapshot");
+			let deposit_asset = *pool
+				.assets
+				.iter()
+				.find(|a| AssetRegistry::contract_address(**a).is_none())
+				.expect("3pool has a non-erc20 asset");
+			let funding = 10_000u128 * 10u128.pow(AssetRegistry::decimals(deposit_asset).expect("decimals") as u32);
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				bob.clone(),
+				deposit_asset,
+				funding as i128,
+			));
+			assert_ok!(Stableswap::add_liquidity_shares(
+				RuntimeOrigin::signed(bob.clone()),
+				pool3,
+				bob_3pool_amount + 2 * unit,
+				deposit_asset,
+				funding,
+			));
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(bob.clone()),
+				alice.clone(),
+				pool3,
+				unit,
+			));
+		})
 		// Alice: sell ETH for 3pool
 		.submit_swap_intent(
 			alice.clone(),

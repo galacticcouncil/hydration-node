@@ -25,6 +25,10 @@ const MIN_OUT_BNC: u128 = 68_795_189_840;
 
 const PERIOD: u32 = 5;
 
+/// Lockdown horizon for the trade-failure tests — must outlast the retry loop,
+/// since the breaker only rejects while `until > current_block`.
+const LOCKDOWN_BLOCKS: u32 = 1_000;
+
 // 10% slippage — realistic user setting for recurring DCA trades.
 // Oracle limit = estimated_out * 0.90, giving the solver enough room across periods
 // as the oracle adjusts between blocks.
@@ -1411,7 +1415,6 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 
 	TestNet::reset();
 	let alice: AccountId = ALICE.into();
-	let bob: AccountId = BOB.into();
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		enable_slip_fees();
@@ -1442,9 +1445,13 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 			(budget * 10) as i128,
 		));
 
-		// Trigger circuit-breaker lockdown on pool_id by pinning and exceeding its deposit limit.
-		crate::deposit_limiter::update_deposit_limit(pool_id, ed_pool).unwrap();
-		assert_ok!(Currencies::deposit(pool_id, &bob, ed_pool * 2));
+		// Lock pool_id directly — depositing over its limit would mint shares outside
+		// pallet-stableswap, which its issuance invariant forbids.
+		assert_ok!(hydradx_runtime::CircuitBreaker::lockdown_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			hydradx_runtime::System::block_number() + LOCKDOWN_BLOCKS,
+		));
 
 		assert_ok!(hydradx_runtime::Intent::submit_intent(
 			RuntimeOrigin::signed(alice.clone()),
@@ -1509,7 +1516,7 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 9554442994231870064, "score");
+			assert_eq!(solution.score, 9554442994231870026, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1520,7 +1527,7 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 100);
 				assert_eq!(s.amount_in, 10000000u128);
-				assert_eq!(s.amount_out, 9554442994231871064u128);
+				assert_eq!(s.amount_out, 9554442994231871026u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1627,7 +1634,6 @@ fn dca_retries_every_block_until_success() {
 
 	TestNet::reset();
 	let alice: AccountId = ALICE.into();
-	let bob: AccountId = BOB.into();
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		enable_slip_fees();
@@ -1658,8 +1664,13 @@ fn dca_retries_every_block_until_success() {
 			(budget * 10) as i128,
 		));
 
-		crate::deposit_limiter::update_deposit_limit(pool_id, ed_pool).unwrap();
-		assert_ok!(Currencies::deposit(pool_id, &bob, ed_pool * 2));
+		// Lock pool_id directly — depositing over its limit would mint shares outside
+		// pallet-stableswap, which its issuance invariant forbids.
+		assert_ok!(hydradx_runtime::CircuitBreaker::lockdown_asset(
+			hydradx_runtime::RuntimeOrigin::root(),
+			pool_id,
+			hydradx_runtime::System::block_number() + LOCKDOWN_BLOCKS,
+		));
 
 		assert_ok!(hydradx_runtime::Intent::submit_intent(
 			RuntimeOrigin::signed(alice.clone()),
@@ -1726,7 +1737,7 @@ fn dca_retries_every_block_until_success() {
 		{
 			let solution = run_solver_and_submit();
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 9554442994231870064, "score");
+			assert_eq!(solution.score, 9554442994231870026, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1737,7 +1748,7 @@ fn dca_retries_every_block_until_success() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 100);
 				assert_eq!(s.amount_in, 10000000u128);
-				assert_eq!(s.amount_out, 9554442994231871064u128);
+				assert_eq!(s.amount_out, 9554442994231871026u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
