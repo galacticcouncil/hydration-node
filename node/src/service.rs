@@ -644,7 +644,7 @@ fn start_consensus(
 		reinitialize: false,
 		slot_offset: Duration::from_secs(1),
 		block_import_handle,
-		spawner: task_manager.spawn_handle(),
+		spawner: task_manager.spawn_essential_handle(),
 		relay_chain_slot_duration,
 		export_pov: None,
 		max_pov_percentage: None,
