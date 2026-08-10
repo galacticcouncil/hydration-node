@@ -453,10 +453,10 @@ impl BatchHook for ManageExecutionTypeForUnifiedEvent {
 		Ok(())
 	}
 
-	fn on_batch_end() -> DispatchResult {
-		Broadcast::remove_from_context()?;
-
-		Ok(())
+	fn on_batch_end() {
+		// Items may already be committed, so there is nothing actionable here; `remove_from_context`
+		// logs the underflow case itself.
+		let _ = Broadcast::remove_from_context();
 	}
 }
 
