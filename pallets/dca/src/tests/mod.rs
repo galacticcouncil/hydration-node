@@ -37,11 +37,11 @@ impl ScheduleBuilder {
 			slippage: Some(None),
 			total_amount: Some(1000 * ONE),
 			max_retries: Some(None),
-			order: Some(Order::Buy {
+			order: Some(Order::Sell {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_out: ONE,
-				max_amount_in: 2 * ONE,
+				amount_in: 10 * ONE,
+				min_amount_out: 0,
 				route: create_bounded_vec(vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,
