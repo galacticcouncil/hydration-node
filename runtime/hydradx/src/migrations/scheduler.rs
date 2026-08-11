@@ -43,8 +43,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 		}
 
 		let current_block = T::BlockNumberProvider::current_block_number();
-		let agenda = pallet_scheduler::Agenda::<T>::iter().collect::<Vec<_>>();
-		let agenda_len = agenda.len() as u64;
+		let agenda_len = pallet_scheduler::Agenda::<T>::iter().count() as u64;
 
 		log::info!("MigrateSchedulerTo2sBlocks found Agenda entries: {agenda_len:?}, cap: {MAX_AGENDA_ENTRIES:?}",);
 
@@ -55,6 +54,9 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 			return T::DbWeight::get().reads_writes(agenda_len.saturating_add(1), 0);
 		}
 
+		// Remove every old key before inserting scaled keys, as a destination may still be an original key.
+		let agenda = pallet_scheduler::Agenda::<T>::drain().collect::<Vec<_>>();
+
 		for (old_block, mut schedules) in agenda {
 			for scheduled in schedules.iter_mut().flatten() {
 				if let Some((period, _remaining)) = scheduled.maybe_periodic.as_mut() {
@@ -64,7 +66,6 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 
 			let new_block = Self::scale_block(old_block, current_block);
 
-			pallet_scheduler::Agenda::<T>::remove(old_block);
 			pallet_scheduler::Agenda::<T>::insert(new_block, schedules);
 		}
 
@@ -72,7 +73,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 
 		log::info!("MigrateSchedulerTo2sBlocks processed agenda items: {agenda_len:?}",);
 		T::DbWeight::get().reads_writes(
-			agenda_len.saturating_add(1),
+			agenda_len.saturating_mul(2).saturating_add(1),
 			agenda_len.saturating_mul(2).saturating_add(1),
 		)
 	}
@@ -85,7 +86,7 @@ mod test {
 	use frame_support::assert_ok;
 
 	#[test]
-	fn migrate_scheduler_to_2s_blocks_works() {
+	fn migration_should_preserve_agenda_when_scaled_key_matches_original_key() {
 		let mut ext = sp_io::TestExternalities::new_empty();
 
 		ext.execute_with(|| {
@@ -101,20 +102,26 @@ mod test {
 				3,
 				periodic_call
 			));
+			let colliding_call = Box::new(RuntimeCall::System(frame_system::Call::remark_with_event {
+				remark: vec![2],
+			}));
+			assert_ok!(Scheduler::schedule(RuntimeOrigin::root(), 400, None, 3, colliding_call));
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(200));
+			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(400));
 
 			System::set_block_number(100);
 			MigrateSchedulerTo2sBlocks::<Runtime>::on_runtime_upgrade();
 
 			assert!(!pallet_scheduler::Agenda::<Runtime>::contains_key(200));
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(400));
+			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(1000));
 			let migrated_agenda = pallet_scheduler::Agenda::<Runtime>::get(400);
 			let migrated_schedule = migrated_agenda.first().and_then(Option::as_ref).unwrap();
 			assert_eq!(migrated_schedule.maybe_periodic, Some((30, 2)));
 
 			MigrateSchedulerTo2sBlocks::<Runtime>::on_runtime_upgrade();
 			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(400));
-			assert!(!pallet_scheduler::Agenda::<Runtime>::contains_key(1000));
+			assert!(pallet_scheduler::Agenda::<Runtime>::contains_key(1000));
 		})
 	}
 }
