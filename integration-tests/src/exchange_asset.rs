@@ -255,6 +255,154 @@ fn hydra_should_swap_assets_when_receiving_from_acala_with_buy() {
 	});
 }
 
+type XcmBuyExchanger = hydradx_adapters::xcm_exchange::XcmAssetExchanger<
+	hydradx_runtime::Runtime,
+	hydradx_runtime::TempAccountForXcmAssetExchange,
+	hydradx_runtime::CurrencyIdConvert,
+	hydradx_runtime::Currencies,
+>;
+
+fn aca_location() -> Location {
+	Location::new(1, [Junction::Parachain(ACALA_PARA_ID), Junction::GeneralIndex(0)])
+}
+
+fn hdx_location() -> Location {
+	Location::new(1, [Junction::Parachain(HYDRA_PARA_ID), Junction::GeneralIndex(0)])
+}
+
+fn setup_aca_omnipool() {
+	let _ = with_transaction(|| {
+		register_aca();
+		add_currency_price(ACA, FixedU128::from(1));
+		init_omnipool();
+		let omnipool_account = Omnipool::protocol_account();
+		assert_ok!(hydradx_runtime::Tokens::deposit(ACA, &omnipool_account, 3000 * UNITS));
+		assert_ok!(Omnipool::add_token(
+			RuntimeOrigin::root(),
+			ACA,
+			FixedU128::from_float(1.0),
+			Permill::from_percent(100),
+			AccountId::from(BOB),
+		));
+		TransactionOutcome::Commit(DispatchResult::Ok(()))
+	});
+}
+
+fn sum_holding_of(holding: &[Asset], location: &Location) -> u128 {
+	holding
+		.iter()
+		.filter(|a| a.id.0 == *location)
+		.map(fungible_amount)
+		.sum()
+}
+
+#[test]
+fn exchange_asset_should_fail_when_buy_max_sell_amount_exceeds_deposit_limit() {
+	use orml_traits::MultiReservableCurrency;
+	use xcm_executor::traits::AssetExchange;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange: the exchanger mints `max_sell_amount` into the temp account, so a ceiling above
+		// the deposit limit must be refused even though the trade itself would only spend a part of it.
+		setup_aca_omnipool();
+
+		let deposit_limit = 1_000 * UNITS;
+		let max_sell_amount = 3_000 * UNITS;
+		let want_out = 100 * UNITS;
+		assert_ok!(update_deposit_limit(ACA, deposit_limit));
+
+		let temp = hydradx_runtime::TempAccountForXcmAssetExchange::get();
+		let give: xcm_executor::AssetsInHolding = Asset::from((aca_location(), max_sell_amount)).into();
+		let want: polkadot_xcm::v5::Assets = Asset::from((hdx_location(), want_out)).into();
+
+		// Act
+		let result = <XcmBuyExchanger as AssetExchange>::exchange_asset(None, give, &want, false);
+
+		// Assert: the give assets are handed back untouched, to be trapped by the XCM executor.
+		let returned: Vec<Asset> = result.expect_err("buy over the deposit limit must be refused").into();
+		assert_eq!(sum_holding_of(&returned, &aca_location()), max_sell_amount);
+
+		// Nothing was minted, so the temp account holds neither free nor reserved balance.
+		assert_eq!(hydradx_runtime::Currencies::free_balance(ACA, &temp), 0);
+		crate::assert_reserved_balance!(temp, ACA, 0u128);
+
+		// The asset stays tradable - a refused buy must not put it into lockdown.
+		assert_ok!(<XcmBuyExchanger as AssetExchange>::exchange_asset(
+			None,
+			Asset::from((aca_location(), deposit_limit)).into(),
+			&want,
+			false
+		));
+	});
+}
+
+#[test]
+fn exchange_asset_should_clear_broadcast_context_when_buy_max_sell_amount_exceeds_deposit_limit() {
+	use xcm_executor::traits::AssetExchange;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		setup_aca_omnipool();
+
+		let deposit_limit = 1_000 * UNITS;
+		let max_sell_amount = 3_000 * UNITS;
+		let want_out = 100 * UNITS;
+		assert_ok!(update_deposit_limit(ACA, deposit_limit));
+
+		let give: xcm_executor::AssetsInHolding = Asset::from((aca_location(), max_sell_amount)).into();
+		let want: polkadot_xcm::v5::Assets = Asset::from((hdx_location(), want_out)).into();
+
+		// Act
+		let result = <XcmBuyExchanger as AssetExchange>::exchange_asset(None, give, &want, false);
+
+		// Assert
+		assert!(result.is_err());
+		assert_eq!(
+			pallet_broadcast::Pallet::<hydradx_runtime::Runtime>::get_context(),
+			vec![]
+		);
+	});
+}
+
+#[test]
+fn exchange_asset_should_refund_full_leftover_when_buy_max_sell_amount_is_within_deposit_limit() {
+	use orml_traits::MultiReservableCurrency;
+	use xcm_executor::traits::AssetExchange;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		// Arrange
+		setup_aca_omnipool();
+
+		let deposit_limit = 3_000 * UNITS;
+		let max_sell_amount = 1_000 * UNITS;
+		let want_out = 100 * UNITS;
+		assert_ok!(update_deposit_limit(ACA, deposit_limit));
+
+		let temp = hydradx_runtime::TempAccountForXcmAssetExchange::get();
+		let give: xcm_executor::AssetsInHolding = Asset::from((aca_location(), max_sell_amount)).into();
+		let want: polkadot_xcm::v5::Assets = Asset::from((hdx_location(), want_out)).into();
+
+		let pool_aca_before = hydradx_runtime::Currencies::free_balance(ACA, &Omnipool::protocol_account());
+
+		// Act
+		let holding = <XcmBuyExchanger as AssetExchange>::exchange_asset(None, give, &want, false)
+			.expect("buy within the deposit limit must succeed");
+
+		// Assert
+		let returned: Vec<Asset> = holding.into();
+		assert_eq!(sum_holding_of(&returned, &hdx_location()), want_out);
+
+		// Everything minted and not spent comes back to the caller - none of it is left behind.
+		let amount_in = hydradx_runtime::Currencies::free_balance(ACA, &Omnipool::protocol_account()) - pool_aca_before;
+		assert_eq!(sum_holding_of(&returned, &aca_location()), max_sell_amount - amount_in);
+		assert_eq!(hydradx_runtime::Currencies::free_balance(ACA, &temp), 0);
+		crate::assert_reserved_balance!(temp, ACA, 0u128);
+	});
+}
+
 pub mod zeitgeist_use_cases {
 	use super::*;
 	use frame_support::traits::tokens::Precision;

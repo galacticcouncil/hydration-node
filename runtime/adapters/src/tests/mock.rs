@@ -343,6 +343,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DepositLockWhitelist = frame_support::traits::Nothing;
+	type InTradeContext = frame_support::traits::ConstBool<false>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
