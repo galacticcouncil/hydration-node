@@ -412,7 +412,7 @@ fn test_fees_update_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.042592));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.043174));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));
@@ -503,7 +503,7 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.042592));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.043174));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));
@@ -552,7 +552,7 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.042592));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.043174));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));

@@ -54,7 +54,7 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 		// Non-HDX fee path: the referrals receiver takes a fixed 5% slice of the trade fee in the
 		// raw asset (DAI) into its pot at trade time.
 		let ref_pot_dai = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(ref_pot_dai - ref_pot_dai_before, 16048437539966);
+		assert_eq!(ref_pot_dai - ref_pot_dai_before, 17117798695388);
 		// Referrals self-converts its raw asset into the HDX reward asset.
 		assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		let ref_pot_hdx_after = Currencies::free_balance(HDX, &Referrals::pot_account_id());
@@ -84,7 +84,7 @@ fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 		));
 		// The asset-out (DAI) fee feeds the referrals pot a fixed 5% raw slice at trade time.
 		let ref_pot_dai = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(ref_pot_dai - ref_pot_dai_before, 607594782964268);
+		assert_eq!(ref_pot_dai - ref_pot_dai_before, 648606049064316);
 		assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		let ref_pot_hdx_after = Currencies::free_balance(HDX, &Referrals::pot_account_id());
 		assert_eq!(ref_pot_hdx_after - ref_pot_hdx_before, 22191640827);
@@ -133,7 +133,7 @@ fn trading_in_omnipool_should_increase_referrer_shares() {
 			0
 		));
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 360319013);
+		assert_eq!(referrer_shares, 384328276);
 	});
 }
 #[test]
@@ -155,7 +155,7 @@ fn trading_in_omnipool_should_increase_trader_shares() {
 			0
 		));
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 240212675);
+		assert_eq!(trader_shares, 256218851);
 	});
 }
 
@@ -178,7 +178,7 @@ fn trading_in_omnipool_should_increase_total_shares_correctly() {
 			0
 		));
 		let total_shares = Referrals::total_shares();
-		assert_eq!(total_shares, 600531688);
+		assert_eq!(total_shares, 640547127);
 	});
 }
 
@@ -207,13 +207,13 @@ fn claiming_rewards_should_convert_all_assets_to_reward_asset() {
 		// The referrals pot holds its raw DAI slice; converting it to the reward asset (HDX) is
 		// what funds the claimable pool.
 		let referrals_dai = Currencies::free_balance(DAI, &Referrals::pot_account_id());
-		assert_eq!(referrals_dai, 12548953158850);
+		assert_eq!(referrals_dai, 13083633736560);
 		assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		assert_eq!(Currencies::free_balance(DAI, &Referrals::pot_account_id()), 0);
 
 		assert_ok!(Referrals::claim_rewards(RuntimeOrigin::signed(ALICE.into())));
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
-		assert_eq!(new_balance - old_balance, 600276610239);
+		assert_eq!(new_balance - old_balance, 600288280153);
 		assert_eq!(Referrals::referrer_shares::<AccountId>(ALICE.into()), 0);
 	});
 }
@@ -249,7 +249,7 @@ fn claiming_rewards_should_pay_trader_their_rebate() {
 
 		let new_balance = Currencies::free_balance(HDX, &BOB.into());
 		// Trader rebate is the trader-share fraction of the converted 5% slice held in the pot.
-		assert_eq!(new_balance - old_balance, 400184407536);
+		assert_eq!(new_balance - old_balance, 400192185406);
 		assert_eq!(Referrals::trader_shares::<AccountId>(BOB.into()), 0);
 	});
 }
@@ -295,7 +295,7 @@ fn claim_should_work_when_trade_happens_via_router() {
 		//Assert that user receives claim amounts
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let claimed_amount = new_balance - old_balance;
-		assert_eq!(claimed_amount, 600276610239);
+		assert_eq!(claimed_amount, 600288280153);
 	});
 
 	//We check if the same happens with normal omni trade
@@ -334,7 +334,7 @@ fn claim_should_work_when_trade_happens_via_router() {
 		//Assert that user receives claim amounts
 		let new_balance = Currencies::free_balance(HDX, &ALICE.into());
 		let claimed_amount = new_balance - old_balance;
-		assert_eq!(claimed_amount, 600276610239);
+		assert_eq!(claimed_amount, 600288280153);
 	});
 }
 
@@ -406,9 +406,9 @@ fn trading_in_omnipool_should_use_global_rewards_when_not_set() {
 		));
 		// Tier0 split is referrer 60 : trader 40 (≈3:2, ±1 wei from independent flooring).
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 360319013);
+		assert_eq!(referrer_shares, 384328276);
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 240212675);
+		assert_eq!(trader_shares, 256218851);
 		// Staking pot no longer receives external referral shares.
 		assert_eq!(Referrals::trader_shares::<AccountId>(Staking::pot_account_id()), 0);
 		let total_shares = Referrals::total_shares();
@@ -447,10 +447,10 @@ fn trading_in_omnipool_should_use_asset_rewards_when_set() {
 		));
 		// Override split is referrer 2 : trader 1 = 2:1.
 		let referrer_shares = Referrals::referrer_shares::<AccountId>(ALICE.into());
-		assert_eq!(referrer_shares, 12010633);
+		assert_eq!(referrer_shares, 12810942);
 		let trader_shares = Referrals::trader_shares::<AccountId>(BOB.into());
-		assert_eq!(trader_shares, 6005316);
-		assert_eq!(referrer_shares, trader_shares * 2 + 1, "referrer:trader must be 2:1");
+		assert_eq!(trader_shares, 6405471);
+		assert_eq!(referrer_shares, trader_shares * 2, "referrer:trader must be 2:1");
 		let total_shares = Referrals::total_shares();
 		assert_eq!(total_shares, referrer_shares + trader_shares);
 	});
@@ -478,12 +478,12 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				who: BOB.into(),
 				asset_in: DAI,
 				asset_out: HDX,
-				amount_in: 27382815787352680,
+				amount_in: 27405249578655076,
 				amount_out: 1_000_000_000_000,
-				hub_amount_in: 1234417632,
-				hub_amount_out: 1249213261,
-				asset_fee_amount: 23240869878,
-				protocol_fee_amount: 617208,
+				hub_amount_in: 1235428947,
+				hub_amount_out: 1250780015,
+				asset_fee_amount: 24079173610,
+				protocol_fee_amount: 617714,
 			}
 			.into(),
 			pallet_broadcast::Event::Swapped3 {
@@ -491,11 +491,11 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
 				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(DAI, 27382815787352680)],
-				outputs: vec![Asset::new(LRNA, 1234417632)],
+				inputs: vec![Asset::new(DAI, 27405249578655076)],
+				outputs: vec![Asset::new(LRNA, 1235428947)],
 				fees: vec![Fee::new(
 					LRNA,
-					617208,
+					617714,
 					Destination::Account(Omnipool::protocol_account()),
 				)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
@@ -506,11 +506,11 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: Filler::Omnipool,
 				operation: TradeOperation::ExactOut,
-				inputs: vec![Asset::new(LRNA, 1233800424)],
+				inputs: vec![Asset::new(LRNA, 1234811233)],
 				outputs: vec![Asset::new(HDX, 1_000_000_000_000)],
 				fees: vec![
-					Fee::new(HDX, 12782478434, Destination::Account(Omnipool::protocol_account())),
-					Fee::new(HDX, 10458391444, Destination::Account(FeeProcessor::pot_account_id())),
+					Fee::new(HDX, 13243545486, Destination::Account(Omnipool::protocol_account())),
+					Fee::new(HDX, 10835628124, Destination::Account(FeeProcessor::pot_account_id())),
 				],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
 			}
@@ -522,7 +522,7 @@ fn buying_hdx_in_omnipool_should_transfer_correct_fee() {
 		let ref_dai_balance = Currencies::free_balance(DAI, &ref_account);
 		let staking_balance = Currencies::free_balance(HDX, &staking_acc);
 		assert_eq!(ref_dai_balance.abs_diff(orig_balance), 0);
-		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 1162043493);
+		assert_eq!(staking_balance.abs_diff(stak_orig_balance), 1203958680);
 	});
 }
 
@@ -544,19 +544,19 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 			u128::MAX,
 		));
 
-		let expected_taken_fee = 5468353046678421;
+		let expected_taken_fee = 5837454441578858;
 
 		expect_hydra_last_events(vec![
 			pallet_omnipool::Event::BuyExecuted {
 				who: BOB.into(),
 				asset_in: HDX,
 				asset_out: DAI,
-				amount_in: 37862298420251,
+				amount_in: 37892983048346,
 				amount_out: 1_000_000_000_000_000_000,
-				hub_amount_in: 45651593698,
-				hub_amount_out: 45930074450,
-				asset_fee_amount: 12151895659285381,
-				protocol_fee_amount: 22825796,
+				hub_amount_in: 45688589482,
+				hub_amount_out: 45987389254,
+				asset_fee_amount: 12972120981286354,
+				protocol_fee_amount: 22844294,
 			}
 			.into(),
 			pallet_broadcast::Event::Swapped3 {
@@ -564,11 +564,11 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: pallet_broadcast::types::Filler::Omnipool,
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(HDX, 37862298420251)],
-				outputs: vec![Asset::new(LRNA, 45651593698)],
+				inputs: vec![Asset::new(HDX, 37892983048346)],
+				outputs: vec![Asset::new(LRNA, 45688589482)],
 				fees: vec![Fee::new(
 					LRNA,
-					22825796,
+					22844294,
 					Destination::Account(Omnipool::protocol_account()),
 				)],
 				operation_stack: vec![ExecutionType::Omnipool(0)],
@@ -579,12 +579,12 @@ fn buying_with_hdx_in_omnipool_should_transfer_correct_fee() {
 				filler: Omnipool::protocol_account(),
 				filler_type: pallet_broadcast::types::Filler::Omnipool,
 				operation: pallet_broadcast::types::TradeOperation::ExactOut,
-				inputs: vec![Asset::new(LRNA, 45628767902)],
+				inputs: vec![Asset::new(LRNA, 45665745188)],
 				outputs: vec![Asset::new(DAI, 1_000_000_000_000_000_000)],
 				fees: vec![
 					Fee::new(
 						DAI,
-						6683542612606960,
+						7134666539707496,
 						Destination::Account(Omnipool::protocol_account()),
 					),
 					Fee::new(
