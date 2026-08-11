@@ -42,7 +42,7 @@ function parseArgs(argv) {
 	const defaults = {
 		ws: "ws://127.0.0.1:9945",
 		suri: "//Alice",
-		paraId: 2032,
+		paraId: 2034,
 		cores: [0, 1, 2],
 		begin: 0,
 		finalized: true,
