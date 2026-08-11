@@ -26,7 +26,7 @@ pub type UnreleasedSingleBlockMigrations = (
 	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
 	pallet_gigahdx::migrations::SetTwoSecBlocksSince<Runtime>,
 	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
-	circuit_breaker::MigrateCircuitBreakerLimitsTo2sBlocks<Runtime>,
+	circuit_breaker::MigrateCircuitBreakerTo2sBlocks<Runtime>,
 	stableswap::MigrateStableswapMaxPegUpdateTo2sBlocks<Runtime>,
 	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
 	referenda::MigrateReferendaTo2sBlocks<Runtime>,
