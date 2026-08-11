@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::mock::*;
-use crate::{Error, Stakes, TwoSecBlocksSince};
+use crate::{Error, Stakes};
 use frame_support::sp_runtime::traits::AccountIdConversion;
 use frame_support::traits::tokens::{Fortitude, Preservation};
 use frame_support::traits::{fungible::Inspect, LockIdentifier};
@@ -131,7 +131,7 @@ fn unlock_should_preserve_remaining_cooldown_when_position_was_created_before_2s
 		System::set_block_number(10);
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
-		TwoSecBlocksSince::<Test>::put(20);
+		TwoSecBlocksSince::set(20);
 
 		// Mock cooldown is 100 new blocks, so the old 6s cooldown is 33 blocks.
 		// At the switch block 23 old blocks remain, which become 69 blocks at 2s.
@@ -155,7 +155,7 @@ fn unlock_should_use_old_deadline_when_pre_switch_position_already_matured_at_sw
 		System::set_block_number(10);
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));
-		TwoSecBlocksSince::<Test>::put(50);
+		TwoSecBlocksSince::set(50);
 
 		assert_eq!(GigaHdx::cooldown_expires_at(10).unwrap(), 43);
 
@@ -168,7 +168,7 @@ fn unlock_should_use_old_deadline_when_pre_switch_position_already_matured_at_sw
 #[test]
 fn unlock_should_use_new_cooldown_when_position_was_created_after_2s_switch() {
 	ExtBuilder::default().build().execute_with(|| {
-		TwoSecBlocksSince::<Test>::put(20);
+		TwoSecBlocksSince::set(20);
 		System::set_block_number(30);
 		stake_alice_100();
 		assert_ok!(GigaHdx::giga_unstake(RawOrigin::Signed(ALICE).into(), 100 * ONE));

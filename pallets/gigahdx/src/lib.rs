@@ -38,8 +38,6 @@ pub use pallet::*;
 
 pub mod traits;
 
-pub mod migrations;
-
 #[cfg(test)]
 mod tests;
 
@@ -133,12 +131,7 @@ pub mod pallet {
 		pub amount: Balance,
 	}
 
-	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
-
-	#[pallet::type_value]
-	pub fn DefaultTwoSecSince<T: Config>() -> BlockNumberFor<T> {
-		u32::MAX.into()
-	}
+	pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	/// Defensive tripwire bound for `realize_yield`. Aggregate solvency
 	/// guarantees the gigapot covers all accrued yield; a *per-account*
@@ -190,6 +183,9 @@ pub mod pallet {
 		/// matching `unlock` call.
 		#[pallet::constant]
 		type CooldownPeriod: Get<BlockNumberFor<Self>>;
+
+		/// Block at which the runtime switched from 6-second to 2-second blocks.
+		type TwoSecBlocksSince: Get<BlockNumberFor<Self>>;
 
 		/// Maximum number of concurrent pending-unstake positions per account.
 		#[pallet::constant]
@@ -248,12 +244,6 @@ pub mod pallet {
 		PendingUnstake,
 		OptionQuery,
 	>;
-
-	#[pallet::storage]
-	/// Block number when the runtime switched to 2 second blocks.
-	#[pallet::getter(fn two_sec_blocks_since)]
-	pub(super) type TwoSecBlocksSince<T: Config> =
-		StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultTwoSecSince<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -785,7 +775,7 @@ pub mod pallet {
 		/// Expiry block for a pending unstake position keyed by its originating block.
 		/// Positions created before the 2s switch preserve their remaining wall-clock cooldown.
 		pub fn cooldown_expires_at(unstaked_at: BlockNumberFor<T>) -> Result<BlockNumberFor<T>, Error<T>> {
-			let switch_block = Self::two_sec_blocks_since();
+			let switch_block = T::TwoSecBlocksSince::get();
 			let cooldown = T::CooldownPeriod::get();
 
 			if switch_block == u32::MAX.into() || unstaked_at >= switch_block {

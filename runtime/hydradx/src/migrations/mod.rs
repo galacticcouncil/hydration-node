@@ -18,14 +18,14 @@ use crate::Runtime;
 pub mod circuit_breaker;
 pub mod conviction_voting;
 pub mod dynamic_fees;
+pub mod parameters;
 pub mod referenda;
 pub mod scheduler;
 pub mod stableswap;
 
 // New migrations which need to be cleaned up after every Runtime upgrade
 pub type UnreleasedSingleBlockMigrations = (
-	pallet_staking::migrations::SetTwoSecBlocksSince<Runtime>,
-	pallet_gigahdx::migrations::SetTwoSecBlocksSince<Runtime>,
+	parameters::SetTwoSecBlocksSince<Runtime>,
 	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
 	circuit_breaker::MigrateCircuitBreakerTo2sBlocks<Runtime>,
 	dynamic_fees::MigrateDynamicFeeDecayTo2sBlocks<Runtime>,

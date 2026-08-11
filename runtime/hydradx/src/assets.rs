@@ -1622,6 +1622,14 @@ parameter_types! {
 
 pub struct PointsPerAction;
 
+pub struct TwoSecBlocksSinceProvider;
+
+impl Get<BlockNumber> for TwoSecBlocksSinceProvider {
+	fn get() -> BlockNumber {
+		pallet_parameters::TwoSecBlocksSince::<Runtime>::get()
+	}
+}
+
 impl GetByKey<Action, u32> for PointsPerAction {
 	fn get(k: &Action) -> u32 {
 		match k {
@@ -1643,6 +1651,7 @@ impl pallet_staking::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
+	type TwoSecBlocksSince = TwoSecBlocksSinceProvider;
 	type PalletId = StakingPalletId;
 	type NativeAssetId = NativeAssetId;
 	type MinStake = MinStake;
@@ -1915,6 +1924,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type TwoSecBlocksSince = TwoSecBlocksSinceProvider;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;

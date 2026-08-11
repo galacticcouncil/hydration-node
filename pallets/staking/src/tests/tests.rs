@@ -17,7 +17,7 @@ use pretty_assertions::assert_eq;
 fn staking_period_number_should_account_for_two_sec_transition() {
 	ExtBuilder::default().build().execute_with(|| {
 		SixSecBlocksSince::<Test>::put(100);
-		TwoSecBlocksSince::<Test>::put(200);
+		TwoSecBlocksSince::set(200);
 
 		assert_eq!(Staking::get_period_number(100), Some(0));
 		assert_eq!(Staking::get_period_number(200), Some(0));
