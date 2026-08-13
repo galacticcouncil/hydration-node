@@ -342,12 +342,8 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	/// INttToken mint: only the NTT minter bound to the asset can call it.
-	/// The deposit routes through orml-tokens, whose `PostDeposit` hook is the issuance
-	/// circuit breaker (`IssuanceIncreaseFuse::on_deposit`). An over-limit mint therefore
-	/// lands, reserves the excess on the recipient and puts the asset into lockdown — the
-	/// same reserve-and-lockdown path an over-limit XCM deposit takes — rather than
-	/// reverting and leaving the source-chain funds stuck until the window rolls.
+	/// INttToken mint: only the NTT minter bound to the asset can call it. Over-limit mints take
+	/// the deposit's PostDeposit circuit-breaker path (reserve excess + lockdown), same as XCM.
 	fn mint(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 

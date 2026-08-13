@@ -2271,12 +2271,11 @@ mod currency_precompile_ntt {
 
 		Hydra::execute_with(|| {
 			set_minter();
-			// per-period (1 day) issuance-increase budget = registry xcm_rate_limit
 			let limit = 1_000 * UNITS;
 			set_dai_mint_limit(limit);
 			let issuance_before = total_issuance(DAI);
 
-			// within budget: mints cleanly, nothing reserved, no lockdown
+			// within budget: clean mint
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 600 * UNITS)),
 				empty_output()
@@ -2284,16 +2283,14 @@ mod currency_precompile_ntt {
 			assert_balance!(evm_account2(), DAI, 600 * UNITS);
 			assert_reserved_balance!(evm_account2(), DAI, 0);
 
-			// exceeding the remaining budget takes the same reserve-and-lockdown path as an
-			// over-limit XCM deposit: the mint lands in full, the excess (1100 minted vs the
-			// 1000 budget = 100) is reserved on the recipient, and the asset is locked down.
+			// over budget: mint lands, excess reserved, asset locked down
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 500 * UNITS)),
 				empty_output()
 			);
 			assert_eq!(total_issuance(DAI), issuance_before + 1_100 * UNITS);
-			assert_balance!(evm_account2(), DAI, 1_000 * UNITS); // free = budget
-			assert_reserved_balance!(evm_account2(), DAI, 100 * UNITS); // excess locked
+			assert_balance!(evm_account2(), DAI, 1_000 * UNITS);
+			assert_reserved_balance!(evm_account2(), DAI, 100 * UNITS);
 			assert!(matches!(
 				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
 				Some(pallet_circuit_breaker::types::LockdownStatus::Locked(_))
@@ -2310,25 +2307,18 @@ mod currency_precompile_ntt {
 			let limit = 1_000 * UNITS;
 			set_dai_mint_limit(limit);
 
-			// mint within budget, to the manager itself
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 600 * UNITS)),
 				empty_output()
 			);
 
-			// burning refills the budget: the fuse measures NET issuance increase per period.
-			// This mirrors the current breaker semantics (see the ignored upstream test
-			// `rate_limit_should_not_be_bypassed_by_burning_tokens` in
-			// pallets/circuit-breaker/src/tests/deposit_limit.rs). For NTT this bounds net
-			// inflation per period, which is what the hub-escrow invariant cares about.
-			// If the breaker moves to gross accounting, this test must be updated.
+			// the fuse measures NET issuance increase per period, so burning refills the budget
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut burn_handle(minter(), 400 * UNITS)),
 				empty_output()
 			);
 
-			// net increase is now 600 - 400 + 700 = 900 <= 1000, so this stays within budget:
-			// without the burn, 600 + 700 = 1300 would have reserved the excess and locked down.
+			// net increase 600 - 400 + 700 = 900 <= 1000, so no reserve/lockdown
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 700 * UNITS)),
 				empty_output()
@@ -2355,9 +2345,7 @@ mod currency_precompile_ntt {
 				hydradx_runtime::System::block_number() + 1_000,
 			));
 
-			// while the asset is locked down every incoming deposit — including an NTT mint —
-			// lands but is fully reserved on the recipient (LockdownActive path), rather than
-			// reverting and stranding the source-chain funds.
+			// mint into a locked-down asset lands but is fully reserved, rather than reverting
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS)),
 				empty_output()
