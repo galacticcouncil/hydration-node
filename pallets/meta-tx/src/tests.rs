@@ -5,7 +5,10 @@
 
 use crate::mock::*;
 use crate::{Error, Event, Nonces};
+use frame_support::dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo};
+use frame_support::pallet_prelude::{Pays, Weight};
 use frame_support::{assert_noop, assert_ok};
+use hydradx_traits::evm::InspectEvmAccounts;
 use sp_runtime::traits::Dispatchable;
 use sp_runtime::DispatchError;
 
@@ -49,6 +52,20 @@ fn signed_submit(
 	submit(relayer, signer, call, nonce, deadline, signature)
 }
 
+fn verification_weight() -> Weight {
+	<<Test as crate::Config>::WeightInfo as crate::WeightInfo>::dispatch_meta_tx()
+}
+
+fn rejected(error: Error<Test>) -> DispatchErrorWithPostInfo {
+	DispatchErrorWithPostInfo {
+		post_info: PostDispatchInfo {
+			actual_weight: Some(verification_weight()),
+			pays_fee: Pays::Yes,
+		},
+		error: error.into(),
+	}
+}
+
 #[test]
 fn dispatch_meta_tx_should_execute_under_signer_origin_when_signature_is_valid() {
 	let alice = keypair("Alice");
@@ -89,7 +106,6 @@ fn dispatch_meta_tx_should_execute_under_signer_origin_when_signature_is_valid()
 					signer,
 					relayer,
 					nonce: 0,
-					result: Ok(()),
 				}
 				.into(),
 			);
@@ -114,7 +130,7 @@ fn dispatch_meta_tx_should_fail_when_signature_belongs_to_another_account() {
 
 			assert_noop!(
 				submit(relayer, signer.clone(), call, 0, 100, signature),
-				Error::<Test>::InvalidSignature
+				rejected(Error::<Test>::InvalidSignature)
 			);
 			assert_eq!(Nonces::<Test>::get(&signer), 0);
 		});
@@ -140,7 +156,7 @@ fn dispatch_meta_tx_should_fail_when_call_is_swapped_after_signing() {
 
 			assert_noop!(
 				submit(relayer, signer.clone(), substituted, 0, 100, signature),
-				Error::<Test>::InvalidSignature
+				rejected(Error::<Test>::InvalidSignature)
 			);
 			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
 		});
@@ -163,7 +179,7 @@ fn dispatch_meta_tx_should_fail_when_deadline_is_changed_after_signing() {
 
 			assert_noop!(
 				submit(relayer, signer, call, 0, 500, signature),
-				Error::<Test>::InvalidSignature
+				rejected(Error::<Test>::InvalidSignature)
 			);
 		});
 }
@@ -193,7 +209,7 @@ fn dispatch_meta_tx_should_fail_when_replayed_with_the_same_signature() {
 			));
 			assert_noop!(
 				submit(relayer, signer.clone(), call, 0, 100, signature),
-				Error::<Test>::InvalidNonce
+				rejected(Error::<Test>::InvalidNonce)
 			);
 			assert_eq!(
 				Balances::free_balance(&signer),
@@ -216,7 +232,7 @@ fn dispatch_meta_tx_should_fail_when_nonce_is_ahead_of_the_signer() {
 		.execute_with(|| {
 			assert_noop!(
 				signed_submit(relayer, &alice, transfer_call(recipient, UNITS), 7, 100),
-				Error::<Test>::InvalidNonce
+				rejected(Error::<Test>::InvalidNonce)
 			);
 		});
 }
@@ -236,7 +252,7 @@ fn dispatch_meta_tx_should_fail_when_deadline_has_passed() {
 
 			assert_noop!(
 				signed_submit(relayer, &alice, transfer_call(recipient, UNITS), 0, 100),
-				Error::<Test>::Expired
+				rejected(Error::<Test>::Expired)
 			);
 			assert_eq!(Nonces::<Test>::get(&signer), 0);
 		});
@@ -259,7 +275,7 @@ fn dispatch_meta_tx_should_succeed_when_submitted_on_the_deadline_block() {
 }
 
 #[test]
-fn dispatch_meta_tx_should_consume_the_nonce_when_the_inner_call_fails() {
+fn dispatch_meta_tx_should_return_the_inner_error_when_the_inner_call_fails() {
 	let alice = keypair("Alice");
 	let signer = account_of(&alice);
 	let relayer = account_of(&keypair("Relayer"));
@@ -269,30 +285,27 @@ fn dispatch_meta_tx_should_consume_the_nonce_when_the_inner_call_fails() {
 		.with_balance(signer.clone(), UNITS)
 		.build()
 		.execute_with(|| {
-			assert_ok!(signed_submit(
-				relayer.clone(),
-				&alice,
-				transfer_call(recipient.clone(), 1_000 * UNITS),
-				0,
-				100
-			));
+			let call = transfer_call(recipient.clone(), 1_000 * UNITS);
+			let expected = call
+				.clone()
+				.dispatch(RuntimeOrigin::signed(signer.clone()))
+				.expect_err("the transfer exceeds the signer's balance; qed")
+				.error;
+
+			let outcome = signed_submit(relayer, &alice, call, 0, 100);
 
 			assert_eq!(
-				Nonces::<Test>::get(&signer),
-				1,
-				"a failed intent MUST NOT stay replayable"
+				outcome
+					.expect_err("an inner failure MUST surface as an extrinsic error; qed")
+					.error,
+				expected,
+				"the relayer MUST receive the inner call's own error"
 			);
 			assert_eq!(Balances::free_balance(&recipient), 0);
-
-			let dispatched = System::events().into_iter().any(|record| {
-				matches!(
-					record.event,
-					RuntimeEvent::MetaTx(Event::Dispatched { result: Err(_), .. })
-				)
-			});
-			assert!(
-				dispatched,
-				"the inner failure is reported in the event, not as an extrinsic error"
+			assert_eq!(
+				Nonces::<Test>::get(&signer),
+				0,
+				"a failed intent reverts its nonce and stays valid until its deadline"
 			);
 		});
 }
@@ -343,12 +356,16 @@ fn dispatch_meta_tx_should_roll_back_every_leg_when_one_leg_of_batch_all_fails()
 				],
 			});
 
-			assert_ok!(signed_submit(relayer, &alice, batch, 0, 100));
+			let outcome = signed_submit(relayer, &alice, batch, 0, 100);
+			assert!(
+				outcome.is_err(),
+				"a failing leg MUST surface as an extrinsic error, not a silent success"
+			);
 
 			assert_eq!(Balances::free_balance(&first), 0, "batch_all is all-or-nothing");
 			assert_eq!(Balances::free_balance(&second), 0);
 			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
-			assert_eq!(Nonces::<Test>::get(&signer), 1);
+			assert_eq!(Nonces::<Test>::get(&signer), 0);
 		});
 }
 
@@ -436,4 +453,315 @@ fn nonces_should_advance_independently_per_signer() {
 			assert_eq!(Nonces::<Test>::get(account_of(&alice)), 2);
 			assert_eq!(Nonces::<Test>::get(account_of(&bob)), 1);
 		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_refund_the_inner_call_weight_when_signature_is_invalid() {
+	let alice = keypair("Alice");
+	let mallory = keypair("Mallory");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let heavy = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+				calls: vec![transfer_call(recipient, UNITS); 100],
+			});
+			let payload = MetaTx::signing_payload(&heavy, &signer, 0, 100);
+			let signature = sign(&mallory, &payload);
+
+			let declared = RuntimeCall::MetaTx(crate::Call::dispatch_meta_tx {
+				signer: signer.clone(),
+				call: Box::new(heavy.clone()),
+				nonce: 0,
+				deadline: 100,
+				signature: signature.clone(),
+			})
+			.get_dispatch_info()
+			.call_weight;
+
+			let outcome = submit(relayer, signer, heavy, 0, 100, signature);
+			let err = outcome.expect_err("an invalid signature must be rejected; qed");
+
+			assert_eq!(err.post_info.actual_weight, Some(verification_weight()));
+			assert!(
+				verification_weight().all_lt(declared),
+				"the relayer MUST NOT be charged for an inner call that never ran"
+			);
+		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_fail_when_the_signers_nonce_cannot_be_advanced() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			Nonces::<Test>::insert(&signer, u32::MAX);
+
+			assert_noop!(
+				signed_submit(relayer, &alice, transfer_call(recipient, UNITS), u32::MAX, 100),
+				rejected(Error::<Test>::NonceExhausted)
+			);
+			assert_eq!(
+				Nonces::<Test>::get(&signer),
+				u32::MAX,
+				"a saturating nonce MUST NOT leave the intent replayable"
+			);
+		});
+}
+
+fn evm_submit(
+	relayer: AccountId,
+	pair: &sp_core::ecdsa::Pair,
+	call: RuntimeCall,
+	nonce: u32,
+	deadline: u64,
+) -> frame_support::dispatch::DispatchResultWithPostInfo {
+	let from = evm_address_of(pair);
+	let payload = MetaTx::evm_signing_payload(&call, from, nonce, deadline);
+	let (v, r, s) = evm_sign(pair, &payload);
+
+	RuntimeCall::MetaTx(crate::Call::dispatch_evm_meta_tx {
+		from,
+		call: Box::new(call),
+		nonce,
+		deadline,
+		v,
+		r,
+		s,
+	})
+	.dispatch(RuntimeOrigin::signed(relayer))
+}
+
+fn evm_rejected(error: Error<Test>) -> DispatchErrorWithPostInfo {
+	DispatchErrorWithPostInfo {
+		post_info: PostDispatchInfo {
+			actual_weight: Some(<<Test as crate::Config>::WeightInfo as crate::WeightInfo>::dispatch_evm_meta_tx()),
+			pays_fee: Pays::Yes,
+		},
+		error: error.into(),
+	}
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_execute_under_the_evm_address_account_when_signature_is_valid() {
+	let alice = evm_keypair("AliceEvm");
+	let signer = MockEvmAccounts::account_id(evm_address_of(&alice));
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.with_balance(relayer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let relayer_before = Balances::free_balance(&relayer);
+
+			assert_ok!(evm_submit(
+				relayer.clone(),
+				&alice,
+				transfer_call(recipient.clone(), UNITS),
+				0,
+				100
+			));
+
+			assert_eq!(
+				Balances::free_balance(&signer),
+				9 * UNITS,
+				"an EVM signature must move the EVM account's own funds"
+			);
+			assert_eq!(Balances::free_balance(&recipient), UNITS);
+			assert_eq!(Balances::free_balance(&relayer), relayer_before);
+			assert_eq!(Nonces::<Test>::get(&signer), 1);
+
+			System::assert_has_event(
+				Event::Dispatched {
+					signer,
+					relayer,
+					nonce: 0,
+				}
+				.into(),
+			);
+		});
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_fail_when_signature_belongs_to_another_key() {
+	let alice = evm_keypair("AliceEvm");
+	let mallory = evm_keypair("MalloryEvm");
+	let from = evm_address_of(&alice);
+	let signer = MockEvmAccounts::account_id(from);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let call = transfer_call(recipient, UNITS);
+			let payload = MetaTx::evm_signing_payload(&call, from, 0, 100);
+			let (v, r, s) = evm_sign(&mallory, &payload);
+
+			assert_noop!(
+				RuntimeCall::MetaTx(crate::Call::dispatch_evm_meta_tx {
+					from,
+					call: Box::new(call),
+					nonce: 0,
+					deadline: 100,
+					v,
+					r,
+					s,
+				})
+				.dispatch(RuntimeOrigin::signed(relayer)),
+				evm_rejected(Error::<Test>::InvalidEvmSignature)
+			);
+			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
+		});
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_fail_when_call_is_swapped_after_signing() {
+	let alice = evm_keypair("AliceEvm");
+	let from = evm_address_of(&alice);
+	let signer = MockEvmAccounts::account_id(from);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+	let attacker = account_of(&keypair("Mallory"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let authorised = transfer_call(recipient, UNITS);
+			let payload = MetaTx::evm_signing_payload(&authorised, from, 0, 100);
+			let (v, r, s) = evm_sign(&alice, &payload);
+
+			assert_noop!(
+				RuntimeCall::MetaTx(crate::Call::dispatch_evm_meta_tx {
+					from,
+					call: Box::new(transfer_call(attacker, 9 * UNITS)),
+					nonce: 0,
+					deadline: 100,
+					v,
+					r,
+					s,
+				})
+				.dispatch(RuntimeOrigin::signed(relayer)),
+				evm_rejected(Error::<Test>::InvalidEvmSignature)
+			);
+			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
+		});
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_fail_when_replayed_with_the_same_signature() {
+	let alice = evm_keypair("AliceEvm");
+	let signer = MockEvmAccounts::account_id(evm_address_of(&alice));
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			assert_ok!(evm_submit(
+				relayer.clone(),
+				&alice,
+				transfer_call(recipient.clone(), UNITS),
+				0,
+				100
+			));
+			assert_noop!(
+				evm_submit(relayer, &alice, transfer_call(recipient, UNITS), 0, 100),
+				evm_rejected(Error::<Test>::InvalidNonce)
+			);
+			assert_eq!(Balances::free_balance(&signer), 9 * UNITS);
+		});
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_roll_back_every_leg_when_one_leg_of_batch_all_fails() {
+	let alice = evm_keypair("AliceEvm");
+	let signer = MockEvmAccounts::account_id(evm_address_of(&alice));
+	let relayer = account_of(&keypair("Relayer"));
+	let first = account_of(&keypair("First"));
+	let second = account_of(&keypair("Second"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+				calls: vec![
+					transfer_call(first.clone(), UNITS),
+					transfer_call(second.clone(), 1_000 * UNITS),
+					transfer_call(first.clone(), UNITS),
+				],
+			});
+
+			let outcome = evm_submit(relayer, &alice, batch, 0, 100);
+			assert!(
+				outcome.is_err(),
+				"a failing leg MUST surface to the relayer as an extrinsic error"
+			);
+
+			assert_eq!(Balances::free_balance(&first), 0, "the loop is all-or-nothing");
+			assert_eq!(Balances::free_balance(&second), 0);
+			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
+			assert_eq!(Nonces::<Test>::get(&signer), 0);
+		});
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_restore_the_previous_evm_fee_payer_after_the_inner_call() {
+	let alice = evm_keypair("AliceEvm");
+	let signer = MockEvmAccounts::account_id(evm_address_of(&alice));
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+	let incumbent = account_of(&keypair("Incumbent"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			FeePayer::set(&Some(incumbent.clone()));
+
+			assert_ok!(evm_submit(relayer, &alice, transfer_call(recipient, UNITS), 0, 100));
+
+			assert_eq!(
+				FeePayer::get(),
+				Some(incumbent),
+				"an outer fee payer MUST survive a nested meta transaction"
+			);
+		});
+}
+
+#[test]
+fn evm_signing_payload_should_change_when_any_bound_field_changes() {
+	let alice = evm_keypair("AliceEvm");
+	let bob = evm_keypair("BobEvm");
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default().build().execute_with(|| {
+		let call = transfer_call(recipient.clone(), UNITS);
+		let from = evm_address_of(&alice);
+		let base = MetaTx::evm_signing_payload(&call, from, 0, 100);
+
+		assert_ne!(base, MetaTx::evm_signing_payload(&call, evm_address_of(&bob), 0, 100));
+		assert_ne!(base, MetaTx::evm_signing_payload(&call, from, 1, 100));
+		assert_ne!(base, MetaTx::evm_signing_payload(&call, from, 0, 101));
+		assert_ne!(
+			base,
+			MetaTx::evm_signing_payload(&transfer_call(recipient, 2 * UNITS), from, 0, 100)
+		);
+	});
 }

@@ -219,7 +219,11 @@ fn meta_tx_should_respect_the_runtime_call_filter() {
 			currency_id: HDX,
 			amount: UNITS,
 		});
-		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, transfer, 1_000)));
+		let outcome = submit_as(&relayer, signed_meta_tx(&pair, transfer, 1_000));
+		assert!(
+			outcome.is_err(),
+			"a filtered call MUST surface to the relayer as an extrinsic error"
+		);
 
 		assert_eq!(
 			Currencies::free_balance(HDX, &recipient),
@@ -228,8 +232,8 @@ fn meta_tx_should_respect_the_runtime_call_filter() {
 		);
 		assert_eq!(
 			MetaTx::nonce(&signer),
-			1,
-			"the nonce is still consumed so the intent cannot be retried later"
+			0,
+			"a rejected intent reverts its nonce and stays valid until its deadline"
 		);
 	});
 }
@@ -258,7 +262,7 @@ fn meta_tx_nonce_should_be_independent_of_the_system_nonce() {
 }
 
 #[test]
-fn meta_tx_should_not_be_able_to_source_an_evm_call_for_a_substrate_signer() {
+fn meta_tx_should_fail_when_signer_sources_an_evm_call_from_another_address() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -281,18 +285,12 @@ fn meta_tx_should_not_be_able_to_source_an_evm_call_for_a_substrate_signer() {
 			})),
 		});
 
-		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, evm_call, 1_000)));
+		let outcome = submit_as(&relayer, signed_meta_tx(&pair, evm_call, 1_000));
 
-		let inner_failed = System::events().iter().any(|record| {
-			matches!(
-				&record.event,
-				RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result: Err(_), .. })
-			)
-		});
 		assert!(
-			inner_failed,
-			"an sr25519 signer cannot satisfy EnsureAddressTruncated, so EVM legs MUST be rejected"
+			outcome.is_err(),
+			"a signer MUST NOT be able to source an EVM call from an address it does not control"
 		);
-		assert_eq!(MetaTx::nonce(&signer), 1);
+		assert_eq!(MetaTx::nonce(&signer), 0);
 	});
 }

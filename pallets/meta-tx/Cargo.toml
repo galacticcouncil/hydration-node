@@ -12,14 +12,15 @@ codec = { workspace = true }
 scale-info = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
+sp-core = { workspace = true }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
+hydradx-traits = { workspace = true }
 
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-sp-core = { workspace = true }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-utility = { workspace = true, features = ["std"] }
 
@@ -30,9 +31,11 @@ std = [
     "scale-info/std",
     "frame-support/std",
     "frame-system/std",
+    "sp-core/std",
     "sp-io/std",
     "sp-runtime/std",
     "sp-std/std",
+    "hydradx-traits/std",
     "frame-benchmarking?/std",
 ]
 runtime-benchmarks = [

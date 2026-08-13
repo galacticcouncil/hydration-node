@@ -448,6 +448,9 @@ impl pallet_meta_tx::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type Signature = primitives::Signature;
 	type Signer = <primitives::Signature as sp_runtime::traits::Verify>::Signer;
+	type EvmAccounts = EVMAccounts;
+	type EvmFeePayer = crate::evm::EvmFeePayerImpl;
+	type ChainId = crate::EVMChainId;
 	type WeightInfo = pallet_meta_tx::weights::HydraWeight<Runtime>;
 }
 

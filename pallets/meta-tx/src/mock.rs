@@ -4,8 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate as pallet_meta_tx;
-use frame_support::{derive_impl, traits::ConstU128};
-use sp_core::{sr25519, Pair};
+use frame_support::{
+	derive_impl, parameter_types,
+	traits::{ConstU128, ConstU64},
+};
+use hydradx_traits::evm::{EvmFeePayerSupport, InspectEvmAccounts};
+use sp_core::{ecdsa, sr25519, Pair, H160};
 use sp_runtime::{
 	traits::{IdentifyAccount, IdentityLookup},
 	AccountId32, BuildStorage, MultiSignature, MultiSigner,
@@ -47,10 +51,82 @@ impl pallet_utility::Config for Test {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub storage FeePayer: Option<AccountId> = None;
+}
+
+/// Mirrors `pallet-evm-accounts`: an EVM address maps to `ETH\0` + address + zero padding.
+pub struct MockEvmAccounts;
+
+impl MockEvmAccounts {
+	fn truncated(address: H160) -> AccountId {
+		let mut data = [0u8; 32];
+		data[0..4].copy_from_slice(b"ETH\0");
+		data[4..24].copy_from_slice(address.as_bytes());
+		AccountId32::from(data)
+	}
+}
+
+impl InspectEvmAccounts<AccountId> for MockEvmAccounts {
+	fn is_evm_account(account_id: AccountId) -> bool {
+		AsRef::<[u8; 32]>::as_ref(&account_id).starts_with(b"ETH\0")
+	}
+
+	fn evm_address(account_id: &impl AsRef<[u8; 32]>) -> H160 {
+		let account = account_id.as_ref();
+		if account.starts_with(b"ETH\0") {
+			H160::from_slice(&account[4..24])
+		} else {
+			H160::from_slice(&account[..20])
+		}
+	}
+
+	fn truncated_account_id(evm_address: H160) -> AccountId {
+		Self::truncated(evm_address)
+	}
+
+	fn bound_account_id(_evm_address: H160) -> Option<AccountId> {
+		None
+	}
+
+	fn account_id(evm_address: H160) -> AccountId {
+		Self::truncated(evm_address)
+	}
+
+	fn can_deploy_contracts(_evm_address: H160) -> bool {
+		false
+	}
+
+	fn is_approved_contract(_address: H160) -> bool {
+		false
+	}
+}
+
+pub struct MockEvmFeePayer;
+
+impl EvmFeePayerSupport for MockEvmFeePayer {
+	type AccountId = AccountId;
+
+	fn set_fee_payer(payer: Self::AccountId) -> Option<Self::AccountId> {
+		let previous = FeePayer::get();
+		FeePayer::set(&Some(payer));
+		previous
+	}
+
+	fn clear_fee_payer() -> Option<Self::AccountId> {
+		let previous = FeePayer::get();
+		FeePayer::set(&None);
+		previous
+	}
+}
+
 impl pallet_meta_tx::Config for Test {
 	type RuntimeCall = RuntimeCall;
 	type Signature = MultiSignature;
 	type Signer = MultiSigner;
+	type EvmAccounts = MockEvmAccounts;
+	type EvmFeePayer = MockEvmFeePayer;
+	type ChainId = ConstU64<222_222>;
 	type WeightInfo = ();
 }
 
@@ -67,6 +143,32 @@ pub fn account_of(pair: &sr25519::Pair) -> AccountId {
 /// Sign `payload` as `pair`, producing the runtime's signature type.
 pub fn sign(pair: &sr25519::Pair, payload: &[u8]) -> MultiSignature {
 	MultiSignature::from(pair.sign(payload))
+}
+
+/// Deterministic secp256k1 keypair for `//name`, standing in for a Turnkey/MetaMask wallet.
+pub fn evm_keypair(name: &str) -> ecdsa::Pair {
+	ecdsa::Pair::from_string(&alloc::format!("//{name}"), None).expect("static seed is valid; qed")
+}
+
+/// The Ethereum address of `pair`, derived the same way the pallet recovers it.
+pub fn evm_address_of(pair: &ecdsa::Pair) -> H160 {
+	let probe = [0u8; 32];
+	let signature = pair.sign_prehashed(&probe);
+	let Ok(public) = sp_io::crypto::secp256k1_ecdsa_recover(signature.as_ref(), &probe) else {
+		panic!("a freshly produced signature always recovers");
+	};
+	H160::from(sp_core::H256::from_slice(&sp_io::hashing::keccak_256(&public)))
+}
+
+/// Sign `payload` as `pair`, split into the `v, r, s` the extrinsic expects.
+pub fn evm_sign(pair: &ecdsa::Pair, payload: &[u8; 32]) -> (u8, sp_core::H256, sp_core::H256) {
+	let signature = pair.sign_prehashed(payload);
+	let bytes: &[u8] = signature.as_ref();
+	(
+		bytes[64],
+		sp_core::H256::from_slice(&bytes[..32]),
+		sp_core::H256::from_slice(&bytes[32..64]),
+	)
 }
 
 extern crate alloc;

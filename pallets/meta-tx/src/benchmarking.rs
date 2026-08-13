@@ -36,5 +36,23 @@ benchmarks! {
 		);
 	}
 
+	dispatch_evm_meta_tx {
+		let relayer: T::AccountId = account("relayer", 0, 0);
+		let from = sp_core::H160::repeat_byte(0xee);
+		let call: <T as crate::Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
+		let deadline = frame_system::Pallet::<T>::block_number();
+	}: {
+		let _ = crate::Pallet::<T>::dispatch_evm_meta_tx(
+			RawOrigin::Signed(relayer).into(),
+			from,
+			Box::new(call),
+			0,
+			deadline,
+			0,
+			sp_core::H256::repeat_byte(0x11),
+			sp_core::H256::repeat_byte(0x22),
+		);
+	}
+
 	impl_benchmark_test_suite!(Pallet, crate::mock::ExtBuilder::default().build(), crate::mock::Test);
 }
