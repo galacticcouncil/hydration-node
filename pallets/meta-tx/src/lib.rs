@@ -175,7 +175,7 @@ pub mod pallet {
 				return Err(Self::rejected(Error::<T>::InvalidSignature, base_weight));
 			}
 
-			Self::execute(relayer, signer, call, nonce, next_nonce, base_weight)
+			Self::execute(relayer, signer, *call, nonce, next_nonce, base_weight)
 		}
 
 		/// Execute `call` under the account of an EVM address that authorised it off-chain,
@@ -200,6 +200,7 @@ pub mod pallet {
 			let call_weight = call.get_dispatch_info().call_weight;
 			T::WeightInfo::dispatch_evm_meta_tx().saturating_add(call_weight)
 		})]
+		#[allow(clippy::too_many_arguments)]
 		pub fn dispatch_evm_meta_tx(
 			origin: OriginFor<T>,
 			from: H160,
@@ -228,7 +229,7 @@ pub mod pallet {
 				return Err(Self::rejected(Error::<T>::InvalidEvmSignature, base_weight));
 			}
 
-			Self::execute(relayer, signer, call, nonce, next_nonce, base_weight)
+			Self::execute(relayer, signer, *call, nonce, next_nonce, base_weight)
 		}
 	}
 
@@ -263,7 +264,7 @@ pub mod pallet {
 		fn execute(
 			relayer: T::AccountId,
 			signer: T::AccountId,
-			call: Box<<T as Config>::RuntimeCall>,
+			call: <T as Config>::RuntimeCall,
 			nonce: u32,
 			next_nonce: u32,
 			weight: Weight,
