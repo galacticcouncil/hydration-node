@@ -765,3 +765,118 @@ fn evm_signing_payload_should_change_when_any_bound_field_changes() {
 		);
 	});
 }
+
+fn nested_batch(first: AccountId, second: AccountId) -> RuntimeCall {
+	RuntimeCall::Utility(pallet_utility::Call::batch_all {
+		calls: vec![
+			transfer_call(first.clone(), UNITS),
+			RuntimeCall::Utility(pallet_utility::Call::batch_all {
+				calls: vec![transfer_call(second.clone(), UNITS), transfer_call(second, 2 * UNITS)],
+			}),
+			transfer_call(first, UNITS),
+		],
+	})
+}
+
+#[test]
+fn nested_batch_all_should_be_rejected_when_the_signer_dispatches_it_directly() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let first = account_of(&keypair("First"));
+	let second = account_of(&keypair("Second"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let outcome = nested_batch(first.clone(), second.clone()).dispatch(RuntimeOrigin::signed(signer.clone()));
+
+			assert_eq!(
+				outcome.expect_err("utility bans nested batch_all; qed").error,
+				DispatchError::from(frame_system::Error::<Test>::CallFiltered),
+				"pallet_utility adds a filter to the origin it hands each leg"
+			);
+			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
+		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_reject_a_nested_batch_all_exactly_as_a_direct_dispatch_would() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let first = account_of(&keypair("First"));
+	let second = account_of(&keypair("Second"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let outcome = signed_submit(relayer, &alice, nested_batch(first.clone(), second.clone()), 0, 100);
+
+			assert_eq!(
+				outcome.expect_err("utility bans nested batch_all; qed").error,
+				DispatchError::from(frame_system::Error::<Test>::CallFiltered),
+				"a meta transaction MUST behave exactly as the signer dispatching the call themselves"
+			);
+			assert_eq!(Balances::free_balance(&first), 0);
+			assert_eq!(Balances::free_balance(&second), 0);
+			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
+			assert_eq!(Nonces::<Test>::get(&signer), 0);
+		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_not_roll_back_when_the_inner_call_is_utility_batch() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let first = account_of(&keypair("First"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let batch = RuntimeCall::Utility(pallet_utility::Call::batch {
+				calls: vec![
+					transfer_call(first.clone(), UNITS),
+					transfer_call(first.clone(), 1_000 * UNITS),
+				],
+			});
+
+			assert_ok!(signed_submit(relayer, &alice, batch, 0, 100));
+
+			assert_eq!(
+				Balances::free_balance(&first),
+				UNITS,
+				"utility::batch reports Ok on a failing leg, so nothing above it can unwind — relayers MUST use batch_all"
+			);
+			assert_eq!(Nonces::<Test>::get(&signer), 1);
+		});
+}
+
+#[test]
+fn dispatch_evm_meta_tx_should_reject_a_nested_batch_all_exactly_as_a_direct_dispatch_would() {
+	let alice = evm_keypair("AliceEvm");
+	let signer = MockEvmAccounts::account_id(evm_address_of(&alice));
+	let relayer = account_of(&keypair("Relayer"));
+	let first = account_of(&keypair("First"));
+	let second = account_of(&keypair("Second"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let outcome = evm_submit(relayer, &alice, nested_batch(first.clone(), second.clone()), 0, 100);
+
+			assert_eq!(
+				outcome.expect_err("utility bans nested batch_all; qed").error,
+				DispatchError::from(frame_system::Error::<Test>::CallFiltered),
+				"the EVM path MUST inherit the same call filtering as the substrate path"
+			);
+			assert_eq!(Balances::free_balance(&first), 0);
+			assert_eq!(Balances::free_balance(&second), 0);
+			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
+			assert_eq!(Nonces::<Test>::get(&signer), 0);
+		});
+}
