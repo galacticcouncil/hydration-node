@@ -39,7 +39,6 @@ use frame_support::traits::{ExistenceRequirement, IsType, OriginTrait};
 use hydradx_traits::evm::{Erc20Encoding, InspectEvmAccounts};
 use hydradx_traits::registry::Inspect as InspectRegistry;
 use orml_traits::{MultiCurrency as MultiCurrencyT, MultiCurrency};
-use pallet_circuit_breaker::fuses::issuance::IssuanceIncreaseFuse;
 use pallet_evm::{AddressMapping, ExitRevert, Precompile, PrecompileFailure, PrecompileHandle, PrecompileResult};
 use primitive_types::{H160, U256};
 use primitives::{AssetId, Balance};
@@ -343,9 +342,8 @@ where
 		Ok(succeed(EvmDataWriter::new().write(true).build()))
 	}
 
-	/// INttToken mint: only the NTT minter bound to the asset can call it.
-	/// Throttled by the issuance circuit breaker: reverts instead of triggering the
-	/// reserve-and-lockdown path used by XCM deposits, so a rejected NTT delivery can be replayed.
+	/// INttToken mint: only the NTT minter bound to the asset can call it. Over-limit mints take
+	/// the deposit's PostDeposit circuit-breaker path (reserve excess + lockdown), same as XCM.
 	fn mint(asset_id: AssetId, handle: &mut impl PrecompileHandle) -> PrecompileResult {
 		handle.record_cost(RuntimeHelper::<Runtime>::db_read_gas_cost())?;
 
@@ -357,10 +355,6 @@ where
 		let amount = input.read::<Balance>()?;
 
 		Self::ensure_ntt_minter(asset_id, handle.context().caller)?;
-
-		if !IssuanceIncreaseFuse::<Runtime>::can_mint(asset_id.into(), amount.into()) {
-			return Err(revert_custom_error("MintLimitReached()", &[]));
-		}
 
 		let to = ExtendedAddressMapping::into_account_id(to);
 
