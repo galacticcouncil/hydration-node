@@ -3851,3 +3851,172 @@ mod sponsored_paymaster {
 		});
 	}
 }
+
+/// Reproduction of galacticcouncil/hydration-node#1495: a nested `evm.call` dispatched from
+/// inside an executing Call-Permit frame. Mirrors the construction reported by Northfound.
+mod nested_evm_call_in_permit {
+	use super::*;
+	use crate::evm::gas_price;
+	use crate::utils::contracts::deploy_contract;
+	use core::assert_eq;
+	use hydradx_runtime::{Dispatcher, System};
+	use pallet_evm::ExitReason;
+	use sp_core::H160;
+
+	fn paymaster_account() -> AccountId {
+		AccountId::from(crate::polkadot_test_net::BOB)
+	}
+
+	fn build_permit_for_call(
+		inner_call: &RuntimeCall,
+		gas_limit: u64,
+		deadline: U256,
+	) -> (H160, Vec<u8>, u64, U256, u8, H256, H256) {
+		let from = alith_evm_address();
+		let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+		let data = inner_call.encode();
+
+		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+			CALLPERMIT,
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data.clone(),
+			gas_limit,
+			pallet_evm_precompile_call_permit::NoncesStorage::get(from),
+			deadline,
+		);
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+		(
+			from,
+			data,
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		)
+	}
+
+	fn substrate_leg() -> RuntimeCall {
+		RuntimeCall::System(frame_system::Call::remark_with_event {
+			remark: b"leg-1-substrate".to_vec(),
+		})
+	}
+
+	fn evm_leg(source: H160, target: H160, gas_limit: u64) -> RuntimeCall {
+		RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+			call: Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+				source,
+				target,
+				input: vec![0x06, 0xfd, 0xde, 0x03], // name()
+				value: U256::zero(),
+				gas_limit,
+				max_fee_per_gas: gas_price(),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+				authorization_list: vec![],
+			})),
+		})
+	}
+
+	/// permit(from = user, to = 0x401, data = SCALE(batch)) submitted and paid for by the sponsor.
+	fn sponsor_permit_to_dispatch_precompile(
+		paymaster: AccountId,
+		batch: RuntimeCall,
+		outer_gas_limit: u64,
+	) -> frame_support::dispatch::DispatchResultWithPostInfo {
+		let (from, data, gas_limit, deadline, v, r, s) =
+			build_permit_for_call(&batch, outer_gas_limit, U256::from(1_000_000_000_000u128));
+
+		MultiTransactionPayment::dispatch_permit(
+			RuntimeOrigin::signed(paymaster),
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		)
+	}
+
+	fn prepare() -> (AccountId, H160, H160) {
+		init_omnipool_with_oracle_for_block_10();
+		let paymaster = paymaster_account();
+		assert_ok!(Balances::mint_into(&paymaster, 1_000 * UNITS));
+
+		let contract = deploy_contract("HydraToken", crate::contracts::deployer());
+		(paymaster, alith_evm_address(), contract)
+	}
+
+	/// The exact construction from the issue: one permit, opening the dispatch precompile,
+	/// carrying a batch whose legs mix substrate and EVM calls, submitted and paid for by a sponsor.
+	#[test]
+	fn permit_batch_with_nested_evm_call_should_execute_when_outer_gas_is_under_the_cap() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let (paymaster, user, contract) = prepare();
+
+			let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+				calls: vec![substrate_leg(), evm_leg(user, contract, 100_000)],
+			});
+
+			assert_ok!(sponsor_permit_to_dispatch_precompile(paymaster, batch, 9_000_000));
+
+			assert!(
+				System::events().iter().any(|record| matches!(
+					&record.event,
+					hydradx_runtime::RuntimeEvent::System(frame_system::Event::Remarked { .. })
+				)),
+				"the substrate leg must have executed"
+			);
+			assert!(
+				System::events().iter().any(|record| matches!(
+					&record.event,
+					hydradx_runtime::RuntimeEvent::EVM(pallet_evm::Event::Executed { address })
+						if *address == contract
+				)),
+				"the nested evm.call leg must have reached the contract inside the permit frame"
+			);
+			assert!(
+				matches!(Dispatcher::last_evm_call_exit_reason(), Some(ExitReason::Succeed(_))),
+				"no frame in the chain may have reverted"
+			);
+		});
+	}
+
+	/// EIP-7825 caps a single transaction at 2^24 gas, far below the 60M block gas limit.
+	/// Every run in the reported 9M-28M sweep above this line failed here, not on nesting.
+	#[test]
+	fn permit_should_fail_when_outer_gas_exceeds_the_transaction_gas_cap() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let (paymaster, user, contract) = prepare();
+			assert_eq!(fp_evm::MAX_TRANSACTION_GAS_LIMIT, U256::from(16_777_216u64));
+
+			let batch = || {
+				RuntimeCall::Utility(pallet_utility::Call::batch_all {
+					calls: vec![substrate_leg(), evm_leg(user, contract, 100_000)],
+				})
+			};
+
+			assert_ok!(sponsor_permit_to_dispatch_precompile(
+				paymaster.clone(),
+				batch(),
+				16_777_216
+			));
+
+			assert_noop!(
+				sponsor_permit_to_dispatch_precompile(paymaster, batch(), 16_777_217),
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError
+			);
+		});
+	}
+}
