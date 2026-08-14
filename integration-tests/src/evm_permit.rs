@@ -4019,4 +4019,268 @@ mod nested_evm_call_in_permit {
 			);
 		});
 	}
+	/// Submitted by Northfound on issue #1495: a reverting EVM leg between two state-changing
+	/// legs must unwind the whole batch while the permit nonce is still consumed.
+	#[test]
+	fn permit_batch_should_unwind_every_leg_when_a_middle_evm_leg_reverts() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let (paymaster, user, contract) = prepare();
+
+			// unknown selector, no fallback on the token contract -> the call reverts
+			let reverting_leg = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+				call: Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+					source: user,
+					target: contract,
+					input: vec![0xde, 0xad, 0xbe, 0xef],
+					value: U256::zero(),
+					gas_limit: 100_000,
+					max_fee_per_gas: gas_price(),
+					max_priority_fee_per_gas: None,
+					nonce: None,
+					access_list: vec![],
+					authorization_list: vec![],
+				})),
+			});
+
+			let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all {
+				calls: vec![substrate_leg(), reverting_leg, substrate_leg()],
+			});
+
+			let nonce_before = pallet_evm_precompile_call_permit::NoncesStorage::get(user);
+			System::reset_events();
+
+			// the inner failure is absorbed by design (that is the nonce-commit /
+			// replay guard), so the extrinsic itself must be Ok
+			assert_ok!(sponsor_permit_to_dispatch_precompile(paymaster, batch, 9_000_000));
+
+			// replay protection: the permit nonce must advance even though the batch unwound
+			assert_eq!(
+				pallet_evm_precompile_call_permit::NoncesStorage::get(user),
+				nonce_before + U256::one(),
+				"the permit nonce must be consumed even though the batch unwound"
+			);
+
+			// zero partial state: the first leg executed before the revert, but must be rolled back
+			assert!(
+				!System::events().iter().any(|record| matches!(
+					&record.event,
+					hydradx_runtime::RuntimeEvent::System(frame_system::Event::Remarked { .. })
+				)),
+				"the first substrate leg must have been rolled back"
+			);
+			assert!(
+				!System::events().iter().any(|record| matches!(
+					&record.event,
+					hydradx_runtime::RuntimeEvent::EVM(pallet_evm::Event::Executed { address })
+						if *address == contract
+				)),
+				"no nested evm.call may be recorded as executed"
+			);
+			assert!(
+				!matches!(Dispatcher::last_evm_call_exit_reason(), Some(ExitReason::Succeed(_))),
+				"the reverting leg must not read as a success"
+			);
+		});
+	}
+}
+
+/// Issue #1495 against a forked chain with the real money market deployed: the same
+/// permit -> 0x401 -> batchAll -> dispatch_evm_call shape, but the EVM leg is a genuine
+/// AAVE `supply` rather than a toy contract call.
+#[cfg(test)]
+mod aave_permit_batch {
+	use super::*;
+	use crate::aave_router::{with_aave, ADOT, BAG, DOT};
+	use crate::liquidation::supply as direct_supply;
+	use crate::utils::accounts::MockAccount;
+	use core::assert_eq;
+	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	use hydradx_traits::evm::Erc20Encoding;
+	use pallet_liquidation::BorrowingContract;
+	use primitives::EvmAddress;
+	use sp_core::H160;
+
+	fn paymaster_account() -> AccountId {
+		AccountId::from(crate::polkadot_test_net::BOB)
+	}
+
+	/// AAVE V3 `supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)`.
+	fn supply_calldata(asset: EvmAddress, amount: Balance, on_behalf_of: EvmAddress) -> Vec<u8> {
+		let mut data = vec![0x61, 0x7b, 0xa0, 0x37];
+		let mut word = [0u8; 32];
+		word[12..].copy_from_slice(asset.as_bytes());
+		data.extend_from_slice(&word);
+		let mut word = [0u8; 32];
+		word[16..].copy_from_slice(&amount.to_be_bytes());
+		data.extend_from_slice(&word);
+		let mut word = [0u8; 32];
+		word[12..].copy_from_slice(on_behalf_of.as_bytes());
+		data.extend_from_slice(&word);
+		data.extend_from_slice(&[0u8; 32]);
+		data
+	}
+
+	fn build_permit_for_call(
+		inner_call: &RuntimeCall,
+		gas_limit: u64,
+		deadline: U256,
+	) -> (H160, Vec<u8>, u64, U256, u8, H256, H256) {
+		let from = alith_evm_address();
+		let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+		let data = inner_call.encode();
+
+		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+			CALLPERMIT,
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data.clone(),
+			gas_limit,
+			pallet_evm_precompile_call_permit::NoncesStorage::get(from),
+			deadline,
+		);
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+		(
+			from,
+			data,
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		)
+	}
+
+	fn sponsor_permit(
+		paymaster: AccountId,
+		batch: RuntimeCall,
+		outer_gas_limit: u64,
+	) -> frame_support::dispatch::DispatchResultWithPostInfo {
+		let (from, data, gas_limit, deadline, v, r, s) =
+			build_permit_for_call(&batch, outer_gas_limit, U256::from(1_000_000_000_000u128));
+
+		MultiTransactionPayment::dispatch_permit(
+			RuntimeOrigin::signed(paymaster),
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		)
+	}
+
+	/// A real AAVE `supply` executed inside a sponsored Call-Permit frame, via the dispatch
+	/// precompile and `batchAll` — the construction reported as impossible in issue #1495.
+	/// It works; the reported failures were the EIP-7825 per-transaction gas cap (2^24).
+	#[test]
+	fn aave_supply_should_execute_inside_a_sponsored_permit_batch_under_the_gas_cap() {
+		with_aave(|| {
+			let (pool, user, user_acc, paymaster, dot_erc20, amount) = arrange();
+
+			// Base case: the same supply dispatched directly, to show it works at all.
+			direct_supply(pool, user, dot_erc20, amount);
+
+			let dot_before = Currencies::free_balance(DOT, &user_acc.address());
+			let adot_before = Currencies::free_balance(ADOT, &user_acc.address());
+
+			assert_ok!(sponsor_permit(
+				paymaster,
+				supply_batch(user, pool, dot_erc20, amount),
+				9_000_000
+			));
+
+			assert_eq!(
+				dot_before - Currencies::free_balance(DOT, &user_acc.address()),
+				amount,
+				"the AAVE supply MUST have executed inside the permit frame"
+			);
+			assert!(
+				Currencies::free_balance(ADOT, &user_acc.address()) >= adot_before + amount - 1,
+				"the user MUST have received aTokens for the supply"
+			);
+		});
+	}
+
+	/// The boundary is exactly EIP-7825's `MAX_TRANSACTION_GAS_LIMIT`, and it applies to the
+	/// permit's own gas limit — not to the nested call, and not to the batch contents.
+	#[test]
+	fn sponsored_permit_batch_should_fail_one_gas_over_the_transaction_cap() {
+		with_aave(|| {
+			let (pool, user, user_acc, paymaster, dot_erc20, amount) = arrange();
+			assert_eq!(fp_evm::MAX_TRANSACTION_GAS_LIMIT, U256::from(16_777_216u64));
+
+			assert_ok!(sponsor_permit(
+				paymaster.clone(),
+				supply_batch(user, pool, dot_erc20, amount),
+				16_777_216
+			));
+
+			let dot_before = Currencies::free_balance(DOT, &user_acc.address());
+			assert_noop!(
+				sponsor_permit(paymaster, supply_batch(user, pool, dot_erc20, amount), 16_777_217),
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError
+			);
+			assert_eq!(
+				Currencies::free_balance(DOT, &user_acc.address()),
+				dot_before,
+				"nothing may move when the permit is rejected"
+			);
+		});
+	}
+
+	fn arrange() -> (EvmAddress, EvmAddress, MockAccount, AccountId, EvmAddress, Balance) {
+		let pool = BorrowingContract::<Runtime>::get();
+		let user = alith_evm_address();
+		let user_acc = MockAccount::new(alith_truncated_account());
+		let paymaster = paymaster_account();
+		let dot_erc20 = HydraErc20Mapping::encode_evm_address(DOT);
+
+		assert_ok!(Currencies::deposit(DOT, &user_acc.address(), 10 * BAG));
+		assert_ok!(Balances::mint_into(&paymaster, 10_000 * UNITS));
+		// The AAVE snapshot carries EVM/Omnipool/Tokens state only; give the treasury and the
+		// paymaster enough to settle EVM fees so the debug-only deposit assertion holds.
+		assert_ok!(Balances::mint_into(
+			&hydradx_runtime::Treasury::account_id(),
+			10_000 * UNITS
+		));
+		assert_ok!(Currencies::deposit(
+			WETH,
+			&hydradx_runtime::Treasury::account_id(),
+			to_ether(10)
+		));
+		assert_ok!(Currencies::deposit(WETH, &paymaster, to_ether(10)));
+
+		(pool, user, user_acc, paymaster, dot_erc20, 1_000_000_000)
+	}
+
+	fn supply_batch(user: EvmAddress, pool: EvmAddress, asset: EvmAddress, amount: Balance) -> RuntimeCall {
+		RuntimeCall::Utility(pallet_utility::Call::batch_all {
+			calls: vec![
+				RuntimeCall::System(frame_system::Call::remark_with_event {
+					remark: b"leg-1-substrate".to_vec(),
+				}),
+				RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+					call: Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+						source: user,
+						target: pool,
+						input: supply_calldata(asset, amount, user),
+						value: U256::zero(),
+						gas_limit: 800_000,
+						max_fee_per_gas: crate::evm::gas_price(),
+						max_priority_fee_per_gas: None,
+						nonce: None,
+						access_list: vec![],
+						authorization_list: vec![],
+					})),
+				}),
+			],
+		})
+	}
 }
