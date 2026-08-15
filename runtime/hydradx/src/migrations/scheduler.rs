@@ -3,11 +3,11 @@
 
 use codec::{Decode, Encode};
 use frame_support::{
-	pallet_prelude::{OptionQuery, StorageMap},
+	pallet_prelude::OptionQuery,
 	storage_alias,
 	traits::OnRuntimeUpgrade,
 	weights::Weight,
-	Blake2_128Concat,
+	Blake2_128Concat, BoundedVec,
 };
 use pallet_scheduler::{pallet, BlockNumberFor, TaskAddress};
 use sp_core::Get;
@@ -100,7 +100,10 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 
 		// Remove every old key before inserting scaled keys, as a destination may still be an original key.
 		let agenda = pallet_scheduler::Agenda::<T>::drain().collect::<Vec<_>>();
-		let mut migrated_agenda = BTreeMap::new();
+		let mut migrated_agenda: BTreeMap<
+			BlockNumberFor<T>,
+			BoundedVec<Option<pallet_scheduler::ScheduledOf<T>>, T::MaxScheduledPerBlock>,
+		> = BTreeMap::new();
 		let mut migrated_addresses: BTreeMap<TaskAddress<BlockNumberFor<T>>, TaskAddress<BlockNumberFor<T>>> =
 			BTreeMap::new();
 

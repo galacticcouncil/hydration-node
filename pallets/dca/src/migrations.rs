@@ -1,6 +1,6 @@
 use crate::pallet;
 use frame_support::{
-	pallet_prelude::{StorageMap, ValueQuery},
+	pallet_prelude::ValueQuery,
 	storage_alias,
 	traits::{Get, GetStorageVersion, OnRuntimeUpgrade, StorageVersion},
 	Blake2_128Concat, BoundedVec,
