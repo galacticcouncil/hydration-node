@@ -782,36 +782,6 @@ mod omnipool {
 	}
 
 	#[test]
-<<<<<<< HEAD
-	fn rolling_buy_dca_should_complete_gracefully_when_user_runs_out_of_funds() {
-		TestNet::reset();
-		Hydra::execute_with(|| {
-			//Arrange
-			init_omnipool_with_oracle_for_block_10();
-			let balance = 5000 * UNITS;
-			let trade_size = 500 * UNITS; // amount_out to buy
-			let dca_budget = 0; // rolling DCA
-			Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), balance).unwrap();
-			create_schedule(
-				ALICE,
-				schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, trade_size, dca_budget),
-			);
-			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
-
-			//Act - run until user runs out of funds
-			run_to_block(11, 12 + 12 * hydradx_runtime::MinimalPeriod::get());
-
-			//Assert
-			assert!(DCA::schedules(0).is_none());
-			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
-			assert_reserved_balance!(&ALICE.into(), HDX, 0);
-			check_if_dcas_completed_without_failed_or_terminated_events();
-		});
-	}
-
-	#[test]
-=======
->>>>>>> master
 	fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
