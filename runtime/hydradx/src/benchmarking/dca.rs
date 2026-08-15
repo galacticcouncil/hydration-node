@@ -74,11 +74,11 @@ fn schedule_fake(
 		max_retries: None,
 		stability_threshold: None,
 		slippage: Some(Permill::from_percent(15)),
-		order: Order::Buy {
+		order: Order::Sell {
 			asset_in,
 			asset_out,
-			amount_out: amount,
-			max_amount_in: Balance::MAX,
+			amount_in: amount,
+			min_amount_out: Balance::MIN,
 			route: create_bounded_vec(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -487,11 +487,11 @@ runtime_benchmarks! {
 			max_retries: None,
 			stability_threshold: None,
 			slippage: Some(Permill::from_percent(15)),
-			order: Order::Buy {
+			order: Order::Sell {
 				asset_in: asset_1,
 				asset_out: DAI,
-				amount_out: amount_sell,
-				max_amount_in: Balance::MAX,
+				amount_in: amount_sell,
+				min_amount_out: Balance::MIN,
 				route: create_bounded_vec(route),
 			},
 		};

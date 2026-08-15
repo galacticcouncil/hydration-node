@@ -424,6 +424,8 @@ pub mod pallet {
 		HasActiveSchedules,
 		///No reserves are locked for the user for the given asset
 		NoReservesLocked,
+		///Buy orders can no longer be scheduled. Existing buy schedules keep executing.
+		NoLongerSupported,
 	}
 
 	/// Id sequencer for schedules
@@ -477,6 +479,10 @@ pub mod pallet {
 		/// Creates a new DCA (Dollar-Cost Averaging) schedule and plans the next execution
 		/// for the specified block.
 		///
+		/// Only `Order::Sell` schedules can be created. Buy orders are rejected with
+		/// `NoLongerSupported`; buy schedules already stored keep executing until they complete
+		/// or are terminated.
+		///
 		/// If the block is not specified, the execution is planned for the next block.
 		/// If the given block is full, the execution will be planned in the subsequent block.
 		///
@@ -500,16 +506,22 @@ pub mod pallet {
 		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
 		///
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule()
-			+ <T as Config>::AmmTradeWeights::calculate_buy_trade_amounts_weight(&schedule.order.get_route_or_default::<T::RouteProvider>()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule())]
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
 			schedule: Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
+			let who = ensure_signed(origin)?;
 			ensure!(who == schedule.owner, Error::<T>::Forbidden);
+			// Buy execution stays live for schedules stored before this restriction, so the
+			// benchmarks that measure it still need to create one.
+			#[cfg(not(feature = "runtime-benchmarks"))]
+			ensure!(
+				matches!(schedule.order, Order::Sell { .. }),
+				Error::<T>::NoLongerSupported
+			);
 
 			let min_budget = Self::convert_native_amount_to_currency(
 				schedule.order.get_asset_in(),

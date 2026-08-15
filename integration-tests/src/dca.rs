@@ -12,7 +12,7 @@ use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetPairAccountIdFor, NamedReserveId};
 use hydradx_runtime::{
 	AssetRegistry, Balances, Currencies, FeeProcessor, InsufficientEDinHDX, Omnipool, Router, Runtime, RuntimeEvent,
-	RuntimeOrigin, Stableswap, Tokens, Treasury, DCA,
+	RuntimeOrigin, Stableswap, System, Tokens, Treasury, DCA,
 };
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::AssetPair;
@@ -23,7 +23,7 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use orml_traits::NamedMultiReservableCurrency;
 use pallet_broadcast::types::*;
-use pallet_dca::types::{Order, Schedule};
+use pallet_dca::types::{Order, Schedule, ScheduleId};
 use pallet_omnipool::types::Tradability;
 use pallet_route_executor::MAX_NUMBER_OF_TRADES;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
@@ -57,7 +57,7 @@ mod omnipool {
 			go_to_block(block_id);
 
 			let budget = 1000 * UNITS;
-			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+			let schedule1 = schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, budget, HDX, DAI, 100 * UNITS);
 
 			//Act
 			assert_ok!(DCA::schedule(
@@ -84,6 +84,27 @@ mod omnipool {
 			.into()]);
 		});
 	}
+
+	#[test]
+	fn create_schedule_should_fail_when_order_is_buy() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+
+			let budget = 1000 * UNITS;
+			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+
+			//Act and assert
+			assert_noop!(
+				DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule1, None),
+				pallet_dca::Error::<hydradx_runtime::Runtime>::NoLongerSupported
+			);
+			assert!(DCA::schedules(0).is_none());
+		});
+	}
+
 	#[test]
 	fn create_schedule_should_work_when_insufficient_asset_as_fee() {
 		TestNet::reset();
@@ -136,7 +157,7 @@ mod omnipool {
 
 				let budget = 50000 * UNITS;
 				let schedule1 =
-					schedule_fake_with_buy_order(PoolType::XYK, insufficient_asset, DOT, 1000 * UNITS, budget);
+					schedule_fake_with_sell_order(ALICE, PoolType::XYK, budget, insufficient_asset, DOT, 1000 * UNITS);
 
 				//Act
 				assert_ok!(Currencies::update_balance(
@@ -185,7 +206,7 @@ mod omnipool {
 
 			let amount_out = 100 * UNITS;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -217,7 +238,7 @@ mod omnipool {
 			let amount_out = 100 * UNITS;
 			let schedule_id = 0;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			//Act
 			run_to_block(11, 12);
@@ -327,7 +348,7 @@ mod omnipool {
 			let amount_out = 100 * UNITS;
 			let no_route = vec![];
 			let schedule1 = schedule_fake_with_buy_order_with_route(HDX, DAI, amount_out, dca_budget, no_route);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -379,7 +400,7 @@ mod omnipool {
 					}]),
 				},
 			};
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -435,7 +456,7 @@ mod omnipool {
 
 			let amount_out = 100 * UNITS;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, LRNA, DAI, amount_out, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -472,7 +493,7 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, amount_out, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			//Act
 			go_to_block(12);
@@ -556,7 +577,7 @@ mod omnipool {
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, LRNA, DAI, amount_out, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			//Act
 			go_to_block(12);
@@ -636,7 +657,7 @@ mod omnipool {
 
 			let dca_budget = 1000 * UNITS;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -673,9 +694,10 @@ mod omnipool {
 			let trade_size = 500 * UNITS;
 			let dca_budget = 0; // rolling
 			Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), balance).unwrap();
-			create_schedule(
+			insert_schedule_into_storage(
 				ALICE,
 				schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, trade_size, dca_budget),
+				None,
 			);
 			let reserved = Balances::reserved_balance(&ALICE.into());
 			assert!(Balances::free_balance(&ALICE.into()) <= balance - reserved);
@@ -688,6 +710,34 @@ mod omnipool {
 			assert!(Balances::free_balance(&ALICE.into()) > reserved);
 			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
 			assert!(DCA::schedules(0).is_none());
+		});
+	}
+
+	#[test]
+	fn rolling_buy_dca_should_complete_gracefully_when_user_runs_out_of_funds() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			let balance = 5000 * UNITS;
+			let trade_size = 500 * UNITS; // amount_out to buy
+			let dca_budget = 0; // rolling DCA
+			Balances::force_set_balance(RuntimeOrigin::root(), ALICE.into(), balance).unwrap();
+			insert_schedule_into_storage(
+				ALICE,
+				schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, trade_size, dca_budget),
+				None,
+			);
+			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
+
+			//Act - run until user runs out of funds
+			run_to_block(11, 100);
+
+			//Assert
+			assert!(DCA::schedules(0).is_none());
+			assert!(Currencies::free_balance(DAI, &ALICE.into()) > dai_balance);
+			assert_reserved_balance!(&ALICE.into(), HDX, 0);
+			check_if_dcas_completed_without_failed_or_terminated_events();
 		});
 	}
 
@@ -732,6 +782,7 @@ mod omnipool {
 	}
 
 	#[test]
+<<<<<<< HEAD
 	fn rolling_buy_dca_should_complete_gracefully_when_user_runs_out_of_funds() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -759,6 +810,8 @@ mod omnipool {
 	}
 
 	#[test]
+=======
+>>>>>>> master
 	fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		TestNet::reset();
 		Hydra::execute_with(|| {
@@ -1140,7 +1193,7 @@ mod omnipool {
 
 				let budget = 5000 * UNITS;
 				let schedule1 =
-					schedule_fake_with_buy_order(PoolType::XYK, insufficient_asset, DOT, 100 * UNITS, budget);
+					schedule_fake_with_sell_order(ALICE, PoolType::XYK, budget, insufficient_asset, DOT, 100 * UNITS);
 
 				//Act
 				assert_ok!(Currencies::update_balance(
@@ -3158,7 +3211,7 @@ mod stableswap {
 					},
 				};
 
-				create_schedule(ALICE, schedule);
+				insert_schedule_into_storage(ALICE, schedule, None);
 
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 				assert_balance!(ALICE.into(), stable_asset_1, 0);
@@ -3227,7 +3280,7 @@ mod stableswap {
 				);
 				go_to_block(12);
 
-				create_schedule(ALICE, schedule1);
+				insert_schedule_into_storage(ALICE, schedule1, None);
 
 				assert_balance!(ALICE.into(), asset_a, alice_init_asset_a_balance - dca_budget);
 				assert_balance!(ALICE.into(), asset_b, 0);
@@ -3339,7 +3392,7 @@ mod stableswap {
 					},
 				};
 
-				create_schedule(ALICE, schedule);
+				insert_schedule_into_storage(ALICE, schedule, None);
 
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
 				assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
@@ -3455,7 +3508,7 @@ mod stableswap {
 					},
 				};
 
-				create_schedule(ALICE, schedule);
+				insert_schedule_into_storage(ALICE, schedule, None);
 
 				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
 				assert_balance!(ALICE.into(), stable_asset_1, alice_init_stable1_balance - dca_budget);
@@ -3577,7 +3630,7 @@ mod stableswap {
 					},
 				};
 
-				create_schedule(ALICE, schedule);
+				insert_schedule_into_storage(ALICE, schedule, None);
 
 				let alice_hdx_before = Currencies::free_balance(HDX, &ALICE.into());
 
@@ -3708,7 +3761,7 @@ mod stableswap {
 					},
 				};
 
-				create_schedule(ALICE, schedule);
+				insert_schedule_into_storage(ALICE, schedule, None);
 
 				let alice_pool_id_before = Currencies::free_balance(pool_id, &ALICE.into());
 				assert_eq!(alice_pool_id_before, 0, "ALICE should start with 0 pool_id shares");
@@ -3735,6 +3788,8 @@ mod stableswap {
 		});
 	}
 
+	/// It fails because stable share is locked in an intermediary trade,
+	/// and in the next hop the user has not enough balance to continue the trade
 	#[test]
 	fn sell_should_be_retried_when_stableshare_is_in_lockdown() {
 		TestNet::reset();
@@ -3970,7 +4025,6 @@ mod xyk {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - fee);
 		});
 	}
-
 	#[test]
 	fn buy_should_work_for_xyk() {
 		TestNet::reset();
@@ -4006,7 +4060,7 @@ mod xyk {
 			let dca_budget = 1100 * UNITS;
 			let amount_to_buy = 150 * UNITS;
 			let schedule1 = schedule_fake_with_buy_order(PoolType::XYK, HDX, DAI, amount_to_buy, dca_budget);
-			create_schedule(ALICE, schedule1);
+			insert_schedule_into_storage(ALICE, schedule1, None);
 
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -4276,7 +4330,7 @@ mod with_onchain_route {
 					},
 				};
 
-				create_schedule(ALICE, schedule);
+				insert_schedule_into_storage(ALICE, schedule, None);
 
 				assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 				assert_balance!(ALICE.into(), stable_asset_1, 0);
@@ -4787,7 +4841,7 @@ fn terminate_should_work_for_freshly_created_dca() {
 		go_to_block(block_id);
 
 		let budget = 1000 * UNITS;
-		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+		let schedule1 = schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, budget, HDX, DAI, 100 * UNITS);
 
 		assert_ok!(DCA::schedule(
 			RuntimeOrigin::signed(ALICE.into()),
@@ -4819,7 +4873,7 @@ fn unlock_should_not_work_when_user_has_active_schedule() {
 		go_to_block(block_id);
 
 		let budget = 1000 * UNITS;
-		let schedule1 = schedule_fake_with_buy_order(PoolType::Omnipool, HDX, DAI, 100 * UNITS, budget);
+		let schedule1 = schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, budget, HDX, DAI, 100 * UNITS);
 
 		assert_ok!(DCA::schedule(
 			RuntimeOrigin::signed(ALICE.into()),
@@ -4868,6 +4922,135 @@ fn unclock_should_work_when_user_has_leftover() {
 		//Assert
 		assert_reserved_balance!(&ALICE.into(), DOT, 0);
 	});
+}
+
+/// Guards `insert_schedule_into_storage` against drift from the `schedule` extrinsic: an order the
+/// extrinsic still accepts must land in identical state either way.
+mod storage_injection_fidelity {
+	use super::*;
+
+	#[test]
+	fn storage_injected_schedule_should_match_extrinsic_created_schedule() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			fund_alice_for_two_schedules();
+
+			let schedule =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+
+			//Act
+			create_schedule(ALICE, schedule.clone());
+			let reserved_by_extrinsic = Currencies::reserved_balance(HDX, &ALICE.into());
+			let injected_id = insert_schedule_into_storage(ALICE, schedule, None);
+
+			//Assert
+			assert_schedules_are_identical(0, injected_id, HDX, reserved_by_extrinsic);
+		});
+	}
+
+	#[test]
+	fn storage_injected_rolling_schedule_should_match_extrinsic_created_schedule() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			fund_alice_for_two_schedules();
+
+			let rolling_budget = 0;
+			let schedule =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, rolling_budget, HDX, DAI, 500 * UNITS);
+
+			//Act
+			create_schedule(ALICE, schedule.clone());
+			let reserved_by_extrinsic = Currencies::reserved_balance(HDX, &ALICE.into());
+			let injected_id = insert_schedule_into_storage(ALICE, schedule, None);
+
+			//Assert
+			assert_schedules_are_identical(0, injected_id, HDX, reserved_by_extrinsic);
+		});
+	}
+
+	#[test]
+	fn storage_injected_schedule_should_match_extrinsic_created_schedule_when_start_block_is_given() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			//Arrange
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			fund_alice_for_two_schedules();
+
+			let schedule =
+				schedule_fake_with_sell_order(ALICE, PoolType::Omnipool, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+			let start_execution_block = 22;
+
+			//Act
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE.into()),
+				schedule.clone(),
+				Some(start_execution_block)
+			));
+			let reserved_by_extrinsic = Currencies::reserved_balance(HDX, &ALICE.into());
+			let injected_id = insert_schedule_into_storage(ALICE, schedule, Some(start_execution_block));
+
+			//Assert
+			assert_eq!(DCA::schedule_execution_block(injected_id), Some(25));
+			assert_schedules_are_identical(0, injected_id, HDX, reserved_by_extrinsic);
+		});
+	}
+
+	/// Both schedules reserve the full budget, which exceeds ALICE's default balance.
+	fn fund_alice_for_two_schedules() {
+		assert_ok!(Balances::force_set_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			20_000 * UNITS
+		));
+	}
+
+	fn assert_schedules_are_identical(
+		extrinsic_id: ScheduleId,
+		injected_id: ScheduleId,
+		reserve_asset: AssetId,
+		reserved_by_extrinsic: Balance,
+	) {
+		assert_eq!(injected_id, extrinsic_id + 1);
+		assert_eq!(DCA::schedules(injected_id), DCA::schedules(extrinsic_id));
+		assert_eq!(
+			DCA::owner_of(AccountId::from(ALICE), injected_id),
+			DCA::owner_of(AccountId::from(ALICE), extrinsic_id)
+		);
+		assert_eq!(
+			DCA::remaining_amounts(injected_id),
+			DCA::remaining_amounts(extrinsic_id)
+		);
+		assert_eq!(DCA::retries_on_error(injected_id), DCA::retries_on_error(extrinsic_id));
+		assert_eq!(
+			DCA::schedule_extra_gas(injected_id),
+			DCA::schedule_extra_gas(extrinsic_id)
+		);
+
+		let execution_block = DCA::schedule_execution_block(extrinsic_id).unwrap();
+		assert_eq!(DCA::schedule_execution_block(injected_id), Some(execution_block));
+		assert_eq!(
+			DCA::schedule_ids_per_block(execution_block).to_vec(),
+			vec![extrinsic_id, injected_id]
+		);
+
+		assert_reserved_balance!(&AccountId::from(ALICE), reserve_asset, 2 * reserved_by_extrinsic);
+
+		let events = last_hydra_events(10);
+		assert!(events
+			.iter()
+			.any(|e| matches!(e, RuntimeEvent::DCA(pallet_dca::Event::Scheduled { id, .. }) if *id == injected_id)));
+		assert!(events.iter().any(
+			|e| matches!(e, RuntimeEvent::DCA(pallet_dca::Event::ExecutionPlanned { id, block, .. })
+				if *id == injected_id && *block == execution_block)
+		));
+	}
 }
 
 mod aave_atoken {
@@ -5082,6 +5265,88 @@ pub fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, 
 	assert_ok!(DCA::schedule(RuntimeOrigin::signed(owner.into()), schedule1, None));
 }
 
+/// Stores a schedule by writing exactly the state the `schedule` extrinsic writes.
+///
+/// Buy orders can no longer be scheduled, but buy schedules stored before that restriction keep
+/// executing, so their execution still needs coverage. Fidelity against the extrinsic is pinned by
+/// `storage_injected_schedule_should_match_extrinsic_created_schedule`.
+pub fn insert_schedule_into_storage(
+	owner: [u8; 32],
+	schedule: Schedule<AccountId, AssetId, u32>,
+	start_execution_block: Option<BlockNumber>,
+) -> ScheduleId {
+	let who: AccountId = owner.into();
+	assert_eq!(schedule.owner, who, "owner must match the schedule owner");
+
+	let asset_in = schedule.order.get_asset_in();
+	let route = schedule.order.get_route_or_default::<Router>();
+	let amount_in = match schedule.order {
+		Order::Sell { amount_in, .. } => amount_in,
+		Order::Buy { amount_out, .. } => Router::calculate_expected_amount_in(&route, amount_out).unwrap(),
+	};
+	let transaction_fee = DCA::get_transaction_fee(&schedule.order, None).unwrap();
+
+	let reserve_amount = if schedule.is_rolling() {
+		amount_in.saturating_add(transaction_fee).saturating_mul(2)
+	} else {
+		schedule.total_amount
+	};
+
+	let schedule_id = pallet_dca::ScheduleIdSequencer::<Runtime>::mutate(|current_id| {
+		let schedule_id = *current_id;
+		*current_id += 1;
+		schedule_id
+	});
+
+	pallet_dca::Schedules::<Runtime>::insert(schedule_id, &schedule);
+	pallet_dca::ScheduleOwnership::<Runtime>::insert(&who, schedule_id, ());
+	pallet_dca::RemainingAmounts::<Runtime>::insert(schedule_id, reserve_amount);
+	pallet_dca::RetriesOnError::<Runtime>::insert(schedule_id, 0);
+
+	assert_ok!(Currencies::reserve_named(
+		&NamedReserveId::get(),
+		asset_in,
+		&who,
+		reserve_amount
+	));
+
+	let execution_block = first_execution_block(start_execution_block);
+	pallet_dca::ScheduleIdsPerBlock::<Runtime>::mutate(execution_block, |schedule_ids| {
+		schedule_ids.try_push(schedule_id).expect("execution block is full");
+	});
+	pallet_dca::ScheduleExecutionBlock::<Runtime>::insert(schedule_id, execution_block);
+
+	System::deposit_event(RuntimeEvent::DCA(pallet_dca::Event::Scheduled {
+		id: schedule_id,
+		who: who.clone(),
+		period: schedule.period,
+		total_amount: schedule.total_amount,
+		order: schedule.order,
+	}));
+	System::deposit_event(RuntimeEvent::DCA(pallet_dca::Event::ExecutionPlanned {
+		id: schedule_id,
+		who,
+		block: execution_block,
+	}));
+
+	schedule_id
+}
+
+/// Mirrors `pallet_dca::Pallet::get_first_execution_block`.
+fn first_execution_block(start_execution_block: Option<BlockNumber>) -> BlockNumber {
+	let next_block = System::block_number().saturating_add(2);
+	match start_execution_block {
+		Some(block) => {
+			let number = next_block.max(block);
+			match number % 5 {
+				0 => number,
+				remainder => number.saturating_add(5 - remainder),
+			}
+		}
+		None => next_block,
+	}
+}
+
 fn schedule_fake_with_buy_order(
 	pool: PoolType<AssetId>,
 	asset_in: AssetId,
@@ -5089,19 +5354,26 @@ fn schedule_fake_with_buy_order(
 	amount: Balance,
 	budget: Balance,
 ) -> Schedule<AccountId, AssetId, u32> {
-	schedule_fake_with_buy_order_with_route(
-		asset_in,
-		asset_out,
-		amount,
-		budget,
-		vec![Trade {
-			pool,
+	Schedule {
+		owner: AccountId::from(ALICE),
+		period: 5u32,
+		total_amount: budget,
+		max_retries: None,
+		stability_threshold: None,
+		slippage: Some(Permill::from_percent(10)),
+		order: Order::Buy {
 			asset_in,
 			asset_out,
-		}],
-	)
+			amount_out: amount,
+			max_amount_in: Balance::MAX,
+			route: create_bounded_vec(vec![Trade {
+				pool,
+				asset_in,
+				asset_out,
+			}]),
+		},
+	}
 }
-
 fn schedule_fake_with_buy_order_with_route(
 	asset_in: AssetId,
 	asset_out: AssetId,
@@ -6206,7 +6478,7 @@ fn rolling_buy_dca_completes_prematurely_when_price_increases() {
 			},
 		};
 
-		create_schedule(ALICE, rolling_buy_schedule);
+		insert_schedule_into_storage(ALICE, rolling_buy_schedule, None);
 
 		let schedule_id = 0;
 		assert_ok!(hydradx_runtime::CircuitBreaker::set_trade_volume_limit(
