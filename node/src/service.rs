@@ -62,7 +62,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, liquidation_worker, rpc};
+use crate::{chain_spec, cli, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -298,7 +298,7 @@ async fn start_node_impl(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	ethereum_config: evm::EthereumConfig,
-	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
+	liquidation_worker_config: pepl_worker::LiquidationWorkerCli,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	no_tx_priority_override: bool,
@@ -378,24 +378,50 @@ async fn start_node_impl(
 		);
 	}
 
-	// Data provided from the liquidation worker to RPC API.
-	let liquidation_task_data = Arc::new(liquidation_worker::LiquidationTaskData::new());
+	// Node base path for the v2 worker's borrower cache, captured before the config is consumed
+	// below.
+	let base_path_for_pepl = parachain_config.base_path.path().to_path_buf();
+
+	// Published to the `liquidation_*` RPCs; stays `None` when no v2 worker runs on this node.
+	let mut pepl_status: Option<Arc<pepl_worker::WorkerStatus>> = None;
 
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
 	{
-		task_manager.spawn_handle().spawn(
-			"liquidation-worker",
-			None,
-			liquidation_worker::LiquidationTask::run(
-				client.clone(),
-				liquidation_worker_config,
-				transaction_pool.clone(),
-				task_manager.spawn_handle(),
-				liquidation_task_data.clone(),
-			),
-		);
+		if liquidation_worker_config.liquidation_worker_v1 {
+			// Opt-in legacy path: run the v1 worker instead of v2 (for v1-vs-v2 comparison).
+			let liquidation_task_data = Arc::new(crate::liquidation_worker::LiquidationTaskData::new());
+			task_manager.spawn_handle().spawn(
+				"liquidation-worker",
+				None,
+				crate::liquidation_worker::LiquidationTask::run(
+					client.clone(),
+					(&liquidation_worker_config).into(),
+					transaction_pool.clone(),
+					task_manager.spawn_handle(),
+					liquidation_task_data,
+				),
+			);
+		} else {
+			use pepl_worker::LiquidationTask;
+			use pepl_worker_support::types::RuntimeClient;
+
+			// Resolve the borrower-cache path from the node base path before consuming the CLI
+			// config; `--borrower-cache-path ""` disables persistence.
+			let cache_path = liquidation_worker_config.resolve_borrower_cache_path(&base_path_for_pepl);
+			let mut worker_cfg: pepl_worker::LiquidationTaskConfig = liquidation_worker_config.into();
+			worker_cfg.borrower_cache_path = cache_path;
+
+			let task = LiquidationTask::new(RuntimeClient::new(client.clone()), transaction_pool.clone(), worker_cfg);
+			pepl_status = Some(task.status.clone());
+
+			task_manager.spawn_handle().spawn(
+				"pepl-worker-runner",
+				"pepl-worker",
+				pepl_worker::run(task, client.clone()),
+			);
+		}
 	}
 
 	// Wrap the stock storage override so eth-rpc reads also surface synthetic
@@ -447,7 +473,7 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
-				liquidation_task_data: liquidation_task_data.clone(),
+				pepl_status: pepl_status.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;
