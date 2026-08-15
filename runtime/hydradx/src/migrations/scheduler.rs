@@ -3,11 +3,7 @@
 
 use codec::{Decode, Encode};
 use frame_support::{
-	pallet_prelude::OptionQuery,
-	storage_alias,
-	traits::OnRuntimeUpgrade,
-	weights::Weight,
-	Blake2_128Concat, BoundedVec,
+	pallet_prelude::OptionQuery, storage_alias, traits::OnRuntimeUpgrade, weights::Weight, Blake2_128Concat, BoundedVec,
 };
 use pallet_scheduler::{pallet, BlockNumberFor, TaskAddress};
 use sp_core::Get;
