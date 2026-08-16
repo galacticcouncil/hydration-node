@@ -9,8 +9,7 @@ use sp_runtime::{Perbill, Saturating};
 use sp_std::{marker::PhantomData, vec::Vec};
 
 const MIGRATION_DONE_KEY: &[u8] = b"HydrationStableswapPegUpdate2sMigrationDone";
-// 30% above the 8 pool peg entries observed on mainnet, rounded up.
-const MAX_POOL_PEG_ENTRIES: u64 = 11;
+const MAX_POOL_PEG_ENTRIES: u64 = 22;
 
 // `max_peg_update` is a per-block movement cap. Divide configured non-zero caps by 3
 // to preserve roughly the same wall-clock peg movement when moving from 6s to 2s blocks.

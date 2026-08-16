@@ -12,10 +12,8 @@ use sp_runtime::traits::{BlockNumberProvider, Saturating};
 use sp_std::{marker::PhantomData, vec::Vec};
 
 const MIGRATION_DONE_KEY: &[u8] = b"HydrationReferenda2sBlockMigrationDone";
-// 30% above the 378 referendum records observed on mainnet, rounded up.
-const MAX_REFERENDA_RECORDS: u64 = 492;
-// 30% above the 2 active referenda observed on mainnet, rounded up.
-const MAX_ACTIVE_REFERENDA: u64 = 3;
+const MAX_REFERENDA_RECORDS: u64 = 500;
+const MAX_ACTIVE_REFERENDA: u64 = 10;
 
 // Minimal OpenGov active-state migration for the 6s -> 2s block-time change.
 //

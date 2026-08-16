@@ -2,7 +2,6 @@ use crate::pallet;
 use frame_support::traits::{Get, GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
 use sp_runtime::Saturating;
 
-// 30% above the 38 schedules observed on mainnet, rounded up.
 const MAX_SCHEDULES: u64 = 150;
 
 // This migration multiplies the periods of schedules by 3 to account for 3x faster block times
