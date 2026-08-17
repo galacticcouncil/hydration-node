@@ -124,7 +124,7 @@ where
 						actual_weight: Some(e.weight),
 						pays_fee: Pays::Yes,
 					},
-					error: pallet_transaction_multi_payment::Error::<R>::EvmPermitRunnerError.into(),
+					error: e.error.into(),
 				})
 			}
 		};

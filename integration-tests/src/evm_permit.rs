@@ -3546,7 +3546,7 @@ mod sponsored_paymaster {
 			// Direct extrinsic call bypasses the SignedExtension pre-dispatch,
 			// so we observe how the body itself handles u64::MAX: the real run
 			// hits Runner pre-validation (`gas_limit > block_gas_limit`) and
-			// returns Err → EvmPermitRunnerError.
+			// returns Err carrying the runner's own error.
 			let result = MultiTransactionPayment::dispatch_permit(
 				RuntimeOrigin::signed(paymaster),
 				from,
@@ -3676,7 +3676,7 @@ mod sponsored_paymaster {
 				min_buy_amount: 0,
 			});
 			// Sign for u64::MAX gas so the permit validates, then the runner rejects
-			// it (gas_limit exceeds the block gas limit) → EvmPermitRunnerError.
+			// it (gas_limit exceeds the block gas limit) with its own error.
 			let (from, data, gas_limit, deadline, v, r, s) =
 				build_permit_for_call(&inner_call, u64::MAX, U256::from(1_000_000_000_000u128));
 
@@ -3696,10 +3696,71 @@ mod sponsored_paymaster {
 			let err = result.expect_err("expected runner error");
 			assert_eq!(
 				err.error,
-				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError.into(),
+				pallet_evm::Error::<Runtime>::GasLimitExceedsBlockLimit.into(),
+				"the runner's own error must reach the caller, not a collapsed one"
 			);
 			// actual_weight = None → SignedExtension uses declared weight, no refund.
 			assert_eq!(err.post_info.actual_weight, None);
+		});
+	}
+
+	#[test]
+	fn distinct_runner_rejections_should_reach_the_caller_as_distinct_errors() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+
+			let rejection_for = |gas_limit: u64| {
+				let (from, data, gas_limit, deadline, v, r, s) =
+					build_permit_for_call(&inner_call, gas_limit, U256::from(1_000_000_000_000u128));
+				MultiTransactionPayment::dispatch_permit(
+					RuntimeOrigin::signed(paymaster.clone()),
+					from,
+					DISPATCH_ADDR,
+					U256::from(0),
+					data,
+					gas_limit,
+					deadline,
+					v,
+					r,
+					s,
+				)
+				.expect_err("the runner must reject this gas limit")
+				.error
+			};
+
+			let over_transaction_cap = rejection_for(16_777_217);
+			let over_block_limit = rejection_for(u64::MAX);
+
+			assert_eq!(
+				over_transaction_cap,
+				pallet_evm::Error::<Runtime>::TransactionGasLimitExceedsCap.into()
+			);
+			assert_eq!(
+				over_block_limit,
+				pallet_evm::Error::<Runtime>::GasLimitExceedsBlockLimit.into()
+			);
+			assert!(
+				over_transaction_cap != over_block_limit,
+				"two different runner rejections MUST remain distinguishable off-chain"
+			);
 		});
 	}
 
