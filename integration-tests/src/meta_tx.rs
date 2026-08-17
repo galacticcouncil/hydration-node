@@ -18,6 +18,23 @@ fn account_of(pair: &sr25519::Pair) -> AccountId {
 	MultiSigner::from(pair.public()).into_account()
 }
 
+/// The furthest deadline the runtime will admit from the current block.
+fn deadline() -> u32 {
+	System::block_number() + <Runtime as pallet_meta_tx::Config>::MaxDeadline::get()
+}
+
+/// The outcome recorded by the `Dispatched` event of the most recent meta transaction.
+fn dispatched_result() -> sp_runtime::DispatchResult {
+	System::events()
+		.into_iter()
+		.rev()
+		.find_map(|record| match record.event {
+			RuntimeEvent::MetaTx(pallet_meta_tx::Event::Dispatched { result, .. }) => Some(result),
+			_ => None,
+		})
+		.expect("an admitted meta transaction always emits Dispatched; qed")
+}
+
 fn signed_meta_tx(pair: &sr25519::Pair, call: RuntimeCall, deadline: u32) -> RuntimeCall {
 	let signer = account_of(pair);
 	let nonce = MetaTx::nonce(&signer);
@@ -83,7 +100,10 @@ fn meta_tx_should_be_fully_sponsored_when_signer_has_zero_balance() {
 		);
 		let relayer_before = Currencies::free_balance(HDX, &relayer);
 
-		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, remark(b"sponsored"), 1_000)));
+		assert_ok!(submit_as(
+			&relayer,
+			signed_meta_tx(&pair, remark(b"sponsored"), deadline())
+		));
 
 		assert!(
 			remarked_by(&signer),
@@ -136,7 +156,7 @@ fn meta_tx_should_execute_every_leg_when_signer_batches_calls() {
 			],
 		});
 
-		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, batch, 1_000)));
+		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, batch, deadline())));
 
 		assert_eq!(
 			Currencies::free_balance(HDX, &recipient) - recipient_before,
@@ -161,7 +181,7 @@ fn meta_tx_should_fail_when_replayed_by_the_relayer() {
 		let signer = account_of(&pair);
 		let relayer: AccountId = ALICE.into();
 
-		let call = signed_meta_tx(&pair, remark(b"once"), 1_000);
+		let call = signed_meta_tx(&pair, remark(b"once"), deadline());
 
 		assert_ok!(submit_as(&relayer, call.clone()));
 		assert_eq!(MetaTx::nonce(&signer), 1);
@@ -219,10 +239,10 @@ fn meta_tx_should_respect_the_runtime_call_filter() {
 			currency_id: HDX,
 			amount: UNITS,
 		});
-		let outcome = submit_as(&relayer, signed_meta_tx(&pair, transfer, 1_000));
+		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, transfer, deadline())));
 		assert!(
-			outcome.is_err(),
-			"a filtered call MUST surface to the relayer as an extrinsic error"
+			dispatched_result().is_err(),
+			"a filtered call MUST be visible to the relayer"
 		);
 
 		assert_eq!(
@@ -232,8 +252,8 @@ fn meta_tx_should_respect_the_runtime_call_filter() {
 		);
 		assert_eq!(
 			MetaTx::nonce(&signer),
-			0,
-			"a rejected intent reverts its nonce and stays valid until its deadline"
+			1,
+			"a consumed nonce is what stops a failed intent from being replayed"
 		);
 	});
 }
@@ -249,8 +269,8 @@ fn meta_tx_nonce_should_be_independent_of_the_system_nonce() {
 
 		let system_nonce_before = System::account_nonce(&signer);
 
-		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, remark(b"a"), 1_000)));
-		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, remark(b"b"), 1_000)));
+		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, remark(b"a"), deadline())));
+		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, remark(b"b"), deadline())));
 
 		assert_eq!(MetaTx::nonce(&signer), 2);
 		assert_eq!(
@@ -285,12 +305,12 @@ fn meta_tx_should_fail_when_signer_sources_an_evm_call_from_another_address() {
 			})),
 		});
 
-		let outcome = submit_as(&relayer, signed_meta_tx(&pair, evm_call, 1_000));
+		assert_ok!(submit_as(&relayer, signed_meta_tx(&pair, evm_call, deadline())));
 
 		assert!(
-			outcome.is_err(),
+			dispatched_result().is_err(),
 			"a signer MUST NOT be able to source an EVM call from an address it does not control"
 		);
-		assert_eq!(MetaTx::nonce(&signer), 0);
+		assert_eq!(MetaTx::nonce(&signer), 1);
 	});
 }

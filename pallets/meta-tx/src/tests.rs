@@ -6,7 +6,8 @@
 use crate::mock::*;
 use crate::{Error, Event, Nonces};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo};
-use frame_support::pallet_prelude::{Pays, Weight};
+use frame_support::pallet_prelude::{Get, Pays, Weight};
+use frame_support::traits::Currency;
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::evm::InspectEvmAccounts;
 use sp_runtime::traits::Dispatchable;
@@ -66,6 +67,17 @@ fn rejected(error: Error<Test>) -> DispatchErrorWithPostInfo {
 	}
 }
 
+fn dispatched_result() -> sp_runtime::DispatchResult {
+	System::events()
+		.into_iter()
+		.rev()
+		.find_map(|record| match record.event {
+			RuntimeEvent::MetaTx(Event::Dispatched { result, .. }) => Some(result),
+			_ => None,
+		})
+		.expect("an admitted meta transaction always emits Dispatched; qed")
+}
+
 #[test]
 fn dispatch_meta_tx_should_execute_under_signer_origin_when_signature_is_valid() {
 	let alice = keypair("Alice");
@@ -106,6 +118,7 @@ fn dispatch_meta_tx_should_execute_under_signer_origin_when_signature_is_valid()
 					signer,
 					relayer,
 					nonce: 0,
+					result: Ok(()),
 				}
 				.into(),
 			);
@@ -178,7 +191,7 @@ fn dispatch_meta_tx_should_fail_when_deadline_is_changed_after_signing() {
 			let signature = sign(&alice, &payload);
 
 			assert_noop!(
-				submit(relayer, signer, call, 0, 500, signature),
+				submit(relayer, signer, call, 0, 60, signature),
 				rejected(Error::<Test>::InvalidSignature)
 			);
 		});
@@ -259,6 +272,52 @@ fn dispatch_meta_tx_should_fail_when_deadline_has_passed() {
 }
 
 #[test]
+fn dispatch_meta_tx_should_fail_when_deadline_is_beyond_the_maximum() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer, 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let max: u64 = <Test as crate::Config>::MaxDeadline::get();
+			let too_far = System::block_number() + max + 1;
+
+			assert_noop!(
+				signed_submit(relayer, &alice, transfer_call(recipient, UNITS), 0, too_far),
+				rejected(Error::<Test>::DeadlineTooFar)
+			);
+		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_succeed_when_deadline_is_exactly_the_maximum() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer, 10 * UNITS)
+		.build()
+		.execute_with(|| {
+			let max: u64 = <Test as crate::Config>::MaxDeadline::get();
+			let deadline = System::block_number() + max;
+
+			assert_ok!(signed_submit(
+				relayer,
+				&alice,
+				transfer_call(recipient.clone(), UNITS),
+				0,
+				deadline
+			));
+			assert_eq!(Balances::free_balance(&recipient), UNITS);
+		});
+}
+
+#[test]
 fn dispatch_meta_tx_should_succeed_when_submitted_on_the_deadline_block() {
 	let alice = keypair("Alice");
 	let signer = account_of(&alice);
@@ -275,7 +334,7 @@ fn dispatch_meta_tx_should_succeed_when_submitted_on_the_deadline_block() {
 }
 
 #[test]
-fn dispatch_meta_tx_should_return_the_inner_error_when_the_inner_call_fails() {
+fn dispatch_meta_tx_should_report_the_inner_error_in_the_event_when_the_inner_call_fails() {
 	let alice = keypair("Alice");
 	let signer = account_of(&alice);
 	let relayer = account_of(&keypair("Relayer"));
@@ -292,20 +351,75 @@ fn dispatch_meta_tx_should_return_the_inner_error_when_the_inner_call_fails() {
 				.expect_err("the transfer exceeds the signer's balance; qed")
 				.error;
 
-			let outcome = signed_submit(relayer, &alice, call, 0, 100);
+			assert_ok!(signed_submit(relayer, &alice, call, 0, 100));
 
 			assert_eq!(
-				outcome
-					.expect_err("an inner failure MUST surface as an extrinsic error; qed")
-					.error,
-				expected,
-				"the relayer MUST receive the inner call's own error"
+				dispatched_result(),
+				Err(expected),
+				"the relayer MUST be able to read the inner call's own error"
 			);
 			assert_eq!(Balances::free_balance(&recipient), 0);
+		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_consume_the_nonce_when_the_inner_call_fails() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), UNITS)
+		.build()
+		.execute_with(|| {
+			let call = transfer_call(recipient, 1_000 * UNITS);
+
+			assert_ok!(signed_submit(relayer, &alice, call, 0, 100));
+
 			assert_eq!(
 				Nonces::<Test>::get(&signer),
+				1,
+				"a consumed nonce is what stops a failed intent from being replayed"
+			);
+		});
+}
+
+#[test]
+fn dispatch_meta_tx_should_fail_when_replayed_after_the_inner_call_failed() {
+	let alice = keypair("Alice");
+	let signer = account_of(&alice);
+	let relayer = account_of(&keypair("Relayer"));
+	let recipient = account_of(&keypair("Recipient"));
+
+	ExtBuilder::default()
+		.with_balance(signer.clone(), UNITS)
+		.build()
+		.execute_with(|| {
+			let call = transfer_call(recipient.clone(), 1_000 * UNITS);
+			let payload = MetaTx::signing_payload(&call, &signer, 0, 100);
+			let signature = sign(&alice, &payload);
+
+			assert_ok!(submit(
+				relayer.clone(),
+				signer.clone(),
+				call.clone(),
 				0,
-				"a failed intent reverts its nonce and stays valid until its deadline"
+				100,
+				signature.clone()
+			));
+			assert!(dispatched_result().is_err());
+
+			Balances::make_free_balance_be(&signer, 10_000 * UNITS);
+
+			assert_noop!(
+				submit(relayer, signer, call, 0, 100, signature),
+				rejected(Error::<Test>::InvalidNonce)
+			);
+			assert_eq!(
+				Balances::free_balance(&recipient),
+				0,
+				"the same bytes MUST NOT execute once conditions turn favourable"
 			);
 		});
 }
@@ -356,16 +470,16 @@ fn dispatch_meta_tx_should_roll_back_every_leg_when_one_leg_of_batch_all_fails()
 				],
 			});
 
-			let outcome = signed_submit(relayer, &alice, batch, 0, 100);
+			assert_ok!(signed_submit(relayer, &alice, batch, 0, 100));
 			assert!(
-				outcome.is_err(),
-				"a failing leg MUST surface as an extrinsic error, not a silent success"
+				dispatched_result().is_err(),
+				"a failing leg MUST be visible to the relayer, not a silent success"
 			);
 
 			assert_eq!(Balances::free_balance(&first), 0, "batch_all is all-or-nothing");
 			assert_eq!(Balances::free_balance(&second), 0);
 			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
-			assert_eq!(Nonces::<Test>::get(&signer), 0);
+			assert_eq!(Nonces::<Test>::get(&signer), 1);
 		});
 }
 
@@ -588,6 +702,7 @@ fn dispatch_evm_meta_tx_should_execute_under_the_evm_address_account_when_signat
 					signer,
 					relayer,
 					nonce: 0,
+					result: Ok(()),
 				}
 				.into(),
 			);
@@ -708,16 +823,16 @@ fn dispatch_evm_meta_tx_should_roll_back_every_leg_when_one_leg_of_batch_all_fai
 				],
 			});
 
-			let outcome = evm_submit(relayer, &alice, batch, 0, 100);
+			assert_ok!(evm_submit(relayer, &alice, batch, 0, 100));
 			assert!(
-				outcome.is_err(),
-				"a failing leg MUST surface to the relayer as an extrinsic error"
+				dispatched_result().is_err(),
+				"a failing leg MUST be visible to the relayer"
 			);
 
 			assert_eq!(Balances::free_balance(&first), 0, "the loop is all-or-nothing");
 			assert_eq!(Balances::free_balance(&second), 0);
 			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
-			assert_eq!(Nonces::<Test>::get(&signer), 0);
+			assert_eq!(Nonces::<Test>::get(&signer), 1);
 		});
 }
 
@@ -812,17 +927,23 @@ fn dispatch_meta_tx_should_reject_a_nested_batch_all_exactly_as_a_direct_dispatc
 		.with_balance(signer.clone(), 10 * UNITS)
 		.build()
 		.execute_with(|| {
-			let outcome = signed_submit(relayer, &alice, nested_batch(first.clone(), second.clone()), 0, 100);
+			assert_ok!(signed_submit(
+				relayer,
+				&alice,
+				nested_batch(first.clone(), second.clone()),
+				0,
+				100
+			));
 
 			assert_eq!(
-				outcome.expect_err("utility bans nested batch_all; qed").error,
-				DispatchError::from(frame_system::Error::<Test>::CallFiltered),
+				dispatched_result(),
+				Err(DispatchError::from(frame_system::Error::<Test>::CallFiltered)),
 				"a meta transaction MUST behave exactly as the signer dispatching the call themselves"
 			);
 			assert_eq!(Balances::free_balance(&first), 0);
 			assert_eq!(Balances::free_balance(&second), 0);
 			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
-			assert_eq!(Nonces::<Test>::get(&signer), 0);
+			assert_eq!(Nonces::<Test>::get(&signer), 1);
 		});
 }
 
@@ -867,16 +988,22 @@ fn dispatch_evm_meta_tx_should_reject_a_nested_batch_all_exactly_as_a_direct_dis
 		.with_balance(signer.clone(), 10 * UNITS)
 		.build()
 		.execute_with(|| {
-			let outcome = evm_submit(relayer, &alice, nested_batch(first.clone(), second.clone()), 0, 100);
+			assert_ok!(evm_submit(
+				relayer,
+				&alice,
+				nested_batch(first.clone(), second.clone()),
+				0,
+				100
+			));
 
 			assert_eq!(
-				outcome.expect_err("utility bans nested batch_all; qed").error,
-				DispatchError::from(frame_system::Error::<Test>::CallFiltered),
+				dispatched_result(),
+				Err(DispatchError::from(frame_system::Error::<Test>::CallFiltered)),
 				"the EVM path MUST inherit the same call filtering as the substrate path"
 			);
 			assert_eq!(Balances::free_balance(&first), 0);
 			assert_eq!(Balances::free_balance(&second), 0);
 			assert_eq!(Balances::free_balance(&signer), 10 * UNITS);
-			assert_eq!(Nonces::<Test>::get(&signer), 0);
+			assert_eq!(Nonces::<Test>::get(&signer), 1);
 		});
 }

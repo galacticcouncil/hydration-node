@@ -444,6 +444,10 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = weights::pallet_utility::HydraWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const MetaTxMaxDeadline: BlockNumber = 100;
+}
+
 impl pallet_meta_tx::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type Signature = primitives::Signature;
@@ -451,6 +455,7 @@ impl pallet_meta_tx::Config for Runtime {
 	type EvmAccounts = EVMAccounts;
 	type EvmFeePayer = crate::evm::EvmFeePayerImpl;
 	type ChainId = crate::EVMChainId;
+	type MaxDeadline = MetaTxMaxDeadline;
 	type WeightInfo = pallet_meta_tx::weights::HydraWeight<Runtime>;
 }
 

@@ -127,6 +127,7 @@ impl pallet_meta_tx::Config for Test {
 	type EvmAccounts = MockEvmAccounts;
 	type EvmFeePayer = MockEvmFeePayer;
 	type ChainId = ConstU64<222_222>;
+	type MaxDeadline = ConstU64<100>;
 	type WeightInfo = ();
 }
 

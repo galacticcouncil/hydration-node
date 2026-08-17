@@ -68,7 +68,7 @@ pub mod pallet {
 	use hydradx_traits::evm::{EvmFeePayerSupport, InspectEvmAccounts};
 	use sp_core::{H160, H256};
 	use sp_io::hashing::{blake2_256, keccak_256};
-	use sp_runtime::traits::{Dispatchable, IdentifyAccount, UniqueSaturatedInto, Verify, Zero};
+	use sp_runtime::traits::{Dispatchable, IdentifyAccount, Saturating, UniqueSaturatedInto, Verify, Zero};
 	use sp_std::boxed::Box;
 	use sp_std::vec::Vec;
 
@@ -98,6 +98,10 @@ pub mod pallet {
 		/// EVM chain id, bound into the EIP-712 domain separator.
 		type ChainId: Get<u64>;
 
+		/// Furthest ahead of the current block a signer may set a deadline.
+		#[pallet::constant]
+		type MaxDeadline: Get<BlockNumberFor<Self>>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -113,11 +117,12 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A meta transaction was executed.
+		/// A meta transaction was executed. `result` is the outcome of the inner call.
 		Dispatched {
 			signer: T::AccountId,
 			relayer: T::AccountId,
 			nonce: u32,
+			result: DispatchResult,
 		},
 	}
 
@@ -129,6 +134,8 @@ pub mod pallet {
 		InvalidNonce,
 		/// The deadline block has already passed.
 		Expired,
+		/// The deadline is further ahead than `MaxDeadline` allows.
+		DeadlineTooFar,
 		/// The signer's meta transaction nonce cannot be advanced any further.
 		NonceExhausted,
 		/// The secp256k1 signature does not recover to the given EVM address.
@@ -139,8 +146,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Execute `call` under `signer`'s origin, charging the submitting relayer for the fee.
 		///
-		/// A failing inner call is returned as an extrinsic error, which reverts the nonce with it.
-		/// Such an intent stays valid until its deadline.
+		/// A failing inner call is reported in the `Dispatched` event rather than as an extrinsic
+		/// error, so the nonce is consumed either way and the signature cannot be replayed.
 		///
 		/// Parameters:
 		/// - `origin`: any signed account; it pays the transaction fee.
@@ -150,7 +157,7 @@ pub mod pallet {
 		/// - `deadline`: last block number at which the signature remains valid.
 		/// - `signature`: `signer`'s signature over `signing_payload`.
 		///
-		/// Emits `Dispatched` event when successful.
+		/// Emits `Dispatched` event carrying the outcome of the inner call.
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight({
@@ -193,7 +200,7 @@ pub mod pallet {
 		/// - `v`: recovery id of the signature, `0` or `1`.
 		/// - `r`, `s`: the secp256k1 signature components.
 		///
-		/// Emits `Dispatched` event when successful.
+		/// Emits `Dispatched` event carrying the outcome of the inner call.
 		///
 		#[pallet::call_index(1)]
 		#[pallet::weight({
@@ -250,8 +257,12 @@ pub mod pallet {
 			deadline: BlockNumberFor<T>,
 			weight: Weight,
 		) -> Result<u32, DispatchErrorWithPostInfo> {
-			if frame_system::Pallet::<T>::block_number() > deadline {
+			let now = frame_system::Pallet::<T>::block_number();
+			if now > deadline {
 				return Err(Self::rejected(Error::<T>::Expired, weight));
+			}
+			if deadline > now.saturating_add(T::MaxDeadline::get()) {
+				return Err(Self::rejected(Error::<T>::DeadlineTooFar, weight));
 			}
 			if Nonces::<T>::get(signer) != nonce {
 				return Err(Self::rejected(Error::<T>::InvalidNonce, weight));
@@ -291,16 +302,14 @@ pub mod pallet {
 				pays_fee: Pays::Yes,
 			};
 
-			match result {
-				Ok(_) => {
-					Self::deposit_event(Event::Dispatched { signer, relayer, nonce });
-					Ok(post_info)
-				}
-				Err(e) => Err(DispatchErrorWithPostInfo {
-					post_info,
-					error: e.error,
-				}),
-			}
+			Self::deposit_event(Event::Dispatched {
+				signer,
+				relayer,
+				nonce,
+				result: result.map(|_| ()).map_err(|e| e.error),
+			});
+
+			Ok(post_info)
 		}
 
 		fn word(value: u128) -> [u8; 32] {
