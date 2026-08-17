@@ -2355,7 +2355,7 @@ impl TryConvert<&<Runtime as frame_system::Config>::RuntimeCall, AssetIdOf<Runti
 
 parameter_types! {
 	pub const FeeProcessorPalletId: PalletId = PalletId(*b"feeproc/");
-	pub const MaxFeeConversionsPerBlock: u32 = 2;
+	pub const MaxFeeConversionsPerBlock: u32 = 5;
 }
 
 /// Legacy staking fee receiver for non-HDX path — 5% of converted HDX.
