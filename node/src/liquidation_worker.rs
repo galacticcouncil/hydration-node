@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use codec::{Decode, Encode};
 use cumulus_primitives_core::BlockT;
 use ethabi::ethereum_types::U256;
@@ -107,6 +109,24 @@ pub struct LiquidationWorkerConfig {
 	/// Percentage of the block weight reserved for other transactions.
 	#[clap(long, default_value_t = WEIGHT_RESERVE)]
 	pub weight_reserve: u8,
+}
+
+// Build the v1 worker config from the (v2) node CLI so `--liquidation-worker-v1` can reuse the same
+// flags. Fields the v2 CLI doesn't expose fall back to the v1 defaults.
+impl From<&pepl_worker::LiquidationWorkerCli> for LiquidationWorkerConfig {
+	fn from(v: &pepl_worker::LiquidationWorkerCli) -> Self {
+		Self {
+			liquidation_worker: v.liquidation_worker,
+			// v1 is single-market by design: it takes the first pinned PAP, if any.
+			pap_contract: v.pool_address_provider.first().copied(),
+			runtime_api_caller: v.runtime_api_caller,
+			oracle_update_signer: v.oracle_signer.clone(),
+			oracle_update_call_address: v.oracle_update_call_address.clone(),
+			target_hf: v.target_hf.unwrap_or(TARGET_HF),
+			omniwatch_url: v.omniwatch_url.clone().unwrap_or_else(|| OMNIWATCH_URL.to_string()),
+			weight_reserve: v.weight_reserve.unwrap_or(WEIGHT_RESERVE),
+		}
+	}
 }
 
 struct ApiProvider<C>(C);

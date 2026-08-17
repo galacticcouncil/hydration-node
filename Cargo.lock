@@ -3805,7 +3805,13 @@ source = "git+https://github.com/AcalaNetwork/ethabi?branch=acala#6e6ef9b3712aec
 dependencies = [
  "ethereum-types",
  "hex",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
  "sha3",
+ "thiserror 1.0.69",
+ "uint 0.10.0",
 ]
 
 [[package]]
@@ -5684,6 +5690,8 @@ dependencies = [
  "pallet-liquidation",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
+ "pepl-worker",
+ "pepl-worker-support",
  "polkadot-cli",
  "polkadot-primitives",
  "polkadot-service",
@@ -11324,6 +11332,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "pepl-worker"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "cumulus-primitives-core",
+ "ethabi",
+ "ethereum",
+ "fp-evm",
+ "fp-rpc",
+ "fp-self-contained",
+ "frame-support",
+ "frame-system",
+ "futures",
+ "hex",
+ "hex-literal",
+ "hydradx-runtime",
+ "hyper 0.14.31",
+ "hyper-rustls 0.24.2",
+ "log",
+ "pallet-currencies-rpc-runtime-api",
+ "pallet-ethereum",
+ "pallet-evm",
+ "pallet-liquidation",
+ "parity-scale-codec",
+ "pepl-worker-support",
+ "pretty_assertions",
+ "primitives",
+ "sc-client-api",
+ "sc-service",
+ "sc-transaction-pool-api",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "tokio",
+ "xcm-runtime-apis",
+]
+
+[[package]]
+name = "pepl-worker-support"
+version = "0.1.0"
+dependencies = [
+ "ethabi",
+ "evm",
+ "fp-evm",
+ "fp-rpc",
+ "frame-support",
+ "hex-literal",
+ "hydradx-runtime",
+ "log",
+ "module-evm-utility-macro",
+ "num_enum",
+ "pallet-currencies-rpc-runtime-api",
+ "primitive-types 0.13.1",
+ "primitives",
+ "sc-client-api",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-blockchain",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14000,6 +14075,8 @@ dependencies = [
  "pallet-xyk",
  "pallet-xyk-liquidity-mining",
  "parity-scale-codec",
+ "pepl-worker",
+ "pepl-worker-support",
  "polkadot-parachain-primitives",
  "polkadot-primitives",
  "polkadot-runtime-parachains",

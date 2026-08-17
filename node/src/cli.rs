@@ -61,7 +61,7 @@ pub struct Cli {
 
 	/// Liquidation worker configuration
 	#[clap(flatten)]
-	pub liquidation_worker_config: crate::liquidation_worker::LiquidationWorkerConfig,
+	pub liquidation_worker_config: pepl_worker::LiquidationWorkerCli,
 }
 
 #[derive(Debug)]
