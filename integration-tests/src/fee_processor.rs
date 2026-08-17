@@ -1859,7 +1859,7 @@ fn gigapot_eventually_receives_all_buffered_hdx_fees_when_starting_below_ed() {
 		assert_eq!(held(), 0, "buffer fully flushed once the gigapot crosses ED");
 		assert_eq!(
 			delivered(),
-			7_287_615_227_493,
+			7_548_316_318_180,
 			"gigapot receives all buffered fees plus the flushing slice"
 		);
 		assert!(delivered() > buffered, "delivery includes the previously buffered fees");

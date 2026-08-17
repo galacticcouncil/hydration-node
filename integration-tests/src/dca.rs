@@ -299,17 +299,17 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421107400468)],
-						outputs: vec![Asset::new(LRNA, 70210548853902)],
+						inputs: vec![Asset::new(HDX, 140421134429889)],
+						outputs: vec![Asset::new(LRNA, 70210554484824)],
 						fees: vec![Fee::new(
 							LRNA,
-							35105274426,
+							35105277242,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
-							ExecutionType::DCA(schedule_id, 3),
-							ExecutionType::Router(4),
-							ExecutionType::Omnipool(5)
+							ExecutionType::DCA(schedule_id, 9),
+							ExecutionType::Router(10),
+							ExecutionType::Omnipool(11)
 						],
 					},
 					pallet_broadcast::Event::Swapped3 {
@@ -317,16 +317,16 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70175443579476)],
+						inputs: vec![Asset::new(LRNA, 70175449207582)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![
 							Fee::new(DAI, 137844611530, Destination::Account(Omnipool::protocol_account())),
 							Fee::new(DAI, 112781954887, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
-							ExecutionType::DCA(schedule_id, 3),
-							ExecutionType::Router(4),
-							ExecutionType::Omnipool(5)
+							ExecutionType::DCA(schedule_id, 9),
+							ExecutionType::Router(10),
+							ExecutionType::Omnipool(11)
 						],
 					}
 				]

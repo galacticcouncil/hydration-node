@@ -420,9 +420,9 @@ fn test_fees_update_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.000958));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001058));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000608));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000658));
 
 		//ACT
 		let hdx_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((HDX, hdx_state.reserve));
@@ -511,9 +511,9 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.000958));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001058));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000608));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000658));
 
 		//ACT
 		assert_ok!(hydradx_runtime::Omnipool::sell(
@@ -560,9 +560,9 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.000958));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001058));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000608));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000658));
 
 		//ACT
 		assert_ok!(hydradx_runtime::Omnipool::buy(

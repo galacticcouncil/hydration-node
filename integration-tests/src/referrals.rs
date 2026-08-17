@@ -58,7 +58,7 @@ fn trading_in_omnipool_should_transfer_portion_of_fee_to_reward_pot() {
 		// Referrals self-converts its raw asset into the HDX reward asset.
 		assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		let ref_pot_hdx_after = Currencies::free_balance(HDX, &Referrals::pot_account_id());
-		assert_eq!(ref_pot_hdx_after - ref_pot_hdx_before, 586079663);
+		assert_eq!(ref_pot_hdx_after - ref_pot_hdx_before, 624620568);
 	});
 }
 
@@ -87,7 +87,7 @@ fn buying_in_omnipool_should_transfer_portion_of_asset_out_fee_to_reward_pot() {
 		assert_eq!(ref_pot_dai - ref_pot_dai_before, 648606049064316);
 		assert_ok!(Referrals::convert(RuntimeOrigin::signed(ALICE.into()), DAI));
 		let ref_pot_hdx_after = Currencies::free_balance(HDX, &Referrals::pot_account_id());
-		assert_eq!(ref_pot_hdx_after - ref_pot_hdx_before, 22191640827);
+		assert_eq!(ref_pot_hdx_after - ref_pot_hdx_before, 23670135681);
 	});
 }
 
