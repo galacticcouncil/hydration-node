@@ -3227,6 +3227,107 @@ mod sponsored_paymaster {
 		});
 	}
 
+	// Regression lock for the design commitment documented in
+	// `pallets/transaction-multi-payment/src/lib.rs`, in `do_dispatch_permit_signed`:
+	// "Revert already consumed the nonce and charged gas; commit it like the
+	// unsigned path. Returning Err would roll the nonce back → replayable."
+	//
+	// The two halves are already covered separately: the nonce bump on revert by
+	// `signed_dispatch_permit_should_commit_and_consume_nonce_when_inner_call_reverts`,
+	// and the refusal of a spent nonce by
+	// `signed_dispatch_permit_should_fail_when_replayed_with_same_nonce` (on a permit
+	// that succeeded). This composes them on the revert path, which is the case the
+	// comment is about: the inner call had no effect, so a replay that got through
+	// would execute a call the signer authorized exactly once. It also pins that the
+	// refused replay does not advance the nonce a second time.
+	#[test]
+	fn permit_nonce_is_consumed_when_inner_call_reverts_and_replay_is_rejected() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let alith = alith_evm_address();
+			let nonce_before = pallet_evm_precompile_call_permit::NoncesStorage::get(alith);
+			let dai_before = user_acc.balance(DAI);
+
+			// Unachievable slippage — the inner call reverts inside the EVM.
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: u128::MAX,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			// The extrinsic itself succeeds even though the inner call reverted.
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster.clone()),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data.clone(),
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			));
+
+			assert_eq!(
+				user_acc.balance(DAI),
+				dai_before,
+				"reverted inner call MUST NOT have any effect",
+			);
+			assert_eq!(
+				pallet_evm_precompile_call_permit::NoncesStorage::get(alith),
+				nonce_before + U256::one(),
+				"revert MUST still consume the permit nonce — otherwise the permit is replayable",
+			);
+
+			// Replay the identical permit. The nonce it was signed against is spent,
+			// so signature recovery no longer yields `from` and the permit is refused
+			// before any execution.
+			let replay = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert_eq!(
+				replay.expect_err("replay of a reverted permit must be refused").error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitInvalid.into(),
+			);
+			assert_eq!(
+				user_acc.balance(DAI),
+				dai_before,
+				"refused replay MUST NOT execute the inner call",
+			);
+			assert_eq!(
+				pallet_evm_precompile_call_permit::NoncesStorage::get(alith),
+				nonce_before + U256::one(),
+				"refused replay MUST NOT advance the nonce a second time",
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
 	#[test]
 	fn unsigned_dispatch_permit_should_still_work_when_signed_branch_is_added() {
 		TestNet::reset();
