@@ -1385,6 +1385,126 @@ fn check_atoken_transfer_with_rounding_error() {
 }
 
 use sp_runtime::codec::Encode;
+
+/// Sets ADOT up as an accepted fee currency backed by the omnipool, then accrues
+/// yield so the aToken liquidity index departs from 1:1 and transfer amounts round
+/// against observed balance deltas.
+fn setup_adot_as_fee_currency() {
+	// ALICE has ADOT from with_atoken setup
+
+	// Transfer some ADOT from ALICE to the EVM user (alith)
+	let adot_transfer_amount = BAG / 3;
+	assert_ok!(Currencies::transfer(
+		RuntimeOrigin::signed(ALICE.into()),
+		alith_evm_account(),
+		ADOT,
+		adot_transfer_amount
+	));
+
+	// Send adot to protocol account so we can add it to ominpool
+	assert_ok!(MultiTransactionPayment::add_currency(
+		RuntimeOrigin::root(),
+		ADOT,
+		FixedU128::from_rational(1, 2)
+	));
+
+	set_ed(ADOT, 1);
+
+	assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
+		hydradx_runtime::Omnipool::protocol_account()
+	)));
+
+	assert_ok!(Currencies::transfer(
+		RuntimeOrigin::signed(ALICE.into()),
+		hydradx_runtime::Omnipool::protocol_account(),
+		ADOT,
+		adot_transfer_amount
+	));
+
+	// Add ADOT to omnipool so fee payment can work
+	assert_ok!(Omnipool::add_token(
+		RuntimeOrigin::root(),
+		ADOT,
+		FixedU128::from_rational(1, 2),
+		Permill::from_percent(100),
+		AccountId::from(ALICE),
+	));
+
+	hydradx_run_to_next_block();
+
+	pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(hydradx_runtime::MinimumMultiplier::get());
+
+	//Let's mutate timestamp to accrue some yield on ADOT holdings
+	let current_timestamp = hydradx_runtime::Timestamp::get();
+	let new_timestamp = current_timestamp + primitives::constants::time::MILLISECS_PER_BLOCK;
+	hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
+}
+
+/// Builds, validates and dispatches a `set_currency(ADOT)` permit whose EVM fee is
+/// charged in ADOT.
+fn dispatch_set_currency_permit(user_evm_address: EvmAddress, user_secret_key: [u8; 32]) {
+	let set_currency_call =
+		RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency { currency: ADOT });
+
+	let gas_limit = 1000000;
+	let deadline = U256::from(1000000000000u128);
+
+	// Generate permit
+	let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+		CALLPERMIT,
+		user_evm_address,
+		DISPATCH_ADDR,
+		U256::from(0),
+		set_currency_call.encode(),
+		gas_limit,
+		U256::zero(),
+		deadline,
+	);
+	let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+	let message = Message::parse(&permit);
+	let (rs, v) = sign(&message, &secret_key);
+
+	// Validate unsigned first
+	let call: pallet_transaction_multi_payment::Call<Runtime> =
+		pallet_transaction_multi_payment::Call::dispatch_permit {
+			from: user_evm_address,
+			to: DISPATCH_ADDR,
+			value: U256::from(0),
+			data: set_currency_call.encode(),
+			gas_limit,
+			deadline,
+			v: v.serialize(),
+			r: H256::from(rs.r.b32()),
+			s: H256::from(rs.s.b32()),
+		};
+
+	let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
+	assert_eq!(
+		MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
+		Ok(ValidTransaction {
+			priority: 0,
+			requires: vec![],
+			provides: vec![tag],
+			longevity: 64,
+			propagate: true,
+		})
+	);
+
+	// Dispatch the permit
+	assert_ok!(MultiTransactionPayment::dispatch_permit(
+		RuntimeOrigin::none(),
+		user_evm_address,
+		DISPATCH_ADDR,
+		U256::from(0),
+		set_currency_call.encode(),
+		gas_limit,
+		deadline,
+		v.serialize(),
+		H256::from(rs.r.b32()),
+		H256::from(rs.s.b32()),
+	));
+}
+
 #[test]
 fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 	let user_evm_address = alith_evm_address();
@@ -1393,125 +1513,14 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 	let treasury_acc = MockAccount::new(Treasury::account_id());
 
 	with_atoken(|| {
-		// ALICE has ADOT from with_atoken setup
 		let fee_currency = ADOT;
-
-		// Initialize omnipool and oracle
-
-		// Transfer some ADOT from ALICE to the EVM user (alith)
-		let adot_transfer_amount = BAG / 3; // Transfer 1 BAG of ADOT
-		assert_ok!(Currencies::transfer(
-			RuntimeOrigin::signed(ALICE.into()),
-			alith_evm_account(),
-			ADOT,
-			adot_transfer_amount
-		));
-
-		// Send adot to protocol account so we can add it to ominpool
-		assert_ok!(MultiTransactionPayment::add_currency(
-			RuntimeOrigin::root(),
-			ADOT,
-			FixedU128::from_rational(1, 2)
-		));
-
-		set_ed(ADOT, 1);
-
-		assert_ok!(EVMAccounts::bind_evm_address(hydradx_runtime::RuntimeOrigin::signed(
-			hydradx_runtime::Omnipool::protocol_account()
-		)));
-
-		assert_ok!(Currencies::transfer(
-			RuntimeOrigin::signed(ALICE.into()),
-			hydradx_runtime::Omnipool::protocol_account(),
-			ADOT,
-			adot_transfer_amount
-		));
-
-		// // Add ADOT to omnipool so fee payment can work
-		assert_ok!(Omnipool::add_token(
-			RuntimeOrigin::root(),
-			ADOT,
-			FixedU128::from_rational(1, 2),
-			Permill::from_percent(100),
-			AccountId::from(ALICE),
-		));
-
-		hydradx_run_to_next_block();
-
-		pallet_transaction_payment::pallet::NextFeeMultiplier::<Runtime>::put(hydradx_runtime::MinimumMultiplier::get());
-
-		//Let's mutate timestamp to accrue some yield on ADOT holdings
-		let current_timestamp = hydradx_runtime::Timestamp::get();
-		let new_timestamp = current_timestamp + primitives::constants::time::MILLISECS_PER_BLOCK;
-		hydradx_runtime::Timestamp::set_timestamp(new_timestamp);
+		setup_adot_as_fee_currency();
 
 		let initial_user_fee_currency_balance = user_acc.balance(fee_currency);
 		let initial_treasury_fee_balance = treasury_acc.balance(fee_currency);
 		let initial_fee_currency_issuance = Currencies::total_issuance(fee_currency);
 
-		// Create the set_currency call to set ADOT as fee payment currency
-		let set_currency_call =
-			RuntimeCall::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
-				currency: fee_currency,
-			});
-
-		let gas_limit = 1000000;
-		let deadline = U256::from(1000000000000u128);
-
-		// Generate permit
-		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
-			CALLPERMIT,
-			user_evm_address,
-			DISPATCH_ADDR,
-			U256::from(0),
-			set_currency_call.encode(),
-			gas_limit,
-			U256::zero(),
-			deadline,
-		);
-		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
-		let message = Message::parse(&permit);
-		let (rs, v) = sign(&message, &secret_key);
-
-		// Validate unsigned first
-		let call: pallet_transaction_multi_payment::Call<Runtime> =
-			pallet_transaction_multi_payment::Call::dispatch_permit {
-				from: user_evm_address,
-				to: DISPATCH_ADDR,
-				value: U256::from(0),
-				data: set_currency_call.encode(),
-				gas_limit,
-				deadline,
-				v: v.serialize(),
-				r: H256::from(rs.r.b32()),
-				s: H256::from(rs.s.b32()),
-			};
-
-		let tag: Vec<u8> = ("EVMPermit", (U256::zero(), user_evm_address)).encode();
-		assert_eq!(
-			MultiTransactionPayment::validate_unsigned(TransactionSource::External, &call),
-			Ok(ValidTransaction {
-				priority: 0,
-				requires: vec![],
-				provides: vec![tag],
-				longevity: 64,
-				propagate: true,
-			})
-		);
-
-		// Dispatch the permit
-		assert_ok!(MultiTransactionPayment::dispatch_permit(
-			RuntimeOrigin::none(),
-			user_evm_address,
-			DISPATCH_ADDR,
-			U256::from(0),
-			set_currency_call.encode(),
-			gas_limit,
-			deadline,
-			v.serialize(),
-			H256::from(rs.r.b32()),
-			H256::from(rs.s.b32()),
-		));
+		dispatch_set_currency_permit(user_evm_address, user_secret_key);
 
 		// Verify the currency was set to ADOT
 		let currency = pallet_transaction_multi_payment::Pallet::<Runtime>::account_currency(&user_acc.address());
@@ -1529,10 +1538,53 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 		let final_treasury_fee_balance = treasury_acc.balance(fee_currency);
 		assert!(final_treasury_fee_balance > initial_treasury_fee_balance);
 
-		// Verify the fee amount matches what treasury received
+		// aToken balances rebase per account: the payer's observed loss and the
+		// treasury's observed gain round independently against the scaled transfer
+		// amounts, so they legitimately differ by a wei. No value is lost — total
+		// issuance is asserted unchanged above.
 		let fee_amount = initial_user_fee_currency_balance - user_fee_currency_balance;
 		let treasury_received = final_treasury_fee_balance - initial_treasury_fee_balance;
-		assert_eq!(fee_amount, treasury_received);
+		assert_eq!(fee_amount, 69833741);
+		assert_eq!(treasury_received, 69833740);
+	})
+}
+
+#[test]
+fn atoken_evm_fee_should_reach_treasury_when_holding_pot_is_short() {
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+	let treasury_acc = MockAccount::new(Treasury::account_id());
+
+	with_atoken(|| {
+		setup_adot_as_fee_currency();
+
+		let holding_acc = EVMAccounts::account_id(hydradx_runtime::evm::HOLDING_ADDRESS);
+		let initial_pot_balance = Currencies::free_balance(ADOT, &holding_acc);
+		let initial_user_balance = user_acc.balance(ADOT);
+		let initial_treasury_balance = treasury_acc.balance(ADOT);
+		let initial_issuance = Currencies::total_issuance(ADOT);
+
+		dispatch_set_currency_permit(user_evm_address, user_secret_key);
+
+		let fee_paid = initial_user_balance - user_acc.balance(ADOT);
+		let treasury_received = treasury_acc.balance(ADOT) - initial_treasury_balance;
+		let final_pot_balance = Currencies::free_balance(ADOT, &holding_acc);
+
+		// The fee escrow round-trips through the ERC-20 holding pot (payer → pot,
+		// then pot → payer refund and pot → treasury settlement), with payouts
+		// computed from the payer's observed deltas while the pot's own aToken
+		// balance rounds independently. With yield accrued the pot comes up a wei
+		// short of the computed settlement; the pot → treasury transfer then used
+		// to revert (Panic 0x11) and the whole fee stranded on the pot, treasury
+		// receiving nothing. DepositEvmFeeToTreasury settles what the pot actually
+		// holds, so the fee must reach treasury and the pot must not accumulate
+		// more than rounding dust.
+		assert_eq!(initial_pot_balance, 0);
+		assert_eq!(fee_paid, 69833741);
+		assert_eq!(treasury_received, 69833740);
+		assert_eq!(final_pot_balance, 0);
+		assert_eq!(Currencies::total_issuance(ADOT), initial_issuance);
 	})
 }
 

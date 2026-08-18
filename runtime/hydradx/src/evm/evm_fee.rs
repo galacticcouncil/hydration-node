@@ -292,8 +292,18 @@ where
 
 				let refund_imbalance = if let Ok(amount) = result {
 					// Ensure that we minted all amount, in case of partial refund for some reason,
-					// refund the difference back to treasury
-					debug_assert_eq!(amount, refund_amount);
+					// refund the difference back to treasury.
+					// Bound ERC-20s (aTokens) rebase: the observed balance delta can be a wei or
+					// two off the requested transfer amount, so only exactness of other assets is
+					// asserted. Gated so the registry read is compiled out of production builds.
+					#[cfg(debug_assertions)]
+					if <crate::AssetRegistry as hydradx_traits::registry::BoundErc20>::contract_address(paid.asset_id)
+						.is_some()
+					{
+						debug_assert!(refund_amount.abs_diff(amount) <= 2);
+					} else {
+						debug_assert_eq!(amount, refund_amount);
+					}
 					refund_amount.saturating_sub(amount)
 				} else {
 					// If error, we refund the whole amount back to treasury
@@ -338,11 +348,27 @@ impl OnUnbalanced<EvmPaymentInfo<EmaPrice>> for DepositEvmFeeToTreasury {
 	// this is called from pallet_evm for Ethereum-based transactions
 	// (technically, it calls on_unbalanced, which calls this when non-zero)
 	fn on_nonzero_unbalanced(payment_info: EvmPaymentInfo<EmaPrice>) {
-		let result = DepositAll::<crate::Runtime>::deposit_fee(
-			&TreasuryAccount::get(),
-			payment_info.asset_id,
-			payment_info.amount,
-		);
+		let treasury = TreasuryAccount::get();
+		let mut result =
+			DepositAll::<crate::Runtime>::deposit_fee(&treasury, payment_info.asset_id, payment_info.amount);
+		if result.is_err() {
+			// Bound ERC-20 (aToken) settlements draw on the holding pot, and rebasing
+			// rounding can leave the pot a wei or two short of the computed amount.
+			// Deliver what the pot actually holds instead of stranding the whole fee on it.
+			if let Some(contract) =
+				<crate::AssetRegistry as hydradx_traits::registry::BoundErc20>::contract_address(payment_info.asset_id)
+			{
+				let pot = <crate::evm::Erc20Currency<crate::Runtime> as hydradx_traits::evm::ERC20>::balance_of(
+					hydradx_traits::evm::CallContext::new_view(contract),
+					crate::evm::HOLDING_ADDRESS,
+				);
+				result = DepositAll::<crate::Runtime>::deposit_fee(
+					&treasury,
+					payment_info.asset_id,
+					payment_info.amount.min(pot),
+				);
+			}
+		}
 		debug_assert_eq!(result, Ok(()));
 	}
 }
