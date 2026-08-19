@@ -14,6 +14,11 @@ const MIGRATION_DONE_KEY: &[u8] = b"HydrationScheduler2sBlockMigrationDone";
 // 30% above the 470 agenda entries observed on mainnet.
 const MAX_AGENDA_ENTRIES: u64 = 611;
 
+type MigratedAgenda<T> = BTreeMap<
+	BlockNumberFor<T>,
+	BoundedVec<Option<pallet_scheduler::ScheduledOf<T>>, <T as pallet::Config>::MaxScheduledPerBlock>,
+>;
+
 mod scheduler_storage {
 	use super::*;
 
@@ -96,10 +101,7 @@ impl<T: pallet::Config> OnRuntimeUpgrade for MigrateSchedulerTo2sBlocks<T> {
 
 		// Remove every old key before inserting scaled keys, as a destination may still be an original key.
 		let agenda = pallet_scheduler::Agenda::<T>::drain().collect::<Vec<_>>();
-		let mut migrated_agenda: BTreeMap<
-			BlockNumberFor<T>,
-			BoundedVec<Option<pallet_scheduler::ScheduledOf<T>>, T::MaxScheduledPerBlock>,
-		> = BTreeMap::new();
+		let mut migrated_agenda: MigratedAgenda<T> = BTreeMap::new();
 		let mut migrated_addresses: BTreeMap<TaskAddress<BlockNumberFor<T>>, TaskAddress<BlockNumberFor<T>>> =
 			BTreeMap::new();
 
