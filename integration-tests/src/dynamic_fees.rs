@@ -469,8 +469,8 @@ fn test_fees_update_in_multi_blocks() {
 
 		assert_eq_approx!(
 			dai_final_fees.0,
-			Permill::from_float(0.003912),
-			Permill::from_float(0.000001),
+			Permill::from_parts(3_918),
+			Permill::from_parts(1),
 			"Final fee is not correct"
 		);
 		assert_eq!(dai_final_fees.1, Permill::from_float(0.0005));
@@ -481,7 +481,7 @@ fn test_fees_update_in_multi_blocks() {
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003852), Permill::from_float(0.0005))
+			(Permill::from_parts(3_866), Permill::from_float(0.0005))
 		);
 	});
 }
