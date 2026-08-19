@@ -461,7 +461,7 @@ fn test_fees_update_in_multi_blocks() {
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003919), Permill::from_float(0.0005))
+			(Permill::from_parts(3_919), Permill::from_float(0.0005))
 		);
 
 		hydradx_run_to_next_fee_block();
