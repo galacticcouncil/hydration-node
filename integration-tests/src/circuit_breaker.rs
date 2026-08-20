@@ -118,7 +118,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 		));
 
 		let min_limit = 0;
-		let sell_amount = 300000 * UNITS;
+		let sell_amount = 50000 * UNITS;
 
 		//We need to split in multiple sells to avoid max in ratio error
 		for _ in 1..=3 {
@@ -235,7 +235,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			DAI,
-			100000 * UNITS,
+			100000 * UNITS / 3,
 			Balance::MAX
 		));
 
@@ -323,7 +323,7 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 
 		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect
 		>::existential_deposit(DOT);
-		let minimum_initial_liquidity = 20 * ed.unwrap();
+		let minimum_initial_liquidity = 60 * ed.unwrap();
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -370,7 +370,7 @@ fn add_token_with_minimum_liquidity_to_omnipool_can_disable_adding_liquidity() {
 
 		let ed = <pallet_asset_registry::Pallet<hydradx_runtime::Runtime> as hydradx_traits::registry::Inspect
 		>::existential_deposit(BTC);
-		let minimum_initial_liquidity = 20 * ed.unwrap();
+		let minimum_initial_liquidity = 60 * ed.unwrap();
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),

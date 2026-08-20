@@ -137,10 +137,11 @@
   let assetMeta = new Map();
   let intervalId = null;
 
-  const BLOCK_TIME_S = 6;
+  const BLOCK_TIME_S = 2;
+  const BLOCK_TIME_MS = BLOCK_TIME_S * 1000;
   // Per-asset deposit limit window: 1 day. A baseline older than this is effectively
   // stale on-chain — the next mint will reset the window, so we display it as 0%.
-  const PERIOD_BLOCKS = 86400 / BLOCK_TIME_S; // 14400
+  const PERIOD_BLOCKS = 86400 / BLOCK_TIME_S; // 43200
 
   function fmtBalance(raw, decimals = 12, unit = '') {
     if (raw === null || raw === undefined) return '-';
@@ -417,7 +418,7 @@
       api = await ApiPromise.create({ provider: new WsProvider(url) });
       await loadAssetMetadata();
       await refresh();
-      intervalId = setInterval(refresh, 6000);
+      intervalId = setInterval(refresh, BLOCK_TIME_MS);
     } catch (e) {
       showError(`Connection failed: ${e.message}`);
       document.getElementById('block').textContent = 'offline';

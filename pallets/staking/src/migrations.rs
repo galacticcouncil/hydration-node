@@ -22,11 +22,12 @@ impl<T: pallet::Config> OnRuntimeUpgrade for SetSixSecBlocksSince<T> {
 	}
 }
 
-#[cfg(all(feature = "try-runtime", test))]
+#[cfg(test)]
 mod test {
 	use super::*;
 	use crate::migrations::SetSixSecBlocksSince;
 	use crate::tests::mock::{set_block_number, ExtBuilder, Staking, Test};
+	use crate::SixSecBlocksSince;
 	use frame_system::pallet_prelude::BlockNumberFor;
 
 	#[test]
@@ -34,6 +35,7 @@ mod test {
 		ExtBuilder::default().build().execute_with(|| {
 			// Arrange
 			set_block_number(500);
+			SixSecBlocksSince::<Test>::put(u32::MAX as BlockNumberFor<Test>);
 
 			// Act
 			SetSixSecBlocksSince::<Test>::on_runtime_upgrade();
@@ -48,6 +50,7 @@ mod test {
 		ExtBuilder::default().build().execute_with(|| {
 			// Arrange
 			set_block_number(500);
+			SixSecBlocksSince::<Test>::put(u32::MAX as BlockNumberFor<Test>);
 			SetSixSecBlocksSince::<Test>::on_runtime_upgrade();
 
 			// Act
