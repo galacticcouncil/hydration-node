@@ -23,7 +23,7 @@ const BNC: u32 = 14;
 const TRADE_AMOUNT: u128 = 10_000_000_000_000;
 const MIN_OUT_BNC: u128 = 68_795_189_840;
 
-const PERIOD: u32 = 5;
+const PERIOD: u32 = 15;
 
 /// Lockdown horizon for the trade-failure tests — must outlast the retry loop,
 /// since the breaker only rejects while `until > current_block`.

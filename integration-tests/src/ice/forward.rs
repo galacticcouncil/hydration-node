@@ -21,7 +21,7 @@ const HDX: u32 = 0;
 const BNC: u32 = 14;
 const TRADE_AMOUNT: u128 = 10_000_000_000_000;
 const MIN_OUT_BNC: u128 = 68_795_189_840;
-const PERIOD: u32 = 5;
+const PERIOD: u32 = 15;
 
 type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;

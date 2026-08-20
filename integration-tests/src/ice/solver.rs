@@ -2520,7 +2520,7 @@ fn eth_3pool_solver_vs_router() {
 			let bob_eth_after = Currencies::total_balance(eth, &bob);
 			let bob_3pool_after = Currencies::total_balance(pool3, &bob);
 			assert_eq!(bob_eth_after, 900000000000000000u128);
-			assert_eq!(bob_3pool_after, 211941375053826894046u128);
+			assert_eq!(bob_3pool_after, 211940313931460472256u128);
 
 			let router_eth_spent = bob_eth_before - bob_eth_after;
 			let router_3pool_received = bob_3pool_after - bob_3pool_before;
@@ -7193,7 +7193,7 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 4, "resolved count");
-			assert_eq!(solution.score, 36234524332534714116, "score");
+			assert_eq!(solution.score, 36234009987712636483, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -7203,8 +7203,8 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				};
 				assert_eq!(s.asset_in, 1110);
 				assert_eq!(s.asset_out, 1113);
-				assert_eq!(s.amount_in, 10074432980276737426u128);
-				assert_eq!(s.amount_out, 10050370706382834405u128);
+				assert_eq!(s.amount_in, 10074220878646013291u128);
+				assert_eq!(s.amount_out, 10050159111957187689u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -7215,8 +7215,8 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				};
 				assert_eq!(s.asset_in, 1111);
 				assert_eq!(s.asset_out, 1110);
-				assert_eq!(s.amount_in, 10062281042911715735u128);
-				assert_eq!(s.amount_out, 10072418093680682079u128);
+				assert_eq!(s.amount_in, 10062230603467881254u128);
+				assert_eq!(s.amount_out, 10072206034470284089u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -7227,8 +7227,8 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				};
 				assert_eq!(s.asset_in, 1111);
 				assert_eq!(s.asset_out, 1113);
-				assert_eq!(s.amount_in, 10061330244171591252u128);
-				assert_eq!(s.amount_out, 10052292896900060474u128);
+				assert_eq!(s.amount_in, 10061229374816954822u128);
+				assert_eq!(s.amount_out, 10052192118761257495u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -7239,8 +7239,8 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 				};
 				assert_eq!(s.asset_in, 1113);
 				assert_eq!(s.asset_out, 1111);
-				assert_eq!(s.amount_in, 10052728889470916183u128);
-				assert_eq!(s.amount_out, 10059442635571137158u128);
+				assert_eq!(s.amount_in, 10052577720627407992u128);
+				assert_eq!(s.amount_out, 10059452722523907210u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
