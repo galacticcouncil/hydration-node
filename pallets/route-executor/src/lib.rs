@@ -469,6 +469,9 @@ impl<T: Config> Pallet<T> {
 			T::Currency::reducible_balance(asset_in, &who.clone(), Preservation::Expendable, Fortitude::Polite);
 		ensure!(user_amount_in_balance >= amount_in, TokenError::FundsUnavailable);
 
+		// Set before the router holds any user funds, so the whole window is inside a trade context.
+		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
+
 		T::Currency::transfer(
 			asset_in,
 			&who,
@@ -478,7 +481,6 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		let next_event_id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Router)?;
-		pallet_broadcast::Pallet::<T>::set_swapper(who.clone());
 
 		for trade in route.iter() {
 			let amount_in_to_sell = T::Currency::reducible_balance(

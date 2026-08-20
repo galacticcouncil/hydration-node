@@ -41,6 +41,7 @@ mod omnipool_slip_fees_xval;
 mod oracle;
 mod otc;
 mod parameters;
+mod pepl;
 mod polkadot_test_net;
 mod referrals;
 mod router;

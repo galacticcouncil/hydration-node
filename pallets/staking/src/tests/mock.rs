@@ -195,6 +195,7 @@ parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"test_stk");
 	pub const MinStake: Balance = 10 * ONE;
 	pub const PeriodLength: BlockNumber = 10_000;
+	pub static TwoSecBlocksSince: BlockNumber = u32::MAX as BlockNumber;
 	pub const TimePointsW:Permill =  Permill::from_percent(80);
 	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 2;
@@ -209,6 +210,7 @@ impl pallet_staking::Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type PeriodLength = PeriodLength;
+	type TwoSecBlocksSince = TwoSecBlocksSince;
 	type PalletId = StakingPalletId;
 	type NativeAssetId = ConstU32<HDX>;
 	type MinStake = MinStake;
@@ -367,6 +369,7 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 		r.execute_with(|| {
 			TestExternalClaims::reset();
+			TwoSecBlocksSince::set(u32::MAX as BlockNumber);
 			pallet_staking::SixSecBlocksSince::<Test>::put(1_000_000_000);
 
 			if self.initial_block_number.is_zero() {

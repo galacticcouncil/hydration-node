@@ -211,11 +211,9 @@ runtime_benchmarks! {
 		// Add the token to the pool
 		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
 
-		// LP balance must stay within the circuit-breaker's per-block add-liquidity limit
-		// (5% of pool reserve). Pool reserve = token_amount = 200_000_000_000_000,
-		// 5% = 10_000_000_000_000. We use 5_000_000_000_000 (~2.5% of pool).
 		let lp_provider: AccountId = account("provider", 1, 1);
-		let lp_total = 5_000_000_000_000u128;
+		// Preserve the previous half-limit fixture after the per-block limit was divided by three.
+		let lp_total = 5_000_000_000_000u128 / 3;
 		update_balance(token_id, &lp_provider, lp_total);
 
 		let current_position_id = Omnipool::next_position_id();

@@ -7,7 +7,7 @@ use pallet_broadcast::types::Destination;
 use crate::assert_balance;
 use hydradx_runtime::LBP;
 use hydradx_runtime::XYK;
-use hydradx_runtime::{Currencies, FeeProcessor, Omnipool, Runtime};
+use hydradx_runtime::{Broadcast, Currencies, FeeProcessor, Omnipool, Router, Runtime};
 use hydradx_runtime::{RuntimeCall, Utility};
 use hydradx_traits::router::PoolType;
 use pallet_broadcast::types::Asset;
@@ -331,4 +331,148 @@ fn nested_batch_should_represent_embeddedness() {
 
 fn start_lbp_campaign() {
 	go_to_block(crate::router::LBP_SALE_START + 1);
+}
+
+// An inner call that always fails and never touches the broadcast execution context, so a batch
+// built from it exercises nothing but the batch's own context handling.
+fn failing_batch_call() -> RuntimeCall {
+	RuntimeCall::Currencies(pallet_currencies::Call::transfer {
+		dest: ALICE.into(),
+		currency_id: DOT,
+		amount: u128::MAX, // more than BOB can ever hold -> inner dispatch returns Err
+	})
+}
+
+fn xyk_hdx_dot_route() -> hydradx_traits::router::Route<hydradx_runtime::AssetId> {
+	BoundedVec::truncate_from(vec![Trade {
+		pool: PoolType::XYK,
+		asset_in: HDX,
+		asset_out: DOT,
+	}])
+}
+
+/// A batch releases its execution context at the batch boundary, so a later unrelated trade in
+/// the same block records only its own provenance.
+#[test]
+fn batch_should_release_execution_context_when_an_item_fails() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+		crate::router::create_xyk_pool(HDX, DOT);
+		assert_eq!(Broadcast::execution_context().to_vec(), vec![]);
+
+		//Act 1 — a batch whose only inner call fails. `batch` still returns Ok.
+		assert_ok!(Utility::batch(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			vec![failing_batch_call()]
+		));
+
+		//Assert 1 — the batch left the stack exactly as it found it.
+		assert_eq!(Broadcast::execution_context().to_vec(), vec![]);
+
+		//Act 2 — an unrelated, direct (non-batched) trade later in the same block.
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DOT,
+			10 * UNITS,
+			0,
+			xyk_hdx_dot_route()
+		));
+
+		//Assert 2 — the trade records only its own frame. The id is 1 because the batch consumed
+		// id 0 while it held its context.
+		let operation_stack = match get_last_swapped_events().last().unwrap().clone() {
+			pallet_broadcast::Event::<Runtime>::Swapped3 { operation_stack, .. } => operation_stack,
+		};
+		assert_eq!(operation_stack, vec![ExecutionType::Router(1)]);
+	});
+}
+
+/// Baseline for the test above: with no batch in the block at all, the same trade records the
+/// same single frame at id 0.
+#[test]
+fn direct_trade_should_carry_only_its_own_execution_context() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		crate::router::create_xyk_pool(HDX, DOT);
+
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			HDX,
+			DOT,
+			10 * UNITS,
+			0,
+			xyk_hdx_dot_route()
+		));
+
+		let operation_stack = match get_last_swapped_events().last().unwrap().clone() {
+			pallet_broadcast::Event::<Runtime>::Swapped3 { operation_stack, .. } => operation_stack,
+		};
+		assert_eq!(operation_stack, vec![ExecutionType::Router(0)]);
+		// A well-behaved trade leaves the stack exactly as it found it.
+		assert_eq!(Broadcast::execution_context().to_vec(), vec![]);
+	});
+}
+
+/// The execution context is a shared per-block stack bounded by `MAX_STACK_SIZE`, so batches
+/// must not accumulate frames across a block: repeated failing batches leave it empty and a
+/// later trade still acquires its own context.
+#[test]
+fn repeated_failing_batches_should_not_accumulate_execution_context_frames() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		crate::router::create_xyk_pool(HDX, DOT);
+
+		// One more than the stack can hold, to show depth is independent of batch count.
+		for _ in 0..=pallet_broadcast::MAX_STACK_SIZE {
+			assert_ok!(Utility::batch(
+				hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+				vec![failing_batch_call()]
+			));
+			assert_eq!(Broadcast::execution_context().to_vec(), vec![]);
+		}
+
+		// A trade from an unrelated account still acquires its context and settles normally.
+		assert_ok!(Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			DOT,
+			UNITS,
+			0,
+			xyk_hdx_dot_route(),
+		));
+	});
+}
+
+/// `Broadcast::on_finalize` clears the shared stack unconditionally, so no execution context
+/// carries from one block into the next.
+#[test]
+fn execution_context_should_be_cleared_at_block_finalization() {
+	use frame_support::traits::OnFinalize;
+
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		init_omnipool();
+		crate::router::create_xyk_pool(HDX, DOT);
+
+		assert_ok!(Utility::batch(
+			hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
+			vec![failing_batch_call()]
+		));
+
+		// The executive runs every pallet's `on_finalize` at the block boundary. The test helper
+		// `go_to_block` happens not to list Broadcast, so invoke exactly the hook it would.
+		let b = hydradx_runtime::System::block_number();
+		<hydradx_runtime::Broadcast as OnFinalize<_>>::on_finalize(b);
+
+		assert_eq!(Broadcast::execution_context().to_vec(), vec![]);
+	});
 }

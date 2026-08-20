@@ -64,6 +64,8 @@ members = [
     "pallets/fee-processor",
     "pallets/gigahdx",
     "pallets/gigahdx-rewards",
+    'pepl-worker',
+    'pepl-worker/support',
 ]
 
 resolver = "2"
@@ -191,6 +193,8 @@ pallet-ice-runtime-api = { path = "pallets/ice/runtime-api", default-features = 
 ice-support = { path = "pallets/ice/support", default-features = false }
 amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
+pepl-worker = { path = "pepl-worker", default-features = false }
+pepl-worker-support = { path = "pepl-worker/support", default-features = false }
 pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }
 pallet-gigahdx-rewards = { path = "pallets/gigahdx-rewards", default-features = false }
 

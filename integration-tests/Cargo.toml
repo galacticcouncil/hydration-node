@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.106.0"
+version = "1.109.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -56,6 +56,8 @@ pallet-broadcast = { workspace = true }
 ethereum-types = { workspace = true }
 pallet-duster = { workspace = true }
 pallet-duster-rpc-runtime-api = { workspace = true }
+pepl-worker-support = { workspace = true }
+pepl-worker = { workspace = true }
 
 pallet-treasury = { workspace = true }
 pallet-scheduler = { workspace = true }
