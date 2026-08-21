@@ -36,20 +36,7 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 			//Arrange
 
 			let total_amount = 100 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 10 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 			//Act
 			set_block_number(500);
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -71,20 +58,7 @@ fn schedule_should_store_total_amounts_in_storage() {
 			//Arrange
 
 			let total_amount = 100 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 10 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 			//Act
 			set_block_number(500);
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -104,36 +78,10 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 			//Arrange
 
 			let total_amount = 10000 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 100 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 
 			let total_amount_2 = 20000 * ONE;
-			let schedule_2 = ScheduleBuilder::new()
-				.with_total_amount(total_amount_2)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 1000 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
+			let schedule_2 = ScheduleBuilder::new().with_total_amount(total_amount_2).build();
 
 			//Act
 			set_block_number(500);
@@ -408,14 +356,14 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let buy_fee = get_fee_for_buy_in_hdx();
+			let sell_fee = get_fee_for_sell_in_hdx();
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: budget + buy_fee,
+					amount_in: budget + sell_fee,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -437,23 +385,20 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 }
 
 #[test]
-fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_plus_fee() {
+fn schedule_should_fail_when_order_is_buy() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let buy_fee = get_fee_for_buy_in_hdx();
-			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + buy_fee - 1;
-
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(budget)
+				.with_total_amount(100 * ONE)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_amount_in: budget + buy_fee,
+					max_amount_in: 50 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -468,7 +413,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 			//Assert
 			assert_noop!(
 				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::BudgetTooLow
+				Error::<Test>::NoLongerSupported
 			);
 		});
 }
@@ -607,17 +552,6 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_min_budget_and_sold_cu
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(*ORIGINAL_MIN_BUDGET_IN_NATIVE - 1)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 100 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
 				.build();
 
 			//Act and Assert
@@ -640,11 +574,11 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(*ORIGINAL_MIN_BUDGET_IN_NATIVE / 3)
-				.with_order(Order::Buy {
+				.with_order(Order::Sell {
 					asset_in: DAI,
 					asset_out: HDX,
-					amount_out: ONE,
-					max_amount_in: 100 * ONE,
+					amount_in: 10 * ONE,
+					min_amount_out: 0,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -801,20 +735,7 @@ fn schedule_should_init_retries_to_zero() {
 			//Arrange
 
 			let total_amount = 100 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 10 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 			//Act
 			set_block_number(500);
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
@@ -837,17 +758,6 @@ fn schedule_should_fail_when_wrong_user_is_specified_in_schedule() {
 			let schedule = ScheduleBuilder::new()
 				.with_owner(BOB)
 				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 10 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
 				.build();
 
 			set_block_number(500);
@@ -872,11 +782,11 @@ fn schedule_should_be_created_when_no_routes_specified() {
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
+				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 10 * ONE,
+					amount_in: 10 * ONE,
+					min_amount_out: 0,
 					route: create_bounded_vec(vec![]),
 				})
 				.build();
@@ -894,20 +804,7 @@ fn thousands_of_dcas_can_be_scheduled_on_a_specific_block_because_of_salt_added_
 		.execute_with(|| {
 			//Arrange
 			let total_amount = 100 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_amount_in: 10 * ONE,
-					route: create_bounded_vec(vec![Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 
 			use_prod_randomness();
 
@@ -937,21 +834,6 @@ pub fn get_fee_for_sell_in_hdx() -> Balance {
 			pool: PoolType::Omnipool,
 			asset_in: HDX,
 			asset_out: BTC,
-		}]),
-	};
-
-	DCA::get_transaction_fee(&order, None).unwrap()
-}
-pub fn get_fee_for_buy_in_hdx() -> Balance {
-	let order = Order::Buy {
-		asset_in: HDX,
-		asset_out: BTC,
-		amount_out: 10 * ONE,
-		max_amount_in: u128::MAX,
-		route: create_bounded_vec(vec![Trade {
-			pool: PoolType::Omnipool,
-			asset_in: crate::tests::mock::HDX,
-			asset_out: crate::tests::mock::BTC,
 		}]),
 	};
 

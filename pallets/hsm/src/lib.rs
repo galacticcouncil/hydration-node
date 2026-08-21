@@ -911,12 +911,13 @@ pub mod pallet {
 				.write(Bytes(arb_data))
 				.build();
 
-			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
-
 			let receiver_balance_initial = <T as crate::pallet::Config>::Currency::total_balance(
 				collateral_asset_id,
 				&T::ArbitrageProfitReceiver::get(),
 			);
+
+			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+
 			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::error!(target: "hsm", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
 				return Err(T::EvmErrorDecoder::convert(call_result));

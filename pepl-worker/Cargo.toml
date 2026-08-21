@@ -1,0 +1,47 @@
+[package]
+name = "pepl-worker"
+version = "0.1.0"
+description = "PEPL Liquidation Worker"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/hydration-node"
+
+[dependencies]
+clap = { workspace = true }
+primitives = { workspace = true }
+sp-core = { workspace = true }
+hex-literal = { workspace = true }
+hex = { workspace = true, features = ["std"] }
+cumulus-primitives-core = { workspace = true  , features = ["std"] }
+sp-api = { workspace = true , features = ["std"] }
+frame-support = { workspace = true }
+log = { workspace = true }
+hyperv14 = { package = "hyper", features = ["http2", "stream", "tcp"], version = "0.14.29", default-features = true }
+hyper-rustls = { version = "0.24.2", features = ["http1", "http2", "webpki-roots", "tokio-runtime"], default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["std"]}
+codec = { workspace = true }
+ethabi = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+frame-system = { workspace = true }
+sc-client-api = { workspace = true }
+hydradx-runtime = { workspace = true, features = ["std"] }
+pallet-evm = { workspace = true }
+pallet-ethereum = { workspace = true }
+pallet-liquidation = { workspace = true }
+sp-runtime = { workspace = true }
+fp-self-contained = { workspace = true }
+pepl-worker-support = { workspace = true }
+sc-transaction-pool-api = { workspace = true }
+futures = { workspace = true }
+fp-rpc = { workspace = true }
+sp-arithmetic = { workspace = true }
+pallet-currencies-rpc-runtime-api = { workspace = true }
+xcm-runtime-apis = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+sc-service = { workspace = true }
+ethereum = { workspace = true, features = ["std"] }
+fp-evm = { workspace = true, features = ["std"] }

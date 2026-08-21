@@ -21,7 +21,6 @@
 
 use std::sync::Arc;
 
-use crate::liquidation_worker::LiquidationTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -63,8 +62,88 @@ pub struct FullDeps<C, P, B> {
 	pub pool: Arc<P>,
 	/// Backend used by the node.
 	pub backend: Arc<B>,
-	/// Data provided from the liquidation worker.
-	pub liquidation_task_data: Arc<LiquidationTaskData>,
+	/// Status handle of the running PEPL worker; `None` when no worker runs on this node.
+	pub pepl_status: Option<Arc<pepl_worker::WorkerStatus>>,
+}
+
+/// `liquidation_*` RPCs: the only external signal that the liquidation worker is alive and what
+/// it covers. Unregistering them turns a dead worker into a silent one.
+pub mod liquidation {
+	use jsonrpsee::{
+		core::{async_trait, RpcResult},
+		proc_macros::rpc,
+	};
+	use std::sync::Arc;
+
+	/// `(pool, borrower)` as 0x-hex, one entry per covered borrower per market.
+	#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+	pub struct CoveredBorrower {
+		pub pool: String,
+		pub borrower: String,
+	}
+
+	#[rpc(client, server)]
+	pub trait LiquidationWorkerApi {
+		#[method(name = "liquidation_getBorrowers")]
+		async fn get_borrowers(&self) -> RpcResult<Vec<CoveredBorrower>>;
+
+		#[method(name = "liquidation_isRunning")]
+		async fn is_running(&self) -> RpcResult<bool>;
+
+		/// The oracle fast path's per-block submission cap. Kept under the v1 name for existing
+		/// monitors, but v1 returned a weight-derived cap that bounded every submission path; in v2
+		/// the per-block scan is uncapped by design and this value does not bound it.
+		#[method(name = "liquidation_maxTransactionsPerBlock")]
+		async fn max_transactions_per_block(&self) -> RpcResult<usize>;
+
+		/// Block of the worker's most recent completed scan — lets a monitor see a worker that is
+		/// alive but falling behind, which `isRunning` alone cannot express.
+		#[method(name = "liquidation_lastScannedBlock")]
+		async fn last_scanned_block(&self) -> RpcResult<u32>;
+	}
+
+	pub struct LiquidationWorker {
+		status: Option<Arc<pepl_worker::WorkerStatus>>,
+	}
+
+	impl LiquidationWorker {
+		pub fn new(status: Option<Arc<pepl_worker::WorkerStatus>>) -> Self {
+			Self { status }
+		}
+	}
+
+	#[async_trait]
+	impl LiquidationWorkerApiServer for LiquidationWorker {
+		async fn get_borrowers(&self) -> RpcResult<Vec<CoveredBorrower>> {
+			let Some(status) = self.status.as_ref() else {
+				return Ok(Vec::new());
+			};
+			Ok(status
+				.borrowers()
+				.into_iter()
+				.map(|(pool, borrower)| CoveredBorrower {
+					pool: format!("{pool:?}"),
+					borrower: format!("{borrower:?}"),
+				})
+				.collect())
+		}
+
+		async fn is_running(&self) -> RpcResult<bool> {
+			Ok(self.status.as_ref().is_some_and(|s| s.is_running()))
+		}
+
+		async fn max_transactions_per_block(&self) -> RpcResult<usize> {
+			Ok(self
+				.status
+				.as_ref()
+				.map(|s| s.liquidations_per_block() as usize)
+				.unwrap_or_default())
+		}
+
+		async fn last_scanned_block(&self) -> RpcResult<u32> {
+			Ok(self.status.as_ref().map(|s| s.last_scanned_block()).unwrap_or_default())
+		}
+	}
 }
 
 /// Extra dependencies for Ethereum compatibility.
@@ -120,24 +199,24 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
-	use crate::liquidation_worker::rpc::{LiquidationWorker, LiquidationWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
+
+	use liquidation::{LiquidationWorker, LiquidationWorkerApiServer};
 
 	let mut module = RpcExtension::new(());
 	let FullDeps {
 		client,
 		pool,
 		backend,
-		liquidation_task_data,
+		pepl_status,
 	} = deps;
 
+	module.merge(LiquidationWorker::new(pepl_status).into_rpc())?;
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
-
-	module.merge(LiquidationWorker::new(liquidation_task_data).into_rpc())?;
 
 	Ok(module)
 }

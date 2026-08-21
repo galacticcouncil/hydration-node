@@ -35,19 +35,17 @@ use frame_support::{
 	dispatch::RawOrigin,
 	parameter_types,
 	sp_runtime::traits::One,
-	traits::{ConstBool, Defensive, EitherOf, FindAuthor},
+	traits::{EitherOf, FindAuthor},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 	ConsensusEngineId,
 };
 use frame_system::EnsureRoot;
-use hex_literal::hex;
 use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::{evm::InspectEvmAccounts, oracle::OraclePeriod};
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
-use polkadot_xcm::v5::prelude::*;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
 use sp_core::{crypto::AccountId32, Get, U256};

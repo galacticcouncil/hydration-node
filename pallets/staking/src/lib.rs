@@ -99,6 +99,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type PeriodLength: Get<BlockNumberFor<Self>>;
 
+		/// Block at which the runtime switched from 6-second to 2-second blocks.
+		type TwoSecBlocksSince: Get<BlockNumberFor<Self>>;
+
 		/// Pallet id.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -1083,6 +1086,7 @@ impl<T: Config> Pallet<T> {
 			NonZeroU128::try_from(T::PeriodLength::get().saturated_into::<u128>()).ok()?,
 			block.saturated_into(),
 			NonZeroU128::try_from(Self::six_sec_blocks_since().saturated_into::<u128>()).ok()?,
+			NonZeroU128::try_from(T::TwoSecBlocksSince::get().saturated_into::<u128>()).ok()?,
 		))
 	}
 

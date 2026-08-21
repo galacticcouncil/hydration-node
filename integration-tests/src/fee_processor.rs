@@ -131,7 +131,7 @@ fn hdx_fee_distributes_to_hdx_receivers() {
 		// unlinked, so referrals consumes none of its offered slice and the referrals pot stays
 		// empty — the un-taken slice remains with the Omnipool trade fee.
 		assert_eq!(
-			staking_increase, 188932,
+			staking_increase, 439317,
 			"Staking pot should receive its HDX-path convert slice"
 		);
 		assert_eq!(
@@ -175,10 +175,13 @@ fn hdx_fee_generates_referral_shares() {
 
 		// Tier0 split is referrer 60% : trader 40% (≈3:2, ±wei from independent flooring).
 		assert_eq!(
-			referrer_increase, 113359,
+			referrer_increase, 263590,
 			"Referrer shares should accrue from HDX fee trade"
 		);
-		assert_eq!(trader_increase, 75572, "Trader shares should accrue from HDX fee trade");
+		assert_eq!(
+			trader_increase, 175726,
+			"Trader shares should accrue from HDX fee trade"
+		);
 	});
 }
 
@@ -542,10 +545,10 @@ fn multiple_hdx_trades_accumulate_in_all_hdx_receivers() {
 		let staking_total = Currencies::free_balance(HDX, &staking_pot()).saturating_sub(staking_initial);
 		let referrals_total = Currencies::free_balance(HDX, &referrals_pot()).saturating_sub(referrals_initial);
 
-		// Staking accumulates its HDX slice across the 3 trades (3 × 188932). The trader is
+		// Staking accumulates its HDX slice across the 3 trades (3 × 439317). The trader is
 		// unlinked, so referrals consumes nothing across all trades.
 		assert_eq!(
-			staking_total, 566796,
+			staking_total, 1317951,
 			"Staking pot should accumulate from multiple HDX trades"
 		);
 		assert_eq!(
@@ -1838,7 +1841,7 @@ fn gigapot_eventually_receives_all_buffered_hdx_fees_when_starting_below_ed() {
 
 		// The four sub-ED slices are all buffered (none delivered), and the buffer is below ED.
 		let buffered = held();
-		assert_eq!(buffered, 2_371_450, "four sub-ED slices accrued into the buffer");
+		assert_eq!(buffered, 5_574_489, "four sub-ED slices accrued into the buffer");
 		assert!(buffered < ed, "buffer is still below ED");
 		assert_eq!(delivered(), 0, "nothing delivered before the buffer crosses ED");
 
@@ -1856,7 +1859,7 @@ fn gigapot_eventually_receives_all_buffered_hdx_fees_when_starting_below_ed() {
 		assert_eq!(held(), 0, "buffer fully flushed once the gigapot crosses ED");
 		assert_eq!(
 			delivered(),
-			3_140_987_039_253,
+			7_548_316_318_180,
 			"gigapot receives all buffered fees plus the flushing slice"
 		);
 		assert!(delivered() > buffered, "delivery includes the previously buffered fees");

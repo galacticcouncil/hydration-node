@@ -296,7 +296,7 @@ fn liquidation_should_work() {
 			DOT,
 			alice_evm_address,
 			borrow_dot_amount,
-			route
+			route,
 		));
 
 		// Assert
@@ -585,7 +585,7 @@ fn liquidation_should_fail_when_debt_asset_is_under_deposit_lockdown() {
 			DOT,
 			alice_evm_address,
 			borrow_dot_amount,
-			route
+			route,
 		)
 		.is_err());
 
@@ -681,7 +681,7 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 				DOT,
 				alice_evm_address,
 				borrow_dot_amount,
-				route
+				route,
 			),
 			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
 		);

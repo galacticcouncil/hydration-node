@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::utils::executive::assert_executive_apply_signed_extrinsic;
-use crate::{assert_balance, polkadot_test_net::*};
+use crate::{assert_balance, assert_reserved_balance, polkadot_test_net::*};
 
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
@@ -1939,6 +1939,7 @@ mod currency_precompile_ntt {
 	use fp_evm::ExitRevert::Reverted;
 	use fp_evm::PrecompileFailure;
 	use hydradx_runtime::{AssetRegistry, CircuitBreaker, EVMAccounts};
+	use orml_traits::MultiReservableCurrency;
 	use pallet_asset_registry::AssetType;
 	use pretty_assertions::assert_eq;
 
@@ -2265,57 +2266,35 @@ mod currency_precompile_ntt {
 	}
 
 	#[test]
-	fn mint_should_be_throttled_by_issuance_circuit_breaker() {
+	fn mint_over_the_limit_should_reserve_excess_and_lock_down_the_asset() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
 			set_minter();
-			// per-period (1 day) issuance-increase budget = registry xcm_rate_limit
 			let limit = 1_000 * UNITS;
 			set_dai_mint_limit(limit);
 			let issuance_before = total_issuance(DAI);
 
-			// within budget
+			// within budget: clean mint
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 600 * UNITS)),
 				empty_output()
 			);
-
-			// exceeding the remaining budget reverts cleanly; no reserve-and-lockdown
-			let result = CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 500 * UNITS));
-			assert_eq!(
-				result,
-				Err(PrecompileFailure::Revert {
-					exit_status: Reverted,
-					output: custom_error(b"MintLimitReached()", &[]),
-				})
-			);
 			assert_balance!(evm_account2(), DAI, 600 * UNITS);
-			assert_eq!(total_issuance(DAI), issuance_before + 600 * UNITS);
-			// the asset must not be locked down by the failed EVM mint
-			assert_eq!(
-				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
-				Some(pallet_circuit_breaker::types::LockdownStatus::Unlocked((
-					hydradx_runtime::System::block_number(),
-					issuance_before,
-				)))
-			);
+			assert_reserved_balance!(evm_account2(), DAI, 0);
 
-			// exactly filling the remaining budget is fine
+			// over budget: mint lands, excess reserved, asset locked down
 			assert_eq!(
-				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 400 * UNITS)),
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 500 * UNITS)),
 				empty_output()
 			);
-
-			// budget exhausted
-			let result = CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 1));
-			assert_eq!(
-				result,
-				Err(PrecompileFailure::Revert {
-					exit_status: Reverted,
-					output: custom_error(b"MintLimitReached()", &[]),
-				})
-			);
+			assert_eq!(total_issuance(DAI), issuance_before + 1_100 * UNITS);
+			assert_balance!(evm_account2(), DAI, 1_000 * UNITS);
+			assert_reserved_balance!(evm_account2(), DAI, 100 * UNITS);
+			assert!(matches!(
+				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
+				Some(pallet_circuit_breaker::types::LockdownStatus::Locked(_))
+			));
 		});
 	}
 
@@ -2328,38 +2307,32 @@ mod currency_precompile_ntt {
 			let limit = 1_000 * UNITS;
 			set_dai_mint_limit(limit);
 
-			// exhaust the budget, minting to the manager itself
 			assert_eq!(
-				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), limit)),
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 600 * UNITS)),
 				empty_output()
 			);
-			assert_eq!(
-				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 1)),
-				Err(PrecompileFailure::Revert {
-					exit_status: Reverted,
-					output: custom_error(b"MintLimitReached()", &[]),
-				})
-			);
 
-			// burning refills the budget: the fuse measures NET issuance increase per period.
-			// This mirrors the current breaker semantics (see the ignored upstream test
-			// `rate_limit_should_not_be_bypassed_by_burning_tokens` in
-			// pallets/circuit-breaker/src/tests/deposit_limit.rs). For NTT this bounds net
-			// inflation per period, which is what the hub-escrow invariant cares about.
-			// If the breaker moves to gross accounting, this test must be updated.
+			// the fuse measures NET issuance increase per period, so burning refills the budget
 			assert_eq!(
 				CurrencyPrecompile::execute(&mut burn_handle(minter(), 400 * UNITS)),
 				empty_output()
 			);
+
+			// net increase 600 - 400 + 700 = 900 <= 1000, so no reserve/lockdown
 			assert_eq!(
-				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 400 * UNITS)),
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 700 * UNITS)),
 				empty_output()
 			);
+			assert_reserved_balance!(minter_account(), DAI, 0);
+			assert!(matches!(
+				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
+				None | Some(pallet_circuit_breaker::types::LockdownStatus::Unlocked(_))
+			));
 		});
 	}
 
 	#[test]
-	fn mint_should_fail_when_asset_is_in_lockdown() {
+	fn mint_into_a_locked_down_asset_reserves_the_full_amount() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -2372,15 +2345,17 @@ mod currency_precompile_ntt {
 				hydradx_runtime::System::block_number() + 1_000,
 			));
 
-			let result = CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS));
-
+			// mint into a locked-down asset lands but is fully reserved, rather than reverting
 			assert_eq!(
-				result,
-				Err(PrecompileFailure::Revert {
-					exit_status: Reverted,
-					output: custom_error(b"MintLimitReached()", &[]),
-				})
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS)),
+				empty_output()
 			);
+			assert_balance!(evm_account2(), DAI, 0);
+			assert_reserved_balance!(evm_account2(), DAI, UNITS);
+			assert!(matches!(
+				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
+				Some(pallet_circuit_breaker::types::LockdownStatus::Locked(_))
+			));
 		});
 	}
 
