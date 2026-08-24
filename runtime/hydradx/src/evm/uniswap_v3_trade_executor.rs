@@ -7,19 +7,25 @@ use evm::ExitReason::Succeed;
 use evm::ExitSucceed;
 use frame_support::ensure;
 use frame_support::pallet_prelude::RuntimeDebug;
+use frame_support::traits::Contains;
 use frame_support::weights::Weight;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
+use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::evm::{CallContext, CallResult, Erc20Mapping, InspectEvmAccounts, EVM};
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::OnTradeHandler;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pallet_broadcast::types::Asset;
+use pallet_ema_oracle::{ordered_pair, OnActivityHandler};
 use pallet_evm::{AddressMapping, GasWeightMapping};
 use primitive_types::U256;
+use primitives::constants::chain::UNISWAPV3_SOURCE;
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use sp_arithmetic::traits::SaturatedConversion;
 use sp_arithmetic::FixedPointNumber;
 use sp_arithmetic::FixedU128;
+use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
@@ -35,8 +41,6 @@ pub enum Function {
 	GetPool = "getPool(address,address,uint24)",
 	Slot0 = "slot0()",
 	Liquidity = "liquidity()",
-	Token0 = "token0()",
-	Token1 = "token1()",
 	BalanceOf = "balanceOf(address)",
 	QuoteExactInputSingle = "quoteExactInputSingle((address,address,uint256,uint24,uint160))",
 	QuoteExactOutputSingle = "quoteExactOutputSingle((address,address,uint256,uint24,uint160))",
@@ -45,9 +49,22 @@ pub enum Function {
 	Approve = "approve(address,uint256)",
 }
 
-const VIEW_GAS_LIMIT: u64 = 500_000;
+// Per-call gas ceilings. These are CEILINGS, not consumption — the chain charges
+// what is used — but `trade_weight()` is derived from them, so an inflated ceiling
+// makes every v3 trade look more expensive than it is and fewer fit in a block.
+//
+// Measured against a live pool (zombienet, spec 429, 2026-08-21), 21k base cost
+// included: getPool 105_509 · slot0 92_661 · liquidity 92_661 · balanceOf 22_446 ·
+// approve 23_194 · quoteExactInputSingle 138_712.
+//
+// Swaps and quotes keep a full million: the measured figure is for a pool holding
+// one full-range position, and both walk tick by tick once real bands exist. The
+// reads are bounded by storage access and do not grow that way.
+const ERC20_VIEW_GAS_LIMIT: u64 = 100_000;
+const POOL_VIEW_GAS_LIMIT: u64 = 250_000;
+const APPROVE_GAS_LIMIT: u64 = 100_000;
 const QUOTE_GAS_LIMIT: u64 = 1_000_000;
-const TRADE_GAS_LIMIT: u64 = 1_000_000;
+const SWAP_GAS_LIMIT: u64 = 1_000_000;
 const IN_GIVEN_OUT_ROUNDING: Balance = 1;
 const FEE_DENOMINATOR: u128 = 1_000_000;
 
@@ -89,7 +106,8 @@ where
 		+ pallet_evm::Config
 		+ pallet_dispatcher::Config
 		+ pallet_parameters::Config
-		+ pallet_evm_accounts::Config,
+		+ pallet_evm_accounts::Config
+		+ pallet_ema_oracle::Config,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<sp_runtime::AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256> + Default,
 	NonceIdOf<T>: Into<T::Nonce>,
@@ -119,7 +137,7 @@ where
 			.write(token1)
 			.write(U256::from(fee))
 			.build();
-		let result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let result = Executor::<T>::view(context, data, POOL_VIEW_GAS_LIMIT);
 		ensure!(
 			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("uniswapv3: getPool failed".into())
@@ -192,16 +210,18 @@ where
 		Ok(amount_in.saturating_add(IN_GIVEN_OUT_ROUNDING))
 	}
 
-	pub fn spot_price_with_fee(
+	/// The pool's marginal price, `asset_a` per `asset_b`, with no fee applied.
+	///
+	/// `slot0` gives token1-per-token0, so the reciprocal is taken when `asset_a` sorts
+	/// first. Split out of `spot_price_with_fee` because the EMA oracle wants the raw
+	/// price — the fee belongs to the quote, not to the recorded price.
+	pub fn spot_price_raw(
 		asset_a: AssetId,
 		asset_b: AssetId,
-		fee: u32,
+		pool: EvmAddress,
 	) -> Result<FixedU128, ExecutorError<DispatchError>> {
-		let factory = Self::factory()?;
-		let pool = Self::pool_address(factory, asset_a, asset_b, fee)?
-			.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?;
 		let data = EvmDataWriter::new_with_selector(Function::Slot0).build();
-		let result = Executor::<T>::view(CallContext::new_view(pool), data, VIEW_GAS_LIMIT);
+		let result = Executor::<T>::view(CallContext::new_view(pool), data, POOL_VIEW_GAS_LIMIT);
 		ensure!(
 			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("uniswapv3: slot0 failed".into())
@@ -212,23 +232,47 @@ where
 		);
 		let sqrt_price_x96 = U256::from_big_endian(&result.value[0..32]);
 		let price = price_token1_per_token0(sqrt_price_x96);
-		let raw = if evm_token_address(asset_a) < evm_token_address(asset_b) {
+		if evm_token_address(asset_a) < evm_token_address(asset_b) {
 			price
 				.reciprocal()
-				.ok_or(ExecutorError::Error("uniswapv3: zero price".into()))?
+				.ok_or(ExecutorError::Error("uniswapv3: zero price".into()))
 		} else {
-			price
-		};
+			Ok(price)
+		}
+	}
+
+	pub fn spot_price_with_fee(
+		asset_a: AssetId,
+		asset_b: AssetId,
+		fee: u32,
+	) -> Result<FixedU128, ExecutorError<DispatchError>> {
+		let factory = Self::factory()?;
+		let pool = Self::pool_address(factory, asset_a, asset_b, fee)?
+			.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?;
+		let raw = Self::spot_price_raw(asset_a, asset_b, pool)?;
 		apply_fee(raw, fee).ok_or(ExecutorError::Error("uniswapv3: zero fee factor".into()))
 	}
 
-	/// Upper bound on tradeable depth, not the tradeable depth itself.
+	/// Depth of the IN-RANGE liquidity, expressed as an `asset_a` amount.
 	///
-	/// Returns the pool's whole `asset_a` balance, which also covers liquidity
-	/// parked outside the current tick range and fees not yet collected. In a
-	/// concentrated pool that can exceed what is actually swappable at the
-	/// current price by a wide margin, so callers sizing trades against this
-	/// value must apply their own safety factor.
+	/// The obvious implementation — the pool's `balanceOf` — is wrong for a
+	/// concentrated pool: it counts liquidity parked outside the current tick range
+	/// and fees not yet collected, neither of which a trade at the current price can
+	/// touch. A Gamma vault holding a wide base band plus a one-sided limit order can
+	/// report a balance several times what is actually swappable.
+	///
+	/// So this derives the constant-product equivalent of the active liquidity `L` at
+	/// the current price, i.e. the virtual reserves:
+	///
+	/// ```text
+	/// token0 = L / sqrt(P) = L * 2^96 / sqrtPriceX96
+	/// token1 = L * sqrt(P) = L * sqrtPriceX96 / 2^96
+	/// ```
+	///
+	/// That is still an upper bound on what one trade can take — the real amount is
+	/// bounded by the band edge — but it is an upper bound on the RIGHT quantity, and
+	/// it collapses to zero when the price is outside every position, which is exactly
+	/// when a caller should not be sizing a trade against this pool at all.
 	pub fn liquidity_depth(
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -237,11 +281,65 @@ where
 		let factory = Self::factory()?;
 		let pool = Self::pool_address(factory, asset_a, asset_b, fee)?
 			.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?;
-		let token_a = evm_token_address(asset_a);
+
+		let sqrt_price_x96 = Self::pool_sqrt_price(pool)?;
+		let liquidity = Self::pool_liquidity(pool)?;
+		if liquidity.is_zero() || sqrt_price_x96.is_zero() {
+			return Ok(0);
+		}
+
+		let l = U256::from(liquidity);
+		let q96 = U256::one() << 96;
+		let amount = if evm_token_address(asset_a) < evm_token_address(asset_b) {
+			// asset_a is token0
+			l.checked_mul(q96)
+				.ok_or(ExecutorError::Error("uniswapv3: depth overflow".into()))?
+				/ sqrt_price_x96
+		} else {
+			l.checked_mul(sqrt_price_x96)
+				.ok_or(ExecutorError::Error("uniswapv3: depth overflow".into()))?
+				>> 96
+		};
+		Ok(amount.saturated_into::<u128>())
+	}
+
+	/// The pool's current `sqrtPriceX96` from `slot0`.
+	fn pool_sqrt_price(pool: EvmAddress) -> Result<U256, ExecutorError<DispatchError>> {
+		let data = EvmDataWriter::new_with_selector(Function::Slot0).build();
+		let result = Executor::<T>::view(CallContext::new_view(pool), data, POOL_VIEW_GAS_LIMIT);
+		ensure!(
+			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
+			ExecutorError::Error("uniswapv3: slot0 failed".into())
+		);
+		ensure!(
+			result.value.len() >= 32,
+			ExecutorError::Error("uniswapv3: slot0 returned no data".into())
+		);
+		Ok(U256::from_big_endian(&result.value[0..32]))
+	}
+
+	/// The pool's currently active (in-range) liquidity.
+	fn pool_liquidity(pool: EvmAddress) -> Result<u128, ExecutorError<DispatchError>> {
+		let data = EvmDataWriter::new_with_selector(Function::Liquidity).build();
+		let result = Executor::<T>::view(CallContext::new_view(pool), data, POOL_VIEW_GAS_LIMIT);
+		ensure!(
+			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
+			ExecutorError::Error("uniswapv3: liquidity failed".into())
+		);
+		ensure!(
+			result.value.len() >= 32,
+			ExecutorError::Error("uniswapv3: liquidity returned no data".into())
+		);
+		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
+	}
+
+	/// A token's balance held by `pool`. Used both as the depth estimate and as the
+	/// liquidity figure reported to the oracle.
+	fn token_balance_of(token: EvmAddress, pool: EvmAddress) -> Result<Balance, ExecutorError<DispatchError>> {
 		let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
 			.write(pool)
 			.build();
-		let result = Executor::<T>::view(CallContext::new_view(token_a), data, VIEW_GAS_LIMIT);
+		let result = Executor::<T>::view(CallContext::new_view(token), data, ERC20_VIEW_GAS_LIMIT);
 		ensure!(
 			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("uniswapv3: balanceOf failed".into())
@@ -253,6 +351,73 @@ where
 		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
 	}
 
+	/// Report an executed swap to the EMA oracle under `UNISWAPV3_SOURCE`.
+	///
+	/// Without this a v3 pool has no oracle history at all, and every consumer of
+	/// `OraclePriceProvider` treats that as a hard failure: `pallet-dca` reads it as
+	/// "price unstable" and terminates the schedule after its retries, and
+	/// `route-executor::set_route` rejects the route with `RouteHasNoOracle`.
+	///
+	/// Called after the swap has settled, so `slot0` and both balances are post-trade —
+	/// matching what pallet-xyk reports. Errors propagate: `Router::sell`/`buy` are
+	/// `#[transactional]`, so a rejected oracle entry rolls the swap back rather than
+	/// leaving the pair with a silently stale price.
+	fn report_trade(
+		pool: EvmAddress,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+	) -> Result<(), ExecutorError<DispatchError>> {
+		// The oracle DISCARDS entries for pairs it does not track, and returns `Ok` doing
+		// it (see `pallet_ema_oracle::Pallet::on_entry` — internal sources take that
+		// branch, and `UNISWAPV3_SOURCE` is one). So a swap on an untracked pair looks
+		// entirely successful while leaving the pool unpriceable: DCA keeps reporting
+		// `PriceUnstable` and `set_route` keeps rejecting the route, with no error, event
+		// or log anywhere to explain it. We do not fail the trade over this — the swap
+		// itself is legitimate — but the lost receipt must not be silent.
+		let pair = ordered_pair(asset_in, asset_out);
+		if !<T as pallet_ema_oracle::Config>::OracleWhitelist::contains(&(UNISWAPV3_SOURCE, pair.0, pair.1)) {
+			log::warn!(
+				target: "uniswapv3",
+				"pair ({}, {}) is not oracle-whitelisted: this trade will not be recorded, so \
+				 DCA and set_route through this pool will keep failing. Fix with \
+				 emaOracle.add_oracle(UNISWAPV3_SOURCE, ({}, {})), or check both assets are sufficient.",
+				pair.0, pair.1, pair.0, pair.1
+			);
+		}
+
+		let liquidity_in = Self::token_balance_of(evm_token_address(asset_in), pool)?;
+		let liquidity_out = Self::token_balance_of(evm_token_address(asset_out), pool)?;
+
+		// The oracle rejects zero liquidity outright. A pool that just served a swap has
+		// non-zero balances on both sides, so this is a guard against a bad read.
+		if liquidity_in.is_zero() || liquidity_out.is_zero() {
+			return Err(ExecutorError::Error("uniswapv3: pool reported zero balance".into()));
+		}
+
+		// asset_in per asset_out, matching the convention pallet-xyk passes (reserve_in /
+		// reserve_out is its marginal price). A concentrated pool's reserve ratio is NOT
+		// its price, so this comes from slot0 rather than from the two balances.
+		let price = Self::spot_price_raw(asset_in, asset_out, pool)?;
+		let price = EmaPrice::new(price.into_inner(), FixedU128::DIV);
+
+		OnActivityHandler::<T>::on_trade(
+			UNISWAPV3_SOURCE,
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out,
+			liquidity_in,
+			liquidity_out,
+			price,
+			None,
+		)
+		.map_err(|(_w, e)| ExecutorError::Error(e))?;
+
+		Ok(())
+	}
+
 	pub fn find_pool(
 		asset_a: AssetId,
 		asset_b: AssetId,
@@ -262,8 +427,35 @@ where
 		Self::pool_address(factory, asset_a, asset_b, fee)
 	}
 
+	/// Worst-case gas the buy path can reserve, summed from the calls it actually makes.
+	///
+	/// Derived rather than written down so the number cannot drift away from the code:
+	///
+	/// ```text
+	/// find_pool  getPool             POOL_VIEW
+	/// quote      quoteExactOutSingle QUOTE
+	/// do_buy     approve(max_limit)  APPROVE
+	///            exactOutputSingle   SWAP
+	///            approve(0)          APPROVE      <- buy only; exactInput spends its allowance
+	/// report     balanceOf x2        ERC20_VIEW x2
+	///            slot0               POOL_VIEW
+	/// ```
+	///
+	/// The sell path is the same minus one APPROVE, so this bounds both.
+	const fn worst_case_gas() -> u64 {
+		POOL_VIEW_GAS_LIMIT
+			+ QUOTE_GAS_LIMIT
+			+ APPROVE_GAS_LIMIT
+			+ SWAP_GAS_LIMIT
+			+ APPROVE_GAS_LIMIT
+			+ 2 * ERC20_VIEW_GAS_LIMIT
+			+ POOL_VIEW_GAS_LIMIT
+	}
+
 	pub fn trade_weight() -> Weight {
-		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(TRADE_GAS_LIMIT + QUOTE_GAS_LIMIT, true)
+		// EVM gas for the whole path, then the oracle write the swap triggers.
+		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(Self::worst_case_gas(), true)
+			.saturating_add(OnActivityHandler::<T>::on_trade_weight())
 	}
 
 	fn swap_router() -> Result<EvmAddress, ExecutorError<DispatchError>> {
@@ -286,11 +478,19 @@ where
 			CallContext::new_call(token, trader),
 			data,
 			U256::zero(),
-			TRADE_GAS_LIMIT,
+			APPROVE_GAS_LIMIT,
 		);
 		ensure!(
 			matches!(result.exit_reason, Succeed(_)),
 			ExecutorError::Error("uniswapv3: approve failed".into())
+		);
+		// ERC-20 `approve` answers with a bool. Hydration's asset precompile always
+		// returns true, but a Succeed carrying a falsy body would otherwise read as
+		// an allowance that was never granted, and the swap would fail later with a
+		// far less obvious error.
+		ensure!(
+			result.value.len() >= 32 && U256::from_big_endian(&result.value[0..32]) == U256::one(),
+			ExecutorError::Error("uniswapv3: approve returned false".into())
 		);
 		Ok(())
 	}
@@ -338,7 +538,7 @@ where
 			CallContext::new_call(router, trader),
 			swap,
 			U256::zero(),
-			TRADE_GAS_LIMIT,
+			SWAP_GAS_LIMIT,
 		);
 		ensure!(
 			matches!(swap_result.exit_reason, Succeed(_)),
@@ -381,7 +581,7 @@ where
 			CallContext::new_call(router, trader),
 			swap,
 			U256::zero(),
-			TRADE_GAS_LIMIT,
+			SWAP_GAS_LIMIT,
 		);
 		ensure!(
 			matches!(swap_result.exit_reason, Succeed(_)),
@@ -401,7 +601,8 @@ where
 		+ pallet_dispatcher::Config
 		+ pallet_parameters::Config
 		+ pallet_evm_accounts::Config
-		+ pallet_broadcast::Config,
+		+ pallet_broadcast::Config
+		+ pallet_ema_oracle::Config,
 	<T as frame_system::Config>::AccountId: AsRef<[u8; 32]> + frame_support::traits::IsType<sp_runtime::AccountId32>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256> + Default,
 	NonceIdOf<T>: Into<T::Nonce>,
@@ -446,6 +647,14 @@ where
 			return Err(ExecutorError::NotSupported);
 		};
 		let amount_out = Self::do_sell(who.clone(), asset_in, asset_out, fee, amount_in, min_limit)?;
+		Self::report_trade(
+			Self::find_pool(asset_in, asset_out, fee)?
+				.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?,
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out,
+		)?;
 		let trader = ensure_signed(who).map_err(|_| ExecutorError::Error("uniswapv3: bad origin".into()))?;
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(Self::swap_router().unwrap_or_default());
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -472,6 +681,14 @@ where
 			return Err(ExecutorError::NotSupported);
 		};
 		let amount_in = Self::do_buy(who.clone(), asset_in, asset_out, fee, amount_out, max_limit)?;
+		Self::report_trade(
+			Self::find_pool(asset_in, asset_out, fee)?
+				.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?,
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out,
+		)?;
 		let trader = ensure_signed(who).map_err(|_| ExecutorError::Error("uniswapv3: bad origin".into()))?;
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(Self::swap_router().unwrap_or_default());
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(

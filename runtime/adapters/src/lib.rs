@@ -48,7 +48,7 @@ use pallet_stableswap::types::{PoolState, StableswapHooks};
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::v5::prelude::*;
 use primitive_types::{U128, U512};
-use primitives::constants::chain::{STABLESWAP_SOURCE, XYK_SOURCE};
+use primitives::constants::chain::{STABLESWAP_SOURCE, UNISWAPV3_SOURCE, XYK_SOURCE};
 use primitives::{constants::chain::OMNIPOOL_SOURCE, AccountId, AssetId, Balance, BlockNumber, CollectionId};
 use sp_runtime::traits::BlockNumberProvider;
 use sp_std::vec;
@@ -618,6 +618,22 @@ where
 					}
 				}
 				PoolType::Aave => EmaPrice::from(1),
+				// Uniswap v3 pools feed the EMA oracle from `UniswapV3TradeExecutor` after every
+				// executed swap, under their own source. Reading that (rather than the pool's
+				// live `slot0` price) is what keeps this provider manipulation-resistant: a
+				// spot-price arm would make the `LastBlock` and `Short` periods identical, which
+				// silently disables pallet-dca's price-stability check and would let a walkable
+				// AMM price reach `set_route` and everything priced off a default route.
+				// A pool with no oracle history yet returns `None`, same as any cold pair.
+				PoolType::UniswapV3(_) => {
+					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, UNISWAPV3_SOURCE);
+
+					match price_result {
+						Ok(price) => price.0,
+						Err(OracleError::SameAsset) => EmaPrice::from(1),
+						Err(_) => return None,
+					}
+				}
 				_ => return None,
 			};
 

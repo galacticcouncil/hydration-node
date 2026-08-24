@@ -77,7 +77,7 @@ use pallet_staking::{
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, UNISWAPV3_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
@@ -643,7 +643,10 @@ parameter_types! {
 pub struct InternalOracleSources;
 impl Contains<Source> for InternalOracleSources {
 	fn contains(s: &Source) -> bool {
-		matches!(s, &OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE)
+		matches!(
+			s,
+			&OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE | &UNISWAPV3_SOURCE
+		)
 	}
 }
 
