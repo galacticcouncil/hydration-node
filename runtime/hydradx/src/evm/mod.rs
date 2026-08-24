@@ -31,6 +31,7 @@ pub use crate::{
 };
 use crate::{AssetRegistry, DotAssetId, FeePriceOracle, MultiTransactionPayment, Runtime, XykPaymentAssetSupport};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
+use frame_support::traits::ConstBool;
 use frame_support::{
 	dispatch::RawOrigin,
 	parameter_types,
