@@ -17,7 +17,8 @@
 #![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use crate::{
-	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock, NamedReserveId, Runtime, DCA, XYK,
+	AccountId, AssetId, Balance, BlockNumber, Currencies, MaxSchedulesPerBlock, MinimalPeriod, NamedReserveId, Runtime,
+	DCA, XYK,
 };
 use pallet_dca::ScheduleExtraGas;
 
@@ -56,6 +57,10 @@ pub const DELAY_AFTER_LAST_RADIUS: u32 = 1854;
 
 pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10;
 
+fn minimum_schedule_period() -> BlockNumber {
+	MinimalPeriod::get()
+}
+
 fn schedule_fake(
 	owner: AccountId,
 	asset_in: AssetId,
@@ -64,16 +69,16 @@ fn schedule_fake(
 ) -> Schedule<AccountId, AssetId, BlockNumber> {
 	let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 		owner,
-		period: 5u32,
+		period: minimum_schedule_period(),
 		total_amount: 1100 * ONE,
 		max_retries: None,
 		stability_threshold: None,
 		slippage: Some(Permill::from_percent(15)),
-		order: Order::Buy {
+		order: Order::Sell {
 			asset_in,
 			asset_out,
-			amount_out: amount,
-			max_amount_in: Balance::MAX,
+			amount_in: amount,
+			min_amount_out: Balance::MIN,
 			route: create_bounded_vec(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -96,7 +101,7 @@ fn schedule_buy_fake(
 ) -> Schedule<AccountId, AssetId, BlockNumber> {
 	let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 		owner,
-		period: 5u32,
+		period: minimum_schedule_period(),
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
@@ -124,7 +129,7 @@ fn schedule_sell_fake(
 ) -> Schedule<AccountId, AssetId, BlockNumber> {
 	let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 		owner,
-		period: 5u32,
+		period: minimum_schedule_period(),
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
@@ -232,7 +237,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 5;
+		let schedule_period = minimum_schedule_period();
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -277,7 +282,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 5;
+		let schedule_period = minimum_schedule_period();
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -321,7 +326,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 5;
+		let schedule_period = minimum_schedule_period();
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -363,7 +368,7 @@ runtime_benchmarks! {
 
 		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
 		//We leave only one slot
-		let schedule_period = 5;
+		let schedule_period = minimum_schedule_period();
 		let next_block_to_replan = execution_block + schedule_period;
 		let number_of_all_schedules = MaxSchedulesPerBlock::get() + MaxSchedulesPerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
 		for i in 0..number_of_all_schedules {
@@ -419,7 +424,7 @@ runtime_benchmarks! {
 		create_xyk_pool(asset_8, asset_9);
 		create_xyk_pool(asset_9, HDX);
 
-		set_period(10);
+		set_period(minimum_schedule_period());
 
 		let route = vec![
 			Trade {
@@ -477,16 +482,16 @@ runtime_benchmarks! {
 
 		let schedule1: Schedule<AccountId, AssetId, BlockNumber> = Schedule {
 			owner:caller.clone() ,
-			period: 5u32,
+			period: minimum_schedule_period(),
 			total_amount: 1100 * ONE,
 			max_retries: None,
 			stability_threshold: None,
 			slippage: Some(Permill::from_percent(15)),
-			order: Order::Buy {
+			order: Order::Sell {
 				asset_in: asset_1,
 				asset_out: DAI,
-				amount_out: amount_sell,
-				max_amount_in: Balance::MAX,
+				amount_in: amount_sell,
+				min_amount_out: Balance::MIN,
 				route: create_bounded_vec(route),
 			},
 		};

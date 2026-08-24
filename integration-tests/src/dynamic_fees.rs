@@ -6,6 +6,7 @@ use hydradx_traits::fee::GetDynamicFee;
 use orml_traits::MultiCurrency;
 use pallet_dynamic_fees::types::FeeEntry;
 use pallet_dynamic_fees::UpdateAndRetrieveFees;
+use primitives::constants::time::{MILLISECS_PER_BLOCK, SLOT_DURATION};
 use primitives::AssetId;
 use sp_runtime::{FixedU128, Permill};
 use test_utils::assert_eq_approx;
@@ -14,6 +15,12 @@ use xcm_emulator::TestExt;
 const DOT_UNITS: u128 = 10_000_000_000;
 const BTC_UNITS: u128 = 1_000_000;
 const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
+
+fn hydradx_run_to_next_fee_block() {
+	let blocks_per_slot = (SLOT_DURATION / MILLISECS_PER_BLOCK) as u32;
+	let current_block = hydradx_runtime::System::block_number();
+	hydradx_run_to_block(current_block + blocks_per_slot);
+}
 
 #[test]
 fn fees_should_work_when_oracle_not_initialized() {
@@ -52,7 +59,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		set_balance(DAVE.into(), HDX, 1_000 * UNITS as i128);
 
@@ -67,7 +74,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 		let old_fees = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 
 		//Act
-		hydradx_run_to_block(13);
+		hydradx_run_to_next_fee_block();
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -84,7 +91,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.05),
 				protocol_fee: Permill::from_float(0.0005),
-				timestamp: 13_u32
+				timestamp: hydradx_runtime::System::block_number()
 			}
 		);
 	});
@@ -98,7 +105,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -111,7 +118,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 		let old_fees = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 
 		//Act
-		hydradx_run_to_block(13);
+		hydradx_run_to_next_fee_block();
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -128,7 +135,7 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.05),
 				protocol_fee: Permill::from_float(0.0005),
-				timestamp: 13_u32
+				timestamp: hydradx_runtime::System::block_number()
 			}
 		);
 	});
@@ -142,7 +149,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -155,7 +162,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 		let old_fees = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 
 		//Act
-		hydradx_run_to_block(13);
+		hydradx_run_to_next_fee_block();
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -172,7 +179,7 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.05),
 				protocol_fee: Permill::from_float(0.0005),
-				timestamp: 13_u32
+				timestamp: hydradx_runtime::System::block_number()
 			}
 		);
 	});
@@ -186,7 +193,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -200,7 +207,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 		set_balance(DAVE.into(), HDX, 1_000 * UNITS as i128);
 
 		//Act & assert
-		hydradx_run_to_block(13);
+		hydradx_run_to_next_fee_block();
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -216,7 +223,7 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 			FeeEntry {
 				asset_fee: Permill::from_float(0.05),
 				protocol_fee: Permill::from_float(0.0005),
-				timestamp: 13_u32
+				timestamp: hydradx_runtime::System::block_number()
 			}
 		);
 
@@ -316,7 +323,7 @@ fn init_oracle() {
 	set_balance(trader.into(), ETH, 1_000 * ETH_UNITS as i128);
 	set_balance(trader.into(), BTC, 1_000 * BTC_UNITS as i128);
 
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::sell(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -325,7 +332,7 @@ fn init_oracle() {
 		20 * DOT_UNITS,
 		0,
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::sell(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -334,7 +341,7 @@ fn init_oracle() {
 		20 * DOT_UNITS,
 		0,
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::buy(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -343,7 +350,7 @@ fn init_oracle() {
 		20 * DOT_UNITS,
 		u128::MAX
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::sell(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -352,7 +359,7 @@ fn init_oracle() {
 		2 * ETH_UNITS,
 		0,
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::buy(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -361,7 +368,7 @@ fn init_oracle() {
 		ETH_UNITS,
 		u128::MAX
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::sell(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -370,7 +377,7 @@ fn init_oracle() {
 		2 * BTC_UNITS,
 		0,
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 
 	assert_ok!(hydradx_runtime::Omnipool::buy(
 		hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
@@ -379,7 +386,7 @@ fn init_oracle() {
 		BTC_UNITS,
 		u128::MAX
 	));
-	hydradx_run_to_next_block();
+	hydradx_run_to_next_fee_block();
 }
 
 #[test]
@@ -390,8 +397,8 @@ fn test_fees_update_in_multi_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_next_block();
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
+		hydradx_run_to_next_fee_block();
 
 		let hdx_state = hydradx_runtime::Omnipool::load_asset_state(HDX).unwrap();
 		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
@@ -405,7 +412,7 @@ fn test_fees_update_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.044638));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.043174));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));
@@ -413,9 +420,9 @@ fn test_fees_update_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.00108));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001058));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000665));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000658));
 
 		//ACT
 		let hdx_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((HDX, hdx_state.reserve));
@@ -428,21 +435,21 @@ fn test_fees_update_in_multi_blocks() {
 		assert_eq!(hdx_final_fees, (Permill::from_float(0.05), Permill::from_float(0.0005)));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003886), Permill::from_float(0.0005))
+			(Permill::from_float(0.003885), Permill::from_float(0.0005))
 		);
 		assert_eq!(
 			dot_final_fees,
-			(Permill::from_float(0.0025), Permill::from_float(0.001524))
+			(Permill::from_float(0.0025), Permill::from_float(0.001502))
 		);
 		assert_eq!(
 			eth_final_fees,
 			(Permill::from_float(0.0025), Permill::from_float(0.0025))
 		);
-		assert_eq!(btc_final_fees, (Permill::from_float(0.0025), Permill::from_parts(778)));
+		assert_eq!(btc_final_fees, (Permill::from_float(0.0025), Permill::from_parts(767)));
 
 		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
 
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
 
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
@@ -450,31 +457,31 @@ fn test_fees_update_in_multi_blocks() {
 			(Permill::from_float(0.003908), Permill::from_float(0.0005))
 		);
 
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003916), Permill::from_float(0.0005))
+			(Permill::from_parts(3_919), Permill::from_float(0.0005))
 		);
 
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 
 		assert_eq_approx!(
 			dai_final_fees.0,
-			Permill::from_float(0.003912),
-			Permill::from_float(0.000001),
+			Permill::from_parts(3_918),
+			Permill::from_parts(1),
 			"Final fee is not correct"
 		);
 		assert_eq!(dai_final_fees.1, Permill::from_float(0.0005));
 
-		hydradx_run_to_next_block();
-		hydradx_run_to_next_block();
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
+		hydradx_run_to_next_fee_block();
+		hydradx_run_to_next_fee_block();
 		let dai_final_fees = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get((DAI, dai_state.reserve));
 		assert_eq!(
 			dai_final_fees,
-			(Permill::from_float(0.003852), Permill::from_float(0.0005))
+			(Permill::from_parts(3_866), Permill::from_float(0.0005))
 		);
 	});
 }
@@ -487,8 +494,8 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_next_block();
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
+		hydradx_run_to_next_fee_block();
 
 		let hdx_fee = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 		let dai_fee = hydradx_runtime::DynamicFees::current_fees(DAI).unwrap();
@@ -496,7 +503,7 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.044638));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.043174));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));
@@ -504,9 +511,9 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.00108));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001058));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000665));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000658));
 
 		//ACT
 		assert_ok!(hydradx_runtime::Omnipool::sell(
@@ -517,13 +524,13 @@ fn test_fees_update_after_selling_lrna_in_multi_blocks() {
 			0,
 		));
 
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
 		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
 		let dai_fee = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get_and_store((DAI, dai_state.reserve));
 		//ASSERT
 		assert_eq!(
 			(dai_fee.0, dai_fee.1),
-			(Permill::from_float(0.004196), Permill::from_float(0.0005))
+			(Permill::from_float(0.004183), Permill::from_float(0.0005))
 		);
 	});
 }
@@ -536,8 +543,8 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_next_block();
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
+		hydradx_run_to_next_fee_block();
 
 		let hdx_fee = hydradx_runtime::DynamicFees::current_fees(HDX).unwrap();
 		let dai_fee = hydradx_runtime::DynamicFees::current_fees(DAI).unwrap();
@@ -545,7 +552,7 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 		let eth_fee = hydradx_runtime::DynamicFees::current_fees(ETH).unwrap();
 		let btc_fee = hydradx_runtime::DynamicFees::current_fees(BTC).unwrap();
 
-		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.044638));
+		assert_eq!(hdx_fee.asset_fee, Permill::from_float(0.043174));
 		assert_eq!(dai_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(dot_fee.asset_fee, Permill::from_float(0.0025));
 		assert_eq!(eth_fee.asset_fee, Permill::from_float(0.0025));
@@ -553,9 +560,9 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 
 		assert_eq!(hdx_fee.protocol_fee, Permill::from_float(0.0005));
 		assert_eq!(dai_fee.protocol_fee, Permill::from_float(0.0005));
-		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.00108));
+		assert_eq!(dot_fee.protocol_fee, Permill::from_float(0.001058));
 		assert_eq!(eth_fee.protocol_fee, Permill::from_float(0.0025));
-		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000665));
+		assert_eq!(btc_fee.protocol_fee, Permill::from_float(0.000658));
 
 		//ACT
 		assert_ok!(hydradx_runtime::Omnipool::buy(
@@ -566,13 +573,13 @@ fn test_fees_update_after_buying_with_lrna_in_multi_blocks() {
 			u128::MAX,
 		));
 
-		hydradx_run_to_next_block();
+		hydradx_run_to_next_fee_block();
 		let dai_state = hydradx_runtime::Omnipool::load_asset_state(DAI).unwrap();
 		let dai_fee = UpdateAndRetrieveFees::<hydradx_runtime::Runtime>::get_and_store((DAI, dai_state.reserve));
 		//ASSERT
 		assert_eq!(
 			(dai_fee.0, dai_fee.1),
-			(Permill::from_float(0.004028), Permill::from_float(0.0005))
+			(Permill::from_float(0.004021), Permill::from_float(0.0005))
 		);
 	});
 }
@@ -585,7 +592,7 @@ fn fees_should_work_when_min_equals_max_in_dynamic_config() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		let fixed_asset_fee = Permill::from_float(0.003);
 		let fixed_protocol_fee = Permill::from_float(0.001);
@@ -628,7 +635,7 @@ fn fees_should_work_when_min_equals_max_in_dynamic_config() {
 		assert_eq!(current_fee.protocol_fee, fixed_protocol_fee);
 
 		//Act - Execute a buy trade in next block
-		hydradx_run_to_block(13);
+		hydradx_run_to_next_fee_block();
 		assert_ok!(hydradx_runtime::Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			DOT,
@@ -641,7 +648,7 @@ fn fees_should_work_when_min_equals_max_in_dynamic_config() {
 		let updated_fee = hydradx_runtime::DynamicFees::current_fees(DOT).unwrap();
 		assert_eq!(updated_fee.asset_fee, fixed_asset_fee);
 		assert_eq!(updated_fee.protocol_fee, fixed_protocol_fee);
-		assert_eq!(updated_fee.timestamp, 13_u32);
+		assert_eq!(updated_fee.timestamp, hydradx_runtime::System::block_number());
 
 		//Act - Execute multiple trades in the same block
 		assert_ok!(hydradx_runtime::Omnipool::sell(
@@ -658,7 +665,7 @@ fn fees_should_work_when_min_equals_max_in_dynamic_config() {
 		assert_eq!(final_fee.protocol_fee, fixed_protocol_fee);
 
 		//Act - Trade in another block to ensure continued stability
-		hydradx_run_to_block(14);
+		hydradx_run_to_next_fee_block();
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::RuntimeOrigin::signed(DAVE.into()),
 			HDX,
@@ -683,7 +690,7 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		// Set dynamic fee config with min = max = 0 for DOT (asset out - asset fee applies)
 		assert_ok!(hydradx_runtime::DynamicFees::set_asset_fee(
@@ -754,7 +761,7 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 		//Arrange
 		init_omnipool();
 		init_oracle();
-		hydradx_run_to_block(12);
+		hydradx_run_to_next_fee_block();
 
 		let fixed_asset_fee = Permill::from_percent(1); // 1% asset fee (applies to DOT being sold)
 		let fixed_protocol_fee = Permill::from_rational(5u32, 1000u32); // 0.5% protocol fee (applies to HDX being received)
@@ -834,10 +841,10 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 	println!("DOT asset fee: 1% (applied on DOT being sold)");
 	println!("HDX protocol fee: 0.5% (applied on HDX being received)");
 	println!("---");
-	println!("Amount received with zero fees: {}", amount_out_with_zero_fee);
-	println!("Amount received with fees: {}", amount_out_with_fee);
-	println!("Difference: {}", actual_difference);
-	println!("Actual percentage difference: {:.4}%", actual_percentage_value);
+	println!("Amount received with zero fees: {amount_out_with_zero_fee}");
+	println!("Amount received with fees: {amount_out_with_fee}");
+	println!("Difference: {actual_difference}");
+	println!("Actual percentage difference: {actual_percentage_value:.4}%");
 	println!("====================================\n");
 
 	// Verify the fees were applied (should see some difference)
@@ -850,16 +857,10 @@ fn fees_should_be_applied_correctly_when_min_equals_max_in_dynamic_config() {
 
 	assert!(
 		actual_percentage_value >= expected_percentage - tolerance,
-		"Actual fee percentage ({:.4}%) is lower than expected ({:.2}% - {:.2}%)",
-		actual_percentage_value,
-		expected_percentage,
-		tolerance
+		"Actual fee percentage ({actual_percentage_value:.4}%) is lower than expected ({expected_percentage:.2}% - {tolerance:.2}%)"
 	);
 	assert!(
 		actual_percentage_value <= expected_percentage + tolerance,
-		"Actual fee percentage ({:.4}%) is higher than expected ({:.2}% + {:.2}%)",
-		actual_percentage_value,
-		expected_percentage,
-		tolerance
+		"Actual fee percentage ({actual_percentage_value:.4}%) is higher than expected ({expected_percentage:.2}% + {tolerance:.2}%)"
 	);
 }

@@ -43,6 +43,7 @@ use sp_core::H160;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_system::pallet_prelude::BlockNumberFor;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {}
@@ -68,6 +69,16 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn relay_parent_offset_override)]
 	pub type RelayParentOffsetOverride<T> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::type_value]
+	pub fn DefaultTwoSecBlocksSince<T: Config>() -> BlockNumberFor<T> {
+		u32::MAX.into()
+	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn two_sec_blocks_since)]
+	/// Block number at which the runtime switched from 6-second to 2-second blocks.
+	pub type TwoSecBlocksSince<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultTwoSecBlocksSince<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn uniswap_v3_factory)]

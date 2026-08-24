@@ -35,7 +35,7 @@ fn add_all_liquidity_should_work() {
 		// circuit-breaker's per-block add-liquidity limit (5% of the pool's reserve).
 		// The DOT pool reserve after add_token is ~87_719_298_250_000, so the limit is
 		// ~4_385_964_912_500. We keep 1 * UNITS (1_000_000_000_000) for ALICE to deposit.
-		let keep_amount = 1 * UNITS; // 1 DOT — well within 5% of the pool
+		let keep_amount = UNITS; // 1 DOT — well within 5% of the pool
 		let lp_balance = Currencies::free_balance(DOT, &lp);
 		let transfer_away = lp_balance.saturating_sub(keep_amount);
 		assert_ok!(Currencies::transfer(
@@ -145,7 +145,7 @@ fn add_all_liquidity_position_matches_explicit_add_liquidity_with_limit() {
 	// add-liquidity limit is 5%, so we stay well within it.
 	let prepare_lp = || {
 		let lp = AccountId::from(ALICE);
-		let keep = 1 * UNITS;
+		let keep = UNITS;
 		let balance = Currencies::free_balance(DOT, &lp);
 		let transfer_away = balance.saturating_sub(keep);
 		if transfer_away > 0 {

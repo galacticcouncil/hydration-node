@@ -62,7 +62,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, liquidation_worker, rpc};
+use crate::{chain_spec, cli, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -166,12 +166,23 @@ pub fn new_partial(
 			extra_pages: h as _,
 		});
 
+	// The upstream default runtime cache size (2) is too small for nodes serving
+	// historical state across runtime upgrades: the hot working set spans several
+	// runtime versions, so a cache of 2 evicts and re-prepares WASM runtimes
+	// constantly and exhausts the instance pool under indexer/RPC load. Treat the
+	// upstream default as "unset" and use 8; any explicit operator value is honored.
+	let runtime_cache_size = if config.executor.runtime_cache_size == 2 {
+		8
+	} else {
+		config.executor.runtime_cache_size
+	};
+
 	let executor = WasmExecutor::builder()
 		.with_execution_method(config.executor.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
 		.with_max_runtime_instances(config.executor.max_runtime_instances)
-		.with_runtime_cache_size(config.executor.runtime_cache_size)
+		.with_runtime_cache_size(runtime_cache_size)
 		.build();
 
 	let tx_priority_json = if no_tx_priority_override {
@@ -287,7 +298,7 @@ async fn start_node_impl(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	ethereum_config: evm::EthereumConfig,
-	liquidation_worker_config: liquidation_worker::LiquidationWorkerConfig,
+	liquidation_worker_config: pepl_worker::LiquidationWorkerCli,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	no_tx_priority_override: bool,
@@ -367,27 +378,64 @@ async fn start_node_impl(
 		);
 	}
 
-	// Data provided from the liquidation worker to RPC API.
-	let liquidation_task_data = Arc::new(liquidation_worker::LiquidationTaskData::new());
+	// Node base path for the v2 worker's borrower cache, captured before the config is consumed
+	// below.
+	let base_path_for_pepl = parachain_config.base_path.path().to_path_buf();
+
+	// Published to the `liquidation_*` RPCs; stays `None` when no v2 worker runs on this node.
+	let mut pepl_status: Option<Arc<pepl_worker::WorkerStatus>> = None;
 
 	// By default, the liquidation worker is enabled for validator nodes and disabled for non-validator nodes.
 	if (validator && !(liquidation_worker_config.liquidation_worker == Some(false)))
 		|| (!validator && liquidation_worker_config.liquidation_worker == Some(true))
 	{
-		task_manager.spawn_handle().spawn(
-			"liquidation-worker",
-			None,
-			liquidation_worker::LiquidationTask::run(
-				client.clone(),
-				liquidation_worker_config,
-				transaction_pool.clone(),
-				task_manager.spawn_handle(),
-				liquidation_task_data.clone(),
-			),
-		);
+		if liquidation_worker_config.liquidation_worker_v1 {
+			// Opt-in legacy path: run the v1 worker instead of v2 (for v1-vs-v2 comparison).
+			let liquidation_task_data = Arc::new(crate::liquidation_worker::LiquidationTaskData::new());
+			task_manager.spawn_handle().spawn(
+				"liquidation-worker",
+				None,
+				crate::liquidation_worker::LiquidationTask::run(
+					client.clone(),
+					(&liquidation_worker_config).into(),
+					transaction_pool.clone(),
+					task_manager.spawn_handle(),
+					liquidation_task_data,
+				),
+			);
+		} else {
+			use pepl_worker::LiquidationTask;
+			use pepl_worker_support::types::RuntimeClient;
+
+			// Resolve the borrower-cache path from the node base path before consuming the CLI
+			// config; `--borrower-cache-path ""` disables persistence.
+			let cache_path = liquidation_worker_config.resolve_borrower_cache_path(&base_path_for_pepl);
+			let mut worker_cfg: pepl_worker::LiquidationTaskConfig = liquidation_worker_config.into();
+			worker_cfg.borrower_cache_path = cache_path;
+
+			let task = LiquidationTask::new(RuntimeClient::new(client.clone()), transaction_pool.clone(), worker_cfg);
+			pepl_status = Some(task.status.clone());
+
+			task_manager.spawn_handle().spawn(
+				"pepl-worker-runner",
+				"pepl-worker",
+				pepl_worker::run(task, client.clone()),
+			);
+		}
 	}
 
-	let overrides = Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone()));
+	// Wrap the stock storage override so eth-rpc reads also surface synthetic
+	// logs (substrate transfers + swaps), translated client-side from each
+	// block's events read out of state — no on-chain synth txs, and works on
+	// any runtime version (no runtime-API dependency).
+	let overrides: Arc<dyn fc_rpc::StorageOverride<Block>> =
+		Arc::new(crate::synthetic_logs::storage_override::SyntheticStorageOverride::<
+			ParachainClient,
+			ParachainBackend,
+		>::new(
+			Arc::new(crate::rpc::StorageOverrideHandler::new(client.clone())),
+			client.clone(),
+		));
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
 		task_manager.spawn_handle(),
 		overrides.clone(),
@@ -425,7 +473,7 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
-				liquidation_task_data: liquidation_task_data.clone(),
+				pepl_status: pepl_status.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;
@@ -618,11 +666,11 @@ fn start_consensus(
 		para_id,
 		proposer,
 		collator_service,
-		authoring_duration: Duration::from_millis(1500),
+		authoring_duration: Duration::from_millis(2000),
 		reinitialize: false,
 		slot_offset: Duration::from_secs(1),
 		block_import_handle,
-		spawner: task_manager.spawn_handle(),
+		spawner: task_manager.spawn_essential_handle(),
 		relay_chain_slot_duration,
 		export_pov: None,
 		max_pov_percentage: None,

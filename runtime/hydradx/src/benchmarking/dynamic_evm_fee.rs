@@ -29,7 +29,7 @@ use sp_runtime::traits::SaturatedConversion;
 use sp_runtime::FixedU128;
 
 type DynamicEvmFeePallet<T> = pallet_dynamic_evm_fee::Pallet<T>;
-use crate::evm::weth_asset_location;
+use crate::evm::WETH_ASSET_ID;
 use pallet_dynamic_evm_fee::BaseFeePerGas;
 
 pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
@@ -50,10 +50,8 @@ runtime_benchmarks! {
 		crate::benchmarking::omnipool::init()?;
 
 		let acc = Omnipool::protocol_account();
-		// Register new asset in asset registry
-		let token_id = register_asset(b"AS1".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		assert_eq!(token_id, 1000001, "Token ID should be 1000001");
-		set_location(token_id, weth_asset_location()).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
+		// register weth itself - the oracle price of this asset drives the base fee
+		let token_id = register_asset_with_id(b"AS1".to_vec(), WETH_ASSET_ID).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 		add_as_accepted_currency(token_id, FixedU128::from_inner(16420844565569051996)).map_err(|_| BenchmarkError::Stop("Failed to add token as accepted currency"))?;
 		// Create account for token provider and set balance
 		let owner: AccountId = account("owner", 0, 1);
@@ -68,7 +66,7 @@ runtime_benchmarks! {
 		Omnipool::add_token(RawOrigin::Root.into(), token_id, token_price, Permill::from_percent(100), owner)?;
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(0, &seller, 500_000_000_000_000_u128);
-		Omnipool::sell(RawOrigin::Signed(seller).into(), 0, token_id, 10000000000000, 0)?;
+		Omnipool::sell(RawOrigin::Signed(seller).into(), 0, token_id, 10_000_000_000_000 / 3, 0)?;
 
 		set_period(10);
 		let base_fee_per_gas = <BaseFeePerGas<Runtime>>::get();

@@ -7,10 +7,7 @@ use sp_core::U256;
 use std::fs;
 
 pub fn get_contract_bytecode(name: &str) -> Vec<u8> {
-	let path = format!(
-		"../scripts/test-contracts/artifacts/contracts/{}.sol/{}.json",
-		name, name
-	);
+	let path = format!("../scripts/test-contracts/artifacts/contracts/{name}.sol/{name}.json");
 	let str = fs::read_to_string(path).unwrap();
 	let json: serde_json::Value = serde_json::from_str(&str).unwrap();
 	let code = json.get("bytecode").unwrap().as_str().unwrap();
@@ -38,7 +35,7 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 
 	let address = match info.clone().unwrap().exit_reason {
 		ExitReason::Succeed(_) => info.unwrap().value,
-		reason => panic!("{:?}", reason),
+		reason => panic!("{reason:?}"),
 	};
 
 	let deployed = hydradx_runtime::Runtime::account_code_at(address);

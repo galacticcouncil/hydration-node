@@ -32,7 +32,7 @@ use frame_support::{
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
 		AsEnsureOriginWithArg, ConstU32, Contains, Currency, Defensive, EitherOf, EnsureOrigin, ExistenceRequirement,
-		Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
+		Get, Imbalance, LockIdentifier, NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -609,9 +609,19 @@ impl Contains<AccountId> for DepositLockWhitelist {
 	}
 }
 
+/// True while a route is being executed - the only time the router holds a balance and a deposit
+/// error unwinds it.
+pub struct InTradeContext;
+
+impl Get<bool> for InTradeContext {
+	fn get() -> bool {
+		pallet_broadcast::Pallet::<Runtime>::get_swapper().is_some()
+	}
+}
+
 parameter_types! {
-	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
-	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (1_670, 10_000);	// 17%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((167, 10_000));	// 1.7%
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
@@ -620,6 +630,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, OmnipoolAdmin>>;
 	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DepositLockWhitelist = DepositLockWhitelist;
+	type InTradeContext = InTradeContext;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
@@ -664,7 +675,7 @@ where
 
 impl pallet_ema_oracle::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EconomicParameters>;
-	/// The definition of the oracle time periods currently assumes a 6 second block time.
+	/// The definition of the oracle time periods currently assumes a 2 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
@@ -696,6 +707,9 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
 			pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
+			// Arb profit can be smaller than the bought asset's ED and would otherwise be dust-reaped
+			// out of the pot before `settle_otc` measures it, spuriously failing the settlement.
+			pallet_otc_settlements::Pallet::<Runtime>::account_id(),
 		];
 
 		if let Some((flash_minter, loan_receiver)) = pallet_hsm::GetFlashMinterSupport::<Runtime>::get() {
@@ -914,7 +928,7 @@ parameter_types! {
 	pub MaxSchedulesPerBlock: u32 = 6;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(5);
-	pub MinimalPeriod: u32 = 5;
+	pub MinimalPeriod: u32 = 15;
 	pub BumpChance: Percent = Percent::from_percent(17);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
@@ -942,6 +956,9 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			// liquidity index is timestamp-dependent, so the rounding boundary
 			// shifts and a later attempt may pass.
 			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
+			// same class as dca's own retriable TradeLimitReached — erc20/aToken rounding
+			// can undershoot the dry-run output passed as router min limit
+			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
@@ -1371,14 +1388,14 @@ parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
-		decay: FixedU128::from_rational(1,20000),        // 0.005%
+		decay: FixedU128::from_rational(1,60000),        // 0.00167%
 		amplification: FixedU128::from(2),               // 2
 	};
 
 	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(5u32,10000u32),  // 0.05%
 		max_fee: Permill::from_rational(25u32,10000u32), // 0.25%
-		decay: FixedU128::from_rational(5,200000),       // 0.0025%
+		decay: FixedU128::from_rational(5,600000),       // 0.00083%
 		amplification: FixedU128::one(),                 // 1
 	};
 
@@ -1616,7 +1633,7 @@ impl pallet_bonds::Config for Runtime {
 parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
 	pub const MinStake: Balance = 1_000 * UNITS;
-	pub const PeriodLength: BlockNumber = 7_200; // 1d based on 12s blocks, pallet accounts for migration to 6s blocks
+	pub const PeriodLength: BlockNumber = 7_200; // 1d based on 12s blocks, pallet accounts for migrations to 6s / 2s blocks
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
 	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 1;
@@ -1626,6 +1643,14 @@ parameter_types! {
 }
 
 pub struct PointsPerAction;
+
+pub struct TwoSecBlocksSinceProvider;
+
+impl Get<BlockNumber> for TwoSecBlocksSinceProvider {
+	fn get() -> BlockNumber {
+		pallet_parameters::TwoSecBlocksSince::<Runtime>::get()
+	}
+}
 
 impl GetByKey<Action, u32> for PointsPerAction {
 	fn get(k: &Action) -> u32 {
@@ -1648,6 +1673,7 @@ impl pallet_staking::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
+	type TwoSecBlocksSince = TwoSecBlocksSinceProvider;
 	type PalletId = StakingPalletId;
 	type NativeAssetId = NativeAssetId;
 	type MinStake = MinStake;
@@ -1920,6 +1946,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type TwoSecBlocksSince = TwoSecBlocksSinceProvider;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;

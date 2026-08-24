@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::utils::executive::assert_executive_apply_signed_extrinsic;
-use crate::{assert_balance, polkadot_test_net::*};
+use crate::{assert_balance, assert_reserved_balance, polkadot_test_net::*};
 
 use fp_evm::{Context, Transfer};
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
@@ -350,7 +350,7 @@ mod account_conversion {
 				ExitReason::Succeed(ExitSucceed::Stopped)
 			);
 
-			println!("{:?}", res);
+			println!("{res:?}");
 		});
 	}
 
@@ -1931,6 +1931,529 @@ mod currency_precompile {
 
 	pub fn alice_substrate_evm_addr() -> AccountId {
 		ExtendedAddressMapping::into_account_id(alice_evm_addr())
+	}
+}
+
+mod currency_precompile_ntt {
+	use super::*;
+	use fp_evm::ExitRevert::Reverted;
+	use fp_evm::PrecompileFailure;
+	use hydradx_runtime::{AssetRegistry, CircuitBreaker, EVMAccounts};
+	use orml_traits::MultiReservableCurrency;
+	use pallet_asset_registry::AssetType;
+	use pretty_assertions::assert_eq;
+
+	type CurrencyPrecompile = MultiCurrencyPrecompile<hydradx_runtime::Runtime>;
+
+	// spec: wormhole INttToken; the minter is the NTT spoke manager
+	fn minter() -> H160 {
+		evm_address()
+	}
+
+	fn minter_account() -> AccountId {
+		hydradx_runtime::EVMAccounts::truncated_account_id(minter())
+	}
+
+	fn set_minter() {
+		assert_ok!(EVMAccounts::set_ntt_minter(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			minter()
+		));
+	}
+
+	fn mint_handle(caller: H160, to: H160, amount: u128) -> MockHandle {
+		let data = EvmDataWriter::new_with_selector(Function::Mint)
+			.write(Address::from(to))
+			.write(U256::from(amount))
+			.build();
+		MockHandle {
+			input: data,
+			context: Context {
+				address: dai_ethereum_address(),
+				caller,
+				apparent_value: U256::from(0),
+			},
+			code_address: dai_ethereum_address(),
+			is_static: false,
+		}
+	}
+
+	fn burn_handle_for(token: H160, caller: H160, amount: u128) -> MockHandle {
+		let data = EvmDataWriter::new_with_selector(Function::Burn)
+			.write(U256::from(amount))
+			.build();
+		MockHandle {
+			input: data,
+			context: Context {
+				address: token,
+				caller,
+				apparent_value: U256::from(0),
+			},
+			code_address: token,
+			is_static: false,
+		}
+	}
+
+	fn burn_handle(caller: H160, amount: u128) -> MockHandle {
+		burn_handle_for(dai_ethereum_address(), caller, amount)
+	}
+
+	fn custom_error(signature: &[u8], args: &[ethabi::Token]) -> Vec<u8> {
+		let mut output = sp_io::hashing::keccak_256(signature)[..4].to_vec();
+		output.extend(ethabi::encode(args));
+		output
+	}
+
+	fn total_issuance(asset: AssetId) -> Balance {
+		<hydradx_runtime::Currencies as MultiCurrency<AccountId>>::total_issuance(asset)
+	}
+
+	fn empty_output() -> Result<PrecompileOutput, PrecompileFailure> {
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: vec![],
+		})
+	}
+
+	#[test]
+	fn mint_and_burn_selectors_should_match_ntt_token_abi() {
+		// well-known ERC20 selectors expected by wormhole's INttToken
+		assert_eq!(Into::<u32>::into(Function::Mint), 0x40c10f19);
+		assert_eq!(Into::<u32>::into(Function::Burn), 0x42966c68);
+	}
+
+	#[test]
+	fn mint_should_fail_when_no_minter_is_set() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let mut handle = mint_handle(minter(), evm_address2(), UNITS);
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: custom_error(b"CallerNotMinter(address)", &[ethabi::Token::Address(minter())]),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn mint_should_fail_when_caller_is_not_the_minter() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+
+			let intruder = evm_address3();
+			let mut handle = mint_handle(intruder, evm_address2(), UNITS);
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: custom_error(b"CallerNotMinter(address)", &[ethabi::Token::Address(intruder)]),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn mint_should_credit_recipient_and_increase_issuance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			let amount = 100 * UNITS;
+			let issuance_before = total_issuance(DAI);
+
+			let mut handle = mint_handle(minter(), evm_address2(), amount);
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(result, empty_output());
+			// unbound recipient H160 is credited on its truncated account (spec §5)
+			assert_balance!(evm_account2(), DAI, amount);
+			assert_eq!(total_issuance(DAI), issuance_before + amount);
+		});
+	}
+
+	#[test]
+	fn burn_should_burn_callers_balance_and_decrease_issuance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			// fund the manager as if it pulled tokens via transferFrom (outbound flow)
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				minter_account(),
+				DAI,
+				(100 * UNITS) as i128,
+			));
+			let issuance_before = total_issuance(DAI);
+
+			let mut handle = burn_handle(minter(), 60 * UNITS);
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(result, empty_output());
+			assert_balance!(minter_account(), DAI, 40 * UNITS);
+			assert_eq!(total_issuance(DAI), issuance_before - 60 * UNITS);
+		});
+	}
+
+	#[test]
+	fn burn_should_fail_when_caller_is_not_the_minter() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+
+			let intruder = evm_address3();
+			let mut handle = burn_handle(intruder, UNITS);
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: custom_error(b"CallerNotMinter(address)", &[ethabi::Token::Address(intruder)]),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn burn_should_fail_when_balance_is_insufficient() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				minter_account(),
+				DAI,
+				(10 * UNITS) as i128,
+			));
+
+			let mut handle = burn_handle(minter(), 11 * UNITS);
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: custom_error(
+						b"InsufficientBalance(uint256,uint256)",
+						&[
+							ethabi::Token::Uint(U256::from(10 * UNITS)),
+							ethabi::Token::Uint(U256::from(11 * UNITS)),
+						],
+					),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn mint_should_fail_in_static_context() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+
+			let mut handle = mint_handle(minter(), evm_address2(), UNITS);
+			handle.is_static = true;
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: "can't call non-static function in static context".into(),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn set_minter_selector_should_not_be_served() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+
+			// setMinter is deliberately not part of the precompile; the minter is
+			// governance-managed via the evm-accounts extrinsics (spec §3.4)
+			let mut data = sp_io::hashing::keccak_256(b"setMinter(address)")[..4].to_vec();
+			data.extend(ethabi::encode(&[ethabi::Token::Address(evm_address3())]));
+
+			let mut handle = MockHandle {
+				input: data,
+				context: Context {
+					address: dai_ethereum_address(),
+					caller: minter(),
+					apparent_value: U256::from(0),
+				},
+				code_address: dai_ethereum_address(),
+				is_static: false,
+			};
+
+			let result = CurrencyPrecompile::execute(&mut handle);
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: "unknown selector".into(),
+				})
+			);
+		});
+	}
+
+	#[test]
+	fn mint_should_fail_after_minter_is_cleared() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS)),
+				empty_output()
+			);
+
+			// emergency stop
+			assert_ok!(EVMAccounts::clear_ntt_minter(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DAI
+			));
+
+			let result = CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS));
+
+			assert_eq!(
+				result,
+				Err(PrecompileFailure::Revert {
+					exit_status: Reverted,
+					output: custom_error(b"CallerNotMinter(address)", &[ethabi::Token::Address(minter())]),
+				})
+			);
+		});
+	}
+
+	fn set_dai_mint_limit(limit: Balance) {
+		assert_ok!(AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI,
+			None,
+			None,
+			None,
+			Some(limit),
+			None,
+			None,
+			None,
+			None,
+		));
+	}
+
+	#[test]
+	fn mint_over_the_limit_should_reserve_excess_and_lock_down_the_asset() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			let limit = 1_000 * UNITS;
+			set_dai_mint_limit(limit);
+			let issuance_before = total_issuance(DAI);
+
+			// within budget: clean mint
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 600 * UNITS)),
+				empty_output()
+			);
+			assert_balance!(evm_account2(), DAI, 600 * UNITS);
+			assert_reserved_balance!(evm_account2(), DAI, 0);
+
+			// over budget: mint lands, excess reserved, asset locked down
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), 500 * UNITS)),
+				empty_output()
+			);
+			assert_eq!(total_issuance(DAI), issuance_before + 1_100 * UNITS);
+			assert_balance!(evm_account2(), DAI, 1_000 * UNITS);
+			assert_reserved_balance!(evm_account2(), DAI, 100 * UNITS);
+			assert!(matches!(
+				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
+				Some(pallet_circuit_breaker::types::LockdownStatus::Locked(_))
+			));
+		});
+	}
+
+	#[test]
+	fn burn_should_refill_mint_budget_within_period() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			let limit = 1_000 * UNITS;
+			set_dai_mint_limit(limit);
+
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 600 * UNITS)),
+				empty_output()
+			);
+
+			// the fuse measures NET issuance increase per period, so burning refills the budget
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut burn_handle(minter(), 400 * UNITS)),
+				empty_output()
+			);
+
+			// net increase 600 - 400 + 700 = 900 <= 1000, so no reserve/lockdown
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), minter(), 700 * UNITS)),
+				empty_output()
+			);
+			assert_reserved_balance!(minter_account(), DAI, 0);
+			assert!(matches!(
+				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
+				None | Some(pallet_circuit_breaker::types::LockdownStatus::Unlocked(_))
+			));
+		});
+	}
+
+	#[test]
+	fn mint_into_a_locked_down_asset_reserves_the_full_amount() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			set_minter();
+			set_dai_mint_limit(1_000 * UNITS);
+
+			assert_ok!(CircuitBreaker::lockdown_asset(
+				hydradx_runtime::RuntimeOrigin::root(),
+				DAI,
+				hydradx_runtime::System::block_number() + 1_000,
+			));
+
+			// mint into a locked-down asset lands but is fully reserved, rather than reverting
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut mint_handle(minter(), evm_address2(), UNITS)),
+				empty_output()
+			);
+			assert_balance!(evm_account2(), DAI, 0);
+			assert_reserved_balance!(evm_account2(), DAI, UNITS);
+			assert!(matches!(
+				pallet_circuit_breaker::AssetLockdownState::<hydradx_runtime::Runtime>::get(DAI),
+				Some(pallet_circuit_breaker::types::LockdownStatus::Locked(_))
+			));
+		});
+	}
+
+	#[test]
+	fn burn_should_be_throttled_by_global_withdraw_limit() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			use hydradx_runtime::circuit_breaker::WithdrawCircuitBreaker;
+
+			// use HDX so no price fixture is needed (it is the limiter's reference currency).
+			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
+			assert_ok!(EVMAccounts::set_ntt_minter(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				minter()
+			));
+			assert_eq!(WithdrawCircuitBreaker::global_asset_category(HDX), None);
+			assert_ok!(AssetRegistry::update(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX,
+				None,
+				Some(AssetType::External),
+				None,
+				None,
+				None,
+				None,
+				None,
+				None,
+			));
+			assert_eq!(
+				WithdrawCircuitBreaker::global_asset_category(HDX),
+				Some(pallet_circuit_breaker::GlobalAssetCategory::External)
+			);
+			assert_ok!(Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				minter_account(),
+				HDX,
+				(2_000 * UNITS) as i128,
+			));
+			assert_ok!(CircuitBreaker::set_global_withdraw_limit_params(
+				hydradx_runtime::RuntimeOrigin::root(),
+				pallet_circuit_breaker::types::GlobalWithdrawLimitParameters {
+					limit: 1_000 * UNITS,
+					window: primitives::constants::time::unix_time::DAY,
+				},
+			));
+			let hdx_token = native_asset_ethereum_address();
+			let balance_before = Currencies::free_balance(HDX, &minter_account());
+
+			// within the egress budget
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut burn_handle_for(hdx_token, minter(), 600 * UNITS)),
+				empty_output()
+			);
+
+			// exceeding the budget: note_egress errors, the withdraw fails, the burn reverts.
+			// Executed through the real runner (not MockHandle) because the revert relies on
+			// the EVM call-frame storage transaction to roll the withdraw back.
+			let burn_data = EvmDataWriter::new_with_selector(Function::Burn)
+				.write(U256::from(500 * UNITS))
+				.build();
+			let info = <hydradx_runtime::Runtime as pallet_evm::Config>::Runner::call(
+				minter(),
+				hdx_token,
+				burn_data,
+				U256::zero(),
+				1_000_000u64,
+				None,
+				None,
+				None,
+				Default::default(),
+				Default::default(),
+				false,
+				true,
+				None,
+				None,
+				<hydradx_runtime::Runtime as pallet_evm::Config>::config(),
+			)
+			.expect("runner call should execute");
+			assert!(matches!(info.exit_reason, fp_evm::ExitReason::Revert(_)));
+			assert_balance!(minter_account(), HDX, balance_before - 600 * UNITS);
+
+			// smaller burn still fits under the remaining budget
+			assert_eq!(
+				CurrencyPrecompile::execute(&mut burn_handle_for(hdx_token, minter(), 300 * UNITS)),
+				empty_output()
+			);
+
+			assert_ok!(EVMAccounts::clear_ntt_minter(
+				hydradx_runtime::RuntimeOrigin::root(),
+				HDX
+			));
+			assert_eq!(
+				WithdrawCircuitBreaker::global_asset_category(HDX),
+				Some(pallet_circuit_breaker::GlobalAssetCategory::External)
+			);
+		});
 	}
 }
 
@@ -3564,6 +4087,76 @@ fn dispatch_should_work_with_transfer() {
 }
 
 #[test]
+fn evm_gas_should_be_paid_in_weth_after_registry_location_repoint() {
+	// the mrl->ntt migration repoints asset 20 from the moonbeam erc20 to hydration's own one;
+	// gas payment must not depend on where the registry location points
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+		assert_ok!(EVMAccounts::bind_evm_address(RuntimeOrigin::signed(ALICE.into())));
+
+		let evm_address = EVMAccounts::evm_address(&Into::<AccountId>::into(ALICE));
+		init_omnipool_with_oracle_for_block_10();
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			WETH,
+			(100 * UNITS * 1_000_000) as i128,
+		));
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
+			RuntimeOrigin::signed(ALICE.into()),
+			WETH,
+		));
+
+		// point asset 20 at the local erc20 view (currencies precompile prefix + u32be(20))
+		assert_ok!(AssetRegistry::update(
+			RuntimeOrigin::root(),
+			WETH,
+			None,
+			None,
+			None,
+			None,
+			None,
+			None,
+			None,
+			Some(hydradx_runtime::AssetLocation(polkadot_xcm::v5::Location::new(
+				0,
+				[polkadot_xcm::v5::Junction::AccountKey20 {
+					network: None,
+					key: hex!["0000000000000000000000000000000100000014"],
+				}],
+			))),
+		));
+		assert_eq!(<hydradx_runtime::evm::WethAssetId as Get<AssetId>>::get(), WETH);
+
+		let data = hex!["4d0045544800d1820d45118d78d091e685490c674d7596e62d1f0000000000000000140000000f0000c16ff28623"]
+			.to_vec();
+		let balance = Tokens::free_balance(WETH, &AccountId::from(ALICE));
+
+		let (gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+
+		assert_ok!(EVM::call(
+			RuntimeOrigin::signed(ALICE.into()),
+			evm_address,
+			DISPATCH_ADDR,
+			data,
+			U256::from(0),
+			1000000,
+			gas_price * 10,
+			None,
+			Some(U256::zero()),
+			[].into(),
+			vec![],
+		));
+
+		assert!(Tokens::free_balance(WETH, &AccountId::from(ALICE)) < balance - 10u128.pow(16));
+	});
+}
+
+#[test]
 fn dispatch_should_work_with_buying_insufficient_asset() {
 	TestNet::reset();
 
@@ -3833,9 +4426,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		let native_fee = new_alice_currency_balance - alice_currency_balance_pre_dispatch;
 		assert!(
 			evm_fee > native_fee,
-			"assertion failed evm_fee > native fee. Evm fee: {:?} Native fee: {:?}",
-			evm_fee,
-			native_fee
+			"assertion failed evm_fee > native fee. Evm fee: {evm_fee:?} Native fee: {native_fee:?}"
 		);
 
 		let fee_difference = evm_fee - native_fee;
@@ -3846,9 +4437,7 @@ fn compare_fee_in_eth_between_evm_and_native_omnipool_calls() {
 		// EVM fees should be not higher than 20%
 		assert!(
 			relative_fee_difference < tolerated_fee_difference,
-			"relative_fee_difference: {:?} is bigger than tolerated {:?}",
-			relative_fee_difference,
-			tolerated_fee_difference
+			"relative_fee_difference: {relative_fee_difference:?} is bigger than tolerated {tolerated_fee_difference:?}"
 		);
 	})
 }
@@ -4850,7 +5439,10 @@ impl PrecompileHandle for MockHandle {
 	}
 
 	fn log(&mut self, _: H160, _: Vec<H256>, _: Vec<u8>) -> Result<(), ExitError> {
-		unimplemented!()
+		// no-op: tests using this mock handle don't inspect emitted logs;
+		// the precompile (e.g. multicurrency) calls `handle.log(...)` to emit
+		// the ERC-20 Transfer event inline, which we accept silently here.
+		Ok(())
 	}
 
 	fn code_address(&self) -> H160 {

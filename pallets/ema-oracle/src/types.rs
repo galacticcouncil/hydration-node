@@ -235,11 +235,11 @@ where
 pub fn into_smoothing(period: OraclePeriod) -> Fraction {
 	match period {
 		OraclePeriod::LastBlock => Fraction::from_bits(170141183460469231731687303715884105728),
-		OraclePeriod::Short => Fraction::from_bits(16203922234330403022065457496750867212),
-		OraclePeriod::TenMinutes => Fraction::from_bits(3369132345751865974884897103284833777),
-		OraclePeriod::Hour => Fraction::from_bits(566193622164623067326746434994622648),
-		OraclePeriod::Day => Fraction::from_bits(23629079016800115510268356880200556),
-		OraclePeriod::Week => Fraction::from_bits(3375783642235081630771268215908257),
+		OraclePeriod::Short => Fraction::from_bits(5578399457720302679727452580848659204),
+		OraclePeriod::TenMinutes => Fraction::from_bits(1130506202395144396888287732331455852),
+		OraclePeriod::Hour => Fraction::from_bits(188940792293691539957453974143125048),
+		OraclePeriod::Day => Fraction::from_bits(7876724310107137877905016259618254),
+		OraclePeriod::Week => Fraction::from_bits(1125268656257546977236763791891456),
 	}
 }
 

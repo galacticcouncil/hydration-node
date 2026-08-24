@@ -30,6 +30,8 @@ sp-io = { workspace = true }
 default = ['std']
 std = [
     'codec/std',
+    'frame-support/std',
+    'frame-system/std',
     'scale-info/std',
     'sp-runtime/std',
     'sp-core/std',
