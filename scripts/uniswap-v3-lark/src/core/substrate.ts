@@ -16,7 +16,11 @@ export async function connectApi(ws: string): Promise<ApiPromise> {
 
 export async function keyringFromSuri(suri: string): Promise<KeyringPair> {
   await cryptoWaitReady()
-  return new Keyring({ type: 'sr25519', ss58Format: 63 }).addFromUri(suri)
+  // Prefix 0, matching the rest of this repo's scripts. Only the display form
+  // changes — same account, same signatures either way — but a prefix-63 address
+  // does not match what the explorer and the other scripts print, which makes
+  // eyeballing an account needlessly hard.
+  return new Keyring({ type: 'sr25519', ss58Format: 0 }).addFromUri(suri)
 }
 
 export async function freeBalance(api: ApiPromise, address: string, assetId: number): Promise<bigint> {
