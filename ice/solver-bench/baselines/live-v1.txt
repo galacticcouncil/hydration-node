@@ -1,0 +1,244 @@
+# ICE Solver LIVE Baseline v1
+# Date: 2026-08-27
+# Machine: Apple Silicon, 8 cores, 16 GB RAM, macOS Darwin 25.5.0
+# Topology: zombienet mainnet-fork — relay rococo-local (polkadot 1.22.0, 4 validators)
+#           + parachain 2034 with 2 collators (alice-1, bob-1), both --pruning=archive,
+#           ICE worker on, solver mode V4
+# Runtime: spec 443 (local wasm patched into :code of the forked chainspec)
+# Node: hydradx 51.0.0-e6c4ccf53, node 15.4.0, aarch64-macos, release profile
+# State: June mainnet scrape (launch-configs/fork/data/state.json) — full pool universe
+# Block time: 6000 ms (rococo-local). NOT the 2 s production target — per-solve costs
+#   are cadence-independent, but every headroom figure is generous: at 2 s the collator
+#   gets 3x less idle CPU between solves. Re-read all verdicts against 2 s.
+# Contention: a PEPL / flash-liquidation worker churned on the same 8 cores throughout
+#   (2995 `liquidate_position failed` lines). All p90/p99/max rows are CONTENDED tails;
+#   medians are comparatively clean. The 715 ms state_query outlier is block 572.
+# Crosspair caveat: 126 of 158 timing rows are spam-crosspair. The generator's spamOut()
+#   ED*1e6 fallback prices below fair value for stableswap-only assets, so those legs are
+#   fillable — crosspair is a solver-LOAD shape, not spam. It measures state_query/decode/
+#   solve honestly at width, but ZERO crosspair solutions ever executed on-chain, so it
+#   does NOT measure the execute path.
+# Excluded: round 4 (spam-hetero N=400, blocks 149-200) — degraded, 21 failed submissions,
+#   solve saw intents=217 not 400. Clean sample n=156 of 158.
+# Blind spot: the worker logs StageTimings only on the submitted-solution branch, so
+#   many-intents/no-solution blocks produce NO rows at all (round 1: 31 blocks, 0 rows).
+# Native floors compared against: baselines/v2.txt (simulator_initial_state 12.468 ms).
+# Raw data: scripts/ice-perf-sweep/results/{sweep.csv,rounds.jsonl,RUN_NOTES.md}
+# Analysis:  ICE_PERF_RESULTS.md section "Live sweep results (zombienet mainnet-fork)"
+#
+# All timings in milliseconds. "intents" = observed count at solve time
+# (submitted + 4 permanent deadline-less DCA intents in the fork). Where n < 10, max is
+# the only meaningful tail statistic.
+
+## state_query_ms  —  shape / round-N / intents / n : median p90 max
+state_query resolvable/10        int=12    n=2    57.5    71.5      75
+state_query resolvable/25        int=27    n=2    57.0    57.0      57
+state_query resolvable/50        int=52    n=2   104.5   140.1     149
+state_query resolvable/100       int=102   n=4    67.0   133.0     160
+state_query partial/25           int=27    n=4   173.0   222.0     222
+state_query partial/50           int=52    n=2   149.5   200.3     213
+state_query mixed/200            int=202   n=4    93.0   123.1     136
+state_query mixed/400            int=402   n=2    98.5   105.3     107
+state_query spam-hetero/100      int=102   n=2    44.5    58.5      62
+state_query spam-hetero/200      int=202   n=2    79.5    81.5      82
+state_query spam-hetero/400      int=402   n=2    52.0    65.6      69
+state_query spam-hetero/1000     int=1002  n=2   129.0   175.4     187
+state_query spam-crosspair/100   int=102   n=29   74.0   153.4     182
+state_query spam-crosspair/200   int=202   n=33   92.0   137.6     248
+state_query spam-crosspair/400   int=402   n=35  101.0   152.0     222
+state_query spam-crosspair/1000  int=451-1002 n=29 265.0 436.0     715
+
+## total_ms  —  shape / round-N / intents / n : median p90 max
+total       resolvable/10        int=12    n=2    66.5    82.9      87
+total       resolvable/25        int=27    n=2    64.5    66.5      67
+total       resolvable/50        int=52    n=2   114.5   147.7     156
+total       resolvable/100       int=102   n=4    88.5   174.5     206
+total       partial/25           int=27    n=4   183.5   229.9     232
+total       partial/50           int=52    n=2   157.5   206.7     219
+total       mixed/200            int=202   n=4   105.0   132.2     143
+total       mixed/400            int=402   n=2   119.0   119.8     120
+total       spam-hetero/100      int=102   n=2    48.5    62.5      66
+total       spam-hetero/200      int=202   n=2    87.0    87.0      87
+total       spam-hetero/400      int=402   n=2    63.5    78.3      82
+total       spam-hetero/1000     int=1002  n=2   151.0   202.2     215
+total       spam-crosspair/100   int=102   n=29   99.0   171.0     197
+total       spam-crosspair/200   int=202   n=33  135.0   171.0     273
+total       spam-crosspair/400   int=402   n=35  145.0   197.8     303
+total       spam-crosspair/1000  int=451-1002 n=29 361.0 649.6     921
+
+## pooled by observed intent count (all shapes, round 4 excluded) : median p90 p99 max
+pooled state_query int=12    n=2     57.5    71.5    74.7      75
+pooled state_query int=27    n=6    100.5   222.0   222.0     222
+pooled state_query int=52    n=4    117.5   193.8   211.1     213
+pooled state_query int=102   n=35    70.0   156.4   177.6     182
+pooled state_query int=202   n=39    92.0   136.4   219.5     248
+pooled state_query int=402   n=39    98.0   146.0   201.5     222
+pooled state_query int=1002  n=25   236.0   386.2   653.8     715
+pooled solve       int=102   n=35    15.0    19.0    26.3      28
+pooled solve       int=202   n=39    20.0    31.6    40.5      42
+pooled solve       int=402   n=39    29.0    40.2    48.2      52
+pooled solve       int=1002  n=25    66.0   152.2   333.9     408
+pooled submit      int=102   n=35     3.0    13.6    37.6      43
+pooled submit      int=202   n=39     4.0    22.0    46.9      56
+pooled submit      int=402   n=39     8.0    24.2    39.4      44
+pooled submit      int=1002  n=25    38.0    91.0   147.0     159
+pooled total       int=12    n=2     66.5    82.9    86.6      87
+pooled total       int=27    n=6    112.0   228.5   231.7     232
+pooled total       int=52    n=4    126.0   200.1   217.1     219
+pooled total       int=102   n=35    95.0   175.0   202.9     206
+pooled total       int=202   n=39   120.0   171.0   256.3     273
+pooled total       int=402   n=39   141.0   196.6   270.3     303
+pooled total       int=1002  n=25   352.0   682.8   903.7     921
+
+## whole sample (n=156, round 4 excluded) : median p90 p95 p99 max
+global state_query    99.5   247.5   324.2   460.4     715
+global decode          0.0     0.0     1.0     4.0      10
+global solve          21.5    65.0    78.2   159.9     408
+global submit          6.5    43.0    65.8   105.2     159
+global total         138.5   342.5   477.0   775.8     921
+
+## budget cuts (Budget A: target <= 1000 ms, hard ceiling 2000 ms)
+budgetA intents<=210  n=86   total med=105.5 p90=182.0 p99=238.2 max=273   max=27% of 1000ms target, 14% of ceiling
+budgetA intents~400   n=39   total med=141.0 p90=196.6 p99=270.3 max=303   max=30% of target, 15% of ceiling
+budgetA intents>=1000 n=25   total med=352.0 p90=682.8 p99=903.7 max=921   max=92% of target, 46% of ceiling
+budgetA verdict  PASS at all measured loads; ~4x margin at realistic N<=200. 6s cadence + contention caveats apply.
+
+## fitted scaling — OLS, ms vs observed intent count
+## (a) per-sample fits, n=156 all shapes
+fit persample state_query  slope=0.18183 ms/intent  intercept=64.20 ms  R2=0.351
+fit persample decode       slope=0.00063 ms/intent  intercept=-0.03 ms  R2=0.043
+fit persample solve        slope=0.08215 ms/intent  intercept= 1.35 ms  R2=0.404
+fit persample submit       slope=0.04442 ms/intent  intercept=-0.48 ms  R2=0.372
+fit persample total        slope=0.30878 ms/intent  intercept=66.33 ms  R2=0.473
+## (b) bucket-median fits (buckets 27/52/102/202/402/1002, n>=4) — the model to quote
+fit median   state_query   slope=0.14209 ms/intent  intercept=76.68 ms  R2=0.789   (57% of total slope)
+fit median   solve         slope=0.06397 ms/intent  intercept= 3.03 ms  R2=0.971   (26%)
+fit median   submit        slope=0.03555 ms/intent  intercept=-0.34 ms  R2=0.923   (14%)
+fit median   total         slope=0.24874 ms/intent  intercept=83.58 ms  R2=0.916
+## (c) bucket-p99 fits
+fit p99      state_query   slope=0.45572 ms/intent  intercept=145.18 ms R2=0.850
+fit p99      total         slope=0.70363 ms/intent  intercept=137.44 ms R2=0.908
+## (d) crosspair-only per-sample (n=126, intents 102..1002)
+fit crosspair state_query  slope=0.20544 ms/intent  intercept=55.14 ms  R2=0.400
+fit crosspair solve        slope=0.08552 ms/intent  intercept= 3.50 ms  R2=0.405
+fit crosspair total        slope=0.34160 ms/intent  intercept=56.99 ms  R2=0.516
+## (e) non-crosspair per-sample (n=30, intents 12..1002) — flat, no width signal
+fit noncross state_query   slope=0.00767 ms/intent  intercept=95.98 ms  R2=0.001
+fit noncross total         slope=0.01997 ms/intent  intercept=105.92 ms R2=0.008
+
+## hypothesis check: "state_query is a flat floor independent of intent count"
+hypothesis  REJECTED — state_query median rises 70 ms @102 intents -> 236 ms @1002 intents
+hypothesis  but the floor still dominates below ~540 intents (0.142*540 == 76.68 floor);
+hypothesis  total_ms floor/variable crossover at ~336 intents.
+hypothesis  slope is an UPPER BOUND: at constant intents=1002 (crosspair, blocks 555-577)
+hypothesis  state_query still drifted +10.99 ms/block (R2=0.373) — time-in-round/contention.
+hypothesis  no such drift at constant intents=402 (blocks 313-339): slope -1.08, R2=0.041.
+
+## N* extrapolations (NOTE: largest measured width = 1002 intents at p99 903.7 / max 921;
+## nothing in the run crossed either line, so BOTH figures are extrapolations)
+Nstar basis=bucket-p99-OLS-allshapes   slope=0.7036 int=137.4   @1000ms=1226  @2000ms=2647
+Nstar basis=bucket-p99-OLS-crosspair   slope=0.7999 int= 65.2   @1000ms=1169  @2000ms=2419
+Nstar basis=crosspair-p99-twopoint     slope=0.7858 int=113.5   @1000ms=1128  @2000ms=2401
+Nstar basis=worst-observed-sample      slope=1.0300 int=-111.1  @1000ms=1079  @2000ms=2050
+Nstar basis=bucket-median-OLS          slope=0.2487 int= 83.6   @1000ms=3684  @2000ms=7697
+Nstar RANGE  @1000ms = 1.1k - 1.3k intents ; @2000ms = 2.0k - 2.7k intents
+Nstar CONSERVATIVE (worst-sample basis)  @1000ms ~= 1080 ; @2000ms ~= 2050
+Nstar CONFIDENCE  low-to-moderate: 2x extrapolation off 4 bucket points, contended 8-core
+Nstar   machine, 6 s cadence, width coverage from a single (pessimistic) shape, n=25 at the
+Nstar   top bucket so "p99" is effectively the max. Read as "the knee is thousands of
+Nstar   intents, not hundreds" — do not size a guard off it.
+
+## wasm/live multiplier over native simulator_initial_state = 12.468 ms (baselines/v2.txt)
+wasmmult ~100 intents all shapes    n=35   med= 70.0 x5.61   p90=156.4 x12.54   max=182 x14.60
+wasmmult ~100 intents crosspair     n=29   med= 74.0 x5.94   p90=153.4 x12.30   max=182 x14.60
+wasmmult ~100 intents non-crosspair n=6    med= 63.0 x5.05   p90=115.0 x 9.22   max=160 x12.83
+wasmmult <=60 intents               n=12   med= 81.5 x6.54   p90=221.1 x17.73   max=222 x17.81
+wasmmult whole sample               n=156  med= 99.5 x7.98   p90=247.5 x19.85   max=715 x57.35
+wasmmult HEADLINE  ~5.6x at moderate load, ~8x at the whole-sample median, ~12-20x at p90,
+wasmmult   ~57x at the contended worst case. Bundles wasm execution + trie/RocksDB reads +
+wasmmult   SCALE encoding + CPU contention; this run cannot separate them.
+
+## solve_ms vs native bench (solve runs NATIVELY in the worker — this is workload+contention,
+## not a wasm effect; live crosspair legs are fillable, the bench's are mostly unroutable)
+solvevsbench crosspair int=102  live_med=16  native solver_cross_pair_spam/100  = 3.728   x4.3
+solvevsbench crosspair int=202  live_med=20  native (interp 100->500)          ~ 6.0     x3.3
+solvevsbench crosspair int=402  live_med=29  native (interp 100->500)          ~10.7     x2.7
+solvevsbench crosspair int=1002 live_med=66  native (interp 500->1400)         ~23.8     x2.8
+solvevsbench worst live solve = 408 ms (block 574) = 12x the bench's 33 ms saturation figure
+
+## cold start — NO PENALTY OBSERVED
+coldstart alice-1 block=11 intents=12  state_query=75 decode=0 solve=3 submit=9 total=87
+coldstart bob-1   block=11 intents=12  state_query=40 decode=0 solve=3 submit=1 total=46
+coldstart warm comparison: median state_query = 70.0 (n~100, all shapes), 81.5 (<=60 intents)
+coldstart verdict: cold samples sit ON or BELOW the warm median -> solver_input is not
+coldstart   trie-cache sensitive at these widths. Single cold observation per collator on a
+coldstart   freshly-imported archive DB; a cold mainnet node could still differ.
+
+## Budget B — empirical block weights (13 SolutionExecuted events, ALL trades=1, ALL drift=1)
+## maxBlock ref_time = 1_500_000_000_000 ps, proof_size = 10_485_760 B
+blockweight block=12   resolvable   intents=10   ref=  29_528_164_933 ( 1.97%)  proof=  181_834 ( 1.73%)
+blockweight block=350  resolvable   intents=25   ref=  60_088_699_933 ( 4.01%)  proof=  314_689 ( 3.00%)
+blockweight block=405  partial      intents=25   ref=  60_088_699_933 ( 4.01%)  proof=  315_089 ( 3.00%)
+blockweight block=366  resolvable   intents=50   ref= 111_022_924_933 ( 7.40%)  proof=  536_114 ( 5.11%)
+blockweight block=420  partial      intents=50   ref= 111_022_924_933 ( 7.40%)  proof=  536_914 ( 5.12%)
+blockweight block=441  mixed        intents=50   ref= 111_022_924_933 ( 7.40%)  proof=  536_114 ( 5.11%)
+blockweight block=472  mixed        intents=50   ref= 111_022_924_933 ( 7.40%)  proof=  536_114 ( 5.11%)
+blockweight block=385  resolvable   intents=100  ref= 212_891_374_933 (14.19%)  proof=  978_965 ( 9.34%)
+blockweight MAXSOLUTION block=385: intents_executed=100 == MAX_NUMBER_OF_RESOLVED_INTENTS,
+blockweight   trades_executed=1, built_at=384 (drift 1). Structural max on the INTENT side.
+blockweight mandatory class @385: ref 78_812_253_105 (5.25%), proof 311_076 (2.97%)
+
+## Budget B — empirical ladder fit vs the static weight audit (ICE_PERF_RESULTS.md Budget B)
+ladderfit ref_time_normal   = 2_037_369_000 * intents + 9_154_474_933    R2 = 1.000000
+ladderfit proof_size_normal =         8_857 * intents +        93_264    R2 = 1.000000
+ladderfit per-intent ref_time  static=2_037_369_000 ps  empirical=2_037_369_000 ps  EXACT
+ladderfit per-intent proof     static=8_799 B          empirical=8_857 B           +0.66%
+ladderfit fixed ref_time  static = base_extrinsic 1_779_123_000 + Omnipool sell hop
+ladderfit   7_375_351_933 = 9_154_474_933 ps   empirical = 9_154_474_933 ps         EXACT
+ladderfit fixed proof     static = 11_322 + 81_872 = 93_194 B  empirical = 93_264 B  +70 B
+ladderfit LIMIT 1: frame_system::BlockWeight records DECLARED (post-refund) weight, so this
+ladderfit   confirms the audit's ARITHMETIC, not wall-clock execution time.
+ladderfit LIMIT 2: every executed solution carried exactly ONE trade. The trade side — the
+ladderfit   half that FAILS the audit — was never exercised. Crosspair solutions carrying
+ladderfit   6-13 trades were all rejected in validate_unsigned before execution.
+ladderfit CONCLUSION: intent side confirmed cheap; trade-side caps (200 x multi-hop) remain
+ladderfit   the unincludable part. 100 intents + 200 single-hop Omnipool = 154.6% ref_time /
+ladderfit   227.3% proof_size of the Normal max_extrinsic -> ExhaustsResources, never
+ladderfit   includable. Audit recommendation stands: MAX_NUMBER_OF_SOLUTION_TRADES 200 -> 41
+ladderfit   (pool-agnostic single-hop-safe) or 30-32 with headroom, expressed as a HOP budget.
+
+## heaviest normal-class blocks of the run — all saturated by submit_intent, NOT by ICE execution
+heaviest block=545 idle           ref=1_124_391_975_000 (74.96%) proof=5_595_145 (53.36%)
+heaviest block=546 idle           ref=1_124_391_975_000 (74.96%) proof=5_594_541 (53.35%)
+heaviest block=553 spam-crosspair ref=1_123_381_826_661 (74.89%) proof=6_261_383 (59.71%)
+heaviest block=554 spam-crosspair ref=1_123_249_416_629 (74.88%) proof=5_718_638 (54.54%)
+heaviest block=510 spam-hetero    ref=1_122_570_493_000 (74.84%) proof=5_187_205 (49.47%)
+
+## solution landing health
+landing blocks that built >=1 solution = 109 ; landed as SolutionExecuted at b+1 = 13 (11.9%)
+landing non-crosspair: 16 built, 13 landed = 81%
+landing crosspair:     93 built,  0 landed =  0%   (fallback-pricing artefact, see header)
+landing drift: ALL 13 executions have built_at = block-1. The worker never fell behind.
+landing exec_intents observed: 3,3,3,3,3,10,25,25,50,50,50,50,100 ; exec_trades: always 1
+
+## skip blocks (the fork carries 4 permanent deadline-less DCA intents = a pending floor of 4)
+skipblocks raw "pending>0 and no SolutionExecuted"          = 564
+skipblocks blocks with pending_intents == 4 exactly (floor) = 163
+skipblocks after subtracting the floor (pending > 4)        = 407
+skipblocks   of which crosspair                             = 129
+skipblocks   remaining 278: spam-hetero 202, mixed 58, idle 10, resolvable 4, partial 4
+skipblocks   -> those rounds hold unresolvable spam BY DESIGN (median 224 real pending);
+skipblocks   they are correct no-ops, not misses. No busy-guard drops, no stale-solve skips.
+
+## rejections (from collator logs, RUN_NOTES sections 6.2/6.3)
+reject validate_unsigned total=290 : IntentNotFound(ice 99/1)=180, IntentExpired(intent 98/4)=110
+reject   all in crosspair rounds; zero during resolvable/partial/mixed. 180 IntentNotFound over
+reject   ~93 crosspair solve-blocks is more than one per losing collator per block — open item.
+reject pool TooLowPriority{old=new=18446744073709551615} : alice-1=46 bob-1=42 (88 total)
+reject   -> the worker's own stale solution refuses displacement by its successor; with
+reject   longevity(1) the fresher solution is silently dropped. Same family as TemporarilyBanned.
+reject pool InvalidTransaction::Call : alice-1=24 bob-1=24 (48 total)
+reject Pool(TemporarilyBanned) : 0 occurrences — the known issue did NOT reproduce
+reject   (alice ran with --tx-ban-seconds=5).
+reject runtime storage_reclaim_pallet weight underestimate: 48 per collator,
+reject   "benchmarked: 4714 consumed: 9901" (~2.1x under) under ICE load. Separate ticket.

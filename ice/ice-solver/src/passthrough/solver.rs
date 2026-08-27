@@ -19,13 +19,22 @@ use frame_support::sp_runtime::Permill;
 use hydradx_traits::amm::AMMInterface;
 use ice_support::{
 	Balance, Intent, IntentData, PoolTrade, ResolvedIntent, ResolvedIntents, Solution, SolutionTrades, SwapData,
-	SwapType, MAX_NUMBER_OF_RESOLVED_INTENTS,
+	SwapType, MAX_NUMBER_OF_RESOLVED_INTENTS, MAX_NUMBER_OF_SOLUTION_TRADES,
 };
 use sp_core::U256;
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
 
 const LOG_TARGET: &str = "solver::passthrough";
+
+/// Every admitted intent emits exactly one trade, and the chain rejects a
+/// pass-through solution whose two lists differ in length — so the binding limit
+/// is whichever cap is lower, never `MAX_NUMBER_OF_RESOLVED_INTENTS` alone.
+const MAX_ADMITTED: usize = if MAX_NUMBER_OF_RESOLVED_INTENTS < MAX_NUMBER_OF_SOLUTION_TRADES {
+	MAX_NUMBER_OF_RESOLVED_INTENTS as usize
+} else {
+	MAX_NUMBER_OF_SOLUTION_TRADES as usize
+};
 
 /// The limit the chain applies to a full fill of `amount` — `IntentData::pro_rata`'s
 /// floor division, reproduced exactly. `None` when it is not computable, which
@@ -77,8 +86,8 @@ impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 		let mut score: Balance = 0;
 
 		for intent in ordered {
-			if resolved.len() >= MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
-				log::debug!(target: LOG_TARGET, "resolved-intent cap reached; the rest of the batch waits for a later block");
+			if resolved.len() >= MAX_ADMITTED {
+				log::debug!(target: LOG_TARGET, "solution cap of {MAX_ADMITTED} reached; the rest of the batch waits for a later block");
 				break;
 			}
 

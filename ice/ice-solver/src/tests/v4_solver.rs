@@ -1242,6 +1242,34 @@ fn cap_should_keep_the_highest_surplus_intent_when_batch_exceeds_the_maximum() {
 	);
 }
 
+/// 40 disjoint asset pairs — every intent is its own surplus/deficit couple, so
+/// an uncapped netting round would route one AMM trade per pair.
+fn disjoint_pair_batch(pairs: u128) -> Vec<Intent> {
+	(0..pairs)
+		.map(|i| {
+			let asset_in = (2 * i + 1) as AssetId;
+			let asset_out = (2 * i + 2) as AssetId;
+			make_intent(i + 1, asset_in, asset_out, 100_000, 99_000)
+		})
+		.collect()
+}
+
+#[test]
+fn solve_should_not_exceed_the_trade_bound_when_batch_needs_more_trades() {
+	let solution = Solver::<MockAMMOneToOne>::solve(disjoint_pair_batch(40), (), Permill::zero()).unwrap();
+
+	assert_eq!(solution.trades.len(), 30);
+	assert_eq!(solution.resolved_intents.len(), 30);
+}
+
+#[test]
+fn solve_should_route_every_pair_when_batch_fits_the_trade_bound() {
+	let solution = Solver::<MockAMMOneToOne>::solve(disjoint_pair_batch(30), (), Permill::zero()).unwrap();
+
+	assert_eq!(solution.trades.len(), 30);
+	assert_eq!(solution.resolved_intents.len(), 30);
+}
+
 #[test]
 fn ring_should_not_fill_more_than_remaining_when_partial_is_already_filled() {
 	// A→B is a partial with only 40 of its 100 left; the B→C and C→A legs are

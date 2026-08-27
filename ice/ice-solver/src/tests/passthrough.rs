@@ -378,17 +378,25 @@ fn intent_should_be_excluded_when_its_quote_is_below_the_existential_deposit() {
 }
 
 #[test]
-fn resolved_intents_should_be_capped_at_the_maximum_when_batch_is_larger() {
+fn resolved_intents_should_be_capped_at_the_trade_bound_when_batch_is_larger() {
 	let intents: Vec<Intent> = (1..=105u128).map(|id| make_intent(id, 1, 2, 1_000, 1)).collect();
 	let solution = passthrough::<Amm>(intents, balanced());
 
-	assert_eq!(
-		solution.resolved_intents.len(),
-		ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS as usize
-	);
-	assert_eq!(solution.trades.len(), 100);
+	// One trade per admitted intent, so the lower of the two caps binds.
+	assert_eq!(solution.resolved_intents.len(), 30);
+	assert_eq!(solution.trades.len(), 30);
 	// Ascending id order, so the leftovers are the newest ids.
-	assert_eq!(resolved_ids(&solution), (1..=100u128).collect::<Vec<_>>());
+	assert_eq!(resolved_ids(&solution), (1..=30u128).collect::<Vec<_>>());
+}
+
+#[test]
+fn solution_should_keep_the_one_to_one_shape_when_batch_exceeds_the_trade_bound() {
+	// The chain rejects a pass-through solution whose two lists differ in length,
+	// so admission must stop at the trade cap rather than truncate on the way out.
+	let intents: Vec<Intent> = (1..=105u128).map(|id| make_intent(id, 1, 2, 1_000, 1)).collect();
+	let solution = passthrough::<Amm>(intents, balanced());
+
+	assert_eq!(solution.resolved_intents.len(), solution.trades.len());
 }
 
 #[test]
