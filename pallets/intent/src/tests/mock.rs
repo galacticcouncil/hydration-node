@@ -38,6 +38,8 @@ use std::cell::RefCell;
 use std::vec;
 
 pub(crate) const ONE_DOT: u128 = 10_000_000_000;
+/// Existential deposit `DummyRegistry` reports for every asset.
+pub(crate) const ED: Balance = 1_000;
 pub(crate) const ONE_HDX: u128 = 1_000_000_000_000;
 pub(crate) const ONE_QUINTIL: u128 = 1_000_000_000_000_000_000;
 
@@ -262,7 +264,7 @@ impl Inspect for DummyRegistry {
 	}
 
 	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		Some(1_000)
+		Some(ED)
 	}
 }
 

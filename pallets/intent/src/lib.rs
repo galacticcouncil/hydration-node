@@ -449,8 +449,17 @@ impl<T: Config> Pallet<T> {
 	/// Creates a DCA intent for a schedule converted from `pallet-dca`.
 	///
 	/// The per-account cap is not enforced here — see `IntentMigrator`.
+	///
+	/// A sub-ED `amount_out` is lifted to the ED instead of rejected: it is only the user's hard
+	/// floor, and the enforced minimum stays `max(hard limit, oracle floor)`
+	/// (`compute_dca_effective_limit`), so lifting it cannot execute the schedule any worse.
+	/// `amount_in` is deliberately not clamped — raising the spend side would change the schedule.
 	#[require_transactional]
-	pub fn do_add_migrated_intent(owner: T::AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
+	pub fn do_add_migrated_intent(owner: T::AccountId, mut params: DcaParams) -> Result<IntentId, DispatchError> {
+		if let Some(ed_out) = T::RegistryHandler::existential_deposit(params.asset_out) {
+			params.amount_out = params.amount_out.max(ed_out);
+		}
+
 		Self::do_add_intent(
 			owner,
 			IntentInput {

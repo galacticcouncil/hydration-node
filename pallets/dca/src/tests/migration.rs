@@ -434,6 +434,75 @@ fn force_cancel_should_skip_unknown_ids_when_schedule_does_not_exist() {
 }
 
 #[test]
+fn migration_should_convert_schedule_when_min_amount_out_is_dust() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, START_BLOCK);
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(100 * ONE)
+				.with_order(sell_order(10 * ONE, 1))
+				.build();
+			let schedule_id = insert_schedule_into_storage(ALICE, schedule, None);
+
+			enable_migration();
+
+			//Act
+			set_to_blocknumber(EXECUTION_BLOCK);
+
+			//Assert
+			let (_, params) = migrated_intent();
+			assert_eq!(params.amount_out, INTENT_ED);
+
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+			expect_events(vec![DcaEvent::Migrated {
+				id: schedule_id,
+				who: ALICE,
+				intent_id: 1,
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn migration_should_cancel_when_amount_in_is_below_existential_deposit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, START_BLOCK);
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(100 * ONE)
+				.with_order(sell_order(INTENT_ED - 1, 5 * ONE))
+				.build();
+			let schedule_id = insert_schedule_into_storage(ALICE, schedule, None);
+			let remaining = DCA::remaining_amounts(schedule_id).unwrap();
+
+			enable_migration();
+
+			//Act
+			set_to_blocknumber(EXECUTION_BLOCK);
+
+			//Assert
+			MIGRATED_INTENTS.with(|v| assert!(v.borrow().is_empty()));
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+			expect_events(vec![DcaEvent::MigrationCancelled {
+				id: schedule_id,
+				who: ALICE,
+				asset: HDX,
+				refunded: remaining,
+				reason: CancelReason::IntentCreationFailed(INTENT_BELOW_ED),
+			}
+			.into()]);
+		});
+}
+
+#[test]
 fn migration_should_use_default_slippage_when_schedule_has_none() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])

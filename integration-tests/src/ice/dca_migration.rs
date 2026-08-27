@@ -659,40 +659,6 @@ fn migration_should_cancel_and_refund_when_order_is_buy() {
 }
 
 #[test]
-fn migration_should_cancel_when_amount_out_is_below_existential_deposit() {
-	TestNet::reset();
-	let alice: AccountId = ALICE.into();
-
-	driver_with_funded_alice().execute(|| {
-		enable_slip_fees();
-
-		// `add_intent` refuses `amount_out < ED(asset_out)`, so the conversion fails and the
-		// schedule is cancelled rather than retried.
-		let ed_out = <pallet_asset_registry::Pallet<Runtime> as Inspect>::existential_deposit(BNC).unwrap();
-		let schedule = sell_schedule(alice.clone(), BUDGET, AMOUNT_IN, ed_out - 1);
-
-		let (id, block) = schedule_dca(alice.clone(), schedule);
-		let free_before = Currencies::free_balance(HDX, &alice);
-		enable_migration();
-
-		let mark = event_mark();
-		run_to(block);
-
-		assert_eq!(Currencies::free_balance(HDX, &alice), free_before + BUDGET);
-		assert_eq!(Currencies::reserved_balance_named(&DCA_RESERVE_ID, HDX, &alice), 0);
-		assert_eq!(Currencies::reserved_balance_named(&INTENT_RESERVE_ID, HDX, &alice), 0);
-		assert_schedule_gone(&alice, id);
-		assert!(dca_events_since(mark).iter().any(|e| matches!(
-			e,
-			pallet_dca::Event::MigrationCancelled {
-				reason: CancelReason::IntentCreationFailed(_),
-				..
-			}
-		)));
-	});
-}
-
-#[test]
 fn migration_should_cancel_when_remaining_budget_is_below_one_trade() {
 	TestNet::reset();
 	let alice: AccountId = ALICE.into();
@@ -1175,6 +1141,45 @@ fn migrated_intent_should_carry_original_slippage_and_limits() {
 		assert_eq!(dca.budget, Some(BUDGET));
 		assert_eq!(dca.remaining_budget, BUDGET);
 		assert_eq!(dca.last_execution_block, block);
+	});
+}
+
+#[test]
+fn migrated_intent_should_clamp_amount_out_to_existential_deposit_when_schedule_limit_is_dust() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+
+	driver_with_funded_alice().execute(|| {
+		enable_slip_fees();
+
+		// Old-DCA users routinely leave `min_amount_out` at dust; the conversion lifts it to the ED
+		// rather than cancelling the schedule.
+		let ed_out = <pallet_asset_registry::Pallet<Runtime> as Inspect>::existential_deposit(BNC).unwrap();
+		let (id, block) = schedule_dca(alice.clone(), sell_schedule(alice.clone(), BUDGET, AMOUNT_IN, 1));
+		enable_migration();
+		run_to(block);
+
+		let intent_id = migrated_intent_id(id);
+		assert_eq!(dca_data(intent_id).amount_out, ed_out);
+
+		let bnc_before = Currencies::total_balance(BNC, &alice);
+		let solution = advance_and_solve(PERIOD);
+		assert_eq!(solution.resolved_intents.len(), 1);
+		assert_eq!(solution.resolved_intents[0].id, intent_id);
+		assert_eq!(dca_data(intent_id).remaining_budget, BUDGET - AMOUNT_IN);
+
+		// The clamped hard limit is not what bound the fill - the oracle floor is far above it, and
+		// the trade cleared that floor.
+		let floor = pallet_intent::Pallet::<Runtime>::compute_dca_effective_limit(&dca_data(intent_id));
+		let received = Currencies::total_balance(BNC, &alice) - bnc_before;
+		assert!(
+			floor > ed_out,
+			"oracle floor {floor} should dominate the ED clamp {ed_out}"
+		);
+		assert!(
+			received >= floor,
+			"fill {received} paid less than the oracle floor {floor}"
+		);
 	});
 }
 
