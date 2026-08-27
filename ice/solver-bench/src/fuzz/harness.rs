@@ -7,7 +7,7 @@
 use super::gen;
 use super::oracle::{self, Violation};
 use super::rng::{scenario_seed, Rng};
-use super::{SolverSel, SolverV3, SolverV4, State};
+use super::{SolverV4, State};
 use crate::{get_initial_state, load_snapshot, SolverIntent};
 use codec::Encode;
 use ice_support::{IntentData, Partial, Solution, SwapData};
@@ -30,15 +30,14 @@ pub struct Config {
 	pub iters: u64,
 	pub seed: u64,
 	pub tier: Tier,
-	pub solver: SolverSel,
 	pub max_intents: usize,
 	pub fee: Permill,
 	pub max_slip: Permill,
 	pub stop_on_fail: bool,
 	pub check_determinism: bool,
 	pub verbose: bool,
-	/// Replay one exact scenario by its per-scenario seed (as printed in the
-	/// diff report's worst-list), bypassing the run-seed/iteration mixing.
+	/// Replay one exact scenario by its per-scenario seed, bypassing the
+	/// run-seed/iteration mixing.
 	pub scenario_seed: Option<u64>,
 	pub report_every: u64,
 	pub quarantine_dir: String,
@@ -65,15 +64,13 @@ struct Stats {
 	failures: u64,
 	submit_ok: u64,
 	submit_rejected: u64,
-	diff_score_regress: u64,
-	diff_trade_regress: u64,
 }
 
 impl Stats {
 	fn print(&self, label: &str, start: Instant) {
 		let secs = start.elapsed().as_secs_f64().max(0.001);
 		println!(
-			"[{label}] {:>8} scen ({:.0}/s) | solved {} no_sol {} | submit ok {} rej {} | panics {} | DIFF score- {} trade- {} | FAIL {}",
+			"[{label}] {:>8} scen ({:.0}/s) | solved {} no_sol {} | submit ok {} rej {} | panics {} | FAIL {}",
 			self.scenarios,
 			self.scenarios as f64 / secs,
 			self.solved,
@@ -81,8 +78,6 @@ impl Stats {
 			self.submit_ok,
 			self.submit_rejected,
 			self.panics,
-			self.diff_score_regress,
-			self.diff_trade_regress,
 			self.failures,
 		);
 	}
@@ -104,13 +99,9 @@ fn panic_msg(p: Box<dyn std::any::Any + Send>) -> String {
 	}
 }
 
-fn solve_with(kind: SolverSel, intents: &[SolverIntent], state: &State, fee: Permill) -> SolveResult {
+fn solve(intents: &[SolverIntent], state: &State, fee: Permill) -> SolveResult {
 	let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-		let intents = intents.to_vec();
-		match kind {
-			SolverSel::V3 => SolverV3::solve(intents, state.clone(), fee).ok(),
-			_ => SolverV4::solve(intents, state.clone(), fee).ok(),
-		}
+		SolverV4::solve(intents.to_vec(), state.clone(), fee).ok()
 	}));
 	match res {
 		Ok(Some(s)) => SolveResult::Solved(s),
@@ -120,7 +111,7 @@ fn solve_with(kind: SolverSel, intents: &[SolverIntent], state: &State, fee: Per
 }
 
 /// Spot output for `amount_in` of `asset_in → asset_out`, via a single-intent
-/// v4 probe (self-consistent with the production solver's own pricing).
+/// probe (self-consistent with the production solver's own pricing).
 fn quote(state: &State, fee: Permill, asset_in: AssetId, asset_out: AssetId, amount_in: Balance) -> Option<Balance> {
 	let probe = vec![SolverIntent {
 		id: u128::MAX,
@@ -151,9 +142,8 @@ pub fn run(mut cfg: Config) {
 	cfg.fee = ext.execute_with(|| pallet_ice::ProtocolFee::<Runtime>::get());
 
 	println!(
-		"ice-fuzz | tier={:?} solver={:?} seed={} max_intents={} fee={:?} | {}",
+		"ice-fuzz | tier={:?} seed={} max_intents={} fee={:?} | {}",
 		cfg.tier,
-		cfg.solver,
 		cfg.seed,
 		cfg.max_intents,
 		cfg.fee,
@@ -203,7 +193,6 @@ fn run_tier1(ext: &mut frame_remote_externalities::RemoteExternalities<hydradx_r
 		let q = |ai, ao, amt| quote(&state, cfg.fee, ai, ao, amt);
 
 		let mut stats = Stats::default();
-		let mut diff = super::diff::DiffReport::default();
 		let start = Instant::now();
 		let mut iter = 0u64;
 		while !cfg.deadline_reached(start, iter) {
@@ -214,7 +203,7 @@ fn run_tier1(ext: &mut frame_remote_externalities::RemoteExternalities<hydradx_r
 			let intents = gen::to_solver_intents(&realized);
 			stats.scenarios += 1;
 
-			let violations = tier1_check(cfg, &intents, &state, &mut stats, &mut diff, seed, scenario.archetype);
+			let violations = tier1_check(cfg, &intents, &state, &mut stats);
 			if !violations.is_empty() {
 				stats.failures += 1;
 				report_failure("tier1", seed, scenario.archetype, &intents, &violations, cfg);
@@ -229,88 +218,51 @@ fn run_tier1(ext: &mut frame_remote_externalities::RemoteExternalities<hydradx_r
 			}
 		}
 		stats.print("tier1 DONE", start);
-		if cfg.solver == SolverSel::Diff {
-			diff.print();
-		}
 	});
 }
 
-#[allow(clippy::too_many_arguments)]
-fn tier1_check(
-	cfg: &Config,
-	intents: &[SolverIntent],
-	state: &State,
-	stats: &mut Stats,
-	diff: &mut super::diff::DiffReport,
-	seed: u64,
-	archetype: &'static str,
-) -> Vec<Violation> {
-	let kinds: Vec<SolverSel> = match cfg.solver {
-		SolverSel::Diff => vec![SolverSel::V3, SolverSel::V4],
-		k => vec![k],
-	};
-
+fn tier1_check(cfg: &Config, intents: &[SolverIntent], state: &State, stats: &mut Stats) -> Vec<Violation> {
 	let mut violations = Vec::new();
-	let mut v3: Option<Solution> = None;
-	let mut v4: Option<Solution> = None;
+	let mut solution: Option<Solution> = None;
 
-	for kind in &kinds {
-		match solve_with(*kind, intents, state, cfg.fee) {
-			SolveResult::Panicked(msg) => {
-				stats.panics += 1;
-				violations.push(Violation {
-					kind: "solver_panic",
-					detail: format!("{kind:?}: {msg}"),
-				});
+	match solve(intents, state, cfg.fee) {
+		SolveResult::Panicked(msg) => {
+			stats.panics += 1;
+			violations.push(Violation {
+				kind: "solver_panic",
+				detail: msg,
+			});
+		}
+		SolveResult::NoSolution => stats.no_solution += 1,
+		SolveResult::Solved(sol) => {
+			stats.solved += 1;
+			violations.extend(oracle::check_solution(intents, &sol, cfg.fee, true));
+			if cfg.verbose {
+				println!(
+					"  solved: {} of {} intents, {} trades, score {}",
+					sol.resolved_intents.len(),
+					intents.len(),
+					sol.trades.len(),
+					sol.score,
+				);
 			}
-			SolveResult::NoSolution => stats.no_solution += 1,
-			SolveResult::Solved(sol) => {
-				stats.solved += 1;
-				violations.extend(oracle::check_solution(intents, &sol, cfg.fee, true));
-				match kind {
-					SolverSel::V3 => v3 = Some(sol),
-					_ => v4 = Some(sol),
-				}
-			}
+			solution = Some(sol);
 		}
 	}
 
-	// Determinism on the primary solver — same input must give a byte-identical
-	// solution (collators must agree).
+	// Determinism — the same input must give a byte-identical solution
+	// (collators must agree).
 	if cfg.check_determinism {
-		let primary = if cfg.solver == SolverSel::V3 {
-			SolverSel::V3
-		} else {
-			SolverSel::V4
-		};
-		let a = if primary == SolverSel::V3 { &v3 } else { &v4 };
-		if let Some(sol) = a {
-			if let SolveResult::Solved(sol2) = solve_with(primary, intents, state, cfg.fee) {
-				if sol.encode() != sol2.encode() {
+		if let Some(sol) = &solution {
+			if let SolveResult::Solved(again) = solve(intents, state, cfg.fee) {
+				if sol.encode() != again.encode() {
 					violations.push(Violation {
 						kind: "nondeterministic",
-						detail: format!("{primary:?} produced two different solutions for identical input"),
+						detail: "two different solutions for identical input".into(),
 					});
 				}
 			}
 		}
-	}
-
-	// Differential (soft — reported, not a hard failure). Live counters for the
-	// progress line; full magnitude/shape analysis accumulated in `diff`.
-	if cfg.solver == SolverSel::Diff {
-		if let (Some(a), Some(b)) = (&v3, &v4) {
-			if b.score < a.score {
-				stats.diff_score_regress += 1;
-			}
-			if b.trades.len() > a.trades.len() {
-				stats.diff_trade_regress += 1;
-			}
-		}
-		if cfg.verbose {
-			super::diff::dump_scenario_detail(seed, archetype, intents, v3.as_ref(), v4.as_ref());
-		}
-		diff.record(seed, archetype, v3.as_ref(), v4.as_ref());
 	}
 
 	violations
@@ -513,10 +465,7 @@ fn report_failure_hex(
 	}
 	let path = format!("{}/fuzz_{label}_{seed}.hex", cfg.quarantine_dir);
 	if std::fs::create_dir_all(&cfg.quarantine_dir).is_ok() {
-		let body = format!(
-			"# seed={seed} archetype={archetype} solver={:?}\n{intents_hex}\n",
-			cfg.solver
-		);
+		let body = format!("# seed={seed} archetype={archetype}\n{intents_hex}\n");
 		if std::fs::write(&path, body).is_ok() {
 			println!("fixture    : {path}");
 		}

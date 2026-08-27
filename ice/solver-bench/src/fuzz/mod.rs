@@ -12,7 +12,6 @@
 //! every solution must respect each user's limit, conserve value per asset,
 //! stay within bounds, and be deterministic. See [`oracle`].
 
-pub mod diff;
 pub mod gen;
 pub mod harness;
 pub mod oracle;
@@ -24,19 +23,9 @@ use primitives::{AssetId, Balance};
 /// AMM interface whose `State` is the combined simulator state the solver runs
 /// against — identical to the pallet's production wiring.
 pub type Amm = HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>;
-pub type SolverV3 = ice_solver::v3::Solver<Amm>;
 pub type SolverV4 = ice_solver::v4::Solver<Amm>;
 
 pub use crate::CombinedSimulatorState as State;
-
-/// Which solver(s) a run exercises.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum SolverSel {
-	V3,
-	V4,
-	/// Run both and compare (v4 ≥ v3 on score, ≤ on trades — soft, reported).
-	Diff,
-}
 
 /// A tradeable asset on the snapshot plus a sane native-unit amount range for
 /// generation. Restricted to all-Omnipool assets (reliable routing); USDT is

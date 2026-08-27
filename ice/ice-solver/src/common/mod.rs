@@ -1,75 +1,58 @@
-//! Common utilities shared between solver versions.
+//! Arithmetic, flow-analysis and graph helpers shared by the solver stages.
 
 pub mod flow_graph;
 pub mod ring_detection;
 
 use hydra_dx_math::types::Ratio;
 use ice_support::{AssetId, Balance, Intent, IntentData};
-use sp_core::U256;
+use sp_core::{U256, U512};
+use sp_std::cmp::Ordering;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
 
 /// out = amount_in * (price_in / price_out)
 ///     = amount_in * price_in.n * price_out.d / (price_in.d * price_out.n)
 ///
-/// Overflow-safe: handles large Ratio values (128-bit n/d) from real AMM spot prices.
-/// Tries multiple computation orders to avoid U256 overflow while preserving precision.
+/// Exact: the product of three 128-bit factors is at most 384 bits and the
+/// divisor at most 256, so the whole expression is evaluated in `U512` with a
+/// single floor division — no precision-losing fallbacks. `None` means the
+/// exact result does not fit a `Balance` (or the divisor is zero); callers must
+/// treat that as "cannot value this flow", never as zero.
 pub fn calc_amount_out(amount_in: Balance, price_in: &Ratio, price_out: &Ratio) -> Option<Balance> {
-	let pi_n = U256::from(price_in.n);
-	let pi_d = U256::from(price_in.d);
-	let po_n = U256::from(price_out.n);
-	let po_d = U256::from(price_out.d);
-	let amt = U256::from(amount_in);
-
-	// Strategy 1: direct — amount_in * (pi.n * po.d) / (pi.d * po.n)
-	if let (Some(n), Some(d)) = (pi_n.checked_mul(po_d), pi_d.checked_mul(po_n)) {
-		if let Some(result) = amt.checked_mul(n) {
-			return result.checked_div(d)?.try_into().ok();
-		}
-		// amount_in * n overflows — split n/d (only useful when n >= d)
-		if n >= d {
-			let q = n.checked_div(d)?;
-			let r = n.checked_rem(d)?;
-			let base = amt.checked_mul(q)?;
-			let correction = amt
-				.checked_mul(r)
-				.and_then(|v| v.checked_div(d))
-				.unwrap_or(U256::zero());
-			return base.checked_add(correction)?.try_into().ok();
-		}
-		// n < d: ratio < 1, split loses all precision — fall through to strategy 2/3
+	let n = U512::from(amount_in)
+		.checked_mul(U512::from(price_in.n))?
+		.checked_mul(U512::from(price_out.d))?;
+	let d = U512::from(price_in.d).checked_mul(U512::from(price_out.n))?;
+	if d.is_zero() {
+		return None;
 	}
-
-	// Strategy 2: cross-cancel — (amount_in * pi.n / po.n) * (po.d / pi.d)
-	// This works when pi.n and po.n are similar magnitude (both large) so their ratio is small.
-	if let Some(ratio_n) = amt.checked_mul(pi_n) {
-		let step1 = ratio_n.checked_div(po_n)?;
-		if let Some(v) = step1.checked_mul(po_d) {
-			return v.checked_div(pi_d)?.try_into().ok();
-		}
-	}
-
-	// Strategy 3: (amount_in / pi.d) * pi.n then * po.d / po.n
-	// Divide early to keep values small.
-	let step1 = mul_div(amt, pi_n, pi_d)?;
-	let result = mul_div(step1, po_d, po_n)?;
-	result.try_into().ok()
+	balance_from_u512(n / d)
 }
 
-/// Compute a * b / c with overflow protection.
+/// Exact `a * b / c` (integer floor) evaluated in `U512`.
+///
+/// `None` on a zero divisor or when the exact quotient exceeds `U256`. Unlike a
+/// split-and-recombine fallback this never silently drops the remainder term.
 pub fn mul_div(a: U256, b: U256, c: U256) -> Option<U256> {
 	if c.is_zero() {
 		return None;
 	}
-	if let Some(v) = a.checked_mul(b) {
-		return v.checked_div(c);
+	let n = U512::from(a).checked_mul(U512::from(b))?;
+	U256::try_from(n / U512::from(c)).ok()
+}
+
+/// `a * b / c` as a `Balance`. `None` when the divisor is zero or the exact
+/// quotient does not fit 128 bits.
+pub fn mul_div_balance(a: Balance, b: Balance, c: Balance) -> Option<Balance> {
+	if c == 0 {
+		return None;
 	}
-	// a * b overflows — use: (a / c) * b + (a % c) * b / c
-	let q = a.checked_div(c)?;
-	let r = a.checked_rem(c)?;
-	let base = q.checked_mul(b)?;
-	let correction = r.checked_mul(b).and_then(|v| v.checked_div(c)).unwrap_or(U256::zero());
-	base.checked_add(correction)
+	let n = U512::from(a).checked_mul(U512::from(b))?;
+	balance_from_u512(n / U512::from(c))
+}
+
+fn balance_from_u512(v: U512) -> Option<Balance> {
+	U256::try_from(v).ok().and_then(|v| Balance::try_from(v).ok())
 }
 
 pub fn collect_unique_assets(intents: &[Intent]) -> BTreeSet<AssetId> {
@@ -148,52 +131,58 @@ pub enum FlowDirection {
 
 /// Analyze opposing flows to determine direct matching volumes and net AMM requirement.
 ///
+/// `None` means the pair cannot be valued at these reference prices — a
+/// conversion did not fit 128 bits. Callers must then price both directions
+/// independently through the AMM; treating an unrepresentable conversion as a
+/// zero-valued flow would silently classify the whole pair as one-sided excess
+/// and hand the scarce side a zero rate.
+///
 /// Precondition: at least one of `total_a_sold`, `total_b_sold` must be > 0.
-pub fn analyze_pair_flow(total_a_sold: Balance, total_b_sold: Balance, pa: &Ratio, pb: &Ratio) -> FlowDirection {
+pub fn analyze_pair_flow(
+	total_a_sold: Balance,
+	total_b_sold: Balance,
+	pa: &Ratio,
+	pb: &Ratio,
+) -> Option<FlowDirection> {
 	debug_assert!(
 		total_a_sold > 0 || total_b_sold > 0,
 		"analyze_pair_flow called with both volumes zero"
 	);
 	if total_b_sold == 0 {
-		return FlowDirection::SingleForward { amount: total_a_sold };
+		return Some(FlowDirection::SingleForward { amount: total_a_sold });
 	}
 	if total_a_sold == 0 {
-		return FlowDirection::SingleBackward { amount: total_b_sold };
+		return Some(FlowDirection::SingleBackward { amount: total_b_sold });
 	}
 
-	let a_as_b = calc_amount_out(total_a_sold, pa, pb).unwrap_or(0);
+	let a_as_b = calc_amount_out(total_a_sold, pa, pb)?;
+	let b_as_a = calc_amount_out(total_b_sold, pb, pa)?;
 
-	if a_as_b > total_b_sold {
-		// Excess A: more A value than B value
-		let matched_a_for_b = calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-		let net_a = total_a_sold.saturating_sub(matched_a_for_b);
-		if net_a == 0 {
-			return FlowDirection::PerfectCancel {
-				a_as_b,
-				b_as_a: matched_a_for_b,
-			};
+	match a_as_b.cmp(&total_b_sold) {
+		Ordering::Greater => {
+			// More A value than B value: B is fully matched, net A goes to the AMM.
+			let net_a = total_a_sold.saturating_sub(b_as_a);
+			if net_a == 0 {
+				return Some(FlowDirection::PerfectCancel { a_as_b, b_as_a });
+			}
+			Some(FlowDirection::ExcessForward {
+				scarce_out: b_as_a,
+				direct_match: total_b_sold,
+				net_sell: net_a,
+			})
 		}
-		FlowDirection::ExcessForward {
-			scarce_out: matched_a_for_b,
-			direct_match: total_b_sold,
-			net_sell: net_a,
+		Ordering::Less => {
+			// More B value than A value: A is fully matched, net B goes to the AMM.
+			let net_b = total_b_sold.saturating_sub(a_as_b);
+			if net_b == 0 {
+				return Some(FlowDirection::PerfectCancel { a_as_b, b_as_a });
+			}
+			Some(FlowDirection::ExcessBackward {
+				scarce_out: a_as_b,
+				direct_match: total_a_sold,
+				net_sell: net_b,
+			})
 		}
-	} else if total_b_sold > a_as_b || a_as_b == 0 {
-		// Excess B: more B value than A value
-		let matched_b_for_a = a_as_b;
-		let net_b = total_b_sold.saturating_sub(matched_b_for_a);
-		if net_b == 0 {
-			let b_as_a = calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-			return FlowDirection::PerfectCancel { a_as_b, b_as_a };
-		}
-		FlowDirection::ExcessBackward {
-			scarce_out: matched_b_for_a,
-			direct_match: total_a_sold,
-			net_sell: net_b,
-		}
-	} else {
-		// a_as_b == total_b_sold: perfect cancel
-		let b_as_a = calc_amount_out(total_b_sold, pb, pa).unwrap_or(0);
-		FlowDirection::PerfectCancel { a_as_b, b_as_a }
+		Ordering::Equal => Some(FlowDirection::PerfectCancel { a_as_b, b_as_a }),
 	}
 }

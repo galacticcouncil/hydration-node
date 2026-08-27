@@ -247,14 +247,17 @@ fn fills_meet_limits(entries: &[IntentEntry], total_in: Balance, total_out: Bala
 				return false;
 			}
 		} else {
-			// Partial fill: must meet pro-rata minimum
-			let pro_rata_min = mul_div(
+			// Partial fill: must meet the pro-rata minimum. A minimum that cannot
+			// be computed is treated as unmet — never as zero, which would let the
+			// fill through unchecked.
+			let Some(pro_rata_min) = mul_div(
 				U256::from(fill_in),
 				U256::from(entry.min_amount_out),
 				U256::from(entry.original_amount_in),
 			)
-			.and_then(|v| v.try_into().ok())
-			.unwrap_or(0u128);
+			.and_then(|v| Balance::try_from(v).ok()) else {
+				return false;
+			};
 			if user_receive < pro_rata_min {
 				return false;
 			}

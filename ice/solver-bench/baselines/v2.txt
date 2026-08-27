@@ -1,0 +1,42 @@
+# ICE Solver Benchmark Baseline v2
+# Date: 2026-08-27
+# Machine: Darwin 25.5.0 (Apple Silicon)
+# Profile: bench [optimized]
+# Snapshot: integration-tests/snapshots/ice/mainnet_apr
+# Note: native execution — matches production (node-side worker solves natively)
+# Solver: v4 global-netting rewrite (v2/v3 removed); vs v1 baseline the solver
+# groups improved ~50-360x, get_valid_intents drifted +3-11% (DCA admission
+# floors / oracle pre-filter in solver_intents), simulator_initial_state flat.
+
+simulator_initial_state                 12.468 ms
+get_valid_intents/10                     0.024 ms
+get_valid_intents/50                     0.106 ms
+get_valid_intents/100                    0.216 ms
+get_valid_intents/500                    1.082 ms
+get_valid_intents/1000                   2.090 ms
+get_valid_intents/5000                  11.094 ms
+solver_resolvable/10                     0.072 ms
+solver_resolvable/50                     0.097 ms
+solver_resolvable/100                    0.129 ms
+solver_resolvable/200                    0.251 ms
+solver_unresolvable/10                   0.057 ms
+solver_unresolvable/50                   0.061 ms
+solver_unresolvable/100                  0.071 ms
+solver_unresolvable/500                  0.135 ms
+solver_unresolvable/1000                 0.234 ms
+solver_unresolvable/5000                 0.973 ms
+solver_mixed/50good_50bad                0.144 ms
+solver_mixed/50good_500bad               0.198 ms
+solver_mixed/50good_5000bad              0.917 ms
+solver_mixed/100good_5000bad             0.942 ms
+solver_partial/1                         0.057 ms
+solver_partial/2                         0.065 ms
+solver_partial/5                         0.069 ms
+solver_partial/10                        0.075 ms
+solver_partial/20                        0.078 ms
+solver_mixed_partial/10np_1p             0.089 ms
+solver_mixed_partial/10np_5p             0.084 ms
+solver_mixed_partial/10np_10p            0.080 ms
+solver_mixed_partial/50np_10p            0.097 ms
+solver_mixed_partial/50np_50p            0.116 ms
+solver_mixed_partial/100np_20p           0.165 ms

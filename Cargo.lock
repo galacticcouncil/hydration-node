@@ -6140,7 +6140,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -14088,7 +14088,7 @@ dependencies = [
 
 [[package]]
 name = "route-findr"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "frame-support",
  "hydradx-traits",

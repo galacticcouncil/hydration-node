@@ -87,7 +87,7 @@ RouteSuggester<P: PoolProvider>         [lib.rs]
   │     ├── graph::build_graph()        [graph.rs]
   │     │     └── Vec<PoolEdge> → AdjacencyMap (BTreeMap<AssetId, Vec<Edge>>)
   │     │
-  │     └── bfs::find_all_paths()       [bfs.rs]
+  │     └── bfs::find_paths()       [bfs.rs]
   │           └── BFS over adjacency map → Vec<Route<AssetId>>
   │
   └── P::get_all_pools(state)           [types.rs — trait, impl in runtime]
@@ -135,7 +135,7 @@ type AdjacencyMap = BTreeMap<AssetId, Vec<Edge>>;
 
 **Ported from:** `packages/sdk-next/src/sor/route/bfs.ts` → `Bfs` class
 
-Finds all acyclic paths up to `MAX_NUMBER_OF_TRADES` (9) hops. Returns `Vec<Route<AssetId>>` — directly usable by `pallet-route-executor`.
+Finds acyclic paths up to `MAX_NUMBER_OF_TRADES` (9) hops, shortest first. Returns `Vec<Route<AssetId>>` — directly usable by `pallet-route-executor`.
 
 **Cycle prevention** (mirrors SDK's `Bfs.isNotVisited`):
 
@@ -144,11 +144,28 @@ Finds all acyclic paths up to `MAX_NUMBER_OF_TRADES` (9) hops. Returns `Vec<Rout
 
 This prevents circular routes (A → B → A) and redundant multi-hop through the same pool (Omnipool A→B→C when A→C is direct).
 
+**Bounded search** (`SearchLimits`):
+
+| Limit            | Default  | Purpose                                                    |
+| ---------------- | -------- | ---------------------------------------------------------- |
+| `max_hops`       | 9        | never above `MAX_NUMBER_OF_TRADES` — a longer route has no `Route` representation |
+| `max_routes`     | 16       | caps the result set; every returned route costs the caller a full AMM simulation per quote |
+| `max_expansions` | 20 000   | caps the paths pulled off the queue, so a dense pool graph cannot blow up the search |
+
+Path enumeration is exponential in the hop limit, so both caps are load-bearing:
+they turn a pathological pool set from a latency hazard into a slightly smaller
+route set. BFS pops in strict insertion order, so a cap keeps the **shortest**
+routes and the result stays deterministic for a given pool list.
+
+A path that has reached `max_hops` is not expanded at all — expanding it could
+only produce paths one hop too long.
+
 **Termination guarantees:**
 
 - Max path length: 9 hops
 - No cycles: asset + pool visited checks
 - Finite pool set → finite graph → BFS terminates
+- Expansion budget bounds the search even before the graph is exhausted
 
 ### 5.3 `strategy.rs` — Pool Partitioning Strategy
 
@@ -198,7 +215,7 @@ get_routes(asset_in, asset_out, pools) -> Vec<Route<AssetId>>
    │
    ├── graph::build_graph(selected_pools) → AdjacencyMap
    │
-   └── bfs::find_all_paths(adjacency, A, B)
+   └── bfs::find_paths(adjacency, A, B)
        │
        ├── Queue ← [PathNode { asset: A }]
        │
@@ -227,7 +244,7 @@ get_routes(asset_in, asset_out, pools) -> Vec<Route<AssetId>>
 | `Node = [id, from]`             | `bfs::PathNode { asset, pool_index, pool_type }`   | Carries metadata for cycle prevention         |
 | `RouteProposal = Edge[]`        | `Route<AssetId>`                                   | `BoundedVec<Trade, ConstU32<9>>`              |
 | `Bfs.isNotVisited()`            | `bfs::is_valid_extension()`                        | Same dual check: asset + pool                 |
-| `Bfs.findPaths()`               | `bfs::find_all_paths()`                            | Queue-based BFS                               |
+| `Bfs.findPaths()`               | `bfs::find_paths()`                                | Queue-based BFS, bounded by `SearchLimits`    |
 | `getNodesAndEdges()`            | `graph::build_graph()`                             | Pool → adjacency map                          |
 | `RouteSuggester.getProposals()` | `strategy::suggest_routes()`                       | 3-case strategy dispatch                      |
 | `Queue<T>`                      | `VecDeque<T>`                                      | stdlib FIFO queue                             |
@@ -241,10 +258,12 @@ get_routes(asset_in, asset_out, pools) -> Vec<Route<AssetId>>
 
 | Constraint           | Enforced by               | Value                       |
 | -------------------- | ------------------------- | --------------------------- |
-| Max trades per route | `bfs::find_all_paths`     | 9 (`MAX_NUMBER_OF_TRADES`)  |
+| Max trades per route | `bfs::find_paths`         | 9 (`MAX_NUMBER_OF_TRADES`)  |
 | No asset revisits    | `bfs::is_valid_extension` | Checked against full path   |
 | No pool reuse        | `bfs::is_valid_extension` | Tracked by `pool_index`     |
-| Output is `Route`    | `bfs::path_to_route`      | `BoundedVec::truncate_from` |
+| Routes per query     | `bfs::find_paths`         | `SearchLimits::max_routes` (16) |
+| Paths expanded       | `bfs::find_paths`         | `SearchLimits::max_expansions` (20 000) |
+| Output is `Route`    | `bfs::path_to_route`      | `BoundedVec::try_from` — an over-long path is dropped, never truncated into a route that does not reach `asset_out` |
 
 ### `no_std` compatibility
 
@@ -261,8 +280,20 @@ get_routes(asset_in, asset_out, pools) -> Vec<Route<AssetId>>
 For P pools with at most A assets each:
 
 - **Graph construction:** O(P × A²)
-- **BFS:** O(V × E × L) worst case — V = unique assets, E = total edges, L = 9. Cycle prevention prunes aggressively.
+- **BFS:** O(V × E × L) worst case — V = unique assets, E = total edges, L = 9. Cycle prevention prunes aggressively, and `SearchLimits` caps the worst case outright.
 - **Strategy partitioning:** O(P)
+
+`RouteFinder::new(pools)` builds the trusted-pool graph once, and caches each
+mixed-strategy graph the first time its isolated asset is queried. Callers
+resolving many pairs against one snapshot (a solver batch) should reuse one
+instance rather than calling `get_routes` per pair, which rebuilds from
+scratch every time. **Not wired into production today**: `SmartRouteFinder`
+(`runtime/hydradx/src/assets.rs`), the `RouteDiscovery` impl the ICE solver
+actually calls, is a stateless per-pair associated function with no instance
+to hold a `RouteFinder` across a solve, so it still calls `get_routes` per
+pair. Reusing one across a solve would need `RouteDiscovery` to carry state
+across calls — a wider trait change, not a `static`/thread-local cache (which
+would risk serving stale routes across blocks).
 
 **Practical bounds (Hydration mainnet):**
 
@@ -420,5 +451,5 @@ let routes = get_routes(20, 12, pools);
 | `src/lib.rs`      | Public API (`RouteSuggester`, `get_routes`) + all tests                    |
 | `src/types.rs`    | Re-exports from `hydradx-traits`/`primitives` + `PoolEdge`, `PoolProvider` |
 | `src/graph.rs`    | `build_graph()` → `AdjacencyMap`                                           |
-| `src/bfs.rs`      | `find_all_paths()`, cycle checks                                           |
+| `src/bfs.rs`      | `find_paths()`, cycle checks                                           |
 | `src/strategy.rs` | Trusted/isolated partitioning, 3-case dispatch                             |

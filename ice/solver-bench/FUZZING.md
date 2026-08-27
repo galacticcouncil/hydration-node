@@ -12,8 +12,8 @@ submission path, or the conservation/fee logic.
 ## Quick start
 
 ```sh
-# 10-minute soak, both tiers, comparing v3 vs v4, stop on first violation:
-FUZZ_SECONDS=600 FUZZ_TIER=both FUZZ_SOLVER=diff \
+# 10-minute soak, both tiers, stop on first violation:
+FUZZ_SECONDS=600 FUZZ_TIER=both \
   cargo run -p ice-solver-bench --release --bin ice-fuzz
 
 # Fast solver-only soak (thousands of scenarios):
@@ -57,9 +57,6 @@ An optimizer has no cheap ground-truth optimum, so we assert properties every
 - **No panic / overflow** — the solver must never panic on any generated input.
 - **Submission executes** (Tier 2) — a solution the solver produced must be
   accepted by the pallet; a deliberately over-paying solution must be rejected.
-- **Differential (soft, reported)** — v4 trades ≤ v3, score ≥ v3. Reported as
-  counters, not failures (v4 is not universally ≥ v3 — e.g. stableswap-routed
-  pairs and some unbalanced flows).
 
 ## Scenario generation
 
@@ -77,7 +74,8 @@ and on every violation. On a violation the harness prints the seed, the
 archetype, the broken invariants, and writes a SCALE-hex fixture to
 `FUZZ_OUT` (default `./fuzz-findings/`). To replay, re-run with that
 `FUZZ_SEED` and `FUZZ_ITERS=1`. Promote real findings to a committed regression
-test via the `ice-solver-capture` workflow / `ice-solver/src/tests/regressions.rs`.
+test via the `ice-solver-capture` workflow /
+`ice-solver/src/tests/fixtures_conformance.rs`.
 
 ## Environment variables
 
@@ -87,11 +85,11 @@ test via the `ice-solver-capture` workflow / `ice-solver/src/tests/regressions.r
 | `FUZZ_ITERS` | 0 | fixed scenario count (0 = use `FUZZ_SECONDS`) |
 | `FUZZ_SEED` | 0 | run seed (0 = derive from clock, printed) |
 | `FUZZ_TIER` | both | `solver` \| `submit` \| `both` |
-| `FUZZ_SOLVER` | v4 | `v3` \| `v4` \| `diff` |
 | `FUZZ_MAX_INTENTS` | 30 | max intents per scenario |
 | `FUZZ_MAX_SLIP_PCT` | 5 | slip-fee cap percent |
 | `FUZZ_KEEP_GOING` | 0 | `1` = don't stop on first violation |
 | `FUZZ_REPORT_EVERY` | 200 | progress print cadence (scenarios) |
+| `FUZZ_VERBOSE` | 0 | `1` = print a per-scenario solve summary |
 | `FUZZ_SNAPSHOT` | `mainnet_apr` | snapshot path override |
 | `FUZZ_OUT` | `./fuzz-findings` | failure-fixture dir |
 

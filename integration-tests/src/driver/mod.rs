@@ -22,7 +22,7 @@ use sp_runtime::{FixedU128, Permill};
 use sp_std::cell::RefCell;
 use xcm_emulator::TestExt;
 
-use ice_solver::v3::Solver as IceSolver;
+use ice_solver::v4::Solver as IceSolver;
 use pallet_omnipool::types::SlipFeeConfig;
 
 type Solver = IceSolver<HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>>;

@@ -1,4 +1,4 @@
-//! Flow graph types and construction shared across solver versions.
+//! Flow graph types and construction used by the pairwise (fallback) round.
 
 use ice_support::{AssetId, Balance, Intent, IntentData, IntentId, Partial};
 use sp_core::U256;
@@ -20,8 +20,7 @@ pub struct IntentEntry {
 	pub limit_price: (U256, U256),
 	/// Remaining amount_in not yet matched
 	pub remaining_in: Balance,
-	/// Whether this intent supports partial fills.
-	/// Partial fill state. Used by v2 solver for variable fill amounts.
+	/// Partial fill state.
 	pub partial: Partial,
 }
 

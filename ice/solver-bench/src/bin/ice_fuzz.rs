@@ -8,7 +8,6 @@
 //!   FUZZ_ITERS      fixed scenario count (default 0 = use FUZZ_SECONDS)
 //!   FUZZ_SEED       run seed for reproducibility (default 0 = derive from time)
 //!   FUZZ_TIER       solver | submit | both          (default both)
-//!   FUZZ_SOLVER     v3 | v4 | diff                  (default v4)
 //!   FUZZ_MAX_INTENTS  max intents per scenario       (default 30)
 //!   FUZZ_MAX_SLIP_PCT slip-fee cap percent           (default 5)
 //!   FUZZ_KEEP_GOING   1 = don't stop on first failure (default 0)
@@ -16,12 +15,11 @@
 //!   FUZZ_OUT          quarantine dir for failure fixtures (default ./fuzz-findings)
 //!
 //! Examples:
-//!   FUZZ_SECONDS=600 FUZZ_TIER=both FUZZ_SOLVER=diff \
+//!   FUZZ_SECONDS=600 FUZZ_TIER=both \
 //!     cargo run -p ice-solver-bench --release --bin ice-fuzz
 //!   FUZZ_SEED=12345 FUZZ_ITERS=1 cargo run -p ice-solver-bench --bin ice-fuzz
 
 use ice_solver_bench::fuzz::harness::{run, Config, Tier};
-use ice_solver_bench::fuzz::SolverSel;
 use sp_runtime::Permill;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -44,12 +42,6 @@ fn main() {
 		"submit" => Tier::Submit,
 		_ => Tier::Both,
 	};
-	let solver = match env_str("FUZZ_SOLVER", "v4").to_lowercase().as_str() {
-		"v3" => SolverSel::V3,
-		"diff" => SolverSel::Diff,
-		_ => SolverSel::V4,
-	};
-
 	let seed = match env_u64("FUZZ_SEED", 0) {
 		0 => SystemTime::now()
 			.duration_since(UNIX_EPOCH)
@@ -59,8 +51,8 @@ fn main() {
 		s => s,
 	};
 
-	// Replay one exact scenario from a worst-list seed (forces a single verbose
-	// solver iteration so it works regardless of FUZZ_SECONDS/FUZZ_ITERS).
+	// Replay one exact scenario by seed (forces a single verbose solver
+	// iteration so it works regardless of FUZZ_SECONDS/FUZZ_ITERS).
 	let scenario_seed = std::env::var("FUZZ_SCENARIO_SEED")
 		.ok()
 		.and_then(|v| v.parse::<u64>().ok());
@@ -72,7 +64,6 @@ fn main() {
 		iters: if replay { 1 } else { env_u64("FUZZ_ITERS", 0) },
 		seed,
 		tier: if replay { Tier::Solver } else { tier },
-		solver: if replay { SolverSel::Diff } else { solver },
 		max_intents: env_u64("FUZZ_MAX_INTENTS", 30) as usize,
 		fee: Permill::zero(), // overridden with the pallet's live fee at runtime
 		max_slip: Permill::from_percent(env_u64("FUZZ_MAX_SLIP_PCT", 5) as u32),
