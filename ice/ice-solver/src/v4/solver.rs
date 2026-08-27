@@ -35,6 +35,8 @@ use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
 use crate::common::FlowDirection;
+use crate::common::RouteCache;
+use crate::{IceSolver, MinOuts};
 use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AMMInterface;
@@ -77,14 +79,6 @@ impl FeeCtx {
 
 /// Unordered pair key.
 type AssetPair = (AssetId, AssetId);
-
-/// Minimum output the chain enforces at resolution, for the intents where it is
-/// stricter than their own `amount_out`.
-///
-/// Admission only. `amount_out` remains the sole basis for `surplus`, because the
-/// chain re-derives the score from storage and any divergence is a `ScoreMismatch`.
-/// These floors are recomputed from an oracle and must never reach the score.
-type MinOuts = BTreeMap<IntentId, Balance>;
 
 /// Numerator of the rate an intent must clear to be admitted: its floor when one
 /// is supplied, otherwise its own `amount_out`.
@@ -178,60 +172,49 @@ fn rate_meets_limit(out: Balance, v: Balance, limit_n: Balance, limit_d: Balance
 
 /// Per-solve memo: route discovery, AMM quotes and existential deposits.
 ///
-/// Routes are discovered once per directed pair (a discovery failure is cached
-/// as an empty route set). Quotes are memoized per `(pair, amount)` and are
-/// only valid against the *fitting* state they were computed for — the trade
-/// building phase re-simulates against its own threaded state and must not use
-/// `quote_out`/`quote`. Existential deposits are memoized because on-chain they
-/// are a registry read and the resolution stage asks for the same handful of
-/// assets over and over.
+/// Quotes are memoized per `(pair, amount)` and are only valid against the
+/// *fitting* state they were computed for — the trade building phase
+/// re-simulates against its own threaded state and must not use
+/// `quote_out`/`quote`. Route discovery and existential deposits live in the
+/// shared [`RouteCache`].
 struct SolveCache<A: AMMInterface> {
-	routes: BTreeMap<(AssetId, AssetId), Vec<Route<AssetId>>>,
+	route_cache: RouteCache<A>,
 	/// Best `(amount_out, route index)` for a `(pair, amount_in)` probe.
 	quotes: BTreeMap<(AssetId, AssetId, Balance), Option<(Balance, usize)>>,
-	existential_deposits: BTreeMap<AssetId, Balance>,
-	/// Directed pairs with no route at all — reported in the solve summary.
-	unroutable: BTreeSet<(AssetId, AssetId)>,
-	_phantom: PhantomData<A>,
 }
 
 impl<A: AMMInterface> SolveCache<A> {
 	fn new() -> Self {
 		Self {
-			routes: BTreeMap::new(),
+			route_cache: RouteCache::new(),
 			quotes: BTreeMap::new(),
-			existential_deposits: BTreeMap::new(),
-			unroutable: BTreeSet::new(),
-			_phantom: PhantomData,
 		}
 	}
 
 	fn ed(&mut self, asset: AssetId) -> Balance {
-		*self
-			.existential_deposits
-			.entry(asset)
-			.or_insert_with(|| A::existential_deposit(asset))
+		self.route_cache.ed(asset)
 	}
 
 	/// Cached route set for a directed pair; empty when discovery failed.
 	fn routes(&mut self, asset_in: AssetId, asset_out: AssetId, state: &A::State) -> &[Route<AssetId>] {
-		let key = (asset_in, asset_out);
-		if !self.routes.contains_key(&key) {
-			let discovered = A::discover_routes(asset_in, asset_out, state).unwrap_or_default();
-			if discovered.is_empty() {
-				log::debug!(target: LOG_TARGET, "no route for {asset_in} -> {asset_out}");
-				self.unroutable.insert(key);
-			}
-			self.routes.insert(key, discovered);
-		}
-		self.routes.get(&key).map(|v| v.as_slice()).unwrap_or_default()
+		self.route_cache.routes(asset_in, asset_out, state)
 	}
 
-	/// Clone of the `i`-th already-discovered route for a pair. Callers that
-	/// iterate route sets need an owned `Route` because the AMM interface takes
-	/// it by value, but they must not re-run discovery per index.
 	fn route_at(&self, asset_in: AssetId, asset_out: AssetId, i: usize) -> Option<Route<AssetId>> {
-		self.routes.get(&(asset_in, asset_out))?.get(i).cloned()
+		self.route_cache.route_at(asset_in, asset_out, i)
+	}
+
+	/// Pick the best route by simulating every cached route against `state`.
+	/// Used by the trade-building phase where the state is threaded between
+	/// trades and memoized quotes would be stale.
+	fn best_sell(
+		&mut self,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		state: &A::State,
+	) -> Option<(Route<AssetId>, Balance, A::State)> {
+		self.route_cache.best_sell(asset_in, asset_out, amount_in, state)
 	}
 
 	/// Best sell quote (raw simulator output, no haircut) against the fitting
@@ -301,8 +284,8 @@ impl<A: AMMInterface> SolveCache<A> {
 		let resolved = solution.resolved_intents.len();
 		let trades = solution.trades.len();
 		let score = solution.score;
-		let pairs = self.routes.len();
-		let unroutable = self.unroutable.len();
+		let pairs = self.route_cache.discovered_pairs();
+		let unroutable = self.route_cache.unroutable_pairs();
 		let quotes = self.quotes.len();
 		if resolved == 0 {
 			log::info!(
@@ -371,7 +354,7 @@ pub struct Solver<A: AMMInterface> {
 
 impl<A: AMMInterface> Solver<A> {
 	pub fn solve(intents: Vec<Intent>, initial_state: A::State, matched_fee: Permill) -> Result<Solution, A::Error> {
-		Self::solve_with_limits(intents, MinOuts::new(), initial_state, matched_fee)
+		<Self as IceSolver<A>>::solve(intents, initial_state, matched_fee)
 	}
 
 	/// As `solve`, with per-intent admission floors (see `MinOuts`). An intent
@@ -383,8 +366,7 @@ impl<A: AMMInterface> Solver<A> {
 		initial_state: A::State,
 		matched_fee: Permill,
 	) -> Result<Solution, A::Error> {
-		let mut cache = SolveCache::<A>::new();
-		Self::run_solve(&intents, min_outs, initial_state, matched_fee, &mut cache)
+		<Self as IceSolver<A>>::solve_with_limits(intents, min_outs, initial_state, matched_fee)
 	}
 
 	fn run_solve(
@@ -1027,31 +1009,6 @@ impl<A: AMMInterface> Solver<A> {
 		});
 	}
 
-	/// Pick the best route by simulating every cached route against `state`.
-	/// Used by the trade-building phase where the state is threaded between
-	/// trades and memoized quotes would be stale.
-	fn best_route_exec(
-		cache: &mut SolveCache<A>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		state: &A::State,
-	) -> Option<(Route<AssetId>, Balance, A::State)> {
-		let mut best: Option<(Route<AssetId>, Balance, A::State)> = None;
-		for i in 0..cache.routes(asset_in, asset_out, state).len() {
-			let Some(route) = cache.route_at(asset_in, asset_out, i) else {
-				break;
-			};
-			let Ok((new_state, exec)) = A::sell(asset_in, asset_out, amount_in, route.clone(), state) else {
-				continue;
-			};
-			if best.as_ref().map(|(_, out, _)| exec.amount_out >= *out).unwrap_or(true) {
-				best = Some((route, exec.amount_out, new_state));
-			}
-		}
-		best
-	}
-
 	/// Emit an AMM trade only if the pallet would actually execute it.
 	///
 	/// `submit_solution` *skips* any trade whose `amount_in` is below the ED of
@@ -1189,7 +1146,7 @@ impl<A: AMMInterface> Solver<A> {
 					log::warn!(target: LOG_TARGET, "cannot convert {move_hdx} of reference value back into asset {sx}");
 					continue;
 				};
-				let Some((route, out, ns)) = Self::best_route_exec(cache, sx, d.0, amount, &state) else {
+				let Some((route, out, ns)) = cache.best_sell(sx, d.0, amount, &state) else {
 					continue;
 				};
 				let adj = adjust_amm_output(out);
@@ -1364,8 +1321,7 @@ impl<A: AMMInterface> Solver<A> {
 					}
 					return None;
 				}
-				let (route, amount_out, new_state) =
-					Self::best_route_exec(cache, sell_asset, buy_asset, amount, state)?;
+				let (route, amount_out, new_state) = cache.best_sell(sell_asset, buy_asset, amount, state)?;
 				let adjusted_out = adjust_amm_output(amount_out);
 				if !Self::trade_is_executable(cache, sell_asset, buy_asset, amount, adjusted_out) {
 					return None;
@@ -1741,5 +1697,17 @@ impl<A: AMMInterface> Solver<A> {
 			}]),
 			surplus,
 		))
+	}
+}
+
+impl<A: AMMInterface> IceSolver<A> for Solver<A> {
+	fn solve_with_limits(
+		intents: Vec<Intent>,
+		min_outs: MinOuts,
+		initial_state: A::State,
+		matched_fee: Permill,
+	) -> Result<Solution, A::Error> {
+		let mut cache = SolveCache::<A>::new();
+		Self::run_solve(&intents, min_outs, initial_state, matched_fee, &mut cache)
 	}
 }

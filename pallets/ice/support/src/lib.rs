@@ -33,6 +33,24 @@ pub struct Intent {
 	pub data: IntentData,
 }
 
+/// Active solution producer, selected on chain.
+///
+/// `submit_solution` stays the single entry point for every solver; the mode is
+/// the lens through which the chain validates and executes what it receives.
+/// Under `Passthrough` the claimed `Solution` amounts and `score` are advisory —
+/// the binding limits are re-derived from stored intent state at execution.
+#[derive(
+	Clone, Copy, Default, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+)]
+pub enum SolverMode {
+	#[default]
+	V4,
+	/// Emergency drain: every intent executed independently as a plain router trade.
+	Passthrough,
+	/// Kill switch — no solution is accepted.
+	Disabled,
+}
+
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum IntentData {
 	Swap(SwapData),

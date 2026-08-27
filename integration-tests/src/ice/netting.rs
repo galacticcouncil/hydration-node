@@ -8,146 +8,21 @@
 //! conservation and score checks act as the oracle.
 
 use crate::polkadot_test_net::{TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
-use amm_simulator::HydrationSimulator;
-use frame_support::assert_ok;
-use hydradx_runtime::{Omnipool, Runtime, RuntimeOrigin, System};
-use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_support::Solution;
-use pallet_omnipool::types::SlipFeeConfig;
+use hydradx_runtime::Runtime;
+use ice_support::{Solution, SolverMode};
 use primitives::AccountId;
-use sp_runtime::Permill;
 use xcm_emulator::Network;
 
+use super::harness::{
+	amm_in_for, amm_trade_count, enable_slip_fees, is_resolved, resolved, run_and_submit_as, swap, V4Solver,
+};
 use super::PATH_TO_SNAPSHOT;
 
-type TestSimulator = HydrationSimulator<hydradx_runtime::HydrationSimulatorConfig>;
-type IceSolver = ice_solver::v4::Solver<TestSimulator>;
-type CombinedSimulatorState =
-	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
-
-fn enable_slip_fees() {
-	assert_ok!(Omnipool::set_slip_fee(
-		RuntimeOrigin::root(),
-		Some(SlipFeeConfig {
-			max_slip_fee: Permill::from_percent(5),
-		})
-	));
-}
-
-/// Solve the pending intents via the pallet's own `run` (which builds the
-/// valid-intent set, admission floors and live simulator state exactly as
-/// production does) and return the raw `Solution`.
-fn solve() -> Solution {
-	let call = pallet_ice::Pallet::<Runtime>::run(
-		System::block_number(),
-		|intents: Vec<ice_support::Intent>,
-		 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
-		 state: CombinedSimulatorState| {
-			IceSolver::solve_with_limits(
-				intents,
-				limits.into_iter().collect(),
-				state,
-				pallet_ice::ProtocolFee::<Runtime>::get(),
-			)
-			.ok()
-		},
-	)
-	.expect("solver must produce a solution");
-	let pallet_ice::Call::submit_solution { solution, .. } = call else {
-		panic!("expected submit_solution call");
-	};
-	solution
-}
-
-/// Solve, dump the pinnable numbers, and submit — the pallet re-checks per-asset
-/// conservation and the score, so acceptance is the scenario's real oracle.
+/// Solve with v4 under the default mode, dump the pinnable numbers, and submit —
+/// the pallet re-checks per-asset conservation and the score, so acceptance is
+/// the scenario's real oracle.
 fn run_and_submit(label: &str) -> Solution {
-	let sol = solve();
-	dump(label, &sol);
-	assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
-		RuntimeOrigin::none(),
-		sol.clone(),
-	));
-	sol
-}
-
-/// Number of distinct AMM trades the solution routes through the router.
-/// Fewer is better: each AMM trade pays pool fee + slippage that internal
-/// matching avoids.
-fn amm_trade_count(sol: &Solution) -> usize {
-	sol.trades.len()
-}
-
-/// Resolved intent by id (panics if the intent was not resolved).
-fn resolved(sol: &Solution, id: u128) -> &ice_support::ResolvedIntent {
-	sol.resolved_intents
-		.iter()
-		.find(|r| r.id == id)
-		.expect("intent should be resolved")
-}
-
-/// Whether an intent appears in the solution's resolved set.
-fn is_resolved(sol: &Solution, id: u128) -> bool {
-	sol.resolved_intents.iter().any(|r| r.id == id)
-}
-
-/// The `SwapData` of a resolved swap intent.
-fn swap(ri: &ice_support::ResolvedIntent) -> &ice_support::SwapData {
-	match &ri.data {
-		ice_support::IntentData::Swap(s) => s,
-		_ => panic!("expected Swap"),
-	}
-}
-
-/// `amount_in` summed over AMM trades routing `asset_in -> asset_out` (0 if none).
-fn amm_in_for(sol: &Solution, asset_in: u32, asset_out: u32) -> u128 {
-	sol.trades
-		.iter()
-		.filter(|t| {
-			t.route.first().map(|h| h.asset_in) == Some(asset_in)
-				&& t.route.last().map(|h| h.asset_out) == Some(asset_out)
-		})
-		.map(|t| t.amount_in)
-		.fold(0u128, |a, v| a.saturating_add(v))
-}
-
-/// Print every field needed to pin a baseline: per-intent fills/outputs, each
-/// AMM trade's directed amounts, and the headline metrics. Copy the emitted
-/// `assert_eq!` lines back into the test once the real numbers are known.
-fn dump(label: &str, sol: &Solution) {
-	println!("// === NETTING DUMP BEGIN: {label} ===");
-	println!(
-		"// resolved={} amm_trades={} score={}",
-		sol.resolved_intents.len(),
-		sol.trades.len(),
-		sol.score
-	);
-	println!(
-		"assert_eq!(sol.resolved_intents.len(), {});",
-		sol.resolved_intents.len()
-	);
-	println!("assert_eq!(amm_trade_count(&sol), {});", sol.trades.len());
-	println!("assert_eq!(sol.score, {}u128);", sol.score);
-	for (i, ri) in sol.resolved_intents.iter().enumerate() {
-		if let ice_support::IntentData::Swap(ref s) = ri.data {
-			println!(
-				"// resolved[{i}] id={} {}->{} in={} out={}",
-				ri.id, s.asset_in, s.asset_out, s.amount_in, s.amount_out
-			);
-		}
-	}
-	for (i, t) in sol.trades.iter().enumerate() {
-		let first = t.route.first();
-		let last = t.route.last();
-		println!(
-			"// trade[{i}] {:?}->{:?} in={} out={}",
-			first.map(|h| h.asset_in),
-			last.map(|h| h.asset_out),
-			t.amount_in,
-			t.amount_out
-		);
-	}
-	println!("// === NETTING DUMP END: {label} ===");
+	run_and_submit_as::<V4Solver>(SolverMode::V4, label)
 }
 
 // ---------------------------------------------------------------------------

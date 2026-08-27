@@ -49,7 +49,7 @@ fn solver_input_should_collect_intents_eds_and_fee_when_intents_exist() {
 		])
 		.build()
 		.execute_with(|| {
-			let (intents, state, eds, min_outs, fee) =
+			let (intents, state, eds, min_outs, fee, mode) =
 				Pallet::<Test>::solver_input().expect("solver_input should be Some when valid intents exist");
 
 			// Exactly the two submitted intents.
@@ -73,5 +73,8 @@ fn solver_input_should_collect_intents_eds_and_fee_when_intents_exist() {
 
 			// Fee = mock MatchedFee = 0%.
 			assert_eq!(fee, Permill::from_percent(0));
+
+			// Untouched storage ships the default mode.
+			assert_eq!(mode, SolverMode::V4);
 		});
 }

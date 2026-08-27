@@ -142,7 +142,7 @@ fn dump_solution(solution: &Solution) {
 /// feeding the v4 solver. `exclude` drops intents before solving; `blind` drops
 /// the admission floors, reproducing the pre-fix behaviour.
 fn solve_inner(exclude: &[IntentId], blind: bool) -> Solution {
-	let (intents, _encoded_state, _eds, min_outs, fee) =
+	let (intents, _encoded_state, _eds, min_outs, fee, _mode) =
 		pallet_ice::Pallet::<Runtime>::solver_input().expect("snapshot should yield solver input");
 	let intents: Vec<Intent> = intents.into_iter().filter(|i| !exclude.contains(&i.id)).collect();
 	let min_outs: BTreeMap<IntentId, Balance> = if blind {

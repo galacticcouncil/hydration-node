@@ -58,8 +58,9 @@ fn node_path_solution_should_equal_runtime_path_solution() {
 		.submit_swap_intent(alice.clone(), asset_a, asset_b, amount_in, min_amount_out, Some(10))
 		.execute(|| {
 			// Node-path inputs come from the real runtime-API building function.
-			let (intents, encoded_state, eds, min_outs, fee) =
+			let (intents, encoded_state, eds, min_outs, fee, mode) =
 				pallet_ice::Pallet::<Runtime>::solver_input().expect("solver_input should be Some");
+			assert_eq!(mode, ice_support::SolverMode::V4, "default mode is V4");
 			let min_outs: std::collections::BTreeMap<u128, u128> = min_outs.into_iter().collect();
 			assert_eq!(intents.len(), 1, "snapshot intent should be valid");
 

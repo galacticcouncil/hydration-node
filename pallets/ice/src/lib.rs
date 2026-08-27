@@ -27,6 +27,7 @@
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::useless_conversion)]
 
 #[cfg(test)]
 mod tests;
@@ -35,7 +36,9 @@ pub mod traits;
 mod weights;
 
 use frame_support::dispatch::DispatchResult;
+use frame_support::dispatch::PostDispatchInfo;
 use frame_support::pallet_prelude::*;
+use frame_support::storage::with_transaction;
 use frame_support::traits::ExistenceRequirement::AllowDeath;
 use frame_support::traits::Get;
 use frame_support::PalletId;
@@ -51,10 +54,15 @@ use ice_support::BlockNumber;
 use ice_support::Intent;
 use ice_support::IntentData;
 use ice_support::IntentId;
+use ice_support::Partial;
+use ice_support::PoolTrade;
 use ice_support::Price;
 use ice_support::ResolvedIntent;
 use ice_support::Score;
 use ice_support::Solution;
+use ice_support::SolverMode;
+use ice_support::SwapData;
+use ice_support::SwapType;
 use orml_traits::MultiCurrency;
 use pallet_route_executor::AmmTradeWeights;
 use sp_core::U256;
@@ -62,6 +70,7 @@ use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::CheckedConversion;
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_runtime::Permill;
+use sp_runtime::TransactionOutcome;
 use sp_std::borrow::ToOwned;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::collections::btree_set::BTreeSet;
@@ -81,14 +90,36 @@ pub(crate) const OCW_PROVIDES: &[u8; 15] = b"submit_solution";
 
 /// Parts returned by `solver_input`: valid intents, the SCALE-encoded simulator
 /// snapshot, the ED map for every asset the solver may query, the per-intent
-/// admission floors (DCA only), and the matched fee.
+/// admission floors (DCA only), the matched fee, and the active solver mode.
 pub type SolverInputParts = (
 	Vec<Intent>,
 	Vec<u8>,
 	Vec<(AssetId, Balance)>,
 	Vec<(IntentId, Balance)>,
 	Permill,
+	SolverMode,
 );
+
+/// How `submit_solution` validates and executes a solution. Every matching
+/// solver shares `Strict`; only the emergency pass-through differs.
+enum ExecutionPolicy {
+	Strict,
+	Passthrough,
+}
+
+trait SolverModePolicy {
+	fn execution_policy(&self) -> Option<ExecutionPolicy>;
+}
+
+impl SolverModePolicy for SolverMode {
+	fn execution_policy(&self) -> Option<ExecutionPolicy> {
+		match self {
+			SolverMode::V4 => Some(ExecutionPolicy::Strict),
+			SolverMode::Passthrough => Some(ExecutionPolicy::Passthrough),
+			SolverMode::Disabled => None,
+		}
+	}
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -158,6 +189,8 @@ pub mod pallet {
 		},
 		/// Protocol fee has been updated.
 		ProtocolFeeSet { fee: Permill },
+		/// Active solver mode has been updated.
+		SolverModeSet { mode: SolverMode },
 	}
 
 	/// Matched-volume protocol fee.
@@ -168,6 +201,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn protocol_fee)]
 	pub type ProtocolFee<T: Config> = StorageValue<_, Permill, ValueQuery, T::MatchedFee>;
+
+	/// Active solver mode. Absent storage means `SolverMode::V4` — the status quo.
+	#[pallet::storage]
+	#[pallet::getter(fn solver_mode)]
+	pub type CurrentSolverMode<T: Config> = StorageValue<_, SolverMode, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -205,7 +243,11 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Execute `solution` submitted by OCW.
 		///
-		/// Solution can be executed only as a whole solution.
+		/// Under `SolverMode::V4` the solution is executed as a whole: claimed amounts are
+		/// binding and any failure aborts the batch. Under `SolverMode::Passthrough` the
+		/// claimed amounts and `score` are advisory — each intent is executed on its own,
+		/// bound by the limit re-derived from its stored state, and a failing intent is
+		/// skipped instead of failing the batch.
 		///
 		/// Parameters:
 		/// - `solution`: solution to execute
@@ -230,8 +272,14 @@ pub mod pallet {
 
 			total_w
 		})]
-		pub fn submit_solution(origin: OriginFor<T>, solution: Solution) -> DispatchResult {
+		pub fn submit_solution(origin: OriginFor<T>, solution: Solution) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
+
+			match CurrentSolverMode::<T>::get().execution_policy() {
+				None => return Err(Error::<T>::InvalidSolution.into()),
+				Some(ExecutionPolicy::Passthrough) => return Self::execute_passthrough(&solution),
+				Some(ExecutionPolicy::Strict) => {}
+			}
 
 			// Provide extra gas for EVM token transfers that may need it.
 			T::ExtraGasSupport::set_extra_gas(EXTRA_GAS);
@@ -389,7 +437,7 @@ pub mod pallet {
 				built_at: solution.built_at,
 			});
 
-			Ok(())
+			Ok(().into())
 		}
 
 		/// Set the matched-volume protocol fee.
@@ -412,6 +460,34 @@ pub mod pallet {
 			}
 
 			Self::deposit_event(Event::ProtocolFeeSet { fee });
+
+			Ok(())
+		}
+
+		/// Select the active solver mode.
+		///
+		/// If `mode` is the default variant, the storage override is removed — there is
+		/// no need to store the default value.
+		///
+		/// Can only be called by `AuthorityOrigin` (e.g. TechnicalCommittee or Root).
+		///
+		/// Parameters:
+		/// - `mode`: solver mode to activate
+		///
+		/// Emits `SolverModeSet` event when successful.
+		///
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_solver_mode())]
+		pub fn set_solver_mode(origin: OriginFor<T>, mode: SolverMode) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			if mode == SolverMode::default() {
+				CurrentSolverMode::<T>::kill();
+			} else {
+				CurrentSolverMode::<T>::put(mode);
+			}
+
+			Self::deposit_event(Event::SolverModeSet { mode });
 
 			Ok(())
 		}
@@ -487,6 +563,127 @@ impl<T: Config> Pallet<T> {
 	/// Function provides `holding_pot` account id.
 	pub fn get_pallet_account() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	/// Emergency drain: execute each `(resolved_intent, trade)` pair on its own.
+	///
+	/// No matching, so no price consistency, no score match and no matched-volume
+	/// fee — the only binding guarantee is each intent's own limit, re-derived from
+	/// its stored state. A failing intent rolls back alone and the loop continues.
+	fn execute_passthrough(solution: &Solution) -> DispatchResultWithPostInfo {
+		log::debug!(target: LOG_TARGET, "{:?}: submit_solution() [PASSTHROUGH], solution with {:?} resolved intents, {:?} trades",
+			LOG_PREFIX, solution.resolved_intents.len(), solution.trades.len());
+
+		// Routes through EVM-bridged assets need the extra gas allowance.
+		T::ExtraGasSupport::set_extra_gas(EXTRA_GAS);
+
+		let mut executed: u64 = 0;
+		let mut score: Score = 0;
+		let mut actual_weight = Weight::zero();
+
+		for (resolved_intent, trade) in solution.resolved_intents.iter().zip(solution.trades.iter()) {
+			let id = resolved_intent.id;
+
+			let outcome = with_transaction(|| match Self::passthrough_resolve_intent(id, trade) {
+				Ok(surplus) => TransactionOutcome::Commit(Ok(surplus)),
+				Err(e) => TransactionOutcome::Rollback(Err(e)),
+			});
+
+			match outcome {
+				Ok(surplus) => {
+					executed = executed.saturating_add(1);
+					score = score.saturating_add(surplus);
+					actual_weight = actual_weight
+						.saturating_add(<T as Config>::WeightInfo::submit_solution())
+						.saturating_add(<T as pallet_route_executor::Config>::WeightInfo::sell_weight(
+							trade.route.as_slice(),
+						));
+				}
+				Err(e) => {
+					log::debug!(target: LOG_TARGET, "{LOG_PREFIX:?}: submit_solution() [PASSTHROUGH], intent {id:?} skipped, err: {e:?}");
+				}
+			}
+		}
+
+		T::ExtraGasSupport::clear_extra_gas();
+
+		Self::deposit_event(Event::SolutionExecuted {
+			intents_executed: executed,
+			trades_executed: executed,
+			score,
+			built_at: solution.built_at,
+		});
+
+		Ok(PostDispatchInfo {
+			actual_weight: Some(actual_weight),
+			pays_fee: Pays::Yes,
+		})
+	}
+
+	/// Settle one intent through the router and hand it to `intent_resolved`.
+	/// Returns the intent's surplus over its own limit (observability only).
+	fn passthrough_resolve_intent(id: IntentId, trade: &PoolTrade) -> Result<Balance, DispatchError> {
+		let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
+		let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
+
+		let asset_in = intent.data.asset_in();
+		let asset_out = intent.data.asset_out();
+
+		let (amount_in, min_limit, partial) = match intent.data {
+			IntentData::Swap(ref swap) => {
+				let amount_in = swap.remaining();
+				let limit = if swap.partial.is_partial() {
+					// Reuse `pro_rata` so the limit matches `validate_resolve`'s to the last unit.
+					let probe = IntentData::Swap(SwapData {
+						amount_in,
+						..swap.clone()
+					});
+					intent.data.pro_rata(&probe).ok_or(Error::<T>::ArithmeticOverflow)?
+				} else {
+					swap.amount_out
+				};
+				(amount_in, limit, swap.partial)
+			}
+			IntentData::Dca(ref dca) => (
+				dca.amount_in,
+				pallet_intent::Pallet::<T>::compute_dca_effective_limit(dca),
+				Partial::No,
+			),
+		};
+
+		let mut resolve = SwapData {
+			asset_in,
+			asset_out,
+			amount_in,
+			amount_out: min_limit,
+			partial,
+		};
+		Self::validate_intent_amounts(&IntentData::Swap(resolve.clone()))?;
+
+		pallet_intent::Pallet::<T>::unlock_funds(&owner, asset_in, amount_in)?;
+
+		let before_out = <T as Config>::Currency::free_balance(asset_out, &owner);
+
+		log::debug!(target: LOG_TARGET, "{LOG_PREFIX:?}: submit_solution() [PASSTHROUGH], selling for intent {id:?}, owner: {owner:?}, asset_in: {asset_in:?}, amount_in: {amount_in:?}, asset_out: {asset_out:?}, min_amount_out: {min_limit:?}");
+
+		pallet_route_executor::Pallet::<T>::sell(
+			Origin::<T>::Signed(owner.clone()).into(),
+			asset_in,
+			asset_out,
+			amount_in.into(),
+			min_limit.into(),
+			trade.route.clone(),
+		)?;
+
+		// The router pays out to the owner directly — no holding pot involved.
+		resolve.amount_out = <T as Config>::Currency::free_balance(asset_out, &owner).saturating_sub(before_out);
+
+		let resolve = IntentData::Swap(resolve);
+		let surplus = pallet_intent::Pallet::<T>::compute_surplus(&intent, &resolve).unwrap_or_default();
+
+		pallet_intent::Pallet::<T>::intent_resolved(&owner, &ResolvedIntent { id, data: resolve })?;
+
+		Ok(surplus)
 	}
 
 	/// Verify the matched-volume fee invariant and sweep collected fees to the
@@ -597,9 +794,56 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Function validates provided solution against the active solver mode.
+	fn validate_unsigned_solution(solution: &Solution) -> Result<(), DispatchError> {
+		match CurrentSolverMode::<T>::get().execution_policy() {
+			None => Err(Error::<T>::InvalidSolution.into()),
+			Some(ExecutionPolicy::Strict) => Self::validate_strict_solution(solution),
+			Some(ExecutionPolicy::Passthrough) => Self::validate_passthrough_solution(solution),
+		}
+	}
+
+	/// Shape-only validation for pass-through solutions: 1:1 intents/trades, no
+	/// duplicates, every intent known, every route wired to its intent's pair.
+	///
+	/// Claimed amounts and `score` are deliberately unchecked — execution derives
+	/// the binding amounts from stored intent state and ignores them.
+	fn validate_passthrough_solution(solution: &Solution) -> Result<(), DispatchError> {
+		ensure!(!solution.resolved_intents.is_empty(), Error::<T>::InvalidSolution);
+		ensure!(
+			solution.resolved_intents.len() == solution.trades.len(),
+			Error::<T>::InvalidSolution
+		);
+
+		let mut processed_intents: BTreeSet<IntentId> = BTreeSet::new();
+
+		for (resolved_intent, trade) in solution.resolved_intents.iter().zip(solution.trades.iter()) {
+			let id = resolved_intent.id;
+
+			if !processed_intents.insert(id) {
+				log::error!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: validate_passthrough_solution(), intent {id:?} is duplicate");
+				return Err(Error::<T>::DuplicateIntent.into());
+			}
+
+			let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or_else(|| {
+				log::error!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: validate_passthrough_solution(), intent {id:?} not found in storage");
+				Error::<T>::IntentNotFound
+			})?;
+
+			ensure!(trade.direction == SwapType::ExactIn, Error::<T>::InvalidSolution);
+
+			let route_in = trade.route.first().ok_or(Error::<T>::InvalidRoute)?.asset_in;
+			let route_out = trade.route.last().ok_or(Error::<T>::InvalidRoute)?.asset_out;
+			ensure!(route_in == intent.data.asset_in(), Error::<T>::InvalidRoute);
+			ensure!(route_out == intent.data.asset_out(), Error::<T>::InvalidRoute);
+		}
+
+		Ok(())
+	}
+
 	/// Function validates provided solution and returns solution's score if solution is
 	/// valid.
-	fn validate_unsigned_solution(solution: &Solution) -> Result<(), DispatchError> {
+	fn validate_strict_solution(solution: &Solution) -> Result<(), DispatchError> {
 		//TODO:
 		// * add weight rule and make sure solution respects it.
 
@@ -659,9 +903,9 @@ impl<T: Config> Pallet<T> {
 
 	/// Build the side-effect-free inputs for the node-side solver: the valid
 	/// intents, the SCALE-encoded simulator snapshot, the ED map for every asset
-	/// the solver may query, the per-intent admission floors and the
-	/// matched-volume fee. Returns `None` on an empty intent set (the cheap
-	/// empty-block path — no snapshot/EVM work).
+	/// the solver may query, the per-intent admission floors, the matched-volume
+	/// fee and the active solver mode. Returns `None` on an empty intent set (the
+	/// cheap empty-block path — no snapshot/EVM work).
 	pub fn solver_input() -> Option<SolverInputParts> {
 		let (valid, min_amounts_out) = pallet_intent::Pallet::<T>::solver_intents();
 		let intents: Vec<Intent> = valid
@@ -705,6 +949,7 @@ impl<T: Config> Pallet<T> {
 			existential_deposits,
 			min_amounts_out,
 			Self::protocol_fee(),
+			CurrentSolverMode::<T>::get(),
 		))
 	}
 

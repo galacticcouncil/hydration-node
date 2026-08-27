@@ -1219,13 +1219,14 @@ impl_runtime_apis! {
 
 	impl pallet_ice_runtime_api::IceSolverApi<Block> for Runtime {
 		fn solver_input() -> Option<pallet_ice_runtime_api::SolverInput> {
-			pallet_ice::Pallet::<Runtime>::solver_input().map(|(intents, state, eds, min_amount_out, fee)| {
+			pallet_ice::Pallet::<Runtime>::solver_input().map(|(intents, state, eds, min_amount_out, fee, mode)| {
 				pallet_ice_runtime_api::SolverInput {
 					intents,
 					state,
 					existential_deposits: eds,
 					min_amount_out,
 					fee,
+					mode,
 				}
 			})
 		}

@@ -2,6 +2,9 @@
 
 pub mod flow_graph;
 pub mod ring_detection;
+pub mod route_cache;
+
+pub use route_cache::RouteCache;
 
 use hydra_dx_math::types::Ratio;
 use ice_support::{AssetId, Balance, Intent, IntentData};

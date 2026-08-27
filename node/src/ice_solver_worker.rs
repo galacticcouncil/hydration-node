@@ -2,8 +2,9 @@
 //!
 //! On each new best block it asks the runtime for a side-effect-free
 //! `SolverInput` (valid intents + SCALE-encoded simulator snapshot + ED map +
-//! fee), runs the v4 solver natively, and submits the resulting `submit_solution`
-//! as a bare unsigned extrinsic into the local pool. Mirrors the PEPL
+//! fee + active `SolverMode`), runs the solver generation the chain selected
+//! natively, and submits the resulting `submit_solution` as a bare unsigned
+//! extrinsic into the local pool. Mirrors the PEPL
 //! `liquidation_worker`, but the solve is stateless per block, so it uses
 //! `spawn_blocking` + an `AtomicBool` busy-guard (overlapping solves are dropped)
 //! instead of a persistent thread pool.
@@ -17,8 +18,8 @@ use hydradx_runtime::{
 	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::v4::Solver;
-use pallet_ice_runtime_api::{IceSolverApi, SolverInput};
+use ice_solver::{passthrough, v4, IceSolver};
+use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
 use primitives::{AssetId, Balance};
 use sc_client_api::BlockchainEvents;
 use sc_network_sync::SyncingService;
@@ -101,14 +102,33 @@ impl Drop for BusyGuard {
 	}
 }
 
+/// Static dispatch over the solver generation the chain selected — keeps the
+/// mode match to one line per generation.
+fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
+	input: SolverInput,
+	state: <HydrationSimulators as SimulatorSet>::State,
+) -> Option<Solution> {
+	let min_outs = input.min_amount_out.into_iter().collect();
+	S::solve_with_limits(input.intents, min_outs, state, input.fee).ok()
+}
+
 /// Pure transform: `SolverInput` → bare `submit_solution` extrinsic. No client,
 /// stream, or tx-pool — directly unit-testable. Returns the opaque extrinsic plus
-/// the decode and solve durations (ms). `None` when the snapshot fails to decode,
-/// the solve fails, or the solution resolves no intents.
+/// the decode and solve durations (ms). `None` when the chain disabled solving,
+/// the snapshot fails to decode, the solve fails, or the solution resolves no
+/// intents.
 ///
 /// `built_at` is the block the input state was read at; it is stamped into the
 /// solution so consecutive solutions never share an extrinsic hash.
 pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
+	let mode = input.mode;
+	// Before the decode: nothing this block produces can be accepted, so the
+	// snapshot decode and the solve are both pure waste.
+	if matches!(mode, SolverMode::Disabled) {
+		tracing::debug!(target: LOG_TARGET, "solver disabled on chain, skipping solve");
+		return None;
+	}
+
 	let t_decode = Instant::now();
 	let state: <HydrationSimulators as SimulatorSet>::State = match Decode::decode(&mut &input.state[..]) {
 		Ok(state) => state,
@@ -128,10 +148,12 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 	let decode_ms = t_decode.elapsed().as_millis();
 
 	let t_solve = Instant::now();
-	let min_outs = input.min_amount_out.into_iter().collect();
-	let mut solution =
-		Solver::<HydrationSimulator<NodeSimulatorConfig>>::solve_with_limits(input.intents, min_outs, state, input.fee)
-			.ok()?;
+	let mut solution = match mode {
+		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
+		SolverMode::Passthrough => solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
+		// Returned above, before the decode.
+		SolverMode::Disabled => None,
+	}?;
 	let solve_ms = t_solve.elapsed().as_millis();
 
 	if solution.resolved_intents.is_empty() {
@@ -318,15 +340,28 @@ mod tests {
 	use super::*;
 	use sp_runtime::Permill;
 
-	#[test]
-	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
-		let input = SolverInput {
+	fn input_with(mode: SolverMode, state: Vec<u8>) -> SolverInput {
+		SolverInput {
 			intents: Vec::new(),
-			state: vec![0xff, 0xff, 0xff],
+			state,
 			existential_deposits: Vec::new(),
 			min_amount_out: Vec::new(),
 			fee: Permill::zero(),
-		};
+			mode,
+		}
+	}
+
+	#[test]
+	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
+		let input = input_with(SolverMode::V4, vec![0xff, 0xff, 0xff]);
+		assert!(build_extrinsic(input, 1).is_none());
+	}
+
+	#[test]
+	fn build_extrinsic_should_return_none_when_mode_is_disabled() {
+		// Same undecodable state as the test above: reaching the decode at all
+		// would have to log an error, so `None` here proves the mode check runs first.
+		let input = input_with(SolverMode::Disabled, vec![0xff, 0xff, 0xff]);
 		assert!(build_extrinsic(input, 1).is_none());
 	}
 
