@@ -21,6 +21,7 @@
 
 use std::sync::Arc;
 
+use crate::ice_solver_worker::IceSolverTaskData;
 use cumulus_primitives_core::PersistedValidationData;
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
@@ -62,6 +63,8 @@ pub struct FullDeps<C, P, B> {
 	pub pool: Arc<P>,
 	/// Backend used by the node.
 	pub backend: Arc<B>,
+	/// Data provided from the ICE solver worker.
+	pub ice_solver_task_data: Arc<IceSolverTaskData>,
 	/// Status handle of the running PEPL worker; `None` when no worker runs on this node.
 	pub pepl_status: Option<Arc<pepl_worker::WorkerStatus>>,
 }
@@ -199,6 +202,7 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
+	use crate::ice_solver_worker::rpc::{IceSolverWorker, IceSolverWorkerApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
@@ -210,6 +214,7 @@ where
 		client,
 		pool,
 		backend,
+		ice_solver_task_data,
 		pepl_status,
 	} = deps;
 
@@ -217,6 +222,8 @@ where
 	module.merge(System::new(client.clone(), pool).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(StateMigration::new(client.clone(), backend.clone()).into_rpc())?;
+
+	module.merge(IceSolverWorker::new(ice_solver_task_data).into_rpc())?;
 
 	Ok(module)
 }

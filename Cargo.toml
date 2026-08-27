@@ -53,8 +53,14 @@ members = [
     'pallets/hsm',
     'pallets/signet',
     'pallets/dispenser',
-    "pallets/signet",
-    "pallets/dispenser",
+    'pallets/lazy-executor',
+    'pallets/intent',
+    'pallets/ice',
+    'pallets/ice/support',
+    'pallets/ice/runtime-api',
+    'ice/ice-solver',
+    'ice/solver-bench',
+    'pallets/ice/amm-simulator',
     "pallets/fee-processor",
     "pallets/gigahdx",
     "pallets/gigahdx-rewards",
@@ -73,6 +79,11 @@ frame-metadata = { version = "23.0.1", default-features = false, features = ["cu
 serde = { version = "1.0.209", default-features = false }
 primitive-types = { version = "0.13.1", default-features = false }
 borsh = { version = "1.5.7", default-features = false, features = ["derive"] }
+
+# ICE
+ice-solver = { path = "ice/ice-solver", default-features = false}
+route-findr= { path = "ice/route-findr", default-features = false }
+
 
 affix = "0.1.2"
 alloy-primitives = { version = "0.7", default-features = false }
@@ -176,6 +187,12 @@ pallet-hsm = { path = "pallets/hsm", default-features = false }
 pallet-parameters = { path = "pallets/parameters", default-features = false }
 pallet-signet = { path = "pallets/signet", default-features = false }
 pallet-dispenser = { path = "pallets/dispenser", default-features = false }
+pallet-intent = { path = "pallets/intent", default-features = false }
+pallet-ice = { path = "pallets/ice", default-features = false }
+pallet-ice-runtime-api = { path = "pallets/ice/runtime-api", default-features = false }
+ice-support = { path = "pallets/ice/support", default-features = false }
+amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
+pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
 pepl-worker = { path = "pepl-worker", default-features = false }
 pepl-worker-support = { path = "pepl-worker/support", default-features = false }
 pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }

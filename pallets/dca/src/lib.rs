@@ -85,6 +85,7 @@ use rand::{Rng, SeedableRng};
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_runtime::traits::CheckedMul;
 use sp_runtime::traits::Zero;
+use sp_runtime::SaturatedConversion;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Percent, Permill, Rounding,
@@ -96,6 +97,7 @@ use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
 use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
+use ice_support::{DcaParams, IntentId, IntentMigrator};
 use pallet_broadcast::types::ExecutionType;
 use pallet_evm::GasWeightMapping;
 pub use weights::WeightInfo;
@@ -146,19 +148,32 @@ pub mod pallet {
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
 			schedule_ids.sort_by_cached_key(|_| randomness_generator.gen::<u32>());
+			let migration_enabled = MigrationEnabled::<T>::get();
+
 			for schedule_id in schedule_ids {
+				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
+					//We cant terminate here as there is no schedule information to do so
+					Self::deposit_event(Event::ExecutionStarted {
+						id: schedule_id,
+						block: current_blocknumber,
+					});
+					continue;
+				};
+
+				// Conversion and cancellation both do strictly less work than an execution - neither
+				// touches the router - so the trade weight bounds them until they are benchmarked.
+				let weight_for_single_execution = Self::get_trade_weight(&schedule.order, Some(schedule_id));
+				weight.saturating_accrue(weight_for_single_execution);
+
+				if migration_enabled {
+					Self::migrate_or_cancel(schedule_id, &schedule);
+					continue;
+				}
+
 				Self::deposit_event(Event::ExecutionStarted {
 					id: schedule_id,
 					block: current_blocknumber,
 				});
-
-				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
-					//We cant terminate here as there is no schedule information to do so
-					continue;
-				};
-
-				let weight_for_single_execution = Self::get_trade_weight(&schedule.order, Some(schedule_id));
-				weight.saturating_accrue(weight_for_single_execution);
 
 				if let Err(e) = Self::prepare_schedule(
 					current_blocknumber,
@@ -228,7 +243,10 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// Asset id type
-		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen + Into<ice_support::AssetId>;
+
+		/// Creates DCA intents for schedules converted by the migration.
+		type IntentMigrator: IntentMigrator<Self::AccountId>;
 
 		/// Origin able to terminate schedules
 		type TerminateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -380,6 +398,22 @@ pub mod pallet {
 		},
 		///DCA reserve for the given asset have been unlocked for a user
 		ReserveUnlocked { who: T::AccountId, asset_id: T::AssetId },
+		///The DCA schedule has been converted into a DCA intent
+		Migrated {
+			id: ScheduleId,
+			who: T::AccountId,
+			intent_id: IntentId,
+		},
+		///The DCA schedule has been cancelled by the migration and its reserve refunded
+		MigrationCancelled {
+			id: ScheduleId,
+			who: T::AccountId,
+			asset: T::AssetId,
+			refunded: Balance,
+			reason: CancelReason,
+		},
+		///The migration switch has been flipped
+		MigrationEnabledSet { enabled: bool },
 	}
 
 	#[pallet::error]
@@ -426,6 +460,8 @@ pub mod pallet {
 		NoReservesLocked,
 		///Buy orders can no longer be scheduled. Existing buy schedules keep executing.
 		NoLongerSupported,
+		///Schedules cannot be created while they are being migrated to DCA intents
+		MigrationInProgress,
 	}
 
 	/// Id sequencer for schedules
@@ -474,6 +510,11 @@ pub mod pallet {
 	#[pallet::getter(fn schedule_extra_gas)]
 	pub type ScheduleExtraGas<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u64, ValueQuery>;
 
+	/// Whether schedules convert into DCA intents when their execution slot arrives.
+	#[pallet::storage]
+	#[pallet::getter(fn migration_enabled)]
+	pub type MigrationEnabled<T: Config> = StorageValue<_, bool, ValueQuery>;
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Creates a new DCA (Dollar-Cost Averaging) schedule and plans the next execution
@@ -514,6 +555,7 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			ensure!(!MigrationEnabled::<T>::get(), Error::<T>::MigrationInProgress);
 			ensure!(who == schedule.owner, Error::<T>::Forbidden);
 			// Buy execution stays live for schedules stored before this restriction, so the
 			// benchmarks that measure it still need to create one.
@@ -719,6 +761,60 @@ pub mod pallet {
 			ensure!(remaining_unreserved.is_zero(), Error::<T>::InvalidState);
 
 			Self::deposit_event(Event::ReserveUnlocked { who, asset_id });
+
+			Ok(())
+		}
+
+		/// Enables or disables the conversion of DCA schedules into DCA intents.
+		///
+		/// While enabled, a schedule is converted - or cancelled and refunded when it cannot be
+		/// converted - as soon as its execution slot arrives, instead of being traded. That
+		/// execution is skipped: the resulting intent trades one period later. Creating new
+		/// schedules is blocked for as long as the flag is set.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::TerminateOrigin`
+		/// - `enabled`: whether schedules convert when their execution slot arrives
+		///
+		/// Emits `MigrationEnabledSet` event when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::unlock_reserves())]
+		#[transactional]
+		pub fn set_migration_enabled(origin: OriginFor<T>, enabled: bool) -> DispatchResult {
+			T::TerminateOrigin::ensure_origin(origin)?;
+
+			MigrationEnabled::<T>::put(enabled);
+			Self::deposit_event(Event::MigrationEnabledSet { enabled });
+
+			Ok(())
+		}
+
+		/// Cancels the given schedules and refunds their reserves.
+		///
+		/// Escape hatch for schedules the migration cannot reach - an entry left without a planned
+		/// execution block never comes up in `on_initialize` and would otherwise keep the old
+		/// pallet alive indefinitely. Unknown ids are skipped rather than rejected.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::TerminateOrigin`
+		/// - `schedule_ids`: the schedules to cancel
+		///
+		/// Emits `MigrationCancelled` event for each cancelled schedule.
+		///
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::terminate().saturating_mul(schedule_ids.len() as u64))]
+		#[transactional]
+		pub fn force_cancel_schedules(origin: OriginFor<T>, schedule_ids: Vec<ScheduleId>) -> DispatchResult {
+			T::TerminateOrigin::ensure_origin(origin)?;
+
+			for schedule_id in schedule_ids {
+				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
+					continue;
+				};
+
+				Self::cancel_for_migration(schedule_id, &schedule, CancelReason::ForceCancelled);
+			}
 
 			Ok(())
 		}
@@ -1367,6 +1463,92 @@ impl<T: Config> Pallet<T> {
 
 			let new_gas = extra_gas.saturating_add(gas_increment);
 			*extra_gas = new_gas.min(MAX_EXTRA_GAS);
+		});
+	}
+
+	/// Converts a schedule into a DCA intent, or cancels and refunds it when it cannot be converted.
+	fn migrate_or_cancel(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>) {
+		let Order::Sell {
+			asset_in,
+			asset_out,
+			amount_in,
+			min_amount_out,
+			..
+		} = schedule.order
+		else {
+			Self::cancel_for_migration(schedule_id, schedule, CancelReason::BuyOrder);
+			return;
+		};
+
+		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).unwrap_or_default();
+		// A rolling schedule has no budget; its reserve is the intent pallet's own 2x buffer.
+		let budget = (!schedule.is_rolling()).then_some(remaining_amount);
+
+		if budget.is_some() && remaining_amount < amount_in {
+			Self::cancel_for_migration(schedule_id, schedule, CancelReason::BudgetBelowTrade);
+			return;
+		}
+
+		let params = DcaParams {
+			asset_in: asset_in.into(),
+			asset_out: asset_out.into(),
+			amount_in,
+			amount_out: min_amount_out,
+			slippage: schedule
+				.slippage
+				.unwrap_or_else(T::MaxPriceDifferenceBetweenBlocks::get),
+			budget,
+			period: schedule.period.saturated_into(),
+		};
+
+		match Self::convert_schedule(schedule_id, schedule, remaining_amount, params) {
+			Ok(intent_id) => Self::deposit_event(Event::Migrated {
+				id: schedule_id,
+				who: schedule.owner.clone(),
+				intent_id,
+			}),
+			Err(reason) => Self::cancel_for_migration(schedule_id, schedule, reason),
+		}
+	}
+
+	#[transactional]
+	fn convert_schedule(
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
+		remaining_amount: Balance,
+		params: DcaParams,
+	) -> Result<IntentId, CancelReason> {
+		let remainder = T::Currencies::unreserve_named(
+			&T::NamedReserveId::get(),
+			schedule.order.get_asset_in(),
+			&schedule.owner,
+			remaining_amount,
+		);
+		// The intent pallet takes its own reserve, so anything left here would be reserved twice.
+		ensure!(remainder.is_zero(), CancelReason::UnreserveRemainder);
+
+		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+		Ok(T::IntentMigrator::add_migrated_intent(schedule.owner.clone(), params)?)
+	}
+
+	/// Removes a schedule and returns its remaining budget to the owner's free balance.
+	fn cancel_for_migration(
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
+		reason: CancelReason,
+	) {
+		let refunded = RemainingAmounts::<T>::get(schedule_id).unwrap_or_default();
+
+		Self::try_unreserve_all(schedule_id, schedule);
+		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+		Self::deposit_event(Event::MigrationCancelled {
+			id: schedule_id,
+			who: schedule.owner.clone(),
+			asset: schedule.order.get_asset_in(),
+			refunded,
+			reason,
 		});
 	}
 

@@ -11,6 +11,7 @@ use orml_traits::NamedMultiReservableCurrency;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
 
+pub mod migration;
 pub mod mock;
 pub mod on_initialize;
 pub mod schedule;
