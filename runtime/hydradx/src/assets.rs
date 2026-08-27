@@ -975,6 +975,7 @@ impl pallet_dca::Config for Runtime {
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
+	type IntentMigrator = Intent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	#[cfg(feature = "runtime-benchmarks")]

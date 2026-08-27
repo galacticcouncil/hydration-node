@@ -4,7 +4,7 @@
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{ConstU32, RuntimeDebug, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
-use frame_support::sp_runtime::Permill;
+use frame_support::sp_runtime::{DispatchError, Permill};
 use frame_support::BoundedVec;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::Route;
@@ -239,6 +239,16 @@ impl DcaParams {
 			last_execution_block,
 		}
 	}
+}
+
+/// Creates a DCA intent for an account whose old-pallet DCA schedule is being converted.
+///
+/// Implementations must bypass the per-account intent cap: the schedule already existed and the old
+/// pallet releases its reserve before this is called, so refusing here would strand the user's funds.
+/// Deliberately not implemented for `()` — a runtime that forgets to wire it must fail to compile
+/// rather than silently cancel every schedule it was supposed to migrate.
+pub trait IntentMigrator<AccountId> {
+	fn add_migrated_intent(owner: AccountId, params: DcaParams) -> Result<IntentId, DispatchError>;
 }
 
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

@@ -29,7 +29,9 @@ use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{registry::Inspect as InspectRegistry, AssetKind, NativePriceOracle, OraclePeriod, PriceOracle};
+use ice_support::{DcaParams, IntentId, IntentMigrator};
 use orml_traits::parameter_type_with_key;
+use orml_traits::NamedMultiReservableCurrency;
 use pallet_currencies::{BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use primitive_types::U128;
 use sp_core::H256;
@@ -103,6 +105,9 @@ thread_local! {
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 	pub static MIN_BUDGET: RefCell<Balance> = RefCell::new(*ORIGINAL_MIN_BUDGET_IN_NATIVE);
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = const { RefCell::new(vec![]) };
+	pub static MIGRATOR_SHOULD_FAIL: RefCell<bool> = const { RefCell::new(false) };
+	pub static MIGRATED_INTENTS: RefCell<Vec<(AccountId, DcaParams)>> = const { RefCell::new(vec![]) };
+	pub static NEXT_INTENT_ID: RefCell<IntentId> = const { RefCell::new(1) };
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = const { RefCell::new(vec![]) };
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = const { RefCell::new(true) };
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
@@ -679,9 +684,36 @@ impl RandomnessProvider for RandomnessProviderMock {
 	}
 }
 
+/// Stand-in for `pallet-intent`. Mirrors the reserve it would take so the conservation
+/// assertions in the migration tests stay meaningful.
+pub struct IntentMigratorMock;
+
+pub const INTENT_NAMED_RESERVE_ID: NamedReserveIdentifier = *b"ICE_int#";
+
+impl IntentMigrator<AccountId> for IntentMigratorMock {
+	fn add_migrated_intent(owner: AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
+		if MIGRATOR_SHOULD_FAIL.with(|v| *v.borrow()) {
+			return Err(sp_runtime::TokenError::FundsUnavailable.into());
+		}
+
+		let reserve_amount = params.budget.unwrap_or_else(|| params.amount_in.saturating_mul(2));
+		Currencies::reserve_named(&INTENT_NAMED_RESERVE_ID, params.asset_in, &owner, reserve_amount)?;
+
+		MIGRATED_INTENTS.with(|v| v.borrow_mut().push((owner, params)));
+
+		Ok(NEXT_INTENT_ID.with(|v| {
+			let mut id = v.borrow_mut();
+			let current = *id;
+			*id = id.saturating_add(1);
+			current
+		}))
+	}
+}
+
 impl Config for Test {
 	type AssetId = AssetId;
 	type Currencies = Currencies;
+	type IntentMigrator = IntentMigratorMock;
 	type RandomnessProvider = RandomnessProviderMock;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
@@ -985,6 +1017,10 @@ impl ExtBuilder {
 		MAX_PRICE_DIFFERENCE.with(|v| {
 			*v.borrow_mut() = self.max_price_difference;
 		});
+
+		MIGRATOR_SHOULD_FAIL.with(|v| *v.borrow_mut() = false);
+		MIGRATED_INTENTS.with(|v| v.borrow_mut().clear());
+		NEXT_INTENT_ID.with(|v| *v.borrow_mut() = 1);
 
 		MIN_TRADE_AMOUNT.with(|v| {
 			*v.borrow_mut() = self.min_trading_limit;

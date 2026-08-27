@@ -58,6 +58,7 @@ use hydradx_traits::CreateBare;
 use ice_support::AssetId;
 use ice_support::Balance;
 use ice_support::DcaData;
+use ice_support::DcaParams;
 use ice_support::IntentData;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
@@ -442,6 +443,26 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxIntentsReached
 		);
 
+		Self::do_add_intent(owner, input)
+	}
+
+	/// Creates a DCA intent for a schedule converted from `pallet-dca`.
+	///
+	/// The per-account cap is not enforced here — see `IntentMigrator`.
+	#[require_transactional]
+	pub fn do_add_migrated_intent(owner: T::AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
+		Self::do_add_intent(
+			owner,
+			IntentInput {
+				data: IntentDataInput::Dca(params),
+				deadline: None,
+				on_resolved: None,
+			},
+		)
+	}
+
+	#[require_transactional]
+	fn do_add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
 		if let Some(deadline) = input.deadline {
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}",
@@ -953,5 +974,11 @@ impl<T: Config> Pallet<T> {
 			current_id
 		});
 		(deadline as u128) << 64 | incremental_id as u128
+	}
+}
+
+impl<T: Config> ice_support::IntentMigrator<T::AccountId> for Pallet<T> {
+	fn add_migrated_intent(owner: T::AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
+		Self::do_add_migrated_intent(owner, params)
 	}
 }

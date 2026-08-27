@@ -5769,7 +5769,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.13.3"
+version = "1.13.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5827,7 +5827,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "441.0.0"
+version = "442.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -6184,7 +6184,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9258,7 +9258,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.20.0"
+version = "1.21.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9268,6 +9268,7 @@ dependencies = [
  "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
+ "ice-support",
  "lazy_static",
  "log",
  "orml-tokens",
@@ -10037,7 +10038,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
