@@ -1,3 +1,4 @@
+use crate::ice::PATH_TO_SNAPSHOT;
 use crate::polkadot_test_net::hydra_live_ext;
 use crate::polkadot_test_net::hydradx_run_to_next_block;
 use crate::polkadot_test_net::TestNet;
@@ -20,9 +21,6 @@ use xcm_emulator::Network;
 const DOT: u32 = 5;
 const A_DOT: u32 = 1001;
 
-pub const PATH_TO_SNAPSHOT: &str =
-	"snapshots/aave-simulator/7e10e2d20d0eb4293b3b5da688c63cffbb24b2cda27fd3abc85bf13b3656c98c";
-
 #[test]
 fn create_snapshot_should_work() {
 	TestNet::reset();
@@ -31,34 +29,34 @@ fn create_snapshot_should_work() {
 
 		let expected_dot = ReserveData {
 			configuration: U256::from_dec_str("753997831161164877079002568592629221489798055993152").unwrap(),
-			liquidity_index: U256::from_dec_str("1035336136294736724440835214").unwrap(),
-			current_liquidity_rate: U256::from_dec_str("1065196554024159900141310364").unwrap(),
-			variable_borrow_index: U256::from_dec_str("51028877334674195433308708").unwrap(),
-			current_variable_borrow_rate: U256::from_dec_str("79060184166853553946851366").unwrap(),
-			current_stable_borrow_rate: U256::from_dec_str("149060184166853553946851366").unwrap(),
-			last_update_timestamp: U256::from_dec_str("1769589174").unwrap(),
+			liquidity_index: U256::from_dec_str("1045464948422465089107155597").unwrap(),
+			current_liquidity_rate: U256::from_dec_str("1079785809929338250408957895").unwrap(),
+			variable_borrow_index: U256::from_dec_str("25387293470761311698916052").unwrap(),
+			current_variable_borrow_rate: U256::from_dec_str("39445756760347147130571212").unwrap(),
+			current_stable_borrow_rate: U256::from_dec_str("113891513520694294261142424").unwrap(),
+			last_update_timestamp: U256::from_dec_str("1775492238").unwrap(),
 			id: 3,
 			atoken_address: sp_core::H160(hex!("02639ec01313c8775fae74f2dad1118c8a8a86da")),
 			stable_debt_token_address: sp_core::H160(hex!("dc92f2fd6137b0bd5766ddf59c39c828b24f5248")),
 			variable_debt_token_address: sp_core::H160(hex!("34321cb7334807eb718b3e1ddfaeb0c6c0403f1a")),
-			interest_rate_strategy_address: sp_core::H160(hex!("b2dc5c391c6ed54880da06fe786f6f28d9fd99a6")),
-			accrued_to_treasury: U256::from_dec_str("32814671262692").unwrap(),
-			scaled_total_supply: U256::from_dec_str("99494530926548567").unwrap(),
+			interest_rate_strategy_address: sp_core::H160(hex!("74aa8048311db37f8ef0db76a4b035c19a36586e")),
+			accrued_to_treasury: U256::from_dec_str("7273030205000").unwrap(),
+			scaled_total_supply: U256::from_dec_str("71468032489613751").unwrap(),
 		};
 
 		let expected_hollar = ReserveData {
-			configuration: U256::from_dec_str("365354519770431488").unwrap(),
+			configuration: U256::from_dec_str("2671197528984125440").unwrap(),
 			liquidity_index: U256::from_dec_str("1000000000000000000000000000").unwrap(),
-			current_liquidity_rate: U256::from_dec_str("1017192592529644194792669728").unwrap(),
+			current_liquidity_rate: U256::from_dec_str("1026085346880660334471661913").unwrap(),
 			variable_borrow_index: U256::from_dec_str("0").unwrap(),
-			current_variable_borrow_rate: U256::from_dec_str("48790164996148630000000000").unwrap(),
+			current_variable_borrow_rate: U256::from_dec_str("44016888917752794000000000").unwrap(),
 			current_stable_borrow_rate: U256::from_dec_str("0").unwrap(),
-			last_update_timestamp: U256::from_dec_str("1769569944").unwrap(),
+			last_update_timestamp: U256::from_dec_str("1775485962").unwrap(),
 			id: 10,
 			atoken_address: sp_core::H160(hex!("8c0f3b9602374198974d2b2679d14a386f5b108e")),
 			stable_debt_token_address: sp_core::H160(hex!("d95d27688f028addbe93fa0e19fb095ee1111dd1")),
 			variable_debt_token_address: sp_core::H160(hex!("342923782ccaebf9c38dd9cb40436e82c42c73b5")),
-			interest_rate_strategy_address: sp_core::H160(hex!("6277f67402f9a7032e4c90c796b74343418e3628")),
+			interest_rate_strategy_address: sp_core::H160(hex!("39dfb27d814db32f904a17560837c9be8bf1b761")),
 			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
 			scaled_total_supply: U256::from_dec_str("0").unwrap(),
 		};
@@ -70,14 +68,14 @@ fn create_snapshot_should_work() {
 			variable_borrow_index: U256::from_dec_str("0").unwrap(),
 			current_variable_borrow_rate: U256::from_dec_str("0").unwrap(),
 			current_stable_borrow_rate: U256::from_dec_str("90000000000000000000000000").unwrap(),
-			last_update_timestamp: U256::from_dec_str("1769585214").unwrap(),
+			last_update_timestamp: U256::from_dec_str("1775492304").unwrap(),
 			id: 6,
 			atoken_address: sp_core::H160(hex!("34d5ffb83d14d82f87aaf2f13be895a3c814c2ad")),
 			stable_debt_token_address: sp_core::H160(hex!("6fc3b2f6584b3bd4502ebbc3738903a0968a8767")),
 			variable_debt_token_address: sp_core::H160(hex!("6bc2a0ac2495c0cdf5116d0df5d8052fccbc4d4e")),
 			interest_rate_strategy_address: sp_core::H160(hex!("5383a606ece147e94c1fa0b7375bc778f132b832")),
 			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
-			scaled_total_supply: U256::from_dec_str("10487846414586294956464513").unwrap(),
+			scaled_total_supply: U256::from_dec_str("6102227836230613007916143").unwrap(),
 		};
 
 		let expected_geth = ReserveData {
@@ -87,42 +85,41 @@ fn create_snapshot_should_work() {
 			variable_borrow_index: U256::from_dec_str("0").unwrap(),
 			current_variable_borrow_rate: U256::from_dec_str("0").unwrap(),
 			current_stable_borrow_rate: U256::from_dec_str("90000000000000000000000000").unwrap(),
-			last_update_timestamp: U256::from_dec_str("1769589342").unwrap(),
+			last_update_timestamp: U256::from_dec_str("1775489466").unwrap(),
 			id: 7,
 			atoken_address: sp_core::H160(hex!("8a598fe3e3a471ce865332e330d303502a0e2f52")),
 			stable_debt_token_address: sp_core::H160(hex!("62a0e4f1c38b4f41aeeac727f29854097b478811")),
 			variable_debt_token_address: sp_core::H160(hex!("fb2e66d76d2841443ab41102369ff33df9bc9a93")),
 			interest_rate_strategy_address: sp_core::H160(hex!("5383a606ece147e94c1fa0b7375bc778f132b832")),
 			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
-			scaled_total_supply: U256::from_dec_str("2355034935436638803964").unwrap(),
+			scaled_total_supply: U256::from_dec_str("1895632023631277681532").unwrap(),
 		};
 
 		let expected_usdt = ReserveData {
-			configuration: U256::from_dec_str("379853410758302483957202436554183033238679701692224").unwrap(),
-			liquidity_index: U256::from_dec_str("1045395624087717879065064539").unwrap(),
-			current_liquidity_rate: U256::from_dec_str("1079125208703227655761523015").unwrap(),
-			variable_borrow_index: U256::from_dec_str("19728462736792637876639013").unwrap(),
-			current_variable_borrow_rate: U256::from_dec_str("44583604606801630982965448").unwrap(),
-			current_stable_borrow_rate: U256::from_dec_str("53072950575850203872870681").unwrap(),
-			last_update_timestamp: U256::from_dec_str("1769589570").unwrap(),
+			configuration: U256::from_dec_str("379853410924455983430316920667158915773722773692224").unwrap(),
+			liquidity_index: U256::from_dec_str("1048831948416008838193948051").unwrap(),
+			current_liquidity_rate: U256::from_dec_str("1087751222982553415429376062").unwrap(),
+			variable_borrow_index: U256::from_dec_str("29319922340343707644029565").unwrap(),
+			current_variable_borrow_rate: U256::from_dec_str("51579857797538693765744510").unwrap(),
+			current_stable_borrow_rate: U256::from_dec_str("53947482224692336720718064").unwrap(),
+			last_update_timestamp: U256::from_dec_str("1775492310").unwrap(),
 			id: 1,
 			atoken_address: sp_core::H160(hex!("c64980e4eaf9a1151bd21712b9946b81e41e2b92")),
 			stable_debt_token_address: sp_core::H160(hex!("6863e05d3f794903e76056cc751c1b2006728380")),
 			variable_debt_token_address: sp_core::H160(hex!("32a8090e20748e530670ff520c4abc903db7e127")),
 			interest_rate_strategy_address: sp_core::H160(hex!("aa659cf1ce049ec00161d305b17e70a5c1a7382f")),
-			accrued_to_treasury: U256::from_dec_str("1009336828").unwrap(),
-			scaled_total_supply: U256::from_dec_str("9468205889716").unwrap(),
+			accrued_to_treasury: U256::from_dec_str("525239578").unwrap(),
+			scaled_total_supply: U256::from_dec_str("5129873488101").unwrap(),
 		};
 
 		let snapshot = Simulator::<Aave<Runtime>>::snapshot();
-
 		assert_eq!(snapshot.reserves.get(&5), Some(&expected_dot));
 		assert_eq!(snapshot.reserves.get(&222), Some(&expected_hollar));
 		assert_eq!(snapshot.reserves.get(&690), Some(&expected_gdot));
 		assert_eq!(snapshot.reserves.get(&4200), Some(&expected_geth));
 		assert_eq!(snapshot.reserves.get(&10), Some(&expected_usdt));
 
-		assert_eq!(snapshot.reserves.len(), 16);
+		assert_eq!(snapshot.reserves.len(), 21);
 	});
 }
 
