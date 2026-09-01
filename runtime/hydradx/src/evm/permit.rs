@@ -7,6 +7,7 @@ use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays, PostDispatchInfo,
 use frame_support::ensure;
 use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 use frame_support::traits::Time;
+use frame_support::BoundedVec;
 use pallet_evm::{AddressMapping, GasWeightMapping, Runner};
 use pallet_evm_precompile_call_permit::NoncesStorage;
 use pallet_genesis_history::migration::Weight;
@@ -158,10 +159,22 @@ where
 
 		match info.exit_reason {
 			ExitReason::Succeed(_) => Ok(post_info),
-			_ => Err(DispatchErrorWithPostInfo {
-				post_info,
-				error: pallet_transaction_multi_payment::Error::<R>::EvmPermitCallExecutionError.into(),
-			}),
+			reason => {
+				pallet_transaction_multi_payment::Pallet::<R>::deposit_event(
+					pallet_transaction_multi_payment::Event::<R>::EvmPermitCallFailed {
+						from: source,
+						to: target,
+						nonce: permit_nonce,
+						reason,
+						output: BoundedVec::truncate_from(info.value),
+					},
+				);
+
+				Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: pallet_transaction_multi_payment::Error::<R>::EvmPermitCallExecutionError.into(),
+				})
+			}
 		}
 	}
 

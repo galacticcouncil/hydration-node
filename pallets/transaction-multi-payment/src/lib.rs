@@ -69,6 +69,8 @@ type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_syst
 /// Spot price type
 pub type Price = FixedU128;
 
+pub const MAX_EVM_CALL_OUTPUT_LEN: u32 = 256;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -76,6 +78,7 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use codec::DecodeLimit;
+	use fp_evm::ExitReason;
 	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
@@ -167,7 +170,7 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	#[pallet::generate_deposit(pub fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// CurrencySet
 		/// [who, currency]
@@ -196,6 +199,15 @@ pub mod pallet {
 
 		/// Signed-branch dispatch permit fee payer
 		FeeSponsored { from: H160, fee_payer: T::AccountId },
+
+		/// The EVM call dispatched by a permit did not succeed; the permit nonce is spent either way.
+		EvmPermitCallFailed {
+			from: H160,
+			to: H160,
+			nonce: U256,
+			reason: ExitReason,
+			output: BoundedVec<u8, ConstU32<MAX_EVM_CALL_OUTPUT_LEN>>,
+		},
 	}
 
 	#[pallet::error]
