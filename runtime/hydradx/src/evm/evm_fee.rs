@@ -434,7 +434,7 @@ mod tests {
 	use std::cell::RefCell;
 
 	thread_local! {
-		static FUSE_STATES: RefCell<Vec<bool>> = RefCell::new(Vec::new());
+		static FUSE_STATES: RefCell<Vec<bool>> = const { RefCell::new(Vec::new()) };
 	}
 
 	struct RecordingWithdrawFuse;
