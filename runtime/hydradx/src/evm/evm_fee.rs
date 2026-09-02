@@ -159,6 +159,26 @@ pub struct TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePay
 	)>,
 );
 
+struct WithdrawFuseGuard<WF: WithdrawFuseControl>(PhantomData<WF>);
+
+impl<WF: WithdrawFuseControl> WithdrawFuseGuard<WF> {
+	fn new() -> Self {
+		WF::set_withdraw_fuse_active(false);
+		Self(PhantomData)
+	}
+}
+
+impl<WF: WithdrawFuseControl> Drop for WithdrawFuseGuard<WF> {
+	fn drop(&mut self) {
+		WF::set_withdraw_fuse_active(true);
+	}
+}
+
+fn with_inactive_withdraw_fuse<WF: WithdrawFuseControl, R>(f: impl FnOnce() -> R) -> R {
+	let _guard = WithdrawFuseGuard::<WF>::new();
+	f()
+}
+
 impl<T, OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF> OnChargeEVMTransaction<T>
 	for TransferEvmFees<OU, AccountCurrency, EvmFeeAsset, C, MC, SwappablePaymentAssetSupport, DotAssetId, WF>
 where
@@ -231,17 +251,17 @@ where
 			return Err(Error::<T>::WithdrawFailed);
 		}
 
-		WF::set_withdraw_fuse_active(false);
-		let burned = MC::burn_from(
-			fee_currency,
-			&fee_payer,
-			converted,
-			Preservation::Expendable,
-			Precision::Exact,
-			Fortitude::Polite,
-		)
-		.map_err(|_| Error::<T>::BalanceLow)?;
-		WF::set_withdraw_fuse_active(true);
+		let burned = with_inactive_withdraw_fuse::<WF, _>(|| {
+			MC::burn_from(
+				fee_currency,
+				&fee_payer,
+				converted,
+				Preservation::Expendable,
+				Precision::Exact,
+				Fortitude::Polite,
+			)
+			.map_err(|_| Error::<T>::BalanceLow)
+		})?;
 
 		Ok(Some(EvmPaymentInfo {
 			amount: burned,
@@ -278,48 +298,48 @@ where
 			let evm_account_id = T::AddressMapping::into_account_id(*who);
 			let fee_payer = evm_fee_payer().map(|a| a.into()).unwrap_or(evm_account_id);
 
-			WF::set_withdraw_fuse_active(false);
+			let adjusted_paid = with_inactive_withdraw_fuse::<WF, _>(|| {
+				if let Some(converted_corrected_fee) = multiply_by_rational_with_rounding(
+					corrected_fee.unique_saturated_into(),
+					paid.price.n,
+					paid.price.d,
+					Rounding::Up,
+				) {
+					let refund_amount = paid.amount.saturating_sub(converted_corrected_fee);
 
-			let adjusted_paid = if let Some(converted_corrected_fee) = multiply_by_rational_with_rounding(
-				corrected_fee.unique_saturated_into(),
-				paid.price.n,
-				paid.price.d,
-				Rounding::Up,
-			) {
-				let refund_amount = paid.amount.saturating_sub(converted_corrected_fee);
+					let result = MC::mint_into(paid.asset_id, &fee_payer, refund_amount);
 
-				let result = MC::mint_into(paid.asset_id, &fee_payer, refund_amount);
-
-				let refund_imbalance = if let Ok(amount) = result {
-					// Ensure that we minted all amount, in case of partial refund for some reason,
-					// refund the difference back to treasury.
-					// Bound ERC-20s (aTokens) rebase: the observed balance delta can be a wei or
-					// two off the requested transfer amount, so only exactness of other assets is
-					// asserted. Gated so the registry read is compiled out of production builds.
-					#[cfg(debug_assertions)]
-					if <crate::AssetRegistry as hydradx_traits::registry::BoundErc20>::contract_address(paid.asset_id)
+					let refund_imbalance = if let Ok(amount) = result {
+						// Ensure that we minted all amount, in case of partial refund for some reason,
+						// refund the difference back to treasury.
+						// Bound ERC-20s (aTokens) rebase: the observed balance delta can be a wei or
+						// two off the requested transfer amount, so only exactness of other assets is
+						// asserted. Gated so the registry read is compiled out of production builds.
+						#[cfg(debug_assertions)]
+						if <crate::AssetRegistry as hydradx_traits::registry::BoundErc20>::contract_address(
+							paid.asset_id,
+						)
 						.is_some()
-					{
-						debug_assert!(refund_amount.abs_diff(amount) <= 2);
+						{
+							debug_assert!(refund_amount.abs_diff(amount) <= 2);
+						} else {
+							debug_assert_eq!(amount, refund_amount);
+						}
+						refund_amount.saturating_sub(amount)
 					} else {
-						debug_assert_eq!(amount, refund_amount);
-					}
-					refund_amount.saturating_sub(amount)
+						// If error, we refund the whole amount back to treasury
+						refund_amount
+					};
+					// figure out how much is left to mint back
+					// refund_amount already minted back to account, imbalance is what is left to mint if any
+					paid.amount
+						.saturating_sub(refund_amount)
+						.saturating_add(refund_imbalance)
 				} else {
-					// If error, we refund the whole amount back to treasury
-					refund_amount
-				};
-				// figure out how much is left to mint back
-				// refund_amount already minted back to account, imbalance is what is left to mint if any
-				paid.amount
-					.saturating_sub(refund_amount)
-					.saturating_add(refund_imbalance)
-			} else {
-				// if conversion failed for some reason, we refund the whole amount back to treasury
-				paid.amount
-			};
-
-			WF::set_withdraw_fuse_active(true);
+					// if conversion failed for some reason, we refund the whole amount back to treasury
+					paid.amount
+				}
+			});
 
 			// We can simply refund all the remaining amount back to treasury
 			OU::on_unbalanced(EvmPaymentInfo {
@@ -411,6 +431,47 @@ impl AccountFeeCurrency<AccountId> for FeeCurrencyOverrideOrDefault {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::cell::RefCell;
+
+	thread_local! {
+		static FUSE_STATES: RefCell<Vec<bool>> = RefCell::new(Vec::new());
+	}
+
+	struct RecordingWithdrawFuse;
+
+	impl WithdrawFuseControl for RecordingWithdrawFuse {
+		fn set_withdraw_fuse_active(value: bool) {
+			FUSE_STATES.with(|states| states.borrow_mut().push(value));
+		}
+	}
+
+	fn reset_fuse_states() {
+		FUSE_STATES.with(|states| states.borrow_mut().clear());
+	}
+
+	fn fuse_states() -> Vec<bool> {
+		FUSE_STATES.with(|states| states.borrow().clone())
+	}
+
+	#[test]
+	fn withdraw_fuse_guard_restores_after_success() {
+		reset_fuse_states();
+
+		let result = with_inactive_withdraw_fuse::<RecordingWithdrawFuse, _>(|| Ok::<_, ()>(42));
+
+		assert_eq!(result, Ok(42));
+		assert_eq!(fuse_states(), vec![false, true]);
+	}
+
+	#[test]
+	fn withdraw_fuse_guard_restores_after_error() {
+		reset_fuse_states();
+
+		let result = with_inactive_withdraw_fuse::<RecordingWithdrawFuse, _>(|| Err::<(), _>("burn failed"));
+
+		assert_eq!(result, Err("burn failed"));
+		assert_eq!(fuse_states(), vec![false, true]);
+	}
 
 	#[test]
 	fn fee_payer_thread_local_set_get_clear() {
