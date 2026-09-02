@@ -9,8 +9,7 @@ contract Minimal {
     }
 }
 
-// deploys via inner CREATE / CREATE2, which are guarded by CreateInnerOriginFilter,
-// not by the deployer whitelist that guards top-level creates
+// deploys via inner CREATE / CREATE2, not the top-level deployer whitelist
 contract ContractFactory {
     event Deployed(address addr);
 

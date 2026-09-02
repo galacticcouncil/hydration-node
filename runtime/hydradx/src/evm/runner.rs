@@ -358,8 +358,7 @@ fn convert_authorization_list(auth_list: AuthorizationList) -> Vec<(U256, H160, 
 				item.chain_id.into(),
 				item.address,
 				item.nonce,
-				// recovered the same way upstream does it; nothing reads it today, but
-				// diverging here would silently break if that changes
+				// recovered the same way upstream does it
 				item.authorizing_address().ok(),
 			)
 		})

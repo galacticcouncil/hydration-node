@@ -230,8 +230,7 @@ where
 	}
 }
 
-// must list every address `execute` serves: it gates the DELEGATECALL/CALLCODE guard
-// and marks the address warm for eip-2929 accounting
+// must list every address `execute` serves
 pub fn is_precompile(address: H160) -> bool {
 	address == DISPATCH_ADDR
 		|| address == CALLPERMIT

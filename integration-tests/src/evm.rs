@@ -3467,7 +3467,7 @@ mod contract_deployment {
 		})
 	}
 
-	// the whitelist has to hold on the path a real wallet uses, not just the RPC estimate
+	// the whitelist must hold on the path a real wallet uses
 	#[test]
 	fn create_contract_from_ethereum_transact_should_be_rejected_if_address_is_not_whitelisted() {
 		TestNet::reset();
@@ -3514,8 +3514,7 @@ mod contract_deployment {
 		});
 	}
 
-	// CreateOriginFilter only guards top-level creates. inner CREATE/CREATE2 is guarded by
-	// CreateInnerOriginFilter, which we leave open — otherwise every factory breaks.
+	// only top-level creates are gated; inner CREATE/CREATE2 stays open
 	#[test]
 	fn factory_should_still_deploy_contracts_when_caller_is_not_whitelisted() {
 		TestNet::reset();
@@ -3571,8 +3570,7 @@ mod contract_deployment {
 	}
 }
 
-// these go through a real EVM call rather than MockHandle on purpose: only the real path
-// pushes the substrate storage layer that has to unwind when a precompile reverts.
+// real EVM call, not MockHandle: only that path unwinds storage on revert
 mod currency_precompile_overdraw {
 	use super::*;
 	use pretty_assertions::assert_eq;
@@ -3632,8 +3630,7 @@ mod currency_precompile_overdraw {
 		});
 	}
 
-	// the allowance is decremented before the transfer runs, so a failing transfer must
-	// unwind it — otherwise a spender could burn down an allowance without moving funds
+	// allowance is decremented before the transfer, so a revert must give it back
 	#[test]
 	fn failed_transfer_from_should_not_consume_allowance() {
 		TestNet::reset();
@@ -3708,8 +3705,7 @@ mod currency_precompile_overdraw {
 		});
 	}
 
-	// a successful transferFrom must still decrement, so the test above can't pass by
-	// the decrement simply never happening
+	// control: proves the test above isn't passing vacuously
 	#[test]
 	fn successful_transfer_from_should_consume_allowance() {
 		TestNet::reset();
@@ -3743,15 +3739,14 @@ mod currency_precompile_overdraw {
 	}
 }
 
-// `is_precompile` has to agree with what `execute` actually serves, otherwise the
-// DELEGATECALL/CALLCODE guard silently skips the precompiles it omits.
+// `is_precompile` must agree with `execute`, or the guard skips what it omits
 mod precompile_delegatecall {
 	use super::*;
 	use crate::erc20::deployer;
 	use crate::utils::contracts::deploy_contract;
 	use hydradx_runtime::evm::precompiles::FLASH_LOAN_RECEIVER;
 
-	// an address in the chainlink oracle range (0x000001..)
+	// chainlink oracle range
 	fn oracle_address() -> EvmAddress {
 		EvmAddress::from(hex!("0000010000000000000000000000000000000001"))
 	}
@@ -3824,7 +3819,7 @@ mod precompile_delegatecall {
 		assert_delegatecall_blocked(oracle_address(), "oracle");
 	}
 
-	// the guard must not touch ordinary CALLs to the same precompiles
+	// ordinary CALLs must stay unaffected
 	#[test]
 	fn plain_call_to_precompile_should_not_hit_the_delegatecall_guard() {
 		TestNet::reset();

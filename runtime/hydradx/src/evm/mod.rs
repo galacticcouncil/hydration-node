@@ -211,8 +211,6 @@ impl pallet_evm::Config for Runtime {
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = crate::Timestamp;
 	type CreateOriginFilter = EnsureWhitelistedDeployer<EvmAccounts<Runtime>>;
-	// deliberately unfiltered: the address checked here is the contract performing the inner
-	// CREATE/CREATE2, not the tx sender, so gating it would break every factory
 	type CreateInnerOriginFilter = ();
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
