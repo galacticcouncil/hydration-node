@@ -5678,7 +5678,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "16.0.2"
+version = "16.0.3"
 dependencies = [
  "async-trait",
  "clap",
@@ -5833,7 +5833,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "440.0.0"
+version = "441.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
