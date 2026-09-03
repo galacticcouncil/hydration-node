@@ -345,29 +345,29 @@ xcm-runtime-apis = { git = "https://github.com/galacticcouncil/polkadot-sdk", br
 parachains-common = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }
 
 # Frontier
-fc-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fc-db = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fc-mapping-sync = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fc-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false, features = ["rpc-binary-search-estimate"] }
-fc-rpc-core = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fc-consensus = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fc-db = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fc-mapping-sync = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fc-rpc = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false, features = ["rpc-binary-search-estimate"] }
+fc-rpc-core = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
 
-fp-consensus = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fp-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fp-rpc = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fp-self-contained = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-fp-storage = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fp-consensus = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fp-evm = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fp-rpc = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fp-self-contained = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+fp-storage = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
 
-pallet-ethereum = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm-chain-id = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm-precompile-dispatch = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm-precompile-simple = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm-precompile-modexp = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm-precompile-bn128 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-pallet-evm-precompile-blake2 = { git = "https://github.com/moonbeam-foundation/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
-evm = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2506", default-features = false }
-evm-gasometer = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2506", default-features = false }
-evm-runtime = { git = "https://github.com/moonbeam-foundation/evm", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-ethereum = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm-chain-id = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm-precompile-dispatch = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm-precompile-simple = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm-precompile-modexp = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm-precompile-bn128 = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+pallet-evm-precompile-blake2 = { git = "https://github.com/galacticcouncil/frontier", branch = "moonbeam-polkadot-stable2506", default-features = false }
+evm = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506", default-features = false }
+evm-gasometer = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506", default-features = false }
+evm-runtime = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506", default-features = false }
 
 # EVM from acala
 module-evm-utility-macro = { path = "runtime/hydradx/src/evm/evm-utility/macro", default-features = false }
@@ -407,6 +407,15 @@ westend-runtime = { git = "https://github.com/galacticcouncil/polkadot-sdk", bra
 cumulus-client-pov-recovery = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
 cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
+
+[patch."https://github.com/moonbeam-foundation/evm"]
+evm = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506" }
+evm-core = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506" }
+evm-gasometer = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506" }
+evm-runtime = { git = "https://github.com/galacticcouncil/evm", branch = "moonbeam-polkadot-stable2506" }
+
+[patch."https://github.com/moonbeam-foundation/ethereum"]
+ethereum = { git = "https://github.com/galacticcouncil/ethereum", branch = "moonbeam-polkadot-stable2506" }
 
 [patch."https://github.com/moonbeam-foundation/open-runtime-module-library"]
 # ORML dependencies
@@ -737,6 +746,7 @@ cumulus-pallet-parachain-system-proc-macro = { git = "https://github.com/galacti
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
 
 [patch.crates-io]
+ethereum = { git = "https://github.com/galacticcouncil/ethereum", branch = "moonbeam-polkadot-stable2506" }
 sc-consensus-epochs = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
 frame-benchmarking = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
 frame-benchmarking-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch" }
