@@ -358,7 +358,8 @@ fn convert_authorization_list(auth_list: AuthorizationList) -> Vec<(U256, H160, 
 				item.chain_id.into(),
 				item.address,
 				item.nonce,
-				None, // authority field not available in AuthorizationListItem
+				// recovered the same way upstream does it
+				item.authorizing_address().ok(),
 			)
 		})
 		.collect()

@@ -50,6 +50,7 @@ mod stableswap;
 mod stableswap_curve_comparison;
 mod staking;
 mod transact_call_filter;
+mod uniswap_v3_router;
 mod utility;
 pub mod utils;
 mod vesting;

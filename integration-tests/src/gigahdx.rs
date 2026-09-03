@@ -2293,6 +2293,9 @@ fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	];
 	init_code.extend_from_slice(&runtime);
 
+	// top-level creates go through the deployer whitelist, runner entry point included
+	assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), acl_admin));
+
 	use pallet_evm::Runner;
 	<Runtime as pallet_evm::Config>::Runner::create(
 		acl_admin,
