@@ -8852,3 +8852,118 @@ fn solver_should_drop_aave_intent_and_settle_the_rest_when_reserves_are_capped()
 			);
 		});
 }
+
+/// An intent that expires between solve and execution must not take the batch down.
+///
+/// Both users sell HDX for HOLLAR, so the only difference is the deadline: Alice's
+/// falls inside the solver margin, Bob's does not. Settlement rejects `deadline <=
+/// now` and a strict solution is all-or-nothing, so Alice's intent has to be
+/// withheld from the solver rather than resolved and reverted.
+#[test]
+fn solver_should_drop_intent_expiring_within_the_margin_and_settle_the_rest() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let hdx = 0u32;
+	let hollar = 222u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let unit_18 = 1_000_000_000_000_000_000u128;
+
+	let amount_in = 10_000 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.endow_account(bob.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			// One block of life left: unexpired now, gone by the time the solution lands.
+			let expiring = Some(ts + primitives::constants::time::MILLISECS_PER_BLOCK);
+			let healthy = Some(ts + primitives::constants::time::MILLISECS_PER_BLOCK * 100);
+
+			for (who, deadline) in [(alice.clone(), expiring), (bob.clone(), healthy)] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: hollar,
+							amount_in,
+							amount_out: unit_18,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+			}
+
+			// Both are live in storage; only the solver view filters.
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 2);
+
+			let mut alice_intent = None;
+			let mut bob_intent = None;
+			for (id, _) in pallet_intent::Intents::<Runtime>::iter() {
+				match pallet_intent::Pallet::<Runtime>::intent_owner(id) {
+					Some(ref o) if *o == alice => alice_intent = Some(id),
+					Some(ref o) if *o == bob => bob_intent = Some(id),
+					_ => {}
+				}
+			}
+			let alice_intent = alice_intent.expect("alice intent stored");
+			let bob_intent = bob_intent.expect("bob intent stored");
+
+			let bob_hollar_before = Currencies::total_balance(hollar, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
+				},
+			)
+			.expect("solver must still produce a solution for the healthy intent");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(
+				solution.resolved_intents.len(),
+				1,
+				"only the intent that survives the margin resolves"
+			);
+			assert_eq!(
+				solution.resolved_intents[0].id, bob_intent,
+				"the survivor is bob's healthy intent"
+			);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(bob_intent).is_none(),
+				"bob's intent should be resolved and removed"
+			);
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(alice_intent).is_some(),
+				"alice's intent should survive unfilled, not poison the batch"
+			);
+			assert!(
+				Currencies::total_balance(hollar, &bob) > bob_hollar_before,
+				"bob should have received HOLLAR"
+			);
+		});
+}

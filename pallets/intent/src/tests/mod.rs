@@ -6,5 +6,6 @@ mod intent_resolved;
 mod mock;
 mod ocw;
 mod remove_intent;
+mod solver_intents;
 mod submit_intent;
 mod validate_resolve;

@@ -120,6 +120,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAllowedIntentDuration: Get<Moment>;
 
+		/// How far ahead of `now` an intent must still be valid to be offered to the
+		/// solver, in milliseconds.
+		///
+		/// A solution is built against one block and executed in the next, so an
+		/// intent expiring in between would be rejected by `validate_resolve` and take
+		/// the whole batch with it. One block of headroom matches that gap, which
+		/// `longevity(1)` on the solution caps.
+		#[pallet::constant]
+		type SolverDeadlineMargin: Get<Moment>;
+
 		/// Oracle price provider for DCA dynamic slippage.
 		///
 		/// Pair-based provider: internally consults the on-chain route
@@ -586,10 +596,22 @@ impl<T: Config> Pallet<T> {
 			.try_into()
 			.unwrap_or(u32::MAX);
 
+		// Settlement rejects `deadline <= now`, and one rejected intent fails the whole
+		// strict solution. The solver cannot see this itself — the solver-facing intent
+		// carries no deadline — so anything that will not survive until the next block
+		// is withheld here rather than allowed to poison the batch.
+		let deadline_cutoff = T::TimestampProvider::now().saturating_add(T::SolverDeadlineMargin::get());
+
 		let mut intents: Vec<(IntentId, Intent, Option<Balance>)> = Intents::<T>::iter()
 			.filter_map(|(id, intent)| {
 				match &intent.data {
-					IntentData::Swap(_) => Some((id, intent, None)),
+					IntentData::Swap(_) => {
+						if intent.deadline.is_some_and(|deadline| deadline <= deadline_cutoff) {
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), swap intent {id:?} skipped: expires within the solver margin (deadline: {:?}, cutoff: {deadline_cutoff:?})", intent.deadline);
+							return None;
+						}
+						Some((id, intent, None))
+					}
 					IntentData::Dca(dca) => {
 						// Period eligibility
 						let next_eligible = dca.last_execution_block.saturating_add(dca.period);

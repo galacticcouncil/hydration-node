@@ -55,6 +55,8 @@ pub(crate) const CHARLIE: AccountId = 4;
 
 //5 SEC.
 pub(crate) const MAX_INTENT_DEADLINE: pallet_intent::types::Moment = 5 * ONE_SECOND;
+/// Headroom the solver view keeps so an intent cannot expire between solve and execution.
+pub(crate) const SOLVER_DEADLINE_MARGIN: pallet_intent::types::Moment = 2 * ONE_SECOND;
 pub(crate) const ONE_SECOND: pallet_intent::types::Moment = 1_000;
 
 type AccountId = u64;
@@ -279,6 +281,7 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
+	type SolverDeadlineMargin = ConstU64<SOLVER_DEADLINE_MARGIN>;
 	type OraclePriceProvider = MockOracleProvider;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
