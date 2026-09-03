@@ -31,7 +31,7 @@ use primitives::{constants::time::SECS_PER_BLOCK, AssetId, Balance, BlockNumber}
 use sp_core::U256;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating, Zero},
-	DispatchError, RuntimeDebug, SaturatedConversion,
+	DispatchError, SaturatedConversion,
 };
 use sp_std::marker::PhantomData;
 
@@ -40,7 +40,7 @@ const VIEW_GAS_LIMIT: u64 = 100_000;
 const MM_ORACLE_DENOM: u128 = 100_000_000;
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum AggregatorV3Interface {
 	LatestRound = "latestRoundData()",

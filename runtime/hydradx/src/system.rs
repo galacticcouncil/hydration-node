@@ -37,8 +37,8 @@ use frame_support::{
 	dispatch::DispatchClass,
 	parameter_types,
 	sp_runtime::{
-		traits::{ConstU32, ConstU64, IdentityLookup},
-		FixedPointNumber, Perbill, Perquintill, RuntimeDebug,
+		traits::{ConstU128, ConstU32, ConstU64, IdentityLookup},
+		FixedPointNumber, Perbill, Perquintill,
 	},
 	traits::{
 		fungible::HoldConsideration, ConstBool, Contains, EitherOf, InstanceFilter, LinearStoragePrice, PrivilegeCmp,
@@ -162,7 +162,10 @@ parameter_types! {
 	pub const BlockHashCount: BlockNumber = 7200;
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
-		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+		frame_system::limits::BlockLength::builder()
+			.max_length(5 * 1024 * 1024)
+			.modify_max_length_for_class(DispatchClass::Normal, |max| *max = NORMAL_DISPATCH_RATIO * *max)
+			.build();
 	pub const SS58Prefix: u16 = 0;
 }
 
@@ -311,7 +314,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
 	type WeightInfo = weights::cumulus_pallet_parachain_system::HydraWeight<Runtime>;
 	type ConsensusHook = ConsensusHook;
-	type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
 	type RelayParentOffset = RelayParentOffset;
 }
 
@@ -435,6 +437,8 @@ impl pallet_session::Config for Runtime {
 	type Keys = opaque::SessionKeys;
 	type WeightInfo = ();
 	type DisablingStrategy = ();
+	type Currency = Balances;
+	type KeyDeposit = ConstU128<0>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -501,18 +505,7 @@ impl pallet_identity::Config for Runtime {
 
 /// The type used to represent the kinds of proxying allowed.
 #[derive(
-	Copy,
-	Clone,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	RuntimeDebug,
-	MaxEncodedLen,
-	TypeInfo,
+	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, DecodeWithMemTracking, Debug, MaxEncodedLen, TypeInfo,
 )]
 pub enum ProxyType {
 	Any,
