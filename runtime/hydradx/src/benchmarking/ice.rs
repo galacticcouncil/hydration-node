@@ -4,22 +4,18 @@ use crate::*;
 use frame_benchmarking::account;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
-use hydra_dx_math::types::Ratio;
 use ice_support::Intent as IntentIce;
 use ice_support::IntentData;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
-use ice_support::Price;
 use ice_support::Solution;
 use ice_support::SwapData;
 use ice_support::SwapParams;
-use ice_support::MAX_NUMBER_OF_RESOLVED_INTENTS;
 use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
 use pallet_intent::types::IntentInput;
 use pallet_intent::types::OnResolved;
 use sp_runtime::DispatchResult;
-use sp_std::collections::btree_map::BTreeMap;
 
 const SEED: u32 = 1;
 
@@ -106,12 +102,6 @@ runtime_benchmarks! {
 			IntentIce { id, data: IntentData::Swap(SwapData::from(&swap_params)) },
 			IntentIce { id: counter_id, data: IntentData::Swap(SwapData::from(&counter_params)) },
 		];
-
-		let mut cp: BTreeMap<AssetId, Price> = BTreeMap::new();
-		assert!(cp.insert(HDX, Ratio{n: 10000, d: 3}).is_none());
-		for i in 1..(MAX_NUMBER_OF_RESOLVED_INTENTS * 2) {
-			assert!(cp.insert(i, Ratio{n: 1, d: 3}).is_none());
-		}
 
 		let score = 0;
 		let s = Solution::new(resolved_intents.try_into().unwrap(), BoundedVec::new(), score);
