@@ -53,6 +53,8 @@ pub enum Function {
 	// AToken
 	UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
 	ScaledTotalSupply = "scaledTotalSupply()",
+	// Underlying ERC20
+	BalanceOf = "balanceOf(address)",
 }
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq)]
@@ -71,9 +73,11 @@ pub struct ReserveData {
 	pub interest_rate_strategy_address: EvmAddress,
 	pub accrued_to_treasury: U256,
 	pub scaled_total_supply: U256,
+	/// Underlying held by the aToken contract. A `withdraw` transfers out of this
+	/// balance, so it — not the supply cap — is what bounds the withdraw direction.
+	pub available_liquidity: U256,
 }
 
-#[allow(dead_code)]
 impl ReserveData {
 	fn decimals(&self) -> u8 {
 		//bit 48-55: Decimals
@@ -109,6 +113,80 @@ impl ReserveData {
 	fn available_supply(&self) -> U256 {
 		self.supply_cap().saturating_sub(self.current_supply())
 	}
+
+	fn flag(&self, bit: usize) -> bool {
+		!(self.configuration & (U256::one() << bit)).is_zero()
+	}
+
+	fn is_active(&self) -> bool {
+		//bit 56: IS_ACTIVE
+		self.flag(56)
+	}
+
+	fn is_frozen(&self) -> bool {
+		//bit 57: IS_FROZEN
+		self.flag(57)
+	}
+
+	fn is_paused(&self) -> bool {
+		//bit 60: IS_PAUSED
+		self.flag(60)
+	}
+
+	/// `ValidationLogic.validateSupply`: active, not paused, not frozen.
+	fn supply_allowed(&self) -> bool {
+		self.is_active() && !self.is_paused() && !self.is_frozen()
+	}
+
+	/// `ValidationLogic.validateWithdraw`: active and not paused. A frozen reserve
+	/// still allows withdrawals — freezing only blocks new supply and borrowing.
+	fn withdraw_allowed(&self) -> bool {
+		self.is_active() && !self.is_paused()
+	}
+
+	fn can_supply(&self) -> bool {
+		self.supply_allowed() && !self.available_supply().is_zero()
+	}
+
+	fn can_withdraw(&self) -> bool {
+		self.withdraw_allowed() && !self.available_liquidity.is_zero()
+	}
+
+	/// Scaled-balance delta that raises `current_supply()` by `amount`, i.e. the
+	/// inverse of the index scaling `current_supply` applies.
+	fn scaled_from_underlying(&self, amount: U256) -> Option<U256> {
+		amount
+			.checked_mul(U256::from(10).pow(27.into()))?
+			.checked_div(self.liquidity_index)
+	}
+
+	/// Reject a supply the reserve is closed to or cannot absorb, and book the accepted amount so
+	/// later legs of the same solution see the reduced headroom. Without booking
+	/// it, two legs into one reserve each pass alone and revert together on chain.
+	fn take_supply_capacity(&mut self, amount: Balance) -> Result<(), SimulatorError> {
+		let amount = U256::from(amount);
+		ensure!(self.supply_allowed(), SimulatorError::NotSupported);
+		ensure!(amount <= self.available_supply(), SimulatorError::InsufficientLiquidity);
+
+		let scaled = self.scaled_from_underlying(amount).ok_or(SimulatorError::MathError)?;
+		self.scaled_total_supply = self.scaled_total_supply.saturating_add(scaled);
+
+		Ok(())
+	}
+
+	/// Reject a withdrawal the aToken contract cannot cover, and book it for the
+	/// same reason `take_supply_capacity` books supplies.
+	fn take_withdraw_liquidity(&mut self, amount: Balance) -> Result<(), SimulatorError> {
+		let amount = U256::from(amount);
+		ensure!(self.withdraw_allowed(), SimulatorError::NotSupported);
+		ensure!(
+			amount <= self.available_liquidity,
+			SimulatorError::InsufficientLiquidity
+		);
+		self.available_liquidity = self.available_liquidity.saturating_sub(amount);
+
+		Ok(())
+	}
 }
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, Eq, PartialEq)]
@@ -119,6 +197,31 @@ pub struct Snapshot {
 	pub contract: EvmAddress,
 
 	pub pairs: Vec<(AssetId, AssetId)>,
+}
+
+impl Snapshot {
+	/// Charge a trade against the reserve it consumes, mirroring the direction test
+	/// `AaveTradeExecutor::do_sell` makes: the underlying going in is a `supply`,
+	/// bounded by the supply cap; the underlying coming out is a `withdraw`, bounded
+	/// by the aToken's underlying balance. Reserves are keyed by the underlying, so
+	/// membership decides the direction.
+	fn take_capacity(&mut self, asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Result<(), SimulatorError> {
+		if let Some(reserve) = self.reserves.get_mut(&asset_in) {
+			reserve.take_supply_capacity(amount)
+		} else if let Some(reserve) = self.reserves.get_mut(&asset_out) {
+			reserve.take_withdraw_liquidity(amount)
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Whether the pair can still be traded in at least one direction.
+	fn is_tradable(&self, a: &AssetId, b: &AssetId) -> bool {
+		match self.reserves.get(a).or_else(|| self.reserves.get(b)) {
+			Some(reserve) => reserve.can_supply() || reserve.can_withdraw(),
+			None => true,
+		}
+	}
 }
 
 //NOTE: This is tmp. dummy impl. of aave simulator that always trade 1:1 and doesn't do any checks.
@@ -216,7 +319,28 @@ impl<DP: DataProvider> Simulator<DP> {
 			),
 			accrued_to_treasury: decoded[12].clone().into_uint().unwrap_or_default(),
 			scaled_total_supply: Simulator::<DP>::get_scaled_total_supply(a_token)?,
+			available_liquidity: Simulator::<DP>::get_balance_of(reserve, a_token)?,
 		})
+	}
+
+	/// `balanceOf(account)` on `token`.
+	fn get_balance_of(token: EvmAddress, account: EvmAddress) -> Result<U256, SimulatorError> {
+		let ctx = CallContext::new_view(token);
+		let data = EvmDataWriter::new_with_selector(Function::BalanceOf)
+			.write(account)
+			.build();
+
+		let (exit_reason, value) = DP::view(ctx, data, GAS_LIMIT);
+		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
+			log::error!(target: LOG_TARGET, "to get balance of {account:?} on {token:?}, reason: {exit_reason:?}, value: {value:?}");
+			return Err(SimulatorError::Other);
+		}
+
+		ensure!(value.len() <= 32, {
+			log::error!(target: LOG_TARGET, "invalid balance");
+			SimulatorError::Other
+		});
+		Ok(U256::from_big_endian(value.as_slice()))
 	}
 
 	fn get_scaled_total_supply(reserve: EvmAddress) -> Result<U256, SimulatorError> {
@@ -285,8 +409,11 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::AssetNotFound);
 		}
 
+		let mut next = snapshot.clone();
+		next.take_capacity(asset_in, asset_out, amount_out)?;
+
 		Ok((
-			snapshot.clone(),
+			next,
 			TradeResult {
 				amount_in: amount_out,
 				amount_out,
@@ -305,8 +432,11 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::AssetNotFound);
 		}
 
+		let mut next = snapshot.clone();
+		next.take_capacity(asset_in, asset_out, amount_in)?;
+
 		Ok((
-			snapshot.clone(),
+			next,
 			TradeResult {
 				amount_in,
 				amount_out: amount_in,
@@ -330,14 +460,298 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		None
 	}
 
-	fn pool_edges(_snapshot: &Self::Snapshot) -> sp_std::vec::Vec<hydradx_traits::router::PoolEdge<AssetId>> {
-		_snapshot
+	fn pool_edges(snapshot: &Self::Snapshot) -> sp_std::vec::Vec<hydradx_traits::router::PoolEdge<AssetId>> {
+		snapshot
 			.pairs
 			.iter()
+			// A reserve reverts either way once it is inactive or paused, or once it is
+			// both capped and drained, so stop advertising it rather than routing into a
+			// guaranteed revert. The edge is undirected, so a pair still usable one way
+			// stays listed and the simulators reject the dead direction per trade.
+			.filter(|(a, b)| snapshot.is_tradable(a, b))
 			.map(|(a, b)| PoolEdge {
 				pool_type: PoolType::Aave,
 				assets: vec![*a, *b],
 			})
 			.collect()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	const UNDERLYING: AssetId = 1;
+	const ATOKEN: AssetId = 2;
+	const RAY: u128 = 1_000_000_000_000_000_000_000_000_000;
+
+	struct TestDp;
+
+	impl DataProvider for TestDp {
+		fn view(_: CallContext, _: Vec<u8>, _: u64) -> (ExitReason, Vec<u8>) {
+			unimplemented!("snapshot-only tests never call the EVM")
+		}
+		fn borrowing_contract() -> EvmAddress {
+			EvmAddress::default()
+		}
+		fn address_to_asset(_: EvmAddress) -> Option<AssetId> {
+			None
+		}
+		fn pairs() -> Vec<(AssetId, AssetId)> {
+			Vec::new()
+		}
+	}
+
+	type Sim = Simulator<TestDp>;
+
+	const ACTIVE_BIT: usize = 56;
+	const FROZEN_BIT: usize = 57;
+	const PAUSED_BIT: usize = 60;
+
+	fn with_bit(mut r: ReserveData, bit: usize) -> ReserveData {
+		r.configuration |= U256::one() << bit;
+		r
+	}
+
+	fn without_bit(mut r: ReserveData, bit: usize) -> ReserveData {
+		r.configuration &= !(U256::one() << bit);
+		r
+	}
+
+	/// `decimals` is kept at 0 so the supply cap is expressed in raw units, and
+	/// `liquidity_index` at 1 RAY so `current_supply == scaled_total_supply`.
+	/// The reserve is active, unfrozen and unpaused unless a test says otherwise.
+	fn reserve(supply_cap: u128, current_supply: u128, available_liquidity: u128) -> ReserveData {
+		ReserveData {
+			configuration: (U256::from(supply_cap) << 116) | (U256::one() << ACTIVE_BIT),
+			liquidity_index: U256::from(RAY),
+			current_liquidity_rate: U256::zero(),
+			variable_borrow_index: U256::zero(),
+			current_variable_borrow_rate: U256::zero(),
+			current_stable_borrow_rate: U256::zero(),
+			last_update_timestamp: U256::zero(),
+			id: 0,
+			atoken_address: EvmAddress::default(),
+			stable_debt_token_address: EvmAddress::default(),
+			variable_debt_token_address: EvmAddress::default(),
+			interest_rate_strategy_address: EvmAddress::default(),
+			accrued_to_treasury: U256::zero(),
+			scaled_total_supply: U256::from(current_supply),
+			available_liquidity: U256::from(available_liquidity),
+		}
+	}
+
+	fn snapshot(reserve: ReserveData) -> Snapshot {
+		let mut reserves = BTreeMap::new();
+		reserves.insert(UNDERLYING, reserve);
+		Snapshot {
+			reserves,
+			contract: EvmAddress::default(),
+			pairs: vec![(UNDERLYING, ATOKEN)],
+		}
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_supply_cap_is_reached() {
+		let snapshot = snapshot(reserve(1_000, 1_000, u128::MAX));
+
+		let result = Sim::simulate_sell(UNDERLYING, ATOKEN, 1, 0, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::InsufficientLiquidity));
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_amount_exceeds_remaining_headroom() {
+		let snapshot = snapshot(reserve(1_000, 900, u128::MAX));
+
+		let result = Sim::simulate_sell(UNDERLYING, ATOKEN, 101, 0, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::InsufficientLiquidity));
+	}
+
+	#[test]
+	fn simulate_sell_should_succeed_when_amount_exactly_fills_headroom() {
+		let snapshot = snapshot(reserve(1_000, 900, u128::MAX));
+
+		let (next, trade) = Sim::simulate_sell(UNDERLYING, ATOKEN, 100, 0, &snapshot).unwrap();
+
+		assert_eq!(
+			trade,
+			TradeResult {
+				amount_in: 100,
+				amount_out: 100
+			}
+		);
+		assert_eq!(next.reserves[&UNDERLYING].available_supply(), U256::zero());
+	}
+
+	#[test]
+	fn simulate_sell_should_consume_capacity_so_a_second_leg_sees_less_headroom() {
+		let snapshot = snapshot(reserve(1_000, 900, u128::MAX));
+
+		let (next, _) = Sim::simulate_sell(UNDERLYING, ATOKEN, 60, 0, &snapshot).unwrap();
+		let second = Sim::simulate_sell(UNDERLYING, ATOKEN, 60, 0, &next);
+
+		assert_eq!(next.reserves[&UNDERLYING].available_supply(), U256::from(40));
+		assert_eq!(second, Err(SimulatorError::InsufficientLiquidity));
+	}
+
+	#[test]
+	fn simulate_sell_should_ignore_the_cap_when_withdrawing() {
+		let snapshot = snapshot(reserve(1_000, 1_000, 500));
+
+		let (_, trade) = Sim::simulate_sell(ATOKEN, UNDERLYING, 500, 0, &snapshot).unwrap();
+
+		assert_eq!(
+			trade,
+			TradeResult {
+				amount_in: 500,
+				amount_out: 500
+			}
+		);
+	}
+
+	#[test]
+	fn simulate_sell_should_succeed_when_reserve_has_no_cap() {
+		// supplyCap == 0 means "uncapped" in the Aave configuration bitmap.
+		let snapshot = snapshot(reserve(0, u128::MAX / 2, u128::MAX));
+
+		let (_, trade) = Sim::simulate_sell(UNDERLYING, ATOKEN, 1_000_000, 0, &snapshot).unwrap();
+
+		assert_eq!(trade.amount_out, 1_000_000);
+	}
+
+	#[test]
+	fn simulate_buy_should_fail_when_supply_cap_is_reached() {
+		let snapshot = snapshot(reserve(1_000, 1_000, u128::MAX));
+
+		let result = Sim::simulate_buy(UNDERLYING, ATOKEN, 1, Balance::MAX, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::InsufficientLiquidity));
+	}
+
+	#[test]
+	fn pool_edges_should_exclude_pair_when_reserve_is_capped_and_drained() {
+		let snapshot = snapshot(reserve(1_000, 1_000, 0));
+
+		assert!(Sim::pool_edges(&snapshot).is_empty());
+	}
+
+	#[test]
+	fn pool_edges_should_include_pair_when_capped_but_still_withdrawable() {
+		let snapshot = snapshot(reserve(1_000, 1_000, 500));
+
+		assert_eq!(Sim::pool_edges(&snapshot).len(), 1);
+	}
+
+	#[test]
+	fn pool_edges_should_include_pair_when_reserve_has_headroom() {
+		let snapshot = snapshot(reserve(1_000, 999, 0));
+
+		let edges = Sim::pool_edges(&snapshot);
+
+		assert_eq!(edges.len(), 1);
+		assert_eq!(edges[0].assets, vec![UNDERLYING, ATOKEN]);
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_withdraw_liquidity_is_exhausted() {
+		let snapshot = snapshot(reserve(1_000, 500, 100));
+
+		let result = Sim::simulate_sell(ATOKEN, UNDERLYING, 101, 0, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::InsufficientLiquidity));
+	}
+
+	#[test]
+	fn simulate_sell_should_consume_withdraw_liquidity_so_a_second_leg_sees_less() {
+		let snapshot = snapshot(reserve(1_000, 500, 100));
+
+		let (next, _) = Sim::simulate_sell(ATOKEN, UNDERLYING, 60, 0, &snapshot).unwrap();
+		let second = Sim::simulate_sell(ATOKEN, UNDERLYING, 60, 0, &next);
+
+		assert_eq!(next.reserves[&UNDERLYING].available_liquidity, U256::from(40));
+		assert_eq!(second, Err(SimulatorError::InsufficientLiquidity));
+	}
+
+	#[test]
+	fn simulate_sell_should_not_consume_withdraw_liquidity_when_supplying() {
+		let snapshot = snapshot(reserve(1_000, 0, 100));
+
+		let (next, _) = Sim::simulate_sell(UNDERLYING, ATOKEN, 50, 0, &snapshot).unwrap();
+
+		assert_eq!(next.reserves[&UNDERLYING].available_liquidity, U256::from(100));
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_supplying_into_a_frozen_reserve() {
+		let snapshot = snapshot(with_bit(reserve(1_000, 0, 500), FROZEN_BIT));
+
+		let result = Sim::simulate_sell(UNDERLYING, ATOKEN, 10, 0, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::NotSupported));
+	}
+
+	#[test]
+	fn simulate_sell_should_succeed_when_withdrawing_from_a_frozen_reserve() {
+		// Freezing blocks new supply only — withdrawals stay open.
+		let snapshot = snapshot(with_bit(reserve(1_000, 0, 500), FROZEN_BIT));
+
+		let (_, trade) = Sim::simulate_sell(ATOKEN, UNDERLYING, 500, 0, &snapshot).unwrap();
+
+		assert_eq!(trade.amount_out, 500);
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_supplying_into_a_paused_reserve() {
+		let snapshot = snapshot(with_bit(reserve(1_000, 0, 500), PAUSED_BIT));
+
+		let result = Sim::simulate_sell(UNDERLYING, ATOKEN, 10, 0, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::NotSupported));
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_withdrawing_from_a_paused_reserve() {
+		let snapshot = snapshot(with_bit(reserve(1_000, 0, 500), PAUSED_BIT));
+
+		let result = Sim::simulate_sell(ATOKEN, UNDERLYING, 10, 0, &snapshot);
+
+		assert_eq!(result, Err(SimulatorError::NotSupported));
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_reserve_is_inactive() {
+		let snapshot = snapshot(without_bit(reserve(1_000, 0, 500), ACTIVE_BIT));
+
+		assert_eq!(
+			Sim::simulate_sell(UNDERLYING, ATOKEN, 10, 0, &snapshot),
+			Err(SimulatorError::NotSupported)
+		);
+		assert_eq!(
+			Sim::simulate_sell(ATOKEN, UNDERLYING, 10, 0, &snapshot),
+			Err(SimulatorError::NotSupported)
+		);
+	}
+
+	#[test]
+	fn pool_edges_should_exclude_pair_when_reserve_is_paused() {
+		let snapshot = snapshot(with_bit(reserve(1_000, 0, 500), PAUSED_BIT));
+
+		assert!(Sim::pool_edges(&snapshot).is_empty());
+	}
+
+	#[test]
+	fn pool_edges_should_exclude_pair_when_reserve_is_inactive() {
+		let snapshot = snapshot(without_bit(reserve(1_000, 0, 500), ACTIVE_BIT));
+
+		assert!(Sim::pool_edges(&snapshot).is_empty());
+	}
+
+	#[test]
+	fn pool_edges_should_include_pair_when_frozen_but_still_withdrawable() {
+		let snapshot = snapshot(with_bit(reserve(1_000, 0, 500), FROZEN_BIT));
+
+		assert_eq!(Sim::pool_edges(&snapshot).len(), 1);
 	}
 }

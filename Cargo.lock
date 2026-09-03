@@ -370,7 +370,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "ethabi",
  "evm",

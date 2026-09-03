@@ -8721,3 +8721,134 @@ fn solver_caps_at_max_resolved_intents() {
 			assert_fee_receiver_gained(&fee_before, &fee_expected);
 		});
 }
+
+/// A reserve at its supply cap must not take the whole batch down with it.
+///
+/// Alice buys an aToken, which is only reachable by wrapping through Aave; Bob
+/// buys HOLLAR straight from the Omnipool. With every Aave reserve capped and
+/// drained, the solver has to drop Alice's intent and still settle Bob's, rather
+/// than proposing a solution whose Aave leg reverts and rolls back the batch.
+#[test]
+fn solver_should_drop_aave_intent_and_settle_the_rest_when_reserves_are_capped() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let hdx = 0u32;
+	let husdt = 1111u32; // aToken — reachable only via an Aave wrap
+	let hollar = 222u32; // plain Omnipool leg, no Aave hop
+	let hdx_unit = 1_000_000_000_000u128;
+	let unit_18 = 1_000_000_000_000_000_000u128;
+
+	let amount_in = 10_000 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.endow_account(bob.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			for (who, asset_out) in [(alice.clone(), husdt), (bob.clone(), hollar)] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out,
+							amount_in,
+							amount_out: unit_18,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+			}
+
+			let mut alice_intent = None;
+			let mut bob_intent = None;
+			for (id, intent) in pallet_intent::Pallet::<Runtime>::get_valid_intents() {
+				let ice_support::IntentData::Swap(ref s) = intent.data else {
+					panic!("expected Swap");
+				};
+				if s.asset_out == husdt {
+					alice_intent = Some(id);
+				} else if s.asset_out == hollar {
+					bob_intent = Some(id);
+				}
+			}
+			let alice_intent = alice_intent.expect("alice intent stored");
+			let bob_intent = bob_intent.expect("bob intent stored");
+
+			let bob_hollar_before = Currencies::total_balance(hollar, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 mut state: CombinedSimulatorState| {
+					// Cap and drain every Aave reserve. `state.2` is the Aave snapshot:
+					// keep the decimals bits and the active flag (bit 56) so this exercises
+					// the cap rather than an inactive reserve, set a one-token supply cap,
+					// push supply far past it, and leave nothing to withdraw.
+					for reserve in state.2.reserves.values_mut() {
+						let decimals_bits = reserve.configuration & (sp_core::U256::from(0xFFu64) << 48);
+						reserve.configuration =
+							decimals_bits | (sp_core::U256::one() << 56) | (sp_core::U256::from(1u64) << 116);
+						reserve.scaled_total_supply = sp_core::U256::from(10u64).pow(sp_core::U256::from(40));
+						reserve.available_liquidity = sp_core::U256::zero();
+					}
+
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
+				},
+			)
+			.expect("solver must still produce a solution for the non-Aave intent");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			// Only Bob's intent survives, and nothing routes through Aave.
+			assert_eq!(solution.resolved_intents.len(), 1, "only the non-Aave intent resolves");
+			assert_eq!(
+				solution.resolved_intents[0].id, bob_intent,
+				"the survivor is bob's intent"
+			);
+			assert!(
+				solution
+					.trades
+					.iter()
+					.all(|t| t.route.iter().all(|r| r.pool != hydradx_traits::router::PoolType::Aave)),
+				"no trade may route through a capped Aave reserve"
+			);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// Bob settled; Alice's intent is merely unfilled, not lost.
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(bob_intent).is_none(),
+				"bob's intent should be resolved and removed"
+			);
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(alice_intent).is_some(),
+				"alice's intent should survive unfilled, not be poisoned by the capped reserve"
+			);
+			assert!(
+				Currencies::total_balance(hollar, &bob) > bob_hollar_before,
+				"bob should have received HOLLAR"
+			);
+		});
+}

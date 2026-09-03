@@ -42,6 +42,7 @@ fn create_snapshot_should_work() {
 			interest_rate_strategy_address: sp_core::H160(hex!("74aa8048311db37f8ef0db76a4b035c19a36586e")),
 			accrued_to_treasury: U256::from_dec_str("7273030205000").unwrap(),
 			scaled_total_supply: U256::from_dec_str("71468032489613751").unwrap(),
+			available_liquidity: U256::from_dec_str("21288292675353670").unwrap(),
 		};
 
 		let expected_hollar = ReserveData {
@@ -59,6 +60,7 @@ fn create_snapshot_should_work() {
 			interest_rate_strategy_address: sp_core::H160(hex!("39dfb27d814db32f904a17560837c9be8bf1b761")),
 			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
 			scaled_total_supply: U256::from_dec_str("0").unwrap(),
+			available_liquidity: U256::from_dec_str("75222628811767744241415").unwrap(),
 		};
 
 		let expected_gdot = ReserveData {
@@ -76,6 +78,7 @@ fn create_snapshot_should_work() {
 			interest_rate_strategy_address: sp_core::H160(hex!("5383a606ece147e94c1fa0b7375bc778f132b832")),
 			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
 			scaled_total_supply: U256::from_dec_str("6102227836230613007916143").unwrap(),
+			available_liquidity: U256::from_dec_str("6102227836230613007916143").unwrap(),
 		};
 
 		let expected_geth = ReserveData {
@@ -93,6 +96,7 @@ fn create_snapshot_should_work() {
 			interest_rate_strategy_address: sp_core::H160(hex!("5383a606ece147e94c1fa0b7375bc778f132b832")),
 			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
 			scaled_total_supply: U256::from_dec_str("1895632023631277681532").unwrap(),
+			available_liquidity: U256::from_dec_str("1895632023631277681532").unwrap(),
 		};
 
 		let expected_usdt = ReserveData {
@@ -110,6 +114,7 @@ fn create_snapshot_should_work() {
 			interest_rate_strategy_address: sp_core::H160(hex!("aa659cf1ce049ec00161d305b17e70a5c1a7382f")),
 			accrued_to_treasury: U256::from_dec_str("525239578").unwrap(),
 			scaled_total_supply: U256::from_dec_str("5129873488101").unwrap(),
+			available_liquidity: U256::from_dec_str("1982348682780").unwrap(),
 		};
 
 		let snapshot = Simulator::<Aave<Runtime>>::snapshot();
@@ -166,7 +171,16 @@ fn simulate_sell_should_work() {
 
 		let (s, r) = Sim::simulate_sell(DOT, A_DOT, 1_000 * UNITS, 1, &snapshot).unwrap();
 
-		assert_eq!(s, snapshot);
+		// DOT -> aDOT is a supply, so the reserve books it and the snapshot moves.
+		let before = snapshot.reserves.get(&DOT).unwrap();
+		let after = s.reserves.get(&DOT).unwrap();
+		assert_eq!(
+			after.scaled_total_supply,
+			before.scaled_total_supply
+				+ U256::from(1_000 * UNITS) * U256::from_dec_str("1000000000000000000000000000").unwrap()
+					/ before.liquidity_index
+		);
+		assert_eq!(after.available_liquidity, before.available_liquidity);
 		assert_eq!(
 			r,
 			TradeResult {
@@ -188,7 +202,16 @@ fn simulate_buy_should_work() {
 
 		let (s, r) = Sim::simulate_buy(DOT, A_DOT, 1_000 * UNITS, 1, &snapshot).unwrap();
 
-		assert_eq!(s, snapshot);
+		// DOT -> aDOT is a supply, so the reserve books it and the snapshot moves.
+		let before = snapshot.reserves.get(&DOT).unwrap();
+		let after = s.reserves.get(&DOT).unwrap();
+		assert_eq!(
+			after.scaled_total_supply,
+			before.scaled_total_supply
+				+ U256::from(1_000 * UNITS) * U256::from_dec_str("1000000000000000000000000000").unwrap()
+					/ before.liquidity_index
+		);
+		assert_eq!(after.available_liquidity, before.available_liquidity);
 		assert_eq!(
 			r,
 			TradeResult {
