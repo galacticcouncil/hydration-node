@@ -779,7 +779,7 @@ pub mod pallet {
 		/// Emits `MigrationEnabledSet` event when successful.
 		///
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::unlock_reserves())]
+		#[pallet::weight(<T as Config>::WeightInfo::set_migration_enabled())]
 		#[transactional]
 		pub fn set_migration_enabled(origin: OriginFor<T>, enabled: bool) -> DispatchResult {
 			T::TerminateOrigin::ensure_origin(origin)?;

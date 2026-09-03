@@ -335,4 +335,15 @@ impl<T: frame_system::Config> pallet_dca::WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+
+	/// Storage: `DCA::MigrationEnabled` (r:0 w:1)
+	/// Proof: `DCA::MigrationEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	fn set_migration_enabled() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 5_000_000 picoseconds.
+		Weight::from_parts(5_000_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

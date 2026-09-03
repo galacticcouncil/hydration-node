@@ -9,6 +9,7 @@ use ice_support::IntentData;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
 use ice_support::Solution;
+use ice_support::SolverMode;
 use ice_support::SwapData;
 use ice_support::SwapParams;
 use orml_benchmarking::runtime_benchmarks;
@@ -16,6 +17,7 @@ use pallet_intent::types::Intent as IntentT;
 use pallet_intent::types::IntentInput;
 use pallet_intent::types::OnResolved;
 use sp_runtime::DispatchResult;
+use sp_runtime::Permill;
 
 const SEED: u32 = 1;
 
@@ -114,6 +116,31 @@ runtime_benchmarks! {
 		assert!(Intent::get_intent(id).is_none());
 		assert!(Intent::get_intent(counter_id).is_none());
 		assert!(LazyExecutor::call_queue(0).is_some())
+	}
+
+	// A fee equal to `T::MatchedFee` kills the entry instead of writing it, so the
+	// benchmarked value must differ from the default to measure the write.
+	set_protocol_fee {
+		let default_fee = <Runtime as pallet_ice::Config>::MatchedFee::get();
+		let fee = if default_fee == Permill::from_percent(1) {
+			Permill::from_percent(2)
+		} else {
+			Permill::from_percent(1)
+		};
+		assert_eq!(ICE::protocol_fee(), default_fee);
+	}: { ICE::set_protocol_fee(RawOrigin::Root.into(), fee)? }
+	verify {
+		assert_eq!(ICE::protocol_fee(), fee);
+	}
+
+	// `SolverMode::default()` kills the entry; benchmark a non-default mode so the
+	// write is measured.
+	set_solver_mode {
+		let mode = SolverMode::Disabled;
+		assert_eq!(ICE::solver_mode(), SolverMode::default());
+	}: { ICE::set_solver_mode(RawOrigin::Root.into(), mode)? }
+	verify {
+		assert_eq!(ICE::solver_mode(), SolverMode::Disabled);
 	}
 }
 

@@ -568,6 +568,13 @@ runtime_benchmarks! {
 		assert_eq!(reserved_balance, 0);
 	}
 
+	set_migration_enabled {
+		assert!(!DCA::migration_enabled());
+	}: _(RawOrigin::Root, true)
+	verify {
+		assert!(DCA::migration_enabled());
+	}
+
 }
 
 pub const INITIAL_BALANCE: Balance = 10_000_000 * ONE;
