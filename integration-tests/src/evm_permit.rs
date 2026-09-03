@@ -4,6 +4,8 @@ use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
 use hydradx_runtime::evm::Erc20Currency;
 
+use codec::Decode;
+use fp_evm::ExitReason;
 use frame_support::dispatch::GetDispatchInfo;
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
@@ -12,7 +14,9 @@ use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
 use hydradx_adapters::price::ConvertBalance;
+use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
+use hydradx_runtime::evm::Function;
 use hydradx_runtime::types::TenMinutesOraclePrice;
 use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::DOT_ASSET_LOCATION;
@@ -23,6 +27,7 @@ use hydradx_runtime::{
 };
 use hydradx_runtime::{FixedU128, Runtime};
 use hydradx_traits::evm::CallContext;
+use hydradx_traits::evm::Erc20Encoding;
 use hydradx_traits::evm::ERC20;
 use hydradx_traits::AssetKind;
 use hydradx_traits::Create;
@@ -34,7 +39,7 @@ use pallet_transaction_multi_payment::EVMPermit;
 use pretty_assertions::assert_eq;
 use primitives::constants::currency::UNITS;
 use primitives::{AssetId, Balance};
-use sp_core::{H256, U256};
+use sp_core::{H160, H256, U256};
 use sp_runtime::traits::Convert;
 use sp_runtime::traits::DispatchTransaction;
 use sp_runtime::transaction_validity::InvalidTransaction;
@@ -46,6 +51,24 @@ use sp_runtime::TransactionOutcome;
 use xcm_emulator::TestExt;
 
 pub const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+
+fn last_evm_permit_call_failed_event() -> Option<(H160, H160, U256, ExitReason, Vec<u8>)> {
+	frame_system::Pallet::<Runtime>::events()
+		.into_iter()
+		.rev()
+		.find_map(|record| match record.event {
+			hydradx_runtime::RuntimeEvent::MultiTransactionPayment(
+				pallet_transaction_multi_payment::Event::EvmPermitCallFailed {
+					from,
+					to,
+					nonce,
+					reason,
+					output,
+				},
+			) => Some((from, to, nonce, reason, output.into_inner())),
+			_ => None,
+		})
+}
 
 #[test]
 fn compare_fee_in_hdx_between_evm_and_native_omnipool_calls_when_permit_is_dispatched() {
@@ -2010,6 +2033,155 @@ fn dispatch_permit_should_increase_permit_nonce_when_call_fails() {
 }
 
 #[test]
+fn dispatch_permit_should_emit_call_failed_event_when_inner_call_fails() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+		assert_eq!(user_acc.balance(HDX), 0);
+
+		let omni_sell =
+			hydradx_runtime::RuntimeCall::Omnipool(pallet_omnipool::Call::<hydradx_runtime::Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 10_000_000,
+				min_buy_amount: 0,
+			});
+
+		let gas_limit = 1000000;
+		let deadline = U256::from(1000000000000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				DISPATCH_ADDR,
+				U256::from(0),
+				omni_sell.encode(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			DISPATCH_ADDR,
+			U256::from(0),
+			omni_sell.encode(),
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		let (from, to, nonce, reason, output) =
+			last_evm_permit_call_failed_event().expect("a reverting inner call must emit EvmPermitCallFailed");
+
+		assert_eq!(from, user_evm_address);
+		assert_eq!(to, DISPATCH_ADDR);
+		assert_eq!(nonce, U256::zero());
+		assert!(!reason.is_succeed());
+		assert!(
+			format!("{reason:?}").contains("dispatch execution failed"),
+			"the inner dispatch error must be readable from the event, got {reason:?}"
+		);
+		assert!(output.is_empty());
+	})
+}
+
+#[test]
+fn dispatch_permit_should_carry_revert_data_in_call_failed_event_when_evm_target_reverts() {
+	TestNet::reset();
+	let user_evm_address = alith_evm_address();
+	let user_secret_key = alith_secret_key();
+	let user_acc = MockAccount::new(alith_truncated_account());
+
+	Hydra::execute_with(|| {
+		init_omnipool_with_oracle_for_block_10();
+		pallet_transaction_payment::pallet::NextFeeMultiplier::<hydradx_runtime::Runtime>::put(
+			hydradx_runtime::MinimumMultiplier::get(),
+		);
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			user_acc.address(),
+			WETH,
+			to_ether(1),
+			0,
+		));
+
+		let dai_erc20 = HydraErc20Mapping::encode_evm_address(DAI);
+		let mut transfer_call = Into::<u32>::into(Function::Transfer).to_be_bytes().to_vec();
+		transfer_call.extend_from_slice(H256::from(H160::repeat_byte(0x11)).as_bytes());
+		let mut amount_word = [0u8; 32];
+		amount_word[16..].copy_from_slice(&u128::MAX.to_be_bytes());
+		transfer_call.extend_from_slice(&amount_word);
+
+		let gas_limit = 1000000;
+		let deadline = U256::from(1000000000000u128);
+
+		let permit =
+			pallet_evm_precompile_call_permit::CallPermitPrecompile::<hydradx_runtime::Runtime>::generate_permit(
+				CALLPERMIT,
+				user_evm_address,
+				dai_erc20,
+				U256::from(0),
+				transfer_call.clone(),
+				gas_limit,
+				U256::zero(),
+				deadline,
+			);
+		let secret_key = SecretKey::parse(&user_secret_key).unwrap();
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+
+		assert_ok!(MultiTransactionPayment::dispatch_permit(
+			hydradx_runtime::RuntimeOrigin::none(),
+			user_evm_address,
+			dai_erc20,
+			U256::from(0),
+			transfer_call,
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		));
+
+		let (from, to, nonce, reason, output) =
+			last_evm_permit_call_failed_event().expect("a reverting EVM target must emit EvmPermitCallFailed");
+
+		assert_eq!(from, user_evm_address);
+		assert_eq!(to, dai_erc20);
+		assert_eq!(nonce, U256::zero());
+		assert!(reason.is_revert());
+
+		let decoded =
+			sp_runtime::DispatchError::decode(&mut &output[..]).expect("the event must carry the target's revert data");
+		assert!(matches!(decoded, sp_runtime::DispatchError::Module(_)));
+	})
+}
+
+#[test]
 fn dispatch_permit_should_charge_tx_fee_when_call_fails() {
 	TestNet::reset();
 	let user_evm_address = alith_evm_address();
@@ -2819,7 +2991,6 @@ fn dispatch_permit_fee_currency_override_works_with_any_to_address() {
 mod sponsored_paymaster {
 	use super::*;
 	use hydradx_runtime::{CallFilter, RuntimeEvent};
-	use sp_core::H160;
 	// Disambiguate from pretty_assertions::assert_eq inside this module.
 	use core::assert_eq;
 
@@ -3168,6 +3339,85 @@ mod sponsored_paymaster {
 				"revert must still consume the permit nonce",
 			);
 			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_emit_call_failed_event_when_inner_call_fails() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 100,
+				min_buy_amount: u128::MAX,
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			assert_ok!(MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			));
+
+			let (event_from, event_to, nonce, reason, output) =
+				last_evm_permit_call_failed_event().expect("a reverting inner call must emit EvmPermitCallFailed");
+
+			assert_eq!(event_from, from);
+			assert_eq!(event_to, DISPATCH_ADDR);
+			assert_eq!(nonce, U256::zero());
+			assert!(!reason.is_succeed());
+			assert!(
+				format!("{reason:?}").contains("dispatch execution failed"),
+				"the inner dispatch error must be readable from the event, got {reason:?}"
+			);
+			assert!(output.is_empty());
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_not_emit_call_failed_event_when_inner_call_succeeds() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let (result, _, _) = submit_signed_dispatch_permit_omni_sell(paymaster, 1_000_000_000);
+			assert_ok!(result);
+
+			assert!(
+				last_evm_permit_call_failed_event().is_none(),
+				"a succeeding inner call must NOT emit EvmPermitCallFailed"
+			);
 		});
 	}
 
@@ -3546,7 +3796,7 @@ mod sponsored_paymaster {
 			// Direct extrinsic call bypasses the SignedExtension pre-dispatch,
 			// so we observe how the body itself handles u64::MAX: the real run
 			// hits Runner pre-validation (`gas_limit > block_gas_limit`) and
-			// returns Err → EvmPermitRunnerError.
+			// returns Err carrying the runner's own error.
 			let result = MultiTransactionPayment::dispatch_permit(
 				RuntimeOrigin::signed(paymaster),
 				from,
@@ -3676,7 +3926,7 @@ mod sponsored_paymaster {
 				min_buy_amount: 0,
 			});
 			// Sign for u64::MAX gas so the permit validates, then the runner rejects
-			// it (gas_limit exceeds the block gas limit) → EvmPermitRunnerError.
+			// it (gas_limit exceeds the block gas limit) with its own error.
 			let (from, data, gas_limit, deadline, v, r, s) =
 				build_permit_for_call(&inner_call, u64::MAX, U256::from(1_000_000_000_000u128));
 
@@ -3696,10 +3946,71 @@ mod sponsored_paymaster {
 			let err = result.expect_err("expected runner error");
 			assert_eq!(
 				err.error,
-				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError.into(),
+				pallet_evm::Error::<Runtime>::GasLimitExceedsBlockLimit.into(),
+				"the runner's own error must reach the caller, not a collapsed one"
 			);
 			// actual_weight = None → SignedExtension uses declared weight, no refund.
 			assert_eq!(err.post_info.actual_weight, None);
+		});
+	}
+
+	#[test]
+	fn distinct_runner_rejections_should_reach_the_caller_as_distinct_errors() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+			let user_acc = MockAccount::new(alith_truncated_account());
+			assert_ok!(Currencies::update_balance(
+				RuntimeOrigin::root(),
+				user_acc.address(),
+				HDX,
+				(10 * UNITS) as i128,
+			));
+
+			let inner_call = RuntimeCall::Omnipool(pallet_omnipool::Call::<Runtime>::sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount: 1_000_000_000,
+				min_buy_amount: 0,
+			});
+
+			let rejection_for = |gas_limit: u64| {
+				let (from, data, gas_limit, deadline, v, r, s) =
+					build_permit_for_call(&inner_call, gas_limit, U256::from(1_000_000_000_000u128));
+				MultiTransactionPayment::dispatch_permit(
+					RuntimeOrigin::signed(paymaster.clone()),
+					from,
+					DISPATCH_ADDR,
+					U256::from(0),
+					data,
+					gas_limit,
+					deadline,
+					v,
+					r,
+					s,
+				)
+				.expect_err("the runner must reject this gas limit")
+				.error
+			};
+
+			let over_transaction_cap = rejection_for(16_777_217);
+			let over_block_limit = rejection_for(u64::MAX);
+
+			assert_eq!(
+				over_transaction_cap,
+				pallet_evm::Error::<Runtime>::TransactionGasLimitExceedsCap.into()
+			);
+			assert_eq!(
+				over_block_limit,
+				pallet_evm::Error::<Runtime>::GasLimitExceedsBlockLimit.into()
+			);
+			assert!(
+				over_transaction_cap != over_block_limit,
+				"two different runner rejections MUST remain distinguishable off-chain"
+			);
 		});
 	}
 

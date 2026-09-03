@@ -10855,8 +10855,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.6.1"
+version = "10.8.0"
 dependencies = [
+ "fp-evm",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
