@@ -71,6 +71,8 @@ pub(crate) const ETH: AssetId = 4;
 //5 SEC.
 pub(crate) const MAX_INTENT_DEADLINE: pallet_intent::types::Moment = 5 * ONE_SECOND;
 pub(crate) const ONE_SECOND: pallet_intent::types::Moment = 1_000;
+/// Headroom the solver view keeps so an intent cannot expire between solve and execution.
+pub(crate) const SOLVER_DEADLINE_MARGIN: pallet_intent::types::Moment = 2 * ONE_SECOND;
 
 //Accounts
 //acccounts holding amount in for all router dummy pools
@@ -237,9 +239,11 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
+	type SolverDeadlineMargin = ConstU64<SOLVER_DEADLINE_MARGIN>;
 	type OraclePriceProvider = PairPriceProviderMock;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = ConstU32<5>;
+	type MaxDcaSlippage = MaxDcaSlippage;
 	type MaxIntentsPerAccount = ConstU32<100>;
 	type WeightInfo = ();
 }
@@ -261,6 +265,7 @@ impl pallet_broadcast::Config for Test {}
 parameter_types! {
 	pub const IceId: PalletId = PalletId(*b"iceTest#");
 	pub const IceFee: Permill = Permill::from_percent(0);
+	pub MaxDcaSlippage: Permill = Permill::from_percent(50);
 	pub const IceFeeReceiver: AccountId = ICE_FEE_RECEIVER;
 }
 
