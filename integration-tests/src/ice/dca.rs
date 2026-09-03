@@ -2,7 +2,6 @@ use crate::polkadot_test_net::{hydradx_run_to_next_block, last_hydra_events, Tes
 use amm_simulator::HydrationSimulator;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
-use frame_support::traits::Get;
 use frame_support::traits::Time;
 use hydradx_runtime::{Currencies, Runtime, RuntimeEvent, RuntimeOrigin};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
