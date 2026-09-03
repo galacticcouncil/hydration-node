@@ -139,7 +139,7 @@ pub fn run(mut cfg: Config) {
 	ext.execute_with(|| seed_pot_and_fees(cfg.max_slip));
 	// Solve with the pallet's live protocol fee so Tier-2 submissions match the
 	// on-chain validation exactly.
-	cfg.fee = ext.execute_with(|| pallet_ice::ProtocolFee::<Runtime>::get());
+	cfg.fee = ext.execute_with(pallet_ice::ProtocolFee::<Runtime>::get);
 
 	println!(
 		"ice-fuzz | tier={:?} seed={} max_intents={} fee={:?} | {}",
@@ -428,7 +428,7 @@ fn account_from(seed: u64, i: usize) -> AccountId {
 	bytes[8..16].copy_from_slice(&(i as u64).to_le_bytes());
 	bytes[16] = 0xF0;
 	bytes[17] = 0x0D;
-	sp_runtime::AccountId32::new(bytes).into()
+	sp_runtime::AccountId32::new(bytes)
 }
 
 fn report_failure(

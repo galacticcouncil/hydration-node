@@ -20,7 +20,12 @@ pub type PoolId = AssetId;
 pub type Price = Ratio;
 
 pub const MAX_NUMBER_OF_RESOLVED_INTENTS: u32 = 100;
-pub const MAX_NUMBER_OF_SOLUTION_TRADES: u32 = 200;
+/// Deliberately far below the resolved-intent cap: on 2s blocks `proof_size`
+/// binds first, and a solution anywhere near the old 200 is refused by
+/// `CheckWeight` before it executes. The pool-agnostic single-hop-safe bound at
+/// 100 intents is 41; 30 keeps headroom for multi-hop routes.
+/// See `ICE_PERF_RESULTS.md`, Budget B.
+pub const MAX_NUMBER_OF_SOLUTION_TRADES: u32 = 30;
 
 pub type ResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_NUMBER_OF_RESOLVED_INTENTS>>;
 pub type SolutionTrades = BoundedVec<PoolTrade, ConstU32<MAX_NUMBER_OF_SOLUTION_TRADES>>;
@@ -402,6 +407,33 @@ mod tests {
 	#[test]
 	fn solution_should_encode_identically_when_built_at_matches() {
 		assert_eq!(solution_at(747_864).encode(), solution_at(747_864).encode());
+	}
+
+	fn pool_trade() -> PoolTrade {
+		PoolTrade {
+			direction: SwapType::ExactIn,
+			amount_in: 1,
+			amount_out: 1,
+			route: Route::default(),
+		}
+	}
+
+	#[test]
+	fn solution_trades_should_be_bounded_at_thirty() {
+		assert_eq!(MAX_NUMBER_OF_SOLUTION_TRADES, 30);
+		assert_eq!(SolutionTrades::bound(), 30);
+	}
+
+	#[test]
+	fn solution_trades_should_accept_thirty_trades() {
+		let trades = vec![pool_trade(); 30];
+		assert_eq!(SolutionTrades::try_from(trades).map(|t| t.len()), Ok(30));
+	}
+
+	#[test]
+	fn solution_trades_should_fail_when_thirty_one_trades() {
+		let trades = vec![pool_trade(); 31];
+		assert!(SolutionTrades::try_from(trades).is_err());
 	}
 
 	#[test]

@@ -93,11 +93,71 @@ pub fn generate_unresolvable_intents(count: usize) -> Vec<SolverIntent> {
 		.collect()
 }
 
+/// Generate `count` unresolvable intents with a unique `amount_in` each, so every
+/// intent misses the solver's `(pair, amount_in)` quote cache and pays its own
+/// authoritative route quote. The homogeneous generator above collapses into a
+/// single cache entry — this one measures the adversarial worst case.
+pub fn generate_heterogeneous_unresolvable_intents(count: usize) -> Vec<SolverIntent> {
+	let hdx = 0u32;
+	let bnc = 14u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let bnc_unit = 1_000_000_000_000u128;
+
+	(0..count)
+		.map(|i| SolverIntent {
+			id: (i + 300_000) as u128,
+			data: IntentData::Swap(SwapData {
+				asset_in: hdx,
+				asset_out: bnc,
+				amount_in: hdx_unit + i as u128,
+				amount_out: 1_000_000 * bnc_unit,
+				partial: Partial::No,
+			}),
+		})
+		.collect()
+}
+
+/// Generate `count` unresolvable intents spread across distinct pairs: `asset_out`
+/// rotates through the low registry id space, so the batch mixes a few routable
+/// targets with masses of unroutable ones. Each distinct pair pays its own
+/// spot-price probe and route discovery (exhaustive BFS for unroutable targets)
+/// instead of sharing the per-pair route cache — the cross-pair worst case.
+pub fn generate_cross_pair_spam_intents(count: usize) -> Vec<SolverIntent> {
+	let hdx = 0u32;
+	let hdx_unit = 1_000_000_000_000u128;
+
+	(0..count)
+		.map(|i| SolverIntent {
+			id: (i + 400_000) as u128,
+			data: IntentData::Swap(SwapData {
+				asset_in: hdx,
+				asset_out: 1 + (i as u32 % 1_400),
+				amount_in: hdx_unit,
+				amount_out: 1_000_000 * hdx_unit,
+				partial: Partial::No,
+			}),
+		})
+		.collect()
+}
+
 /// Generate a mixed batch: `resolvable` good intents + `unresolvable` bad intents, interleaved.
 pub fn generate_mixed_intents(resolvable: usize, unresolvable: usize) -> Vec<SolverIntent> {
-	let good = generate_resolvable_intents(resolvable);
-	let bad = generate_unresolvable_intents(unresolvable);
+	interleave(
+		generate_resolvable_intents(resolvable),
+		generate_unresolvable_intents(unresolvable),
+	)
+}
 
+/// Mixed batch with cache-defeating spam: `resolvable` good intents interleaved with
+/// `unresolvable` heterogeneous bad ones.
+pub fn generate_mixed_heterogeneous_intents(resolvable: usize, unresolvable: usize) -> Vec<SolverIntent> {
+	interleave(
+		generate_resolvable_intents(resolvable),
+		generate_heterogeneous_unresolvable_intents(unresolvable),
+	)
+}
+
+fn interleave(good: Vec<SolverIntent>, bad: Vec<SolverIntent>) -> Vec<SolverIntent> {
 	let mut mixed = Vec::with_capacity(good.len() + bad.len());
 	let mut gi = good.into_iter();
 	let mut bi = bad.into_iter();

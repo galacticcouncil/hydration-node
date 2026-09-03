@@ -33,11 +33,13 @@ use sp_core::ConstU64;
 use sp_core::H256;
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::IdentityLookup;
-use sp_runtime::{BuildStorage, DispatchError, DispatchResult, TransactionOutcome};
+use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill, TransactionOutcome};
 use std::cell::RefCell;
 use std::vec;
 
 pub(crate) const ONE_DOT: u128 = 10_000_000_000;
+/// Existential deposit `DummyRegistry` reports for every asset.
+pub(crate) const ED: Balance = 1_000;
 pub(crate) const ONE_HDX: u128 = 1_000_000_000_000;
 pub(crate) const ONE_QUINTIL: u128 = 1_000_000_000_000_000_000;
 
@@ -53,6 +55,8 @@ pub(crate) const CHARLIE: AccountId = 4;
 
 //5 SEC.
 pub(crate) const MAX_INTENT_DEADLINE: pallet_intent::types::Moment = 5 * ONE_SECOND;
+/// Headroom the solver view keeps so an intent cannot expire between solve and execution.
+pub(crate) const SOLVER_DEADLINE_MARGIN: pallet_intent::types::Moment = 2 * ONE_SECOND;
 pub(crate) const ONE_SECOND: pallet_intent::types::Moment = 1_000;
 
 type AccountId = u64;
@@ -262,12 +266,13 @@ impl Inspect for DummyRegistry {
 	}
 
 	fn existential_deposit(_id: Self::AssetId) -> Option<u128> {
-		Some(1_000)
+		Some(ED)
 	}
 }
 
 parameter_types! {
 	pub const MinDcaPeriod: u32 = MIN_DCA_PERIOD;
+	pub MaxDcaSlippage: Permill = Permill::from_percent(5);
 }
 
 impl pallet_intent::Config for Test {
@@ -277,9 +282,11 @@ impl pallet_intent::Config for Test {
 	type TimestampProvider = Timestamp;
 	type HubAssetId = ConstU32<HUB_ASSET_ID>;
 	type MaxAllowedIntentDuration = ConstU64<MAX_INTENT_DEADLINE>;
+	type SolverDeadlineMargin = ConstU64<SOLVER_DEADLINE_MARGIN>;
 	type OraclePriceProvider = MockOracleProvider;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
+	type MaxDcaSlippage = MaxDcaSlippage;
 	type MaxIntentsPerAccount = ConstU32<5>;
 	type WeightInfo = ();
 }

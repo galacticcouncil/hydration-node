@@ -70,7 +70,7 @@ use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Zero;
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -120,6 +120,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAllowedIntentDuration: Get<Moment>;
 
+		/// How far ahead of `now` an intent must still be valid to be offered to the
+		/// solver, in milliseconds.
+		///
+		/// A solution is built against one block and executed in the next, so an
+		/// intent expiring in between would be rejected by `validate_resolve` and take
+		/// the whole batch with it. One block of headroom matches that gap, which
+		/// `longevity(1)` on the solution caps.
+		#[pallet::constant]
+		type SolverDeadlineMargin: Get<Moment>;
+
 		/// Oracle price provider for DCA dynamic slippage.
 		///
 		/// Pair-based provider: internally consults the on-chain route
@@ -134,6 +144,14 @@ pub mod pallet {
 		/// Minimum DCA period in blocks.
 		#[pallet::constant]
 		type MinDcaPeriod: Get<u32>;
+
+		/// Upper bound on the slippage a DCA intent may set against the oracle price.
+		///
+		/// The oracle floor is the oracle estimate less this slippage, so an unbounded
+		/// value collapses the floor to the intent's own limit and removes the
+		/// protection entirely.
+		#[pallet::constant]
+		type MaxDcaSlippage: Get<Permill>;
 
 		/// Maximum number of intents a single account can have at the same time.
 		#[pallet::constant]
@@ -223,6 +241,8 @@ pub mod pallet {
 		InvalidDcaBudget,
 		/// DCA intent must not have a deadline.
 		InvalidDcaDeadline,
+		/// DCA slippage exceeds `MaxDcaSlippage`.
+		InvalidDcaSlippage,
 		/// Account has reached the maximum number of allowed intents.
 		MaxIntentsReached,
 	}
@@ -449,8 +469,22 @@ impl<T: Config> Pallet<T> {
 	/// Creates a DCA intent for a schedule converted from `pallet-dca`.
 	///
 	/// The per-account cap is not enforced here — see `IntentMigrator`.
+	///
+	/// A sub-ED `amount_out` is lifted to the ED instead of rejected: it is only the user's hard
+	/// floor, and the enforced minimum stays `max(hard limit, oracle floor)`
+	/// (`compute_dca_effective_limit`), so lifting it cannot execute the schedule any worse.
+	/// `amount_in` is deliberately not clamped — raising the spend side would change the schedule.
 	#[require_transactional]
-	pub fn do_add_migrated_intent(owner: T::AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
+	pub fn do_add_migrated_intent(owner: T::AccountId, mut params: DcaParams) -> Result<IntentId, DispatchError> {
+		if let Some(ed_out) = T::RegistryHandler::existential_deposit(params.asset_out) {
+			params.amount_out = params.amount_out.max(ed_out);
+		}
+
+		// Schedules created before the cap existed are tightened rather than refused:
+		// `do_add_intent` would reject them, and the caller turns that into a
+		// cancellation of a live schedule.
+		params.slippage = params.slippage.min(T::MaxDcaSlippage::get());
+
 		Self::do_add_intent(
 			owner,
 			IntentInput {
@@ -502,6 +536,10 @@ impl<T: Config> Pallet<T> {
 				ensure!(input.deadline.is_none(), Error::<T>::InvalidDcaDeadline);
 
 				ensure!(data.period >= T::MinDcaPeriod::get(), Error::<T>::InvalidDcaPeriod);
+				ensure!(
+					data.slippage <= T::MaxDcaSlippage::get(),
+					Error::<T>::InvalidDcaSlippage
+				);
 				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
 				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
@@ -577,10 +615,22 @@ impl<T: Config> Pallet<T> {
 			.try_into()
 			.unwrap_or(u32::MAX);
 
+		// Settlement rejects `deadline <= now`, and one rejected intent fails the whole
+		// strict solution. The solver cannot see this itself — the solver-facing intent
+		// carries no deadline — so anything that will not survive until the next block
+		// is withheld here rather than allowed to poison the batch.
+		let deadline_cutoff = T::TimestampProvider::now().saturating_add(T::SolverDeadlineMargin::get());
+
 		let mut intents: Vec<(IntentId, Intent, Option<Balance>)> = Intents::<T>::iter()
 			.filter_map(|(id, intent)| {
 				match &intent.data {
-					IntentData::Swap(_) => Some((id, intent, None)),
+					IntentData::Swap(_) => {
+						if intent.deadline.is_some_and(|deadline| deadline <= deadline_cutoff) {
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), swap intent {id:?} skipped: expires within the solver margin (deadline: {:?}, cutoff: {deadline_cutoff:?})", intent.deadline);
+							return None;
+						}
+						Some((id, intent, None))
+					}
 					IntentData::Dca(dca) => {
 						// Period eligibility
 						let next_eligible = dca.last_execution_block.saturating_add(dca.period);

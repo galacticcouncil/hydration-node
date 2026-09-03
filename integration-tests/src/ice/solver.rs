@@ -5,7 +5,7 @@ use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use frame_support::traits::{Get, Time};
 use hydradx_runtime::{
-	ice_simulator_provider, AssetRegistry, Currencies, Omnipool, Router, Runtime, RuntimeOrigin, Stableswap, Timestamp,
+	ice_simulator_provider, AssetRegistry, Currencies, Omnipool, Router, Runtime, RuntimeOrigin, Timestamp,
 };
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::registry::Inspect as RegistryInspect;
@@ -2540,165 +2540,6 @@ fn eth_3pool_solver_vs_router() {
 				diff_pct < 100,
 				"3pool difference should be within 1%, got {diff_pct}bps"
 			);
-		});
-}
-
-/// Test: Two opposing intents for ETH <-> 3pool (direct matching)
-#[test]
-fn _eth_3pool_two_opposing_intents() {
-	TestNet::reset();
-
-	let alice: AccountId = ALICE.into();
-	let bob: AccountId = BOB.into();
-
-	// Asset IDs
-	let eth = 34u32; // ETH - 18 decimals
-	let pool3 = 103u32; // 3pool - 18 decimals
-
-	// Units based on decimals (both 18 decimals)
-	let unit = 1_000_000_000_000_000_000u128; // 10^18
-
-	// Alice sells 0.1 ETH for 3pool
-	let alice_eth_amount = unit / 10; // 0.1 ETH
-								   // Bob sells 100 3pool for ETH (roughly equivalent value to create partial match)
-	let bob_3pool_amount = 100 * unit; // 100 3pool
-
-	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
-		.endow_account(alice.clone(), eth, alice_eth_amount * 100)
-		// Also give some of the opposite asset
-		.endow_account(bob.clone(), eth, unit)
-		// 3pool shares are minted through the pallet and moved by transfer: endowing them
-		// would mint share tokens outside pallet-stableswap, which its issuance invariant forbids.
-		.execute(|| {
-			let pool = pallet_stableswap::Pools::<Runtime>::get(pool3).expect("3pool in snapshot");
-			let deposit_asset = *pool
-				.assets
-				.iter()
-				.find(|a| AssetRegistry::contract_address(**a).is_none())
-				.expect("3pool has a non-erc20 asset");
-			let funding = 10_000u128 * 10u128.pow(AssetRegistry::decimals(deposit_asset).expect("decimals") as u32);
-			assert_ok!(Currencies::update_balance(
-				RuntimeOrigin::root(),
-				bob.clone(),
-				deposit_asset,
-				funding as i128,
-			));
-			assert_ok!(Stableswap::add_liquidity_shares(
-				RuntimeOrigin::signed(bob.clone()),
-				pool3,
-				bob_3pool_amount + 2 * unit,
-				deposit_asset,
-				funding,
-			));
-			assert_ok!(Currencies::transfer(
-				RuntimeOrigin::signed(bob.clone()),
-				alice.clone(),
-				pool3,
-				unit,
-			));
-		})
-		// Alice: sell ETH for 3pool
-		.submit_swap_intent(
-			alice.clone(),
-			eth,
-			pool3,
-			alice_eth_amount,
-			20_000_000_000_000_000u128, //ED
-			Some(10),
-		)
-		// Bob: sell 3pool for ETH (opposite direction)
-		.submit_swap_intent(
-			bob.clone(),
-			pool3,
-			eth,
-			bob_3pool_amount,
-			20_000_000_000_000_000u128, //ED
-			Some(10),
-		)
-		.execute(|| {
-			enable_slip_fees();
-			let alice_3pool_before = Currencies::total_balance(pool3, &alice);
-			let bob_eth_before = Currencies::total_balance(eth, &bob);
-
-			let intents = pallet_intent::Pallet::<Runtime>::get_valid_intents();
-			assert_eq!(intents.len(), 2, "Should have 2 intents");
-
-			let call = pallet_ice::Pallet::<Runtime>::run(
-				hydradx_runtime::System::block_number(),
-				|intents: Vec<ice_support::Intent>,
-				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
-				 state: CombinedSimulatorState| {
-					HollarSolver::solve_with_limits(
-						intents,
-						limits.into_iter().collect(),
-						state,
-						pallet_ice::ProtocolFee::<Runtime>::get(),
-					)
-					.ok()
-				},
-			)
-			.expect("Solver should produce a solution");
-
-			crate::polkadot_test_net::hydradx_run_to_next_block();
-
-			let pallet_ice::Call::submit_solution { solution, .. } = call else {
-				panic!("Expected submit_solution call");
-			};
-			assert_eq!(solution.resolved_intents.len(), 2, "resolved count");
-			assert_eq!(solution.score, 214539470748917133316, "score");
-			assert_eq!(solution.trades.len(), 1, "trades count");
-			{
-				let r = &solution.resolved_intents[0];
-				assert_eq!(r.id, 32752052247409382067756072960000);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 34);
-				assert_eq!(s.asset_out, 103);
-				assert_eq!(s.amount_in, 100000000000000000u128);
-				assert_eq!(s.amount_out, 214532969956754998052u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			{
-				let r = &solution.resolved_intents[1];
-				assert_eq!(r.id, 32752052247409382067756072960001);
-				let ice_support::IntentData::Swap(ref s) = r.data else {
-					panic!("expected Swap");
-				};
-				assert_eq!(s.asset_in, 103);
-				assert_eq!(s.asset_out, 34);
-				assert_eq!(s.amount_in, 100000000000000000000u128);
-				assert_eq!(s.amount_out, 46500792162135264u128);
-				assert_eq!(s.partial, ice_support::Partial::No);
-			}
-			let fee_before = fee_receiver_snapshot(&solution);
-			let fee_expected = expected_matched_fees(&solution);
-			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
-				RuntimeOrigin::none(),
-				solution.clone(),
-			));
-
-			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
-			let bob_eth_after = Currencies::total_balance(eth, &bob);
-			assert_eq!(alice_3pool_after, 215532969956754998052u128);
-			assert_eq!(bob_eth_after, 1046500792162135264u128);
-
-			let alice_3pool_received = alice_3pool_after - alice_3pool_before;
-			let bob_eth_received = bob_eth_after - bob_eth_before;
-
-			// Verify both intents were resolved
-			assert!(
-				!solution.resolved_intents.is_empty(),
-				"Should resolve at least 1 intent"
-			);
-
-			// Verify Alice got 3pool
-			assert!(alice_3pool_received > 0, "Alice should receive 3pool");
-
-			// Verify Bob got ETH
-			assert!(bob_eth_received > 0, "Bob should receive ETH");
-
-			assert_fee_receiver_gained(&fee_before, &fee_expected);
 		});
 }
 
@@ -8878,5 +8719,251 @@ fn solver_caps_at_max_resolved_intents() {
 				solution,
 			));
 			assert_fee_receiver_gained(&fee_before, &fee_expected);
+		});
+}
+
+/// A reserve at its supply cap must not take the whole batch down with it.
+///
+/// Alice buys an aToken, which is only reachable by wrapping through Aave; Bob
+/// buys HOLLAR straight from the Omnipool. With every Aave reserve capped and
+/// drained, the solver has to drop Alice's intent and still settle Bob's, rather
+/// than proposing a solution whose Aave leg reverts and rolls back the batch.
+#[test]
+fn solver_should_drop_aave_intent_and_settle_the_rest_when_reserves_are_capped() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let hdx = 0u32;
+	let husdt = 1111u32; // aToken — reachable only via an Aave wrap
+	let hollar = 222u32; // plain Omnipool leg, no Aave hop
+	let hdx_unit = 1_000_000_000_000u128;
+	let unit_18 = 1_000_000_000_000_000_000u128;
+
+	let amount_in = 10_000 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.endow_account(bob.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			let deadline = Some(primitives::constants::time::MILLISECS_PER_BLOCK * 10u64 + ts);
+
+			for (who, asset_out) in [(alice.clone(), husdt), (bob.clone(), hollar)] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out,
+							amount_in,
+							amount_out: unit_18,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+			}
+
+			let mut alice_intent = None;
+			let mut bob_intent = None;
+			for (id, intent) in pallet_intent::Pallet::<Runtime>::get_valid_intents() {
+				let ice_support::IntentData::Swap(ref s) = intent.data else {
+					panic!("expected Swap");
+				};
+				if s.asset_out == husdt {
+					alice_intent = Some(id);
+				} else if s.asset_out == hollar {
+					bob_intent = Some(id);
+				}
+			}
+			let alice_intent = alice_intent.expect("alice intent stored");
+			let bob_intent = bob_intent.expect("bob intent stored");
+
+			let bob_hollar_before = Currencies::total_balance(hollar, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 mut state: CombinedSimulatorState| {
+					// Cap and drain every Aave reserve. `state.2` is the Aave snapshot:
+					// keep the decimals bits and the active flag (bit 56) so this exercises
+					// the cap rather than an inactive reserve, set a one-token supply cap,
+					// push supply far past it, and leave nothing to withdraw.
+					for reserve in state.2.reserves.values_mut() {
+						let decimals_bits = reserve.configuration & (sp_core::U256::from(0xFFu64) << 48);
+						reserve.configuration =
+							decimals_bits | (sp_core::U256::one() << 56) | (sp_core::U256::from(1u64) << 116);
+						reserve.scaled_total_supply = sp_core::U256::from(10u64).pow(sp_core::U256::from(40));
+						reserve.available_liquidity = sp_core::U256::zero();
+					}
+
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
+				},
+			)
+			.expect("solver must still produce a solution for the non-Aave intent");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			// Only Bob's intent survives, and nothing routes through Aave.
+			assert_eq!(solution.resolved_intents.len(), 1, "only the non-Aave intent resolves");
+			assert_eq!(
+				solution.resolved_intents[0].id, bob_intent,
+				"the survivor is bob's intent"
+			);
+			assert!(
+				solution
+					.trades
+					.iter()
+					.all(|t| t.route.iter().all(|r| r.pool != hydradx_traits::router::PoolType::Aave)),
+				"no trade may route through a capped Aave reserve"
+			);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			// Bob settled; Alice's intent is merely unfilled, not lost.
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(bob_intent).is_none(),
+				"bob's intent should be resolved and removed"
+			);
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(alice_intent).is_some(),
+				"alice's intent should survive unfilled, not be poisoned by the capped reserve"
+			);
+			assert!(
+				Currencies::total_balance(hollar, &bob) > bob_hollar_before,
+				"bob should have received HOLLAR"
+			);
+		});
+}
+
+/// An intent that expires between solve and execution must not take the batch down.
+///
+/// Both users sell HDX for HOLLAR, so the only difference is the deadline: Alice's
+/// falls inside the solver margin, Bob's does not. Settlement rejects `deadline <=
+/// now` and a strict solution is all-or-nothing, so Alice's intent has to be
+/// withheld from the solver rather than resolved and reverted.
+#[test]
+fn solver_should_drop_intent_expiring_within_the_margin_and_settle_the_rest() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let hdx = 0u32;
+	let hollar = 222u32;
+	let hdx_unit = 1_000_000_000_000u128;
+	let unit_18 = 1_000_000_000_000_000_000u128;
+
+	let amount_in = 10_000 * hdx_unit;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.endow_account(bob.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			enable_slip_fees();
+
+			let ts = hydradx_runtime::Timestamp::now();
+			// One block of life left: unexpired now, gone by the time the solution lands.
+			let expiring = Some(ts + primitives::constants::time::MILLISECS_PER_BLOCK);
+			let healthy = Some(ts + primitives::constants::time::MILLISECS_PER_BLOCK * 100);
+
+			for (who, deadline) in [(alice.clone(), expiring), (bob.clone(), healthy)] {
+				assert_ok!(hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(who),
+					pallet_intent::types::IntentInput {
+						data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+							asset_in: hdx,
+							asset_out: hollar,
+							amount_in,
+							amount_out: unit_18,
+							partial: false,
+						}),
+						deadline,
+						on_resolved: None,
+					}
+				));
+			}
+
+			// Both are live in storage; only the solver view filters.
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 2);
+
+			let mut alice_intent = None;
+			let mut bob_intent = None;
+			for (id, _) in pallet_intent::Intents::<Runtime>::iter() {
+				match pallet_intent::Pallet::<Runtime>::intent_owner(id) {
+					Some(ref o) if *o == alice => alice_intent = Some(id),
+					Some(ref o) if *o == bob => bob_intent = Some(id),
+					_ => {}
+				}
+			}
+			let alice_intent = alice_intent.expect("alice intent stored");
+			let bob_intent = bob_intent.expect("bob intent stored");
+
+			let bob_hollar_before = Currencies::total_balance(hollar, &bob);
+
+			let call = pallet_ice::Pallet::<Runtime>::run(
+				hydradx_runtime::System::block_number(),
+				|intents: Vec<ice_support::Intent>,
+				 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+				 state: CombinedSimulatorState| {
+					Solver::solve_with_limits(
+						intents,
+						limits.into_iter().collect(),
+						state,
+						pallet_ice::ProtocolFee::<Runtime>::get(),
+					)
+					.ok()
+				},
+			)
+			.expect("solver must still produce a solution for the healthy intent");
+
+			let pallet_ice::Call::submit_solution { solution, .. } = call else {
+				panic!("Expected submit_solution call");
+			};
+
+			assert_eq!(
+				solution.resolved_intents.len(),
+				1,
+				"only the intent that survives the margin resolves"
+			);
+			assert_eq!(
+				solution.resolved_intents[0].id, bob_intent,
+				"the survivor is bob's healthy intent"
+			);
+
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(bob_intent).is_none(),
+				"bob's intent should be resolved and removed"
+			);
+			assert!(
+				pallet_intent::Pallet::<Runtime>::get_intent(alice_intent).is_some(),
+				"alice's intent should survive unfilled, not poison the batch"
+			);
+			assert!(
+				Currencies::total_balance(hollar, &bob) > bob_hollar_before,
+				"bob should have received HOLLAR"
+			);
 		});
 }

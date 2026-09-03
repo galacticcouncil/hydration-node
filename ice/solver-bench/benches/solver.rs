@@ -3,9 +3,10 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use amm_simulator::HydrationSimulator;
 use ice_solver::v4::Solver as IceSolver;
 use ice_solver_bench::{
-	clear_intent_storage, generate_mixed_intents, generate_mixed_partial_intents, generate_partial_intents,
-	generate_resolvable_intents, generate_unresolvable_intents, get_initial_state, load_snapshot,
-	populate_intent_storage,
+	clear_intent_storage, generate_cross_pair_spam_intents, generate_heterogeneous_unresolvable_intents,
+	generate_mixed_heterogeneous_intents, generate_mixed_intents, generate_mixed_partial_intents,
+	generate_partial_intents, generate_resolvable_intents, generate_unresolvable_intents, get_initial_state,
+	load_snapshot, populate_intent_storage,
 };
 use pallet_omnipool::types::SlipFeeConfig;
 use sp_runtime::Permill;
@@ -68,6 +69,78 @@ fn bench_unresolvable(c: &mut Criterion) {
 	for n in [10, 50, 100, 500, 1000, 5000] {
 		let intents = generate_unresolvable_intents(n);
 		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
+		});
+	}
+	group.finish();
+}
+
+fn bench_heterogeneous_spam(c: &mut Criterion) {
+	let mut ext = load_snapshot(SNAPSHOT_PATH);
+	ext.execute_with(enable_slip_fees);
+	let state = ext.execute_with(get_initial_state);
+
+	let mut group = c.benchmark_group("solver_heterogeneous_spam");
+	for n in [10, 50, 100, 500, 1000, 5000] {
+		let intents = generate_heterogeneous_unresolvable_intents(n);
+		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
+		});
+	}
+	group.finish();
+}
+
+fn bench_cross_pair_spam(c: &mut Criterion) {
+	let mut ext = load_snapshot(SNAPSHOT_PATH);
+	ext.execute_with(enable_slip_fees);
+	let state = ext.execute_with(get_initial_state);
+
+	let mut group = c.benchmark_group("solver_cross_pair_spam");
+	// Potentially expensive per iteration (exhaustive BFS per distinct unroutable pair).
+	group.sample_size(10);
+	for n in [10, 50, 100, 500, 1400, 5000] {
+		let intents = generate_cross_pair_spam_intents(n);
+		group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+			b.iter(|| {
+				ext.execute_with(|| {
+					Solver::solve(
+						black_box(intents.clone()),
+						black_box(state.clone()),
+						black_box(Permill::zero()),
+					)
+				})
+			})
+		});
+	}
+	group.finish();
+}
+
+fn bench_mixed_heterogeneous(c: &mut Criterion) {
+	let mut ext = load_snapshot(SNAPSHOT_PATH);
+	ext.execute_with(enable_slip_fees);
+	let state = ext.execute_with(get_initial_state);
+
+	let mut group = c.benchmark_group("solver_mixed_heterogeneous");
+	for (good, bad) in [(50, 500), (50, 5000), (100, 5000)] {
+		let intents = generate_mixed_heterogeneous_intents(good, bad);
+		let label = format!("{good}good_{bad}bad");
+		group.bench_with_input(BenchmarkId::new("intents", &label), &label, |b, _| {
 			b.iter(|| {
 				ext.execute_with(|| {
 					Solver::solve(
@@ -184,7 +257,10 @@ criterion_group!(
 	bench_get_valid_intents,
 	bench_resolvable,
 	bench_unresolvable,
+	bench_heterogeneous_spam,
+	bench_cross_pair_spam,
 	bench_mixed,
+	bench_mixed_heterogeneous,
 	bench_partial,
 	bench_mixed_partial
 );

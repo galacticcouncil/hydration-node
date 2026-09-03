@@ -30,6 +30,25 @@ fn dca_intent_with_forward(amount_in: u128, amount_out: u128, budget: Option<u12
 	input
 }
 
+fn migrated_params(amount_in: u128, amount_out: u128) -> DcaParams {
+	DcaParams {
+		asset_in: HDX,
+		asset_out: DOT,
+		amount_in,
+		amount_out,
+		slippage: Permill::from_percent(3),
+		budget: Some(5 * ONE_HDX),
+		period: 10,
+	}
+}
+
+fn stored_dca(id: ice_support::IntentId) -> ice_support::DcaData {
+	match Intents::<Test>::get(id).expect("intent should exist").data {
+		IntentData::Dca(dca) => dca,
+		_ => panic!("expected DCA intent"),
+	}
+}
+
 // ---- Submission tests ----
 
 #[test]
@@ -725,6 +744,201 @@ fn dca_should_queue_one_forward_per_executed_trade() {
 				assert_eq!(forwards[0].asset_in, HDX);
 				assert_eq!(forwards[0].asset_out, DOT);
 				assert_eq!(forwards[0].amount_in, amount_in);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+// ---- Migrated intent tests ----
+
+#[test]
+fn do_add_migrated_intent_should_clamp_amount_out_when_below_existential_deposit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ED - 1))
+					.expect("should work");
+
+				assert_eq!(stored_dca(id).amount_out, ED);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_clamp_amount_out_when_amount_out_is_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, 0))
+					.expect("should work");
+
+				assert_eq!(stored_dca(id).amount_out, ED);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_keep_amount_out_when_at_or_above_existential_deposit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let at_ed = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ED))
+					.expect("should work");
+				let above_ed = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ONE_DOT))
+					.expect("should work");
+
+				assert_eq!(stored_dca(at_ed).amount_out, ED);
+				assert_eq!(stored_dca(above_ed).amount_out, ONE_DOT);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_fail_when_amount_in_is_below_existential_deposit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				assert_noop!(
+					crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ED - 1, ONE_DOT)),
+					Error::<Test>::InvalidIntent
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn add_intent_should_fail_when_dca_amount_out_is_below_existential_deposit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				assert_noop!(
+					crate::Pallet::<Test>::add_intent(ALICE, dca_intent(ONE_HDX, ED - 1, Some(5 * ONE_HDX))),
+					Error::<Test>::InvalidIntent
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+// ---- DCA slippage cap tests ----
+
+fn dca_intent_with_slippage(slippage: Permill) -> IntentInput {
+	let mut input = dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX));
+	let IntentDataInput::Dca(ref mut params) = input.data else {
+		panic!("expected DCA");
+	};
+	params.slippage = slippage;
+	input
+}
+
+#[test]
+fn add_intent_should_fail_when_dca_slippage_exceeds_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let over = MaxDcaSlippage::get() + Permill::from_parts(1);
+
+				assert_noop!(
+					crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_slippage(over)),
+					Error::<Test>::InvalidDcaSlippage
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn add_intent_should_fail_when_dca_slippage_is_total() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				// 100% slippage is the case that collapses the oracle floor to zero.
+				assert_noop!(
+					crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_slippage(Permill::one())),
+					Error::<Test>::InvalidDcaSlippage
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn add_intent_should_work_when_dca_slippage_is_exactly_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let id = crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_slippage(MaxDcaSlippage::get()))
+					.expect("cap is inclusive");
+
+				assert_eq!(stored_dca(id).slippage, MaxDcaSlippage::get());
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+/// A schedule created before the cap existed must be tightened, never cancelled:
+/// the migration caller turns a rejection into a cancellation of a live schedule.
+#[test]
+fn do_add_migrated_intent_should_clamp_slippage_when_it_exceeds_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let mut params = migrated_params(ONE_HDX, ONE_DOT);
+				params.slippage = Permill::from_percent(80);
+
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params).expect("must not be refused");
+
+				assert_eq!(stored_dca(id).slippage, MaxDcaSlippage::get());
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_keep_slippage_when_within_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let mut params = migrated_params(ONE_HDX, ONE_DOT);
+				params.slippage = Permill::from_percent(2);
+
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params).expect("should work");
+
+				assert_eq!(stored_dca(id).slippage, Permill::from_percent(2));
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

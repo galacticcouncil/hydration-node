@@ -84,7 +84,7 @@ use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
 	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-	time::DAYS,
+	time::{DAYS, MILLISECS_PER_BLOCK},
 };
 use sp_std::num::NonZeroU16;
 
@@ -1901,6 +1901,15 @@ impl pallet_lazy_executor::Config for Runtime {
 parameter_types! {
 	//24 hours
 	pub const MaxIntentDuration: u64  = 24 * 3_600 * 1_000;
+	// A solution is built against block N and executed in N+1, and `validate_unsigned`
+	// gives it `longevity(1)`, so it can never land later than that. One block of
+	// headroom therefore matches the real gap exactly.
+	pub const SolverDeadlineMargin: u64 = MILLISECS_PER_BLOCK;
+	// Bounds how far below the oracle a DCA intent may settle. The failure this
+	// prevents is the floor collapsing to zero at 100% slippage, leaving the intent
+	// bound only by its own limit; it is deliberately loose enough not to reject
+	// ordinary configurations on volatile pairs.
+	pub MaxDcaSlippage: Permill = Permill::from_percent(50);
 }
 
 impl pallet_intent::Config for Runtime {
@@ -1908,11 +1917,13 @@ impl pallet_intent::Config for Runtime {
 	type RegistryHandler = AssetRegistry;
 	type Currency = Currencies;
 	type MaxAllowedIntentDuration = MaxIntentDuration;
+	type SolverDeadlineMargin = SolverDeadlineMargin;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
 	type OraclePriceProvider = ShortOraclePrice;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
+	type MaxDcaSlippage = MaxDcaSlippage;
 	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
 	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
 }

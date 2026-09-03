@@ -684,17 +684,26 @@ impl RandomnessProvider for RandomnessProviderMock {
 	}
 }
 
-/// Stand-in for `pallet-intent`. Mirrors the reserve it would take so the conservation
-/// assertions in the migration tests stay meaningful.
+/// Stand-in for `pallet-intent`. Mirrors the reserve it would take, and the existential-deposit
+/// contract of `do_add_migrated_intent` — `amount_out` clamped up, sub-ED `amount_in` rejected —
+/// so the migration tests stay meaningful.
 pub struct IntentMigratorMock;
 
 pub const INTENT_NAMED_RESERVE_ID: NamedReserveIdentifier = *b"ICE_int#";
+/// Existential deposit the stand-in reports for every asset.
+pub const INTENT_ED: Balance = ONE / 1_000;
+/// What the stand-in returns for a sub-ED `amount_in`. Not `DispatchError::Other` — its message is
+/// dropped by the SCALE round-trip the `CancelReason` makes through the event.
+pub const INTENT_BELOW_ED: DispatchError = DispatchError::Token(sp_runtime::TokenError::BelowMinimum);
 
 impl IntentMigrator<AccountId> for IntentMigratorMock {
-	fn add_migrated_intent(owner: AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
+	fn add_migrated_intent(owner: AccountId, mut params: DcaParams) -> Result<IntentId, DispatchError> {
 		if MIGRATOR_SHOULD_FAIL.with(|v| *v.borrow()) {
 			return Err(sp_runtime::TokenError::FundsUnavailable.into());
 		}
+
+		frame_support::ensure!(params.amount_in >= INTENT_ED, INTENT_BELOW_ED);
+		params.amount_out = params.amount_out.max(INTENT_ED);
 
 		let reserve_amount = params.budget.unwrap_or_else(|| params.amount_in.saturating_mul(2));
 		Currencies::reserve_named(&INTENT_NAMED_RESERVE_ID, params.asset_in, &owner, reserve_amount)?;

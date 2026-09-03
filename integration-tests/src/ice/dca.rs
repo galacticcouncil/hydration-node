@@ -1,6 +1,8 @@
 use crate::polkadot_test_net::{hydradx_run_to_next_block, last_hydra_events, TestNet, ALICE, BOB};
 use amm_simulator::HydrationSimulator;
+use frame_support::assert_noop;
 use frame_support::assert_ok;
+use frame_support::traits::Get;
 use frame_support::traits::Time;
 use hydradx_runtime::{Currencies, Runtime, RuntimeEvent, RuntimeOrigin};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
@@ -2016,5 +2018,54 @@ fn dca_slippage_not_enforced_at_resolve_time() {
 			};
 			assert_eq!(dca_after.remaining_budget, dca_after_1.remaining_budget);
 			assert_eq!(dca_after.last_execution_block, dca_after_1.last_execution_block);
+		});
+}
+
+/// The oracle floor is the oracle estimate less the intent's own slippage, so an
+/// unbounded slippage collapses it to the intent's limit and removes the protection.
+/// The runtime therefore refuses to store such an intent in the first place.
+#[test]
+fn submit_intent_should_fail_when_dca_slippage_exceeds_the_runtime_cap() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, 1_000 * TRADE_AMOUNT)
+		.execute(|| {
+			let cap = <Runtime as pallet_intent::Config>::MaxDcaSlippage::get();
+
+			let dca = |slippage: Permill| pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+					asset_in: HDX,
+					asset_out: BNC,
+					amount_in: TRADE_AMOUNT,
+					amount_out: MIN_OUT_BNC,
+					slippage,
+					budget: Some(2 * TRADE_AMOUNT),
+					period: <Runtime as pallet_intent::Config>::MinDcaPeriod::get(),
+				}),
+				deadline: None,
+				on_resolved: None,
+			};
+
+			assert_noop!(
+				hydradx_runtime::Intent::submit_intent(RuntimeOrigin::signed(alice.clone()), dca(Permill::one())),
+				pallet_intent::Error::<Runtime>::InvalidDcaSlippage
+			);
+			assert_noop!(
+				hydradx_runtime::Intent::submit_intent(
+					RuntimeOrigin::signed(alice.clone()),
+					dca(cap + Permill::from_parts(1))
+				),
+				pallet_intent::Error::<Runtime>::InvalidDcaSlippage
+			);
+
+			// The cap itself is accepted, so the bound is inclusive.
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				dca(cap)
+			));
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
 		});
 }
