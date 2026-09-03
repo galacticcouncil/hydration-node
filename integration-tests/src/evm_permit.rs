@@ -3046,6 +3046,147 @@ mod sponsored_paymaster {
 		)
 	}
 
+	fn build_permit_at_current_nonce(
+		inner_call: &RuntimeCall,
+		gas_limit: u64,
+	) -> (H160, Vec<u8>, u64, U256, u8, H256, H256) {
+		let from = alith_evm_address();
+		let secret_key = SecretKey::parse(&alith_secret_key()).unwrap();
+		let data = inner_call.encode();
+		let deadline = U256::from(1_000_000_000_000u128);
+		let nonce = pallet_evm_precompile_call_permit::NoncesStorage::get(from);
+
+		let permit = pallet_evm_precompile_call_permit::CallPermitPrecompile::<Runtime>::generate_permit(
+			CALLPERMIT,
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data.clone(),
+			gas_limit,
+			nonce,
+			deadline,
+		);
+		let message = Message::parse(&permit);
+		let (rs, v) = sign(&message, &secret_key);
+		(
+			from,
+			data,
+			gas_limit,
+			deadline,
+			v.serialize(),
+			H256::from(rs.r.b32()),
+			H256::from(rs.s.b32()),
+		)
+	}
+
+	fn permit_batch_of_evm_calls(
+		paymaster: &AccountId,
+		target: H160,
+		legs: usize,
+		outer_gas_limit: u64,
+		leg_gas_limit: u64,
+	) -> frame_support::dispatch::DispatchResultWithPostInfo {
+		let leg = RuntimeCall::Dispatcher(pallet_dispatcher::Call::dispatch_evm_call {
+			call: Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+				source: alith_evm_address(),
+				target,
+				input: vec![0x06, 0xfd, 0xde, 0x03],
+				value: U256::zero(),
+				gas_limit: leg_gas_limit,
+				max_fee_per_gas: crate::evm::gas_price(),
+				max_priority_fee_per_gas: None,
+				nonce: None,
+				access_list: vec![],
+				authorization_list: vec![],
+			})),
+		});
+
+		let batch = RuntimeCall::Utility(pallet_utility::Call::batch_all { calls: vec![leg; legs] });
+
+		let (from, data, gas_limit, deadline, v, r, s) = build_permit_at_current_nonce(&batch, outer_gas_limit);
+
+		MultiTransactionPayment::dispatch_permit(
+			RuntimeOrigin::signed(paymaster.clone()),
+			from,
+			DISPATCH_ADDR,
+			U256::from(0),
+			data,
+			gas_limit,
+			deadline,
+			v,
+			r,
+			s,
+		)
+	}
+
+	#[test]
+	fn dispatch_permit_should_execute_every_leg_when_batching_evm_calls_under_one_permit() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100_000 * UNITS));
+
+			let user_acc = MockAccount::new(alith_truncated_account());
+			let initial_user_weth = user_acc.balance(WETH);
+			let initial_paymaster_hdx = Currencies::free_balance(HDX, &paymaster);
+
+			assert_ok!(permit_batch_of_evm_calls(&paymaster, contract, 14, 10_000_000, 100_000));
+
+			let batch_completed = frame_system::Pallet::<Runtime>::events().iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::Utility(pallet_utility::Event::BatchCompleted)
+				)
+			});
+			assert!(
+				batch_completed,
+				"batch_all emits BatchCompleted only when EVERY leg succeeded"
+			);
+
+			assert_eq!(
+				user_acc.balance(WETH),
+				initial_user_weth,
+				"signer MUST NOT pay for any leg"
+			);
+			assert!(
+				Currencies::free_balance(HDX, &paymaster) < initial_paymaster_hdx,
+				"paymaster MUST bear the cost of the whole batch"
+			);
+		});
+	}
+
+	#[test]
+	fn dispatch_permit_should_fail_when_gas_limit_exceeds_what_the_paymaster_can_cover() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let contract = crate::utils::contracts::deploy_contract("HydraToken", crate::contracts::deployer());
+			let paymaster = paymaster_account();
+
+			let affordable = permit_batch_of_evm_calls(&paymaster, contract, 14, 10_000_000, 100_000);
+			assert_ok!(affordable);
+
+			let too_expensive = permit_batch_of_evm_calls(&paymaster, contract, 14, 40_000_000, 100_000)
+				.expect_err("gas budget above the paymaster's balance must be rejected");
+
+			assert_eq!(
+				too_expensive.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError.into(),
+				"the binding constraint is gas_limit x gas_price vs fee-payer balance, not the block gas limit"
+			);
+			assert!(
+				<Runtime as pallet_evm::Config>::BlockGasLimit::get() > U256::from(40_000_000u64),
+				"40M is well under the 60M block ceiling — this failure is affordability, not the block limit"
+			);
+		});
+	}
+
 	fn submit_signed_dispatch_permit_omni_sell(
 		paymaster: AccountId,
 		sell_amount: Balance,
@@ -3127,6 +3268,152 @@ mod sponsored_paymaster {
 			);
 			assert!(user_acc.balance(DAI) > initial_user_dai);
 			assert!(Currencies::free_balance(HDX, &paymaster) < initial_paymaster_hdx);
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_sponsor_entire_cost_when_signer_has_zero_balance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let paymaster = paymaster_account();
+			assert_ok!(Balances::mint_into(&paymaster, 100 * UNITS));
+
+			let user_acc = MockAccount::new(alith_truncated_account());
+			for asset in [HDX, WETH, DAI] {
+				let held = user_acc.balance(asset);
+				if held > 0 {
+					assert_ok!(Currencies::update_balance(
+						RuntimeOrigin::root(),
+						user_acc.address(),
+						asset,
+						-(held as i128),
+					));
+				}
+				assert_eq!(user_acc.balance(asset), 0, "user must start with nothing");
+			}
+
+			let initial_paymaster_hdx = Currencies::free_balance(HDX, &paymaster);
+
+			let inner_call = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
+				remark: b"sponsored".to_vec(),
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let result = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster.clone()),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			);
+			assert_ok!(result);
+
+			let events = frame_system::Pallet::<Runtime>::events();
+
+			let executed_as_user = events.iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::System(frame_system::Event::Remarked { sender, .. })
+						if *sender == user_acc.address()
+				)
+			});
+			assert!(
+				executed_as_user,
+				"inner call MUST execute under the zero-balance signer's own origin"
+			);
+
+			let alith = alith_evm_address();
+			let sponsored = events.iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::MultiTransactionPayment(pallet_transaction_multi_payment::Event::FeeSponsored {
+						from,
+						fee_payer,
+						..
+					}) if *from == alith && *fee_payer == paymaster
+				)
+			});
+			assert!(sponsored, "FeeSponsored MUST name the paymaster as fee payer");
+
+			assert_eq!(user_acc.balance(HDX), 0, "signer MUST NOT be charged in HDX");
+			assert_eq!(user_acc.balance(WETH), 0, "signer MUST NOT be charged in WETH");
+			assert!(
+				Currencies::free_balance(HDX, &paymaster) < initial_paymaster_hdx,
+				"paymaster MUST bear the whole cost"
+			);
+			assert_dispatch_permit_not_paused();
+		});
+	}
+
+	#[test]
+	fn signed_dispatch_permit_should_fail_without_executing_when_paymaster_cannot_cover_gas() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+
+			let paymaster: AccountId = [9u8; 32].into();
+			assert_eq!(
+				Currencies::free_balance(HDX, &paymaster),
+				0,
+				"control requires a paymaster with nothing"
+			);
+
+			let user_acc = MockAccount::new(alith_truncated_account());
+			for asset in [HDX, WETH, DAI] {
+				let held = user_acc.balance(asset);
+				if held > 0 {
+					assert_ok!(Currencies::update_balance(
+						RuntimeOrigin::root(),
+						user_acc.address(),
+						asset,
+						-(held as i128),
+					));
+				}
+			}
+
+			let inner_call = RuntimeCall::System(frame_system::Call::<Runtime>::remark_with_event {
+				remark: b"sponsored".to_vec(),
+			});
+			let (from, data, gas_limit, deadline, v, r, s) =
+				build_permit_for_call(&inner_call, 1_000_000, U256::from(1_000_000_000_000u128));
+
+			let err = MultiTransactionPayment::dispatch_permit(
+				RuntimeOrigin::signed(paymaster),
+				from,
+				DISPATCH_ADDR,
+				U256::from(0),
+				data,
+				gas_limit,
+				deadline,
+				v,
+				r,
+				s,
+			)
+			.expect_err("an unfunded paymaster must not be able to sponsor");
+
+			assert_eq!(
+				err.error,
+				pallet_transaction_multi_payment::Error::<Runtime>::EvmPermitRunnerError.into(),
+				"insufficient fee-payer balance surfaces as a pre-execution runner error"
+			);
+
+			let executed = frame_system::Pallet::<Runtime>::events().iter().any(|record| {
+				matches!(
+					&record.event,
+					RuntimeEvent::System(frame_system::Event::Remarked { .. })
+				)
+			});
+			assert!(!executed, "inner call MUST NOT execute when sponsorship cannot be paid");
 		});
 	}
 
