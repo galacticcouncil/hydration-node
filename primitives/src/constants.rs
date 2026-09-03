@@ -87,6 +87,7 @@ pub mod chain {
 	pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 	pub const STABLESWAP_SOURCE: [u8; 8] = *b"stablesw";
 	pub const XYK_SOURCE: [u8; 8] = *b"hydraxyk";
+	pub const UNISWAPV3_SOURCE: [u8; 8] = *b"uniswpv3";
 	pub const GIGAHDX_SOURCE: [u8; 8] = *b"gigahdxs";
 
 	pub const DEFAULT_RELAY_PARENT_OFFSET: u32 = 1;

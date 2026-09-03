@@ -77,7 +77,7 @@ use pallet_staking::{
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, UNISWAPV3_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
 	time::DAYS,
 };
@@ -654,7 +654,10 @@ parameter_types! {
 pub struct InternalOracleSources;
 impl Contains<Source> for InternalOracleSources {
 	fn contains(s: &Source) -> bool {
-		matches!(s, &OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE)
+		matches!(
+			s,
+			&OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE | &UNISWAPV3_SOURCE
+		)
 	}
 }
 
@@ -1093,6 +1096,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell().saturating_mul(c as u64);
@@ -1128,6 +1132,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
@@ -1160,6 +1165,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Weight::zero(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
@@ -1190,6 +1196,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell().saturating_mul(c as u64);
@@ -1223,6 +1230,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
@@ -1261,6 +1269,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
 			};
 			weight.saturating_accrue(amm_weight);
@@ -1274,6 +1283,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
 			};
 			weight.saturating_accrue(amm_weight);
@@ -1308,6 +1318,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 				PoolType::Aave => Weight::zero(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 			};
 			weight.saturating_accrue(amm_weight);
@@ -1331,7 +1342,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
-	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave, HSM);
+	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave, HSM, UniswapV3);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
@@ -2117,6 +2128,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 }
 
 use crate::evm::aave_trade_executor::Aave;
+use crate::evm::uniswap_v3_trade_executor::UniswapV3;
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 use pallet_xyk::types::AssetPair;

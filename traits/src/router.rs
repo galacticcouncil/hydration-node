@@ -87,6 +87,7 @@ pub enum PoolType<AssetId> {
 	Omnipool,
 	Aave,
 	HSM,
+	UniswapV3(u32),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -220,7 +221,7 @@ pub trait TradeExecution<Origin, AccountId, AssetId, Balance> {
 }
 
 #[allow(clippy::redundant_clone)] //Needed as it complains about redundant clone, but clone is needed as Origin is moved and it is not copy type.
-#[impl_trait_for_tuples::impl_for_tuples(1, 6)]
+#[impl_trait_for_tuples::impl_for_tuples(1, 7)]
 impl<E: PartialEq, Origin: Clone, AccountId, AssetId: Copy, Balance: Copy>
 	TradeExecution<Origin, AccountId, AssetId, Balance> for Tuple
 {
