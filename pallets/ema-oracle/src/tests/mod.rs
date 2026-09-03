@@ -658,13 +658,11 @@ fn calculate_new_by_integrating_incoming_with_works() {
 	let next_oracle = start_oracle
 		.calculate_new_by_integrating_incoming(TenMinutes, &next_value)
 		.unwrap();
-	// ten minutes corresponds to 100 blocks which corresponds to a smoothing factor of
-	// `2 / 101 ≈ 1 / 50` which means that for an update from 50 to 151 we expect an update of
-	// about 2
+	// Ten minutes corresponds to 300 blocks, so the smoothing factor is `2 / 301`.
 	let expected_oracle = OracleEntry {
-		price: Price::new(52, 1),
-		volume: Volume::from_a_in_b_out(1, 52),
-		liquidity: Liquidity::new(52, 1),
+		price: Price::new(15_252, 301),
+		volume: Volume::from_a_in_b_out(1, 51),
+		liquidity: Liquidity::new(51, 1),
 		shares_issuance: Some(10_u128),
 		updated_at: 6,
 	};
@@ -712,7 +710,7 @@ fn calculate_current_from_outdated_should_incorporate_longer_time_deltas() {
 		volume: Volume::from_a_in_b_out(1, 8_000),
 		liquidity: Liquidity::new(8_000, 1),
 		shares_issuance: Some(10_u128),
-		updated_at: 1_000,
+		updated_at: 3_000,
 	};
 	let next_oracle = start_oracle
 		.calculate_current_from_outdated(period, &next_value)
@@ -794,7 +792,7 @@ fn get_entry_works() {
 
 		let expected_ten_min = AggregatedEntry {
 			price: Price::new(2_000, 1_000),
-			volume: Volume::from_a_in_b_out(141, 70), // volume oracle gets updated towards zero
+			volume: Volume::from_a_in_b_out(520, 260), // volume oracle gets updated towards zero
 			liquidity: Liquidity::new(2_000, 1_000),
 			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
@@ -803,7 +801,7 @@ fn get_entry_works() {
 
 		let expected_day = AggregatedEntry {
 			price: Price::new(2_000, 1_000),
-			volume: Volume::from_a_in_b_out(986, 493),
+			volume: Volume::from_a_in_b_out(995, 498),
 			liquidity: Liquidity::new(2_000, 1_000),
 			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
@@ -812,7 +810,7 @@ fn get_entry_works() {
 
 		let expected_week = AggregatedEntry {
 			price: Price::new(2_000, 1_000),
-			volume: Volume::from_a_in_b_out(998, 499),
+			volume: Volume::from_a_in_b_out(999, 500),
 			liquidity: Liquidity::new(2_000, 1_000),
 			shares_issuance: Some(1_000_u128),
 			oracle_age: 98,
@@ -872,13 +870,13 @@ fn get_price_returns_updated_price() {
 			);
 			assert_price_approx_eq!(
 				EmaOracle::get_price(HDX, DOT, Day, SOURCE).unwrap().0,
-				Price::new(6_246_761_041_102_896_u128, 10_000_000_000),
+				Price::new(8_147_079_718_630_222_u128, 10_000_000_000),
 				tolerance,
 				"Day Oracle should converge somewhat."
 			);
 			assert_price_approx_eq!(
 				EmaOracle::get_price(HDX, DOT, Week, SOURCE).unwrap().0,
-				Price::new(9_100_156_788_246_781_u128, 10_000_000_000),
+				Price::new(9_680_010_466_208_035_u128, 10_000_000_000),
 				tolerance,
 				"Week Oracle should converge a little."
 			);
@@ -936,8 +934,8 @@ fn ema_update_should_return_none_if_new_entry_is_older() {
 fn check_period_smoothing_factors() {
 	use hydra_dx_math::ema::smoothing_from_period;
 
-	// We assume a 6 second block time.
-	let secs_per_block = 6;
+	// We assume a 2 second block time.
+	let secs_per_block = 2;
 	let minutes = 60 / secs_per_block;
 	let hours = 60 * minutes;
 	let days = 24 * hours;
@@ -946,7 +944,7 @@ fn check_period_smoothing_factors() {
 	println!("Last Block: {} (bits: {})", last_block, last_block.to_bits());
 	assert_eq!(into_smoothing(LastBlock), last_block);
 
-	let short = smoothing_from_period(20);
+	let short = smoothing_from_period(2 * minutes);
 	println!("Short: {} (bits: {})", short, short.to_bits());
 	assert_eq!(into_smoothing(Short), short);
 

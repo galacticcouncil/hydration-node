@@ -160,6 +160,20 @@ parameter_types! {
 	pub const SigEthFaucetFaucetAssetId: AssetId = 20;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct MockDispenserBenchmarkHelper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_dispenser::BenchmarkHelper<AccountId32> for MockDispenserBenchmarkHelper {
+	fn register_asset(_asset_id: AssetId, _min_balance: Balance) -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+
+	fn mint(asset_id: AssetId, who: &AccountId32, amount: Balance) -> sp_runtime::DispatchResult {
+		Currencies::deposit(asset_id, who, amount)
+	}
+}
+
 impl pallet_dispenser::Config for Test {
 	type UpdateOrigin = frame_system::EnsureRoot<AccountId32>;
 	type PalletId = DispenserPalletId;
@@ -169,7 +183,7 @@ impl pallet_dispenser::Config for Test {
 	type FeeDestination = TreasuryAccount;
 	type WeightInfo = crate::weights::WeightInfo<Test>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type BenchmarkHelper = MockDispenserBenchmarkHelper;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
