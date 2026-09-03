@@ -50,23 +50,34 @@ runtime_benchmarks! {
 			(10_000 * TRIL) as i128,
 		)?;
 
-		//NOTE: fund ICE's account so we can resolve intent without trade or another intent
-		Currencies::update_balance(
-			RawOrigin::Root.into(),
-			ICE::get_pallet_account(),
-			DAI,
-			(10 * QUINTIL) as i128,
-		)?;
-
+		let counterparty: AccountId = account("counterparty", 1, SEED);
 
 		fund(caller.clone(), HDX, 10_000 * TRIL)?;
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
+		fund(counterparty.clone(), DAI, 10_000 * QUINTIL)?;
+
+		// Settlement conserves each asset by flow, not by balance: for every asset
+		// `(intent_in + pool_out) - (intent_out + pool_in)` must cover the fee on the
+		// matched volume. A lone intent leaves its out-asset with no inflow at all, so
+		// the pair below matches directly and each side is paid slightly less than the
+		// other put in, leaving the protocol fee in the holding pot.
+		let hdx_in = 3000 * TRIL;
+		let dai_in = 10 * QUINTIL;
+		let hdx_out = hdx_in - IceFee::get().mul_ceil(hdx_in);
+		let dai_out = dai_in - IceFee::get().mul_ceil(dai_in);
 
 		let swap_params = SwapParams {
 			asset_in: HDX,
 			asset_out: DAI,
-			amount_in: 3000 * TRIL,
-			amount_out: 10 * QUINTIL,
+			amount_in: hdx_in,
+			amount_out: dai_out,
+			partial: false,
+		};
+		let counter_params = SwapParams {
+			asset_in: DAI,
+			asset_out: HDX,
+			amount_in: dai_in,
+			amount_out: hdx_out,
 			partial: false,
 		};
 
@@ -78,16 +89,23 @@ runtime_benchmarks! {
 				data: BoundedVec::truncate_from(vec![255u8; 64]),
 			}),
 		};
+		let counter_intent = IntentInput {
+			data: IntentDataInput::Swap(counter_params.clone()),
+			deadline: DEADLINE,
+			on_resolved: None,
+		};
 
 		Intent::submit_intent(RawOrigin::Signed(caller.clone()).into(), intent)?;
+		Intent::submit_intent(RawOrigin::Signed(counterparty.clone()).into(), counter_intent)?;
 		let intents: Vec<(IntentId, IntentT)> = pallet_intent::Intents::<Runtime>::iter().collect();
-		assert_eq!(intents.len() , 1);
-		let (id, _) = intents[0];
+		assert_eq!(intents.len() , 2);
+		let id = intents.iter().find(|(_, i)| i.data.asset_in() == HDX).map(|(id, _)| *id).unwrap();
+		let counter_id = intents.iter().find(|(_, i)| i.data.asset_in() == DAI).map(|(id, _)| *id).unwrap();
 
-		let resolved_intents = vec![IntentIce {
-			id,
-			data: IntentData::Swap(SwapData::from(&swap_params)),
-		}];
+		let resolved_intents = vec![
+			IntentIce { id, data: IntentData::Swap(SwapData::from(&swap_params)) },
+			IntentIce { id: counter_id, data: IntentData::Swap(SwapData::from(&counter_params)) },
+		];
 
 		let mut cp: BTreeMap<AssetId, Price> = BTreeMap::new();
 		assert!(cp.insert(HDX, Ratio{n: 10000, d: 3}).is_none());
@@ -100,9 +118,11 @@ runtime_benchmarks! {
 
 		assert!(LazyExecutor::call_queue(0).is_none());
 		assert!(Intent::get_intent(id).is_some());
+		assert!(Intent::get_intent(counter_id).is_some());
 	}: { ICE::submit_solution(RawOrigin::None.into(), s)? }
 	verify {
 		assert!(Intent::get_intent(id).is_none());
+		assert!(Intent::get_intent(counter_id).is_none());
 		assert!(LazyExecutor::call_queue(0).is_some())
 	}
 }
