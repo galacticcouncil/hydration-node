@@ -8,6 +8,7 @@
 //! full-remaining-or-skip policy that only exists in this mode.
 
 use crate::polkadot_test_net::{hydradx_run_to_next_block, TestNet, ALICE, BOB, CHARLIE, DAVE, EVE};
+use frame_support::assert_noop;
 use frame_support::assert_ok;
 use frame_support::pallet_prelude::{
 	InvalidTransaction, TransactionSource, TransactionValidityError, ValidateUnsigned,
@@ -1744,4 +1745,70 @@ fn solver_mode_lifecycle_should_disable_then_drain_then_resume_matching() {
 			again
 		));
 	});
+}
+
+/// Disabling the solver must also stop new intents being created.
+///
+/// An intent reserves the caller's funds and only settlement, expiry or cancellation
+/// releases them. A DCA carries no deadline, so it never expires: accepting one while
+/// nothing can settle it strands the budget until the owner cancels by hand. The
+/// runtime therefore reads the ICE solver mode when accepting a submission.
+#[test]
+fn submit_intent_should_be_refused_while_the_solver_is_disabled() {
+	TestNet::reset();
+
+	let alice: AccountId = ALICE.into();
+	let hdx = 0u32;
+	let hollar = 222u32;
+	let amount_in = 10_000 * 1_000_000_000_000u128;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), hdx, amount_in * 10)
+		.execute(|| {
+			let ts = hydradx_runtime::Timestamp::now();
+			let intent = || pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+					asset_in: hdx,
+					asset_out: hollar,
+					amount_in,
+					amount_out: 1_000_000_000_000_000_000u128,
+					partial: false,
+				}),
+				deadline: Some(ts + primitives::constants::time::MILLISECS_PER_BLOCK * 100),
+				on_resolved: None,
+			};
+
+			// Default mode settles, so submission is accepted.
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				intent()
+			));
+			let after_first = pallet_intent::Intents::<Runtime>::iter().count();
+
+			assert_ok!(hydradx_runtime::ICE::set_solver_mode(
+				RuntimeOrigin::root(),
+				ice_support::SolverMode::Disabled
+			));
+
+			assert_noop!(
+				hydradx_runtime::Intent::submit_intent(RuntimeOrigin::signed(alice.clone()), intent()),
+				pallet_intent::Error::<Runtime>::SettlementDisabled
+			);
+			assert_eq!(
+				pallet_intent::Intents::<Runtime>::iter().count(),
+				after_first,
+				"no intent may be stored while the solver is disabled"
+			);
+
+			// Re-enabling restores submission.
+			assert_ok!(hydradx_runtime::ICE::set_solver_mode(
+				RuntimeOrigin::root(),
+				ice_support::SolverMode::V4
+			));
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				intent()
+			));
+			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), after_first + 1);
+		});
 }

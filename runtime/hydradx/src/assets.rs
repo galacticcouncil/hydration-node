@@ -1912,6 +1912,14 @@ parameter_types! {
 	pub MaxDcaSlippage: Permill = Permill::from_percent(50);
 }
 
+/// Intents may only be created while something can actually settle them.
+pub struct IceSettlementEnabled;
+impl Get<bool> for IceSettlementEnabled {
+	fn get() -> bool {
+		pallet_ice::Pallet::<Runtime>::settlement_enabled()
+	}
+}
+
 impl pallet_intent::Config for Runtime {
 	type LazyExecutorHandler = LazyExecutor;
 	type RegistryHandler = AssetRegistry;
@@ -1924,6 +1932,7 @@ impl pallet_intent::Config for Runtime {
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
+	type SettlementEnabled = IceSettlementEnabled;
 	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
 	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
 }

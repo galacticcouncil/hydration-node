@@ -794,6 +794,15 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Whether the active solver mode can settle intents at all.
+	///
+	/// `Disabled` has no execution policy, so nothing can settle; every other mode
+	/// can. Exposed so the runtime can refuse new intents while settlement is off,
+	/// keeping the mode-to-capability mapping in one place.
+	pub fn settlement_enabled() -> bool {
+		CurrentSolverMode::<T>::get().execution_policy().is_some()
+	}
+
 	/// Function validates provided solution against the active solver mode.
 	fn validate_unsigned_solution(solution: &Solution) -> Result<(), DispatchError> {
 		match CurrentSolverMode::<T>::get().execution_policy() {

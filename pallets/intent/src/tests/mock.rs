@@ -165,6 +165,21 @@ thread_local! {
 	pub static BLOCK_NUMBER: RefCell<u64> = const { RefCell::new(1) };
 }
 
+thread_local! {
+	pub static SETTLEMENT_ENABLED: std::cell::RefCell<bool> = const { std::cell::RefCell::new(true) };
+}
+
+pub struct SettlementEnabledMock;
+impl frame_support::traits::Get<bool> for SettlementEnabledMock {
+	fn get() -> bool {
+		SETTLEMENT_ENABLED.with(|v| *v.borrow())
+	}
+}
+
+pub fn set_settlement_enabled(enabled: bool) {
+	SETTLEMENT_ENABLED.with(|v| *v.borrow_mut() = enabled);
+}
+
 pub fn set_oracle_price(price: Option<EmaPrice>) {
 	ORACLE_PRICE.with(|v| *v.borrow_mut() = price);
 }
@@ -287,6 +302,7 @@ impl pallet_intent::Config for Test {
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
+	type SettlementEnabled = SettlementEnabledMock;
 	type MaxIntentsPerAccount = ConstU32<5>;
 	type WeightInfo = ();
 }

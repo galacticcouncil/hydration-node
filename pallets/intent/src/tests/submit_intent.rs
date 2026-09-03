@@ -382,3 +382,90 @@ fn should_not_work_when_amount_out_is_less_than_ed() {
 			);
 		});
 }
+
+// ---- settlement gate ----
+
+/// New intents reserve funds that only settlement, expiry or cancellation releases.
+/// A DCA never expires, so accepting one while nothing can settle it strands the
+/// budget until the owner cancels by hand. Submission is refused instead.
+#[test]
+fn submit_intent_should_fail_when_settlement_is_disabled() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			set_settlement_enabled(false);
+
+			assert_noop!(
+				IntentPallet::submit_intent(RuntimeOrigin::signed(ALICE), gate_test_intent()),
+				Error::<Test>::SettlementDisabled
+			);
+
+			assert_eq!(Intents::<Test>::iter().count(), 0);
+			assert_eq!(
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE),
+				0,
+				"nothing may be reserved when submission is refused"
+			);
+		});
+}
+
+#[test]
+fn submit_intent_should_work_when_settlement_is_enabled() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			set_settlement_enabled(true);
+
+			assert_ok!(IntentPallet::submit_intent(
+				RuntimeOrigin::signed(ALICE),
+				gate_test_intent()
+			));
+
+			assert_eq!(Intents::<Test>::iter().count(), 1);
+		});
+}
+
+/// The gate guards the user-facing extrinsic only. Migration converts a schedule
+/// that already exists and already holds reserved funds, so refusing it there would
+/// cancel a live schedule rather than protect anything.
+#[test]
+fn migration_should_still_convert_when_settlement_is_disabled() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			set_settlement_enabled(false);
+
+			let params = ice_support::DcaParams {
+				asset_in: HDX,
+				asset_out: DOT,
+				amount_in: ONE_HDX,
+				amount_out: ONE_DOT,
+				slippage: sp_runtime::Permill::from_percent(3),
+				budget: Some(5 * ONE_HDX),
+				period: 10,
+			};
+
+			let _ = frame_support::storage::with_transaction(|| {
+				assert_ok!(crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params.clone()));
+				assert_eq!(Intents::<Test>::iter().count(), 1);
+				sp_runtime::TransactionOutcome::Commit(sp_runtime::DispatchResult::Ok(()))
+			});
+		});
+}
+
+fn gate_test_intent() -> IntentInput {
+	IntentInput {
+		data: IntentDataInput::Swap(SwapParams {
+			asset_in: HDX,
+			asset_out: DOT,
+			amount_in: 10 * ONE_HDX,
+			amount_out: 100 * ONE_DOT,
+			partial: false,
+		}),
+		deadline: Some(MAX_INTENT_DEADLINE - 1),
+		on_resolved: None,
+	}
+}

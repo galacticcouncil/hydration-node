@@ -9943,7 +9943,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -10038,7 +10038,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

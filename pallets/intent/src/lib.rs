@@ -145,6 +145,14 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinDcaPeriod: Get<u32>;
 
+		/// Whether anything is currently able to settle intents.
+		///
+		/// New intents reserve the caller's funds and are only released by settlement,
+		/// expiry, or cancellation. A DCA carries no deadline and therefore never
+		/// expires, so accepting one while nothing can settle it locks the budget until
+		/// the owner cancels by hand. When this reads false, submission is refused.
+		type SettlementEnabled: Get<bool>;
+
 		/// Upper bound on the slippage a DCA intent may set against the oracle price.
 		///
 		/// The oracle floor is the oracle estimate less this slippage, so an unbounded
@@ -243,6 +251,8 @@ pub mod pallet {
 		InvalidDcaDeadline,
 		/// DCA slippage exceeds `MaxDcaSlippage`.
 		InvalidDcaSlippage,
+		/// Nothing can settle intents right now, so new ones are not accepted.
+		SettlementDisabled,
 		/// Account has reached the maximum number of allowed intents.
 		MaxIntentsReached,
 	}
@@ -287,6 +297,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
 		pub fn submit_intent(origin: OriginFor<T>, intent: IntentInput) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			ensure!(T::SettlementEnabled::get(), Error::<T>::SettlementDisabled);
 
 			Self::add_intent(who, intent)?;
 			Ok(())

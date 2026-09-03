@@ -244,6 +244,7 @@ impl pallet_intent::Config for Test {
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = ConstU32<5>;
 	type MaxDcaSlippage = MaxDcaSlippage;
+	type SettlementEnabled = frame_support::traits::ConstBool<true>;
 	type MaxIntentsPerAccount = ConstU32<100>;
 	type WeightInfo = ();
 }
