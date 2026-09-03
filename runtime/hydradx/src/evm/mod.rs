@@ -44,7 +44,7 @@ use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::{evm::InspectEvmAccounts, oracle::OraclePeriod};
 use orml_tokens::CurrencyAdapter;
 use pallet_currencies::fungibles::FungibleCurrencies;
-use pallet_evm::{EnsureAddressOrigin, FrameSystemAccountProvider};
+use pallet_evm::{EnsureAddressOrigin, EnsureCreateOrigin, FrameSystemAccountProvider};
 use pallet_transaction_payment::Multiplier;
 use primitives::{constants::chain::MAXIMUM_BLOCK_WEIGHT, AssetId, EvmAddress};
 use sp_arithmetic::FixedU128;
@@ -155,6 +155,22 @@ where
 	}
 }
 
+pub struct EnsureWhitelistedDeployer<M>(sp_std::marker::PhantomData<M>);
+
+impl<M, T> EnsureCreateOrigin<T> for EnsureWhitelistedDeployer<M>
+where
+	M: InspectEvmAccounts<AccountId32>,
+	T: pallet_evm::Config,
+{
+	fn check_create_origin(address: &EvmAddress) -> Result<(), pallet_evm::Error<T>> {
+		if M::can_deploy_contracts(*address) {
+			Ok(())
+		} else {
+			Err(pallet_evm::Error::<T>::CreateOriginNotAllowed)
+		}
+	}
+}
+
 impl pallet_evm::Config for Runtime {
 	type AccountProvider = FrameSystemAccountProvider<Runtime>;
 	type FeeCalculator = crate::DynamicEvmFee;
@@ -194,7 +210,7 @@ impl pallet_evm::Config for Runtime {
 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
 	type GasLimitStorageGrowthRatio = GasLimitStorageGrowthRatio;
 	type Timestamp = crate::Timestamp;
-	type CreateOriginFilter = ();
+	type CreateOriginFilter = EnsureWhitelistedDeployer<EvmAccounts<Runtime>>;
 	type CreateInnerOriginFilter = ();
 	type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
