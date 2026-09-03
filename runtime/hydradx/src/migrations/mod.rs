@@ -30,7 +30,6 @@ pub type UnreleasedSingleBlockMigrations = (
 	circuit_breaker::MigrateCircuitBreakerTo2sBlocks<Runtime>,
 	dynamic_fees::MigrateDynamicFeeDecayTo2sBlocks<Runtime>,
 	stableswap::MigrateStableswapMaxPegUpdateTo2sBlocks<Runtime>,
-	pallet_stableswap::migrations::v2::MigrateV1ToV2<Runtime>,
 	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
 	referenda::MigrateReferendaTo2sBlocks<Runtime>,
 	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
