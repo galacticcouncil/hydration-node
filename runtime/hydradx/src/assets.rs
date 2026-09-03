@@ -1905,6 +1905,11 @@ parameter_types! {
 	// gives it `longevity(1)`, so it can never land later than that. One block of
 	// headroom therefore matches the real gap exactly.
 	pub const SolverDeadlineMargin: u64 = MILLISECS_PER_BLOCK;
+	// Bounds how far below the oracle a DCA intent may settle. The failure this
+	// prevents is the floor collapsing to zero at 100% slippage, leaving the intent
+	// bound only by its own limit; it is deliberately loose enough not to reject
+	// ordinary configurations on volatile pairs.
+	pub MaxDcaSlippage: Permill = Permill::from_percent(50);
 }
 
 impl pallet_intent::Config for Runtime {
@@ -1918,6 +1923,7 @@ impl pallet_intent::Config for Runtime {
 	type OraclePriceProvider = ShortOraclePrice;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
+	type MaxDcaSlippage = MaxDcaSlippage;
 	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
 	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
 }

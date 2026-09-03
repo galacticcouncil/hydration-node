@@ -839,3 +839,108 @@ fn add_intent_should_fail_when_dca_amount_out_is_below_existential_deposit() {
 			});
 		});
 }
+
+// ---- DCA slippage cap tests ----
+
+fn dca_intent_with_slippage(slippage: Permill) -> IntentInput {
+	let mut input = dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX));
+	let IntentDataInput::Dca(ref mut params) = input.data else {
+		panic!("expected DCA");
+	};
+	params.slippage = slippage;
+	input
+}
+
+#[test]
+fn add_intent_should_fail_when_dca_slippage_exceeds_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let over = MaxDcaSlippage::get() + Permill::from_parts(1);
+
+				assert_noop!(
+					crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_slippage(over)),
+					Error::<Test>::InvalidDcaSlippage
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn add_intent_should_fail_when_dca_slippage_is_total() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				// 100% slippage is the case that collapses the oracle floor to zero.
+				assert_noop!(
+					crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_slippage(Permill::one())),
+					Error::<Test>::InvalidDcaSlippage
+				);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn add_intent_should_work_when_dca_slippage_is_exactly_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let id = crate::Pallet::<Test>::add_intent(ALICE, dca_intent_with_slippage(MaxDcaSlippage::get()))
+					.expect("cap is inclusive");
+
+				assert_eq!(stored_dca(id).slippage, MaxDcaSlippage::get());
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+/// A schedule created before the cap existed must be tightened, never cancelled:
+/// the migration caller turns a rejection into a cancellation of a live schedule.
+#[test]
+fn do_add_migrated_intent_should_clamp_slippage_when_it_exceeds_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let mut params = migrated_params(ONE_HDX, ONE_DOT);
+				params.slippage = Permill::from_percent(80);
+
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params).expect("must not be refused");
+
+				assert_eq!(stored_dca(id).slippage, MaxDcaSlippage::get());
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_keep_slippage_when_within_the_cap() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				let mut params = migrated_params(ONE_HDX, ONE_DOT);
+				params.slippage = Permill::from_percent(2);
+
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params).expect("should work");
+
+				assert_eq!(stored_dca(id).slippage, Permill::from_percent(2));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}

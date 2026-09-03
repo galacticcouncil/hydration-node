@@ -70,7 +70,7 @@ use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Zero;
-use sp_runtime::{FixedPointNumber, FixedU128};
+use sp_runtime::{FixedPointNumber, FixedU128, Permill};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -144,6 +144,14 @@ pub mod pallet {
 		/// Minimum DCA period in blocks.
 		#[pallet::constant]
 		type MinDcaPeriod: Get<u32>;
+
+		/// Upper bound on the slippage a DCA intent may set against the oracle price.
+		///
+		/// The oracle floor is the oracle estimate less this slippage, so an unbounded
+		/// value collapses the floor to the intent's own limit and removes the
+		/// protection entirely.
+		#[pallet::constant]
+		type MaxDcaSlippage: Get<Permill>;
 
 		/// Maximum number of intents a single account can have at the same time.
 		#[pallet::constant]
@@ -233,6 +241,8 @@ pub mod pallet {
 		InvalidDcaBudget,
 		/// DCA intent must not have a deadline.
 		InvalidDcaDeadline,
+		/// DCA slippage exceeds `MaxDcaSlippage`.
+		InvalidDcaSlippage,
 		/// Account has reached the maximum number of allowed intents.
 		MaxIntentsReached,
 	}
@@ -470,6 +480,11 @@ impl<T: Config> Pallet<T> {
 			params.amount_out = params.amount_out.max(ed_out);
 		}
 
+		// Schedules created before the cap existed are tightened rather than refused:
+		// `do_add_intent` would reject them, and the caller turns that into a
+		// cancellation of a live schedule.
+		params.slippage = params.slippage.min(T::MaxDcaSlippage::get());
+
 		Self::do_add_intent(
 			owner,
 			IntentInput {
@@ -521,6 +536,10 @@ impl<T: Config> Pallet<T> {
 				ensure!(input.deadline.is_none(), Error::<T>::InvalidDcaDeadline);
 
 				ensure!(data.period >= T::MinDcaPeriod::get(), Error::<T>::InvalidDcaPeriod);
+				ensure!(
+					data.slippage <= T::MaxDcaSlippage::get(),
+					Error::<T>::InvalidDcaSlippage
+				);
 				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
 				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
 				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);

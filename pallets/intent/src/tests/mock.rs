@@ -33,7 +33,7 @@ use sp_core::ConstU64;
 use sp_core::H256;
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::IdentityLookup;
-use sp_runtime::{BuildStorage, DispatchError, DispatchResult, TransactionOutcome};
+use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill, TransactionOutcome};
 use std::cell::RefCell;
 use std::vec;
 
@@ -272,6 +272,7 @@ impl Inspect for DummyRegistry {
 
 parameter_types! {
 	pub const MinDcaPeriod: u32 = MIN_DCA_PERIOD;
+	pub MaxDcaSlippage: Permill = Permill::from_percent(5);
 }
 
 impl pallet_intent::Config for Test {
@@ -285,6 +286,7 @@ impl pallet_intent::Config for Test {
 	type OraclePriceProvider = MockOracleProvider;
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
+	type MaxDcaSlippage = MaxDcaSlippage;
 	type MaxIntentsPerAccount = ConstU32<5>;
 	type WeightInfo = ();
 }
