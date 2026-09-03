@@ -382,6 +382,41 @@ fn schedule_should_fail_when_migration_is_enabled() {
 		});
 }
 
+/// The deploy-time default. Nothing writes `MigrationEnabled` — the pallet has no
+/// `GenesisConfig` and no migration sets it — so the flag is absent on a fresh
+/// runtime and `ValueQuery` must resolve it to `false`. If this ever flipped, a
+/// runtime upgrade would start converting schedules the moment it went live.
+#[test]
+fn migration_enabled_should_be_false_when_never_set() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert!(!crate::MigrationEnabled::<Test>::exists());
+		assert!(!DCA::migration_enabled());
+	});
+}
+
+#[test]
+fn set_migration_enabled_should_unblock_scheduling_when_set_back_to_false() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, START_BLOCK);
+			enable_migration();
+
+			//Act
+			assert_ok!(DCA::set_migration_enabled(RuntimeOrigin::root(), false));
+
+			//Assert
+			assert!(!DCA::migration_enabled());
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(100 * ONE)
+				.with_order(sell_order(10 * ONE, 0))
+				.build();
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, None));
+		});
+}
+
 #[test]
 fn set_migration_enabled_should_fail_when_origin_is_not_terminate_origin() {
 	ExtBuilder::default().build().execute_with(|| {
