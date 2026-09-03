@@ -1218,7 +1218,6 @@ impl_runtime_apis! {
 		}
 	}
 
-<<<<<<< HEAD
 	impl pallet_ice_runtime_api::IceSolverApi<Block> for Runtime {
 		fn solver_input() -> Option<pallet_ice_runtime_api::SolverInput> {
 			pallet_ice::Pallet::<Runtime>::solver_input().map(|(intents, state, eds, min_amount_out, fee, mode)| {
@@ -1231,7 +1230,9 @@ impl_runtime_apis! {
 					mode,
 				}
 			})
-=======
+		}
+	}
+
 	impl evm::uniswap_v3_trade_executor::runtime_api::UniswapV3Api<Block, Balance> for Runtime {
 		fn pool(asset_a: AssetId, asset_b: AssetId, fee: u32) -> Option<EvmAddress> {
 			UniswapV3TradeExecutor::<Runtime>::find_pool(asset_a, asset_b, fee).ok().flatten()
@@ -1247,7 +1248,6 @@ impl_runtime_apis! {
 
 		fn liquidity_depth(asset_in: AssetId, asset_out: AssetId, fee: u32) -> Option<Balance> {
 			UniswapV3TradeExecutor::<Runtime>::liquidity_depth(asset_in, asset_out, fee).ok()
->>>>>>> master
 		}
 	}
 
