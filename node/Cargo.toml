@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "15.3.0"
+version = "15.5.0"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -45,6 +45,12 @@ primitives = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-liquidation = { workspace = true }
 liquidation-worker-support = { workspace = true }
+pallet-ice = { workspace = true, features = ["std"] }
+pallet-ice-runtime-api = { workspace = true, features = ["std"] }
+ice-solver = { workspace = true, features = ["std"] }
+amm-simulator = { workspace = true, features = ["std"] }
+ice-support = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true, features = ["std"] }
 pepl-worker = { workspace = true }
 pepl-worker-support = { workspace = true }
 

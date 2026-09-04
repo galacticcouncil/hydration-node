@@ -62,7 +62,7 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, rpc};
+use crate::{chain_spec, cli, ice_solver_worker, rpc};
 
 type ParachainClient = TFullClient<
 	Block,
@@ -299,6 +299,7 @@ async fn start_node_impl(
 	polkadot_config: Configuration,
 	ethereum_config: evm::EthereumConfig,
 	liquidation_worker_config: pepl_worker::LiquidationWorkerCli,
+	ice_solver_worker_config: ice_solver_worker::IceSolverWorkerConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	no_tx_priority_override: bool,
@@ -424,6 +425,27 @@ async fn start_node_impl(
 		}
 	}
 
+	// Data provided from the ICE solver worker to RPC API.
+	let ice_solver_task_data = Arc::new(ice_solver_worker::IceSolverTaskData::new());
+
+	// By default, the ICE solver worker is enabled for validator nodes and disabled for non-validator nodes.
+	if (validator && !(ice_solver_worker_config.ice_solver_worker == Some(false)))
+		|| (!validator && ice_solver_worker_config.ice_solver_worker == Some(true))
+	{
+		task_manager.spawn_handle().spawn(
+			"ice-solver-worker",
+			None,
+			ice_solver_worker::IceSolverTask::run(
+				client.clone(),
+				ice_solver_worker_config,
+				transaction_pool.clone(),
+				sync_service.clone(),
+				task_manager.spawn_handle(),
+				ice_solver_task_data.clone(),
+			),
+		);
+	}
+
 	// Wrap the stock storage override so eth-rpc reads also surface synthetic
 	// logs (substrate transfers + swaps), translated client-side from each
 	// block's events read out of state — no on-chain synth txs, and works on
@@ -473,6 +495,7 @@ async fn start_node_impl(
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				backend: backend.clone(),
+				ice_solver_task_data: ice_solver_task_data.clone(),
 				pepl_status: pepl_status.clone(),
 			};
 
@@ -694,6 +717,7 @@ pub async fn start_node(
 		polkadot_config,
 		cli.ethereum_config,
 		cli.liquidation_worker_config,
+		cli.ice_solver_worker_config,
 		collator_options,
 		para_id,
 		cli.no_tx_priority_override,

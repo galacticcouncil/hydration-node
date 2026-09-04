@@ -19,6 +19,7 @@ pub trait WeightInfo {
 	fn schedule() -> Weight;
 	fn terminate() -> Weight;
 	fn unlock_reserves() -> Weight;
+	fn set_migration_enabled() -> Weight;
 }
 
 /// Weights for pallet_dca using the hydraDX node and recommended hardware.
@@ -238,5 +239,16 @@ impl WeightInfo for () {
 		Weight::from_parts(40_000_000, 4714)
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+
+	/// Storage: `DCA::MigrationEnabled` (r:0 w:1)
+	/// Proof: `DCA::MigrationEnabled` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
+	fn set_migration_enabled() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 5_000_000 picoseconds.
+		Weight::from_parts(5_000_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
