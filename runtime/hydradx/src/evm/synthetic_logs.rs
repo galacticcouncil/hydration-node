@@ -183,6 +183,7 @@ pub fn assemble_synth_txs(
 	let signature = ethereum::eip2930::TransactionSignature::new(false, SYNTH_SIG_RS, SYNTH_SIG_RS)
 		.expect("synthetic signature constants are within valid ECDSA range; qed");
 
+	let version = envelope_version(block_number);
 	let mut out = Vec::with_capacity(groups.len());
 	for (group_index, (_key, (bucket, logs))) in groups.into_iter().enumerate() {
 		let group_index = group_index as u32;
@@ -190,11 +191,31 @@ pub fn assemble_synth_txs(
 		// `value` stays zero because no native token moves — putting an index there
 		// would show up as a phantom transfer in anything summing tx values.
 		let meta = bucket_extrinsic(&bucket, extrinsics);
-		let input = tx_input(
-			block_hash,
-			&meta.map(|m| m.hash).unwrap_or_default(),
-			bucket_nonce(bucket),
-		);
+		// v1 folds the block hash into the identity, so a reorg re-including an extrinsic
+		// changes its hash. v2 anchors on the extrinsic (or the height, for hooks) instead.
+		// The v1 arm is frozen: its hashes are already published.
+		let (input, nonce) = match version {
+			EnvelopeVersion::V1 => (
+				tx_input(
+					block_hash,
+					&meta.map(|m| m.hash).unwrap_or_default(),
+					bucket_nonce(bucket),
+				),
+				synth_nonce(block_number, group_index),
+			),
+			EnvelopeVersion::V2 => {
+				let (kind, bucket_id) = v2_kind_and_bucket(&bucket);
+				let anchor = match kind {
+					KIND_EXTRINSIC => word32(&meta.map(|m| m.hash).unwrap_or_default()),
+					_ => word32_be(block_number),
+				};
+				// nonce 0: with `from` a sentinel that never signed anything, a nonce is
+				// fiction either way — `eth_getTransactionCount` on it returns 0. Zero says
+				// "not an account nonce" instead of fabricating a plausible one, and identity
+				// lives entirely in `input`.
+				(tx_input_v2(&anchor, kind, bucket_id), 0)
+			}
+		};
 		// `from` stays the sentinel: nothing signed this, and the nonce below belongs to
 		// `from`, so a real account's evm nonce sequence must not be entangled with it.
 		// `to` carries the origin so the account's own history surfaces this activity in
@@ -202,7 +223,7 @@ pub fn assemble_synth_txs(
 		let to = meta.and_then(|m| m.origin).unwrap_or(SENTINEL_ADDRESS);
 		let transaction = Transaction::EIP1559(EIP1559Transaction {
 			chain_id,
-			nonce: U256::from(synth_nonce(block_number, group_index)),
+			nonce: U256::from(nonce),
 			max_priority_fee_per_gas: U256::zero(),
 			max_fee_per_gas: U256::zero(),
 			gas_limit: U256::zero(),
@@ -403,6 +424,139 @@ pub fn bucket_nonce(bucket: Bucket) -> u64 {
 			phase: HookPhase::Finalization,
 			origin: Some(o),
 		} => 0xF1A1_0000_0000_0000u64 | origin_tag(&o),
+	}
+}
+
+/// First block that uses the v2 envelope.
+///
+/// **Provisional.** It must be byte-identical on every node: a node still running an older
+/// build past this height keeps emitting v1 hashes, so two RPCs would disagree on the
+/// identity of the same transaction. Once a release carrying this is announced the value is
+/// effectively frozen.
+///
+/// ~2.1 s/block measured on mainnet after the 2s rollout, so this is roughly two weeks past
+/// block 14.12M.
+pub const SYNTH_V2_FROM: u64 = 14_700_000;
+
+/// Which envelope a block's synth txs use.
+///
+/// Gated on **height**, so a re-sync re-derives every historical hash identically and the
+/// frontier mapping db stays valid. v1 hashes are already published — indexers hold them and
+/// `eth_getTransactionByHash` resolves them — so the v1 path is frozen, not migrated.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EnvelopeVersion {
+	/// Identity folds in the block hash, so an extrinsic re-included by a reorg changes hash.
+	V1,
+	/// Identity depends only on the extrinsic (or, for hooks, the height), so it survives a
+	/// reorg.
+	V2,
+}
+
+pub fn envelope_version(block_number: u64) -> EnvelopeVersion {
+	if block_number >= SYNTH_V2_FROM {
+		EnvelopeVersion::V2
+	} else {
+		EnvelopeVersion::V1
+	}
+}
+
+/// v2 `input` signature. The selector changes with the layout, which is stronger than an
+/// embedded version byte a decoder might ignore.
+pub const SYNTH_V2_SIGNATURE: &[u8] = b"hydrationSynthV2(bytes32,uint8,uint64)";
+
+/// `keccak256(SYNTH_V2_SIGNATURE)[..4]`, asserted in `synth_v2_selector_matches_signature`.
+pub const SYNTH_V2_SELECTOR: [u8; 4] = [0xdb, 0xec, 0x8e, 0x25];
+
+/// `anchor` is the extrinsic hash: identity travels with the extrinsic.
+pub const KIND_EXTRINSIC: u8 = 1;
+/// `anchor` is the block height: hook events belong to a block, not a transaction.
+pub const KIND_HOOK: u8 = 2;
+
+/// abi `uint256` from a `u64`: left-padded, unlike [`word32`]'s right-padded `bytes32`.
+fn word32_be(value: u64) -> [u8; 32] {
+	let mut w = [0u8; 32];
+	w[24..].copy_from_slice(&value.to_be_bytes());
+	w
+}
+
+/// The v2 `input`:
+///
+/// ```text
+///   0..4     selector 0xdbec8e25
+///   4..36    bytes32  anchor   extrinsic hash (kind 1) | uint256(block height) (kind 2)
+///  36..68    uint8    kind
+///  68..100   uint64   bucket   0 (kind 1) | phase + stable origin tag (kind 2)
+/// ```
+///
+/// No block hash anywhere: that is the whole point. Nothing here depends on which block won
+/// a fork — only on the extrinsic, or on the height. The substrate block hash is still
+/// recoverable by a consumer as `chain_getBlockHash(blockNumber)`, since an eth block number
+/// is the substrate height.
+fn tx_input_v2(anchor: &[u8; 32], kind: u8, bucket: u64) -> Vec<u8> {
+	let mut data = Vec::with_capacity(4 + 32 * 3);
+	data.extend_from_slice(&SYNTH_V2_SELECTOR);
+	data.extend_from_slice(anchor);
+	data.extend_from_slice(&word32_be(u64::from(kind)));
+	data.extend_from_slice(&word32_be(bucket));
+	data
+}
+
+/// v2 `(kind, bucket)`.
+///
+/// The extrinsic **index** is deliberately gone: there is one bucket per extrinsic, so the
+/// extrinsic hash already identifies it, and the index is pure position — it shifts whenever
+/// a reorg changes what else is in the block. Consumers join by extrinsic hash instead,
+/// which is what survives.
+fn v2_kind_and_bucket(bucket: &Bucket) -> (u8, u64) {
+	match bucket {
+		Bucket::Extrinsic(_) => (KIND_EXTRINSIC, 0),
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: None,
+		} => (KIND_HOOK, u64::MAX - 3),
+		Bucket::Hook {
+			phase: HookPhase::Initialization,
+			origin: Some(o),
+		} => (KIND_HOOK, 0xDCA0_0000_0000_0000u64 | stable_origin_tag(o)),
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: None,
+		} => (KIND_HOOK, u64::MAX - 2),
+		Bucket::Hook {
+			phase: HookPhase::Finalization,
+			origin: Some(o),
+		} => (KIND_HOOK, 0xF1A1_0000_0000_0000u64 | stable_origin_tag(o)),
+	}
+}
+
+/// v2 origin tag: like [`origin_tag`] but keyed on values that survive a reorg.
+///
+/// `IncrementalId` is a global, never-reset counter (`pallet_broadcast` mutates it per
+/// operation and only kills `ExecutionContext` on_finalize), so its value at a hook depends
+/// on how many operations ran earlier in the block. Two competing blocks whose earlier
+/// extrinsics differ hand the same logical operation a different id.
+///
+/// * `DCA` already keys on the schedule id — stable, and it is the origin that actually
+///   occurs in hook phases.
+/// * `Xcm` carries a 32-byte message hash and v1 **discards it** in favour of the counter.
+///   v2 uses the message hash, which is the stable identity sitting right there.
+/// * the rest have only a counter. They are extrinsic-scoped in practice, so they appear
+///   under `Bucket::Extrinsic` rather than as hook origins; if one ever does show up in a
+///   hook it will churn across reorgs, and that is left visible rather than papered over.
+fn stable_origin_tag(origin: &ExecutionType) -> u64 {
+	match origin {
+		ExecutionType::Router(id) => 0x0100_0000_0000 | (*id as u64),
+		ExecutionType::DCA(schedule_id, _) => 0x0200_0000_0000 | (*schedule_id as u64),
+		ExecutionType::Batch(id) => 0x0300_0000_0000 | (*id as u64),
+		ExecutionType::Omnipool(id) => 0x0400_0000_0000 | (*id as u64),
+		ExecutionType::XcmExchange(id) => 0x0500_0000_0000 | (*id as u64),
+		// low 5 bytes of the message hash: 40 bits, which is the room the tag layout leaves
+		// below the variant marker at bits 40..47.
+		ExecutionType::Xcm(message_hash, _) => {
+			let mut low = [0u8; 8];
+			low[3..].copy_from_slice(&message_hash[27..32]);
+			0x0600_0000_0000 | u64::from_be_bytes(low)
+		}
 	}
 }
 
@@ -898,6 +1052,301 @@ mod tests {
 			3,
 			"hook buckets must not collide on the zero extrinsic hash"
 		);
+	}
+
+	/// A fixed scenario covering every bucket class, so the v1 envelope is pinned by value
+	/// and not merely by "hashes differ from each other".
+	fn v1_golden_scenario() -> (Vec<(Bucket, H160, ethereum::Log)>, Vec<ExtrinsicMeta>) {
+		let entries = vec![
+			// signed extrinsic, has an origin
+			(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1)),
+			// unsigned extrinsic, no origin
+			(Bucket::Extrinsic(1), H160::repeat_byte(0x02), log(2)),
+			// initialization hook, no origin
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: None,
+				},
+				H160::repeat_byte(0x03),
+				log(3),
+			),
+			// finalization hook with a DCA origin — the origin variant that actually occurs
+			// in hook phases, and the only one keyed on a stable id (the schedule).
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: Some(ExecutionType::DCA(7, 99)),
+				},
+				H160::repeat_byte(0x04),
+				log(4),
+			),
+		];
+		let extrinsics = vec![
+			ExtrinsicMeta {
+				hash: [0xAA; 32],
+				origin: Some(H160::repeat_byte(0x5A)),
+			},
+			meta(0xBB),
+		];
+		(entries, extrinsics)
+	}
+
+	/// **Golden vectors for the v1 envelope. Do not update these to make a change pass.**
+	///
+	/// Every hash below is already published: indexers have stored them, and
+	/// `eth_getTransactionByHash` resolves them out of the frontier mapping db. Changing the
+	/// v1 envelope silently rewrites the identity of historical activity, which no reindex
+	/// can repair for a consumer that keyed on the old value.
+	///
+	/// The reorg-stable envelope is being introduced as v2 behind a height gate precisely so
+	/// these stay fixed. If this test fails, the v1 path was touched — revert rather than
+	/// re-bless.
+	#[test]
+	fn v1_envelope_hashes_are_frozen() {
+		let (entries, extrinsics) = v1_golden_scenario();
+		let txs = assemble_synth_txs(entries, 222_222, &[0x11u8; 32], &extrinsics, 100, 0);
+		let got: Vec<String> = txs
+			.iter()
+			.map(|(_, s, _)| format!("{:?}", s.transaction_hash))
+			.collect();
+		// generated from the PRE-change code and confirmed identical after, so these prove
+		// the v1 path was untouched rather than merely blessing the new output.
+		let expected = [
+			"0x4768f8beb9505c0992e3be3f89c16744be0d9886fd481bedda0616a9a7bb81b3",
+			"0x1e1c34e17a80c466e37f4b5fa1a452a70e2a4a30306567911d7050facf99af02",
+			"0x2b811c95331f59e8fae461fa27083db1412a955eb7a6d30633cac89d9a9056d4",
+			"0x87a4b1fdd80d3e27cc2f3b39ffa9a66294c4dee88b9c732a6b3066a7487774c6",
+		];
+		assert_eq!(got.len(), expected.len(), "bucket count changed: {got:#?}");
+		assert_eq!(
+			got, expected,
+			"v1 envelope changed; see this test's docs before touching"
+		);
+	}
+
+	// ---- v2: the reorg-stability properties ----
+
+	#[test]
+	fn synth_v2_selector_matches_signature() {
+		let expected = sp_io::hashing::keccak_256(SYNTH_V2_SIGNATURE);
+		assert_eq!(
+			SYNTH_V2_SELECTOR,
+			expected[..4],
+			"selector must be keccak(signature)[..4]"
+		);
+	}
+
+	#[test]
+	fn envelope_version_switches_at_the_activation_height() {
+		assert_eq!(envelope_version(SYNTH_V2_FROM - 1), EnvelopeVersion::V1);
+		assert_eq!(envelope_version(SYNTH_V2_FROM), EnvelopeVersion::V2);
+		assert_eq!(envelope_version(0), EnvelopeVersion::V1);
+	}
+
+	/// The whole point. The same extrinsic re-included by a reorg must keep its hash even
+	/// though the block hash, the height, and its position among buckets all changed.
+	#[test]
+	fn v2_extrinsic_hash_survives_reinclusion_elsewhere() {
+		let xt = ExtrinsicMeta {
+			hash: [0xAA; 32],
+			origin: Some(H160::repeat_byte(0x5A)),
+		};
+		// block A: the extrinsic is at index 0, alone.
+		let a = assemble_synth_txs(
+			vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))],
+			222_222,
+			&[0x11u8; 32],
+			&[xt],
+			SYNTH_V2_FROM,
+			0,
+		);
+		// block B: different block hash, different height, and the extrinsic has moved to
+		// index 1 behind another extrinsic — so group_index shifts too.
+		let b = assemble_synth_txs(
+			vec![
+				(Bucket::Extrinsic(0), H160::repeat_byte(0x09), log(9)),
+				(Bucket::Extrinsic(1), H160::repeat_byte(0x01), log(1)),
+			],
+			222_222,
+			&[0x99u8; 32],
+			&[meta(0xCC), xt],
+			SYNTH_V2_FROM + 7,
+			0,
+		);
+		assert_eq!(
+			a[0].1.transaction_hash, b[1].1.transaction_hash,
+			"a re-included extrinsic must keep its synth tx hash"
+		);
+		// and v1 must NOT have this property — that is the defect being fixed.
+		let a1 = assemble_synth_txs(
+			vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))],
+			222_222,
+			&[0x11u8; 32],
+			&[xt],
+			SYNTH_V2_FROM - 1,
+			0,
+		);
+		let b1 = assemble_synth_txs(
+			vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))],
+			222_222,
+			&[0x99u8; 32],
+			&[xt],
+			SYNTH_V2_FROM - 1,
+			0,
+		);
+		assert_ne!(
+			a1[0].1.transaction_hash, b1[0].1.transaction_hash,
+			"v1 folds the block hash in, so it churns; this is what v2 fixes"
+		);
+	}
+
+	/// Hook events belong to a block, so they are anchored to the height. Two siblings at one
+	/// height therefore share a hash — deliberately. Frontier already resolves that: it stores
+	/// a metadata entry per (hash, block) and `load_hash` picks the canonical one, exactly as
+	/// it does for a real eth tx included in two forks.
+	#[test]
+	fn v2_hook_is_anchored_to_height_not_block_hash() {
+		let hook = || {
+			vec![(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: None,
+				},
+				H160::repeat_byte(0x03),
+				log(3),
+			)]
+		};
+		let sibling_a = assemble_synth_txs(hook(), 222_222, &[0x11u8; 32], &[], SYNTH_V2_FROM, 0);
+		let sibling_b = assemble_synth_txs(hook(), 222_222, &[0x22u8; 32], &[], SYNTH_V2_FROM, 0);
+		assert_eq!(
+			sibling_a[0].1.transaction_hash, sibling_b[0].1.transaction_hash,
+			"same height, different block hash: hook identity must not move"
+		);
+		let next_height = assemble_synth_txs(hook(), 222_222, &[0x11u8; 32], &[], SYNTH_V2_FROM + 1, 0);
+		assert_ne!(
+			sibling_a[0].1.transaction_hash, next_height[0].1.transaction_hash,
+			"a different height is genuinely different hook activity"
+		);
+	}
+
+	/// `IncrementalId` is a global counter, so it differs between competing blocks whose
+	/// earlier extrinsics differ. v1 keys `Xcm` on that counter and throws away the message
+	/// hash; v2 uses the hash.
+	#[test]
+	fn v2_xcm_origin_keys_on_message_hash_not_the_counter() {
+		let msg = [0x7Cu8; 32];
+		let other = [0x7Du8; 32];
+		assert_eq!(
+			stable_origin_tag(&ExecutionType::Xcm(msg, 1)),
+			stable_origin_tag(&ExecutionType::Xcm(msg, 999)),
+			"same message, different counter: tag must not move"
+		);
+		assert_ne!(
+			stable_origin_tag(&ExecutionType::Xcm(msg, 1)),
+			stable_origin_tag(&ExecutionType::Xcm(other, 1)),
+			"different messages must stay distinct"
+		);
+		// v1 had the opposite behaviour, which is why it churned.
+		assert_ne!(
+			origin_tag(&ExecutionType::Xcm(msg, 1)),
+			origin_tag(&ExecutionType::Xcm(msg, 999)),
+		);
+		// the tag must not spill into the variant marker at bits 40..47
+		assert_eq!(stable_origin_tag(&ExecutionType::Xcm([0xFF; 32], 0)) >> 40, 0x06);
+	}
+
+	#[test]
+	fn v2_nonce_is_zero_and_identity_lives_in_input() {
+		let txs = assemble_synth_txs(
+			vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))],
+			222_222,
+			&[0x11u8; 32],
+			&[meta(0xAA)],
+			SYNTH_V2_FROM,
+			0,
+		);
+		match &txs[0].0 {
+			super::Transaction::EIP1559(t) => {
+				assert!(t.nonce.is_zero(), "v2 nonce is 0");
+				assert_eq!(&t.input[..4], &SYNTH_V2_SELECTOR, "v2 selector");
+				assert_eq!(&t.input[4..36], &[0xAAu8; 32], "anchor is the extrinsic hash");
+				assert_eq!(t.input[67], KIND_EXTRINSIC, "kind word");
+				assert_eq!(t.input.len(), 4 + 32 * 3);
+			}
+			_ => panic!("expected EIP1559"),
+		}
+	}
+
+	/// Distinct buckets must stay distinct, or `eth_getTransactionByHash` becomes ambiguous
+	/// within a single block.
+	#[test]
+	fn v2_distinct_buckets_do_not_collide() {
+		let entries = vec![
+			(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1)),
+			(Bucket::Extrinsic(1), H160::repeat_byte(0x02), log(2)),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Initialization,
+					origin: None,
+				},
+				H160::repeat_byte(0x03),
+				log(3),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: None,
+				},
+				H160::repeat_byte(0x04),
+				log(4),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: Some(ExecutionType::DCA(7, 1)),
+				},
+				H160::repeat_byte(0x05),
+				log(5),
+			),
+			(
+				Bucket::Hook {
+					phase: HookPhase::Finalization,
+					origin: Some(ExecutionType::DCA(8, 1)),
+				},
+				H160::repeat_byte(0x06),
+				log(6),
+			),
+		];
+		let extrinsics = vec![meta(0xAA), meta(0xBB)];
+		let txs = assemble_synth_txs(entries, 222_222, &[0x11u8; 32], &extrinsics, SYNTH_V2_FROM, 0);
+		let mut hashes: Vec<_> = txs.iter().map(|(_, s, _)| s.transaction_hash).collect();
+		let total = hashes.len();
+		hashes.sort();
+		hashes.dedup();
+		assert_eq!(hashes.len(), total, "v2 envelope collided across distinct buckets");
+	}
+
+	/// `to` is the one preimage input derived from execution rather than from the extrinsic
+	/// itself, so pin it: the origin must reach `to`, and an origin-less bucket must land on
+	/// the sentinel. If the fee event were ever absent on a re-inclusion, the hash would move.
+	#[test]
+	fn v2_origin_still_reaches_to() {
+		let origin = H160::repeat_byte(0x5A);
+		let signed = ExtrinsicMeta {
+			hash: [0xAA; 32],
+			origin: Some(origin),
+		};
+		let txs = assemble_synth_txs(
+			vec![(Bucket::Extrinsic(0), H160::repeat_byte(0x01), log(1))],
+			222_222,
+			&[0x11u8; 32],
+			&[signed],
+			SYNTH_V2_FROM,
+			0,
+		);
+		assert_eq!(txs[0].1.from, SENTINEL_ADDRESS);
+		assert_eq!(txs[0].1.to, Some(origin));
 	}
 
 	fn meta(tag: u8) -> ExtrinsicMeta {
