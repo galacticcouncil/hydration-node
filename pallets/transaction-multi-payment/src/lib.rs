@@ -69,6 +69,8 @@ type BalanceOf<T> = <<T as Config>::Currencies as MultiCurrency<<T as frame_syst
 /// Spot price type
 pub type Price = FixedU128;
 
+pub const MAX_EVM_CALL_OUTPUT_LEN: u32 = 256;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
@@ -76,6 +78,7 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use codec::DecodeLimit;
+	use fp_evm::ExitReason;
 	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
@@ -167,7 +170,7 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	#[pallet::generate_deposit(pub fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// CurrencySet
 		/// [who, currency]
@@ -196,6 +199,15 @@ pub mod pallet {
 
 		/// Signed-branch dispatch permit fee payer
 		FeeSponsored { from: H160, fee_payer: T::AccountId },
+
+		/// The EVM call dispatched by a permit did not succeed; the permit nonce is spent either way.
+		EvmPermitCallFailed {
+			from: H160,
+			to: H160,
+			nonce: U256,
+			reason: ExitReason,
+			output: BoundedVec<u8, ConstU32<MAX_EVM_CALL_OUTPUT_LEN>>,
+		},
 	}
 
 	#[pallet::error]
@@ -455,7 +467,7 @@ pub mod pallet {
 			let result = T::EvmPermit::dispatch_permit(from, to, data, value, gas_limit, gas_price, None, None, vec![])
 				.unwrap_or_else(|e| {
 					// RunnerError = account wasn't charged, so the dispatch can't have produced anything.
-					if e.error == Error::<T>::EvmPermitRunnerError.into() {
+					if !Self::evm_call_was_executed(&e.error) {
 						T::EvmPermit::on_dispatch_permit_error();
 					}
 					e.post_info
@@ -504,11 +516,16 @@ pub mod pallet {
 				// RunnerError: nothing charged. Keep Err (`Pays::Yes`) so the paymaster
 				// still pays the extrinsic fee — the per-attempt cost that replaces the
 				// unsigned-path autopause. Never call `on_dispatch_permit_error()` here.
-				Err(e) if e.error == Error::<T>::EvmPermitRunnerError.into() => Err(e.error.into()),
+				Err(e) if !Self::evm_call_was_executed(&e.error) => Err(e.error.into()),
 				// Revert already consumed the nonce and charged gas; commit it like the
 				// unsigned path. Returning Err would roll the nonce back → replayable.
 				Err(e) => Ok(e.post_info),
 			}
+		}
+
+		fn evm_call_was_executed(error: &DispatchError) -> bool {
+			*error == Error::<T>::EvmPermitCallExecutionError.into()
+				|| *error == Error::<T>::EvmPermitNonceInvariantViolated.into()
 		}
 
 		fn restore_fee_payer(previous: Option<T::AccountId>) {

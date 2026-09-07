@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-dca'
-version = "1.20.0"
+version = "1.21.1"
 description = 'A pallet to manage DCA scheduling'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -34,6 +34,7 @@ pallet-omnipool = { workspace = true }
 pallet-dispatcher = { workspace = true }
 pallet-evm = { workspace = true }
 hydradx-traits = { workspace = true }
+ice-support = { workspace = true }
 hydradx-adapters = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 pallet-broadcast = { workspace = true }
@@ -55,7 +56,7 @@ primitives = { path = "../../primitives", default-features = false }
 pallet-route-executor = { workspace = true }
 smallvec = { workspace = true }
 pallet-balances = { workspace = true }
-pallet-currencies = { workspace = true }
+pallet-currencies = { workspace = true, features = ["std"] }
 lazy_static = { workspace = true }
 sp-api = { workspace = true }
 sp-tracing = { workspace = true }
@@ -78,6 +79,7 @@ std = [
     "scale-info/std",
     "orml-tokens/std",
     "hydradx-traits/std",
+    "ice-support/std",
     "hydradx-adapters/std",
     "pallet-omnipool/std",
     "pallet-ema-oracle/std",
