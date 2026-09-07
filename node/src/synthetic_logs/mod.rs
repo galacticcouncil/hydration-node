@@ -20,6 +20,8 @@
 //!   synthetic tx hashes so `eth_getTransactionByHash`/`*_receipt` resolve.
 
 pub mod compat_events;
+#[cfg(test)]
+mod envelope_tests;
 pub mod eth_filter;
 pub mod mapping_sync;
 pub mod metadata_events;
