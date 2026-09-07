@@ -12,10 +12,8 @@
 //! of `TransactionPayment.TransactionFeePaid`, and assembles the envelope — over a real
 //! mainnet events blob.
 //!
-//! These tests live in the node crate for two reasons: the event fixtures are here, and the
-//! runtime crate's lib-test target does not compile on this branch (`runtime/hydradx/src/
-//! tests.rs` calls `Runtime::query_xcm_weight`, removed by the `XcmPaymentApi` v1→v2 change),
-//! so a test placed there could not be run.
+//! These tests live in the node crate because the event fixtures they decode against are
+//! here.
 
 use super::metadata_events::{EventLayout, TEST_CHAIN_METADATA};
 use frame_system::{EventRecord, Phase};
@@ -27,6 +25,7 @@ use sp_core::{H256, U256};
 use std::collections::BTreeMap;
 
 type Record = EventRecord<RuntimeEvent, H256>;
+type SynthTxs = Vec<(Transaction, fp_rpc::TransactionStatus, pallet_ethereum::Receipt)>;
 
 /// `System::Events` from mainnet block 13386492: 84 records over `Timestamp.set`,
 /// `ParachainSystem`, an `Omnipool.sell` and a `Utility.batch_all([EVM.call, EVM.call])`.
@@ -124,13 +123,7 @@ fn by_extrinsic(
 
 /// Build the same activity into two different blocks: different block hash, different
 /// height, and every extrinsic shifted one position along.
-fn two_blocks(
-	height_a: u64,
-	height_b: u64,
-) -> (
-	Vec<(Transaction, fp_rpc::TransactionStatus, pallet_ethereum::Receipt)>,
-	Vec<(Transaction, fp_rpc::TransactionStatus, pallet_ethereum::Receipt)>,
-) {
+fn two_blocks(height_a: u64, height_b: u64) -> (SynthTxs, SynthTxs) {
 	let records = mainnet_records();
 	let count = extrinsic_count(&records);
 	assert!(count > 1, "fixture must span several extrinsics");

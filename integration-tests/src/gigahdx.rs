@@ -42,8 +42,7 @@ fn assert_rate_eq(actual: Ratio, expected_n: u128, expected_d: u128) {
 	assert_eq!(
 		actual.cmp(&expected),
 		std::cmp::Ordering::Equal,
-		"rate mismatch: got {:?}, expected {expected_n}/{expected_d}",
-		actual,
+		"rate mismatch: got {actual:?}, expected {expected_n}/{expected_d}",
 	);
 }
 
@@ -2293,6 +2292,9 @@ fn deploy_fixed_price_oracle(price: U256) -> EvmAddress {
 	];
 	init_code.extend_from_slice(&runtime);
 
+	// top-level creates go through the deployer whitelist, runner entry point included
+	assert_ok!(EVMAccounts::add_contract_deployer(RuntimeOrigin::root(), acl_admin));
+
 	use pallet_evm::Runner;
 	<Runtime as pallet_evm::Config>::Runner::create(
 		acl_admin,
@@ -2482,8 +2484,7 @@ fn aave_borrow_should_revert_when_asset_is_sthdx() {
 		let exit = try_aave_borrow(pool, alice_evm, st_hdx_evm, UNITS);
 		assert!(
 			matches!(exit, fp_evm::ExitReason::Revert(_)),
-			"borrowing stHDX must revert (reserve must be non-borrowable); got {:?}",
-			exit,
+			"borrowing stHDX must revert (reserve must be non-borrowable); got {exit:?}",
 		);
 
 		// No stHDX may reach the user.

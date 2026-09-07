@@ -376,16 +376,6 @@ where
 		let decay_factor = FixedU128::from_rational(4u128, period);
 		log::trace!(target: "dynamic-fees", "decay factor: {decay_factor:?}");
 
-		let fee_updated_at: u128 = current_fee_entry.timestamp.saturated_into();
-		if !fee_updated_at.is_zero() {
-			debug_assert!(
-				fee_updated_at == raw_entry.updated_at(),
-				"Dynamic fee update - last fee updated at {:?} but expected to be >= {:?}",
-				current_fee_entry.timestamp,
-				raw_entry.updated_at()
-			);
-		}
-
 		let asset_fee = recalculate_asset_fee(
 			OracleEntry {
 				amount_in: raw_entry.amount_in(),
