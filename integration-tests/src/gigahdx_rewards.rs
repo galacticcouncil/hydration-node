@@ -288,13 +288,13 @@ fn rewards_should_skip_non_stakers_when_voting() {
 
 		end_referendum();
 
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
 			Some(ROOT_TRACK_CLASS),
 			r,
 		));
-		let accumulator_after = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_after = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_eq!(
 			accumulator_after, accumulator_before,
 			"non-staker remove_vote must not drain the accumulator"
@@ -334,7 +334,7 @@ fn rewards_should_credit_pro_rata_when_two_stakers_vote() {
 
 		end_referendum();
 
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		// Root-track allocation = 10% of accumulator at first remove_vote.
 		let expected_allocation = accumulator_before / 10;
 
@@ -414,7 +414,7 @@ fn rewards_should_credit_voters_when_referendum_is_rejected() {
 			"referendum must end Rejected so the AYE voter is on the losing side",
 		);
 
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		// Root-track allocation = 10% of the accumulator at the first remove_vote.
 		let expected_allocation = accumulator_before / 10;
 
@@ -513,7 +513,7 @@ fn rewards_should_credit_voters_when_referendum_is_approved() {
 			"referendum must end Approved",
 		);
 
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		let expected_allocation = accumulator_before / 10;
 
 		// Alice removes first (exact pro-rata share); Bob (last) scoops the rest.
@@ -1005,7 +1005,7 @@ fn rewards_should_ignore_split_votes() {
 		assert_eq!(tally.voters_count, 1);
 
 		end_referendum();
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
 			Some(ROOT_TRACK_CLASS),
@@ -1014,7 +1014,7 @@ fn rewards_should_ignore_split_votes() {
 		// Allocation briefly fires (pot moves out), but every voter has
 		// weighted=0 so all of `remaining_reward` is refunded back to the
 		// accumulator → net change is zero.
-		let accumulator_after = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_after = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_eq!(accumulator_after, accumulator_before);
 		assert_eq!(pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice), 0);
 		assert!(pallet_gigahdx_rewards::ReferendaRewardPool::<Runtime>::get(r).is_none());
@@ -1038,7 +1038,7 @@ fn rewards_should_use_track_specific_percentage_when_non_root_track() {
 			aye_with_conviction(100 * UNITS, Conviction::Locked1x),
 		));
 
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		let expected_allocation = accumulator_before / 20;
 
 		end_referendum();
@@ -1048,7 +1048,7 @@ fn rewards_should_use_track_specific_percentage_when_non_root_track() {
 			r,
 		));
 
-		let accumulator_after = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_after = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_eq!(accumulator_before - accumulator_after, expected_allocation);
 		assert_eq!(
 			pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice),
@@ -1095,7 +1095,7 @@ fn rewards_should_replace_weighted_when_vote_is_edited() {
 		assert_eq!(GigaHdxRewards::committed(&alice), 200 * UNITS,);
 
 		end_referendum();
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		let expected_allocation = accumulator_before / 10;
 
 		assert_ok!(ConvictionVoting::remove_vote(
@@ -1129,13 +1129,13 @@ fn rewards_should_skip_allocation_when_referendum_is_cancelled() {
 
 		assert_ok!(Referenda::cancel(RawOrigin::Root.into(), r));
 
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
 			Some(ROOT_TRACK_CLASS),
 			r,
 		));
-		let accumulator_after = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_after = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 
 		assert_eq!(accumulator_after, accumulator_before);
 		assert_eq!(pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice), 0);
@@ -1165,7 +1165,7 @@ fn pending_rewards_should_accumulate_across_multiple_referenda() {
 		));
 		end_referendum();
 
-		let pot_before_r1 = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let pot_before_r1 = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		let expected_r1 = pot_before_r1 / 10;
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
@@ -1181,7 +1181,7 @@ fn pending_rewards_should_accumulate_across_multiple_referenda() {
 		));
 		end_referendum();
 
-		let pot_before_r2 = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let pot_before_r2 = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		let expected_r2 = pot_before_r2 / 10;
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
@@ -1229,13 +1229,13 @@ fn rewards_should_ignore_split_abstain_votes() {
 		assert_eq!(tally.voters_count, 1);
 
 		end_referendum();
-		let accumulator_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
 			Some(ROOT_TRACK_CLASS),
 			r,
 		));
-		let accumulator_after = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let accumulator_after = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		assert_eq!(accumulator_after, accumulator_before);
 		assert_eq!(pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice), 0);
 		assert!(pallet_gigahdx_rewards::ReferendaRewardPool::<Runtime>::get(r).is_none());
@@ -1264,7 +1264,7 @@ fn rewards_should_credit_nay_voters_same_as_aye() {
 		assert_eq!(record.weighted, 25 * UNITS);
 
 		end_referendum();
-		let pot_before = Balances::free_balance(&GigaHdxRewards::reward_accumulator_pot());
+		let pot_before = Balances::free_balance(GigaHdxRewards::reward_accumulator_pot());
 		let expected = pot_before / 10;
 
 		assert_ok!(ConvictionVoting::remove_vote(
@@ -1294,7 +1294,7 @@ fn rewards_should_cleanup_with_zero_payout_when_accumulator_is_empty() {
 		));
 
 		end_referendum();
-		let allocated_pot_before = Balances::free_balance(&GigaHdxRewards::allocated_rewards_pot());
+		let allocated_pot_before = Balances::free_balance(GigaHdxRewards::allocated_rewards_pot());
 		assert_ok!(ConvictionVoting::remove_vote(
 			RuntimeOrigin::signed(alice.clone()),
 			Some(ROOT_TRACK_CLASS),
@@ -1302,7 +1302,7 @@ fn rewards_should_cleanup_with_zero_payout_when_accumulator_is_empty() {
 		));
 
 		assert_eq!(
-			Balances::free_balance(&GigaHdxRewards::allocated_rewards_pot()),
+			Balances::free_balance(GigaHdxRewards::allocated_rewards_pot()),
 			allocated_pot_before,
 		);
 		assert_eq!(pallet_gigahdx_rewards::PendingRewards::<Runtime>::get(&alice), 0);

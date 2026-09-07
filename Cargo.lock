@@ -5865,7 +5865,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "443.0.0"
+version = "444.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",

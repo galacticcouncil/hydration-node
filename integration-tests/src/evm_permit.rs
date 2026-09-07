@@ -3628,11 +3628,7 @@ mod sponsored_paymaster {
 			assert!(
 				relative_fee_difference < tolerated_fee_difference,
 				"unsigned dispatch_permit fee drifted outside native tolerance! \
-				 evm_fee={} native_fee={} relative_difference={:?} (tolerated < {:?})",
-				evm_fee,
-				native_fee,
-				relative_fee_difference,
-				tolerated_fee_difference
+				 evm_fee={evm_fee} native_fee={native_fee} relative_difference={relative_fee_difference:?} (tolerated < {tolerated_fee_difference:?})",
 			);
 		})
 	}
