@@ -6698,7 +6698,7 @@ mod gigahdx_lock_reserve {
 					RuntimeOrigin::signed(alice.clone()),
 					HDX,
 					DAI,
-					1 * UNITS,
+					UNITS,
 					0,
 					omnipool_route(),
 				),

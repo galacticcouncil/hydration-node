@@ -52,6 +52,7 @@ const DCA_ORACLE_FLOOR: Balance = 298_552_547_494_476_084;
 /// What the solver pays those intents: clears the hard limit by 5 orders of
 /// magnitude, misses the enforced oracle floor by 4.8%.
 const DCA_RESOLVED_OUT: Balance = 284_179_020_151_218_420;
+const _: () = assert!(DCA_RESOLVED_OUT < DCA_ORACLE_FLOOR);
 
 type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
@@ -684,7 +685,6 @@ fn solver_without_admission_floors_should_produce_a_solution_the_chain_rejects()
 				.find(|ri| ri.id == id)
 				.unwrap_or_else(|| panic!("blind solve should resolve intent {id}"));
 			assert_eq!(resolved.data.amount_out(), DCA_RESOLVED_OUT);
-			assert!(DCA_RESOLVED_OUT < DCA_ORACLE_FLOOR);
 		}
 
 		let problems = diagnose(&solution);

@@ -51,7 +51,7 @@ fn chain_should_net_the_shared_leg_when_an_intermediate_asset_is_bought_and_sold
 	let alice_bnc = 1_000 * bnc_unit; // ~14_700 HDX at snapshot spot
 	let bob_hdx = 14_000 * hdx_unit; // sized to roughly cancel Alice's HDX receipt
 	let alice_min_hdx = 1_000 * hdx_unit; // loose but valid (>= ED), below spot
-	let bob_min_dot = 1 * dot_unit;
+	let bob_min_dot = dot_unit;
 
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
 		.endow_account(alice.clone(), bnc, alice_bnc * 10)
