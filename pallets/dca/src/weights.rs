@@ -12,9 +12,7 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_dca.
 pub trait WeightInfo {
 	fn on_initialize_with_buy_trade() -> Weight;
-	fn on_initialize_with_buy_trade_with_insufficient_fee_asset() -> Weight;
 	fn on_initialize_with_sell_trade() -> Weight;
-	fn on_initialize_with_sell_trade_with_insufficient_fee_asset() -> Weight;
 	fn on_initialize_with_empty_block() -> Weight;
 	fn schedule() -> Weight;
 	fn terminate() -> Weight;
@@ -48,51 +46,6 @@ impl WeightInfo for () {
 	/// Proof: `DCA::ScheduleIdsPerBlock` (`max_values`: None, `max_size`: Some(101), added: 2576, mode: `MaxEncodedLen`)
 	/// Storage: `DCA::Schedules` (r:1 w:0)
 	/// Proof: `DCA::Schedules` (`max_values`: None, `max_size`: Some(191), added: 2666, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::NextAssetId` (r:1 w:0)
-	/// Proof: `AssetRegistry::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::LocationAssets` (r:1 w:0)
-	/// Proof: `AssetRegistry::LocationAssets` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
-	/// Storage: `Router::Routes` (r:1 w:0)
-	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:4 w:4)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `DCA::RemainingAmounts` (r:1 w:1)
-	/// Proof: `DCA::RemainingAmounts` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Reserves` (r:1 w:1)
-	/// Proof: `Tokens::Reserves` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
-	/// Storage: `XYK::ShareToken` (r:1 w:0)
-	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:2 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
-	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `DCA::RetriesOnError` (r:0 w:1)
-	/// Proof: `DCA::RetriesOnError` (`max_values`: None, `max_size`: Some(21), added: 2496, mode: `MaxEncodedLen`)
-	fn on_initialize_with_buy_trade_with_insufficient_fee_asset() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `60856`
-		//  Estimated: `31902`
-		// Minimum execution time: 417_208_000 picoseconds.
-		Weight::from_parts(420_621_000, 31902)
-			.saturating_add(RocksDbWeight::get().reads(37_u64))
-			.saturating_add(RocksDbWeight::get().writes(10_u64))
-	}
-	/// Storage: `DCA::ScheduleIdsPerBlock` (r:12 w:2)
-	/// Proof: `DCA::ScheduleIdsPerBlock` (`max_values`: None, `max_size`: Some(101), added: 2576, mode: `MaxEncodedLen`)
-	/// Storage: `DCA::Schedules` (r:1 w:0)
-	/// Proof: `DCA::Schedules` (`max_values`: None, `max_size`: Some(191), added: 2666, mode: `MaxEncodedLen`)
 	/// Storage: `DCA::RemainingAmounts` (r:1 w:1)
 	/// Proof: `DCA::RemainingAmounts` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
 	/// Storage: `Balances::Reserves` (r:1 w:1)
@@ -109,51 +62,6 @@ impl WeightInfo for () {
 		Weight::from_parts(247_259_000, 31902)
 			.saturating_add(RocksDbWeight::get().reads(17_u64))
 			.saturating_add(RocksDbWeight::get().writes(7_u64))
-	}
-	/// Storage: `DCA::ScheduleIdsPerBlock` (r:12 w:2)
-	/// Proof: `DCA::ScheduleIdsPerBlock` (`max_values`: None, `max_size`: Some(101), added: 2576, mode: `MaxEncodedLen`)
-	/// Storage: `DCA::Schedules` (r:1 w:0)
-	/// Proof: `DCA::Schedules` (`max_values`: None, `max_size`: Some(191), added: 2666, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AcceptedCurrencies` (r:2 w:0)
-	/// Proof: `MultiTransactionPayment::AcceptedCurrencies` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::NextAssetId` (r:1 w:0)
-	/// Proof: `AssetRegistry::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::LocationAssets` (r:1 w:0)
-	/// Proof: `AssetRegistry::LocationAssets` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
-	/// Storage: `Router::Routes` (r:1 w:0)
-	/// Proof: `Router::Routes` (`max_values`: None, `max_size`: Some(90), added: 2565, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Accounts` (r:4 w:4)
-	/// Proof: `Tokens::Accounts` (`max_values`: None, `max_size`: Some(108), added: 2583, mode: `MaxEncodedLen`)
-	/// Storage: `DCA::RemainingAmounts` (r:1 w:1)
-	/// Proof: `DCA::RemainingAmounts` (`max_values`: None, `max_size`: Some(36), added: 2511, mode: `MaxEncodedLen`)
-	/// Storage: `Tokens::Reserves` (r:1 w:1)
-	/// Proof: `Tokens::Reserves` (`max_values`: None, `max_size`: Some(1261), added: 3736, mode: `MaxEncodedLen`)
-	/// Storage: `XYK::ShareToken` (r:1 w:0)
-	/// Proof: `XYK::ShareToken` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `Router::SkipEd` (r:1 w:0)
-	/// Proof: `Router::SkipEd` (`max_values`: Some(1), `max_size`: Some(1), added: 496, mode: `MaxEncodedLen`)
-	/// Storage: `Duster::AccountBlacklist` (r:2 w:0)
-	/// Proof: `Duster::AccountBlacklist` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::BannedAssets` (r:2 w:0)
-	/// Proof: `AssetRegistry::BannedAssets` (`max_values`: None, `max_size`: Some(20), added: 2495, mode: `MaxEncodedLen`)
-	/// Storage: `System::Account` (r:3 w:1)
-	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-	/// Storage: `MultiTransactionPayment::AccountCurrencyMap` (r:1 w:0)
-	/// Proof: `MultiTransactionPayment::AccountCurrencyMap` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
-	/// Storage: `EmaOracle::WhitelistedAssets` (r:1 w:0)
-	/// Proof: `EmaOracle::WhitelistedAssets` (`max_values`: Some(1), `max_size`: Some(641), added: 1136, mode: `MaxEncodedLen`)
-	/// Storage: `DCA::RetriesOnError` (r:0 w:1)
-	/// Proof: `DCA::RetriesOnError` (`max_values`: None, `max_size`: Some(21), added: 2496, mode: `MaxEncodedLen`)
-	fn on_initialize_with_sell_trade_with_insufficient_fee_asset() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `61732`
-		//  Estimated: `31902`
-		// Minimum execution time: 418_392_000 picoseconds.
-		Weight::from_parts(422_150_000, 31902)
-			.saturating_add(RocksDbWeight::get().reads(37_u64))
-			.saturating_add(RocksDbWeight::get().writes(10_u64))
 	}
 	/// Storage: `DCA::ScheduleIdsPerBlock` (r:1 w:0)
 	/// Proof: `DCA::ScheduleIdsPerBlock` (`max_values`: None, `max_size`: Some(101), added: 2576, mode: `MaxEncodedLen`)

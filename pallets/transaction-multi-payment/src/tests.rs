@@ -18,6 +18,7 @@
 pub use crate::{mock::*, Error};
 use crate::{AcceptedCurrencies, AcceptedCurrencyPrice, Event, Price};
 
+use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok, assert_storage_noop,
 	dispatch::{DispatchInfo, PostDispatchInfo},
@@ -994,25 +995,6 @@ fn fee_payment_in_unregistered_currency() {
 }
 
 #[test]
-fn fee_payment_non_native_insufficient_balance_with_no_pool() {
-	ExtBuilder::default()
-		.base_weight(5)
-		.account_tokens(CHARLIE, SUPPORTED_CURRENCY, 100)
-		.with_currencies(vec![(CHARLIE, SUPPORTED_CURRENCY)])
-		.build()
-		.execute_with(|| {
-			let len = 1000;
-			let info = info_from_weight(Weight::from_parts(5, 0));
-
-			assert!(ChargeTransactionPayment::<Test>::from(0)
-				.validate_and_prepare(Some(CHARLIE).into(), CALL, &info, len, 0)
-				.is_err());
-
-			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY, &CHARLIE), 100);
-		});
-}
-
-#[test]
 fn fee_transfer_can_kill_account_when_paid_in_native() {
 	// Arrange
 	ExtBuilder::default()
@@ -1479,4 +1461,99 @@ fn dispatch_should_correctly_call_validate_and_dispatch() {
 
 			assert_eq!(PermitDispatchHandler::last_dispatch_call_data(), expected);
 		});
+}
+
+#[test]
+fn price_should_return_none_when_currency_is_not_accepted_even_with_oracle_route() {
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		// The mock oracle prices UNSUPPORTED_CURRENCY, but it is not in `AcceptedCurrencies`.
+		// Consumers read a price as permission to charge, so a route alone must not be enough.
+		assert_eq!(
+			<PaymentPallet as hydradx_traits::NativePriceOracle<AssetId, Price>>::price(UNSUPPORTED_CURRENCY),
+			None
+		);
+
+		assert_eq!(
+			<PaymentPallet as hydradx_traits::NativePriceOracle<AssetId, Price>>::price(HDX),
+			Some(Price::from(1))
+		);
+	});
+}
+
+#[test]
+fn price_should_use_oracle_route_when_currency_is_accepted_but_uncached() {
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		// Drop the cached price to mimic a dry run, where `on_initialize` has not filled storage.
+		// The route fallback must still resolve for a whitelisted currency.
+		AcceptedCurrencyPrice::<Test>::remove(SUPPORTED_CURRENCY_WITH_PRICE);
+
+		assert_eq!(
+			<PaymentPallet as hydradx_traits::NativePriceOracle<AssetId, Price>>::price(SUPPORTED_CURRENCY_WITH_PRICE),
+			Some(Price::from_rational(1, 10))
+		);
+	});
+}
+
+#[test]
+fn evm_permit_should_not_charge_gas_in_unaccepted_currency_named_by_set_currency() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+	let alice_evm_acc = EVMAccounts::truncated_account_id(alice_evm_address);
+
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: UNSUPPORTED_CURRENCY,
+		});
+
+		assert_ok!(PaymentPallet::dispatch_permit(
+			RuntimeOrigin::none(),
+			alice_evm_address,
+			other_evm_address,
+			U256::from(0),
+			call.encode(),
+			333,
+			U256::from(99999u128),
+			128,
+			H256::from([50; 32]),
+			H256::from([100; 32]),
+		));
+
+		// The permit must not be able to buy gas in the currency its payload merely names.
+		assert_eq!(
+			PermitDispatchHandler::last_dispatch_fee_currency(),
+			Some(PaymentPallet::account_currency(&alice_evm_acc))
+		);
+	});
+}
+
+#[test]
+fn evm_permit_should_charge_gas_in_accepted_currency_named_by_set_currency() {
+	let alice_evm_address = EVMAccounts::evm_address(&ALICE);
+	let other_evm_address = EVMAccounts::evm_address(&BOB);
+
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		let call = RuntimeCall::PaymentPallet(crate::Call::set_currency {
+			currency: SUPPORTED_CURRENCY,
+		});
+
+		assert_ok!(PaymentPallet::dispatch_permit(
+			RuntimeOrigin::none(),
+			alice_evm_address,
+			other_evm_address,
+			U256::from(0),
+			call.encode(),
+			333,
+			U256::from(99999u128),
+			128,
+			H256::from([50; 32]),
+			H256::from([100; 32]),
+		));
+
+		// Self-rescue still works: an account may pay for `set_currency` in the currency it is
+		// switching to, as long as that currency is payable.
+		assert_eq!(
+			PermitDispatchHandler::last_dispatch_fee_currency(),
+			Some(SUPPORTED_CURRENCY)
+		);
+	});
 }

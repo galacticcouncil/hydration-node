@@ -84,19 +84,6 @@ benchmarks! {
 		}));
 	}
 
-	register_external {
-		let caller: T::AccountId = account("caller", 0, 1);
-
-		let expected_asset_id = Pallet::<T>::next_asset_id().unwrap();
-		let location: T::AssetNativeLocation = Default::default();
-
-		assert!(Pallet::<T>::location_assets(location.clone()).is_none());
-	}: _(RawOrigin::Signed(caller), location.clone())
-	verify {
-		assert_eq!(Pallet::<T>::locations(expected_asset_id), Some(location.clone()));
-		assert_eq!(Pallet::<T>::location_assets(location), Some(expected_asset_id));
-	}
-
 	ban_asset {
 		let asset_id = T::AssetId::from(3);
 		let name = vec![97u8; T::StringLimit::get() as usize].try_into().unwrap();

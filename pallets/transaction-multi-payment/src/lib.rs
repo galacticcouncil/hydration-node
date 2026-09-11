@@ -34,6 +34,7 @@ mod tests;
 mod traits;
 
 pub use crate::traits::*;
+use codec::DecodeLimit;
 use frame_support::storage::with_transaction;
 use frame_support::traits::{Contains, ExistenceRequirement, IsSubType};
 use frame_support::{
@@ -50,8 +51,6 @@ use frame_support::{
 use frame_system::{ensure_signed, pallet_prelude::BlockNumberFor};
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::circuit_breaker::WithdrawFuseControl;
-use hydradx_traits::fee::InspectTransactionFeeCurrency;
-use hydradx_traits::fee::SwappablePaymentAssetTrader;
 use hydradx_traits::{
 	evm::{EvmFeePayerSupport, InspectEvmAccounts},
 	router::{AssetPair, RouteProvider},
@@ -75,13 +74,11 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::DecodeLimit;
 	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::weights::WeightToFee;
 	use frame_system::ensure_none;
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use sp_core::{H160, H256, U256};
 	use sp_runtime::{ModuleError, TransactionOutcome};
 
@@ -127,13 +124,6 @@ pub mod pallet {
 		/// Oracle price provider for routes
 		type OraclePriceProvider: PriceOracle<AssetIdOf<Self>, Price = EmaPrice>;
 
-		/// Supporting swappable assets as fee currencies
-		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<
-			Self::AccountId,
-			AssetIdOf<Self>,
-			BalanceOf<Self>,
-		>;
-
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
@@ -143,10 +133,6 @@ pub mod pallet {
 		/// Native Asset
 		#[pallet::constant]
 		type NativeAssetId: Get<AssetIdOf<Self>>;
-
-		/// Polkadot Native Asset (DOT)
-		#[pallet::constant]
-		type PolkadotNativeAssetId: Get<AssetIdOf<Self>>;
 
 		/// EVM Asset
 		#[pallet::constant]
@@ -439,16 +425,7 @@ pub mod pallet {
 			let (gas_price, _) = T::EvmPermit::gas_price();
 			let account_id = T::InspectEvmAccounts::account_id(from);
 
-			let encoded = data.clone();
-			let mut encoded_extrinsic = encoded.as_slice();
-			let maybe_call: Result<T::RuntimeCall, _> =
-				DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
-
-			let currency = if let Ok(call) = maybe_call {
-				T::TryCallCurrency::try_convert(&call).unwrap_or_else(|_| Pallet::<T>::account_currency(&account_id))
-			} else {
-				Pallet::<T>::account_currency(&account_id)
-			};
+			let currency = Pallet::<T>::permit_fee_currency(&account_id, &data);
 
 			TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
@@ -565,17 +542,7 @@ pub mod pallet {
 						// Set fee currency for the evm dispatch
 						let account_id = T::InspectEvmAccounts::account_id(*from);
 
-						let encoded = data.clone();
-						let mut encoded_extrinsic = encoded.as_slice();
-						let maybe_call: Result<T::RuntimeCall, _> =
-							DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
-
-						let currency = if let Ok(call) = maybe_call {
-							T::TryCallCurrency::try_convert(&call)
-								.unwrap_or_else(|_| crate::pallet::Pallet::<T>::account_currency(&account_id))
-						} else {
-							Pallet::<T>::account_currency(&account_id)
-						};
+						let currency = Pallet::<T>::permit_fee_currency(&account_id, data);
 
 						TransactionCurrencyOverride::<T>::insert(account_id.clone(), currency);
 
@@ -625,35 +592,55 @@ impl<T: Config> Pallet<T> {
 	/// Returns the effective fee currency for `who`.
 	///
 	/// Behavior:
-	/// - If `get_currency(who)` is set, return that per-account currency.
+	/// - If `get_currency(who)` is set and still accepted, return that per-account currency.
 	/// - Otherwise, default by account type:
 	///     * EVM account     → `T::EvmAssetId::get()`
 	///     * non-EVM account → `T::NativeAssetId::get()`
+	///
+	/// A stored currency that has since been de-listed falls back to the default rather than
+	/// stranding the account, so every fee path agrees on what is payable without depending on
+	/// storage cleanup having run.
 	pub fn account_currency(who: &T::AccountId) -> AssetIdOf<T>
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
-		Pallet::<T>::get_currency(who).unwrap_or_else(|| {
-			if T::InspectEvmAccounts::is_evm_account(who.clone()) {
-				T::EvmAssetId::get()
-			} else {
-				T::NativeAssetId::get()
-			}
-		})
+		Pallet::<T>::get_currency(who)
+			.filter(|currency| *currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency))
+			.unwrap_or_else(|| {
+				if T::InspectEvmAccounts::is_evm_account(who.clone()) {
+					T::EvmAssetId::get()
+				} else {
+					T::NativeAssetId::get()
+				}
+			})
+	}
+
+	/// Fee currency for an EVM permit dispatch.
+	///
+	/// A permit whose payload is a `set_currency` may pay its own gas in the currency it is about
+	/// to switch to, so that an account can move off a currency it can no longer afford. That is
+	/// only sound while the named currency is itself payable — otherwise the permit would charge
+	/// gas in an asset `set_currency` is going to reject.
+	fn permit_fee_currency(account_id: &T::AccountId, data: &[u8]) -> AssetIdOf<T>
+	where
+		BalanceOf<T>: FixedPointOperand,
+	{
+		let mut encoded_extrinsic = data;
+		let maybe_call: Result<T::RuntimeCall, _> =
+			DecodeLimit::decode_all_with_depth_limit(32, &mut encoded_extrinsic);
+
+		maybe_call
+			.ok()
+			.and_then(|call| T::TryCallCurrency::try_convert(&call).ok())
+			.filter(|currency| *currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency))
+			.unwrap_or_else(|| Pallet::<T>::account_currency(account_id))
 	}
 
 	fn do_set_currency(who: &T::AccountId, currency: AssetIdOf<T>) -> DispatchResult {
-		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
-			ensure!(
-				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-				Error::<T>::UnsupportedCurrency
-			);
-		} else {
-			ensure!(
-				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
-				Error::<T>::UnsupportedCurrency
-			);
-		}
+		ensure!(
+			currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+			Error::<T>::UnsupportedCurrency
+		);
 
 		<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
@@ -669,6 +656,13 @@ impl<T: Config> Pallet<T> {
 	where
 		BalanceOf<T>: FixedPointOperand,
 	{
+		// A live oracle route is not enough to make an asset payable: the currency must be
+		// whitelisted. `resolve_currency_from_call` can hand us any asset (a batched
+		// `set_currency` names its own target), so the gate belongs here rather than at the caller.
+		if currency != T::NativeAssetId::get() && !AcceptedCurrencies::<T>::contains_key(currency) {
+			return None;
+		}
+
 		if let Some(price) = <Pallet<T> as NativePriceOracle<AssetIdOf<T>, Price>>::price(currency) {
 			Some(price)
 		} else {
@@ -747,44 +741,11 @@ where
 
 		let currency = Self::resolve_currency_from_call(who, call);
 
-		let (converted_fee, currency, price) = if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency)
-		{
-			let price = Pallet::<T>::get_currency_price(currency)
-				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		let price = Pallet::<T>::get_currency_price(currency)
+			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			let converted_fee = convert_fee_with_price(fee, price)
-				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			(converted_fee, currency, price)
-		} else {
-			//In case of insufficient asset we buy DOT with insufficient asset, and using that DOT and amount as fee currency
-			let dot_hdx_price = Pallet::<T>::get_currency_price(T::PolkadotNativeAssetId::get())
-				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			let fee_in_dot = convert_fee_with_price(fee, dot_hdx_price)
-				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			let amount_in = T::SwappablePaymentAssetSupport::calculate_in_given_out(
-				currency,
-				T::PolkadotNativeAssetId::get(),
-				fee_in_dot.into(),
-			)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let pool_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(amount_in)
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			let max_limit = amount_in.saturating_add(pool_fee);
-
-			T::SwappablePaymentAssetSupport::buy(
-				who,
-				currency,
-				T::PolkadotNativeAssetId::get(),
-				fee_in_dot.into(),
-				max_limit,
-				who,
-			)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			(fee_in_dot, T::PolkadotNativeAssetId::get(), dot_hdx_price)
-		};
+		let converted_fee =
+			convert_fee_with_price(fee, price).ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 		WF::set_withdraw_fuse_active(false);
 		let res = match MC::withdraw(currency.into(), who, converted_fee, ExistenceRequirement::AllowDeath) {
@@ -871,11 +832,6 @@ where
 
 		let currency = Self::resolve_currency_from_call(who, call);
 
-		// Only validate for transaction fee currencies, not insufficient assets
-		if !T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
-			return Ok(());
-		}
-
 		// Convert fee from native currency to the target currency before checking
 		let price = Pallet::<T>::get_currency_price(currency)
 			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
@@ -915,10 +871,16 @@ where
 impl<T: Config> NativePriceOracle<AssetIdOf<T>, Price> for Pallet<T> {
 	fn price(currency: AssetIdOf<T>) -> Option<Price> {
 		if currency == T::NativeAssetId::get() {
-			Some(Price::one())
-		} else {
-			Pallet::<T>::currency_price(currency).or_else(|| Self::get_oracle_price(currency, T::NativeAssetId::get()))
+			return Some(Price::one());
 		}
+
+		// Consumers of this oracle (XCM `Trader`, `XcmPaymentApi`) read a price as permission to
+		// charge in that asset, so the route-based fallback below must stay inside the whitelist.
+		if !AcceptedCurrencies::<T>::contains_key(currency) {
+			return None;
+		}
+
+		Pallet::<T>::currency_price(currency).or_else(|| Self::get_oracle_price(currency, T::NativeAssetId::get()))
 	}
 }
 
@@ -976,17 +938,10 @@ impl<T: Config> AccountFeeCurrency<T::AccountId> for Pallet<T> {
 		Self::do_set_currency(who, asset_id)
 	}
 	fn is_payment_currency(currency: Self::AssetId) -> DispatchResult {
-		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(currency) {
-			ensure!(
-				currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
-				Error::<T>::UnsupportedCurrency
-			);
-		} else {
-			ensure!(
-				T::SwappablePaymentAssetSupport::is_trade_supported(currency, T::PolkadotNativeAssetId::get()),
-				Error::<T>::UnsupportedCurrency
-			);
-		}
+		ensure!(
+			currency == T::NativeAssetId::get() || AcceptedCurrencies::<T>::contains_key(currency),
+			Error::<T>::UnsupportedCurrency
+		);
 
 		Ok(())
 	}

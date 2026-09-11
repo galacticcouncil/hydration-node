@@ -839,3 +839,31 @@ pub fn get_fee_for_sell_in_hdx() -> Balance {
 
 	DCA::get_transaction_fee(&order, None).unwrap()
 }
+
+#[test]
+fn schedule_should_be_accepted_when_asset_in_is_not_a_fee_currency() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE), (ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange - DAI cannot pay fees, but must still be sellable via DCA.
+			NON_FEE_ASSETS.with(|v| v.borrow_mut().push(DAI));
+
+			let schedule = ScheduleBuilder::new()
+				.with_order(Order::Sell {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_in: 10 * ONE,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: DAI,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			//Act & assert
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+		});
+}

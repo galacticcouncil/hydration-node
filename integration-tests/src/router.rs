@@ -37,7 +37,6 @@ use hydradx_traits::stableswap::AssetAmount;
 use pallet_stableswap::MAX_ASSETS_IN_POOL;
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, FixedU128, Permill, TransactionOutcome};
 
-use hydradx_runtime::InsufficientEDinHDX;
 use orml_traits::MultiCurrency;
 pub const LBP_SALE_START: BlockNumber = 10;
 pub const LBP_SALE_END: BlockNumber = 40;
@@ -1184,7 +1183,7 @@ mod router_different_pools_tests {
 mod omnipool_router_tests {
 	use super::*;
 	use frame_support::assert_noop;
-	use hydradx_runtime::{Balances, Omnipool, XYK};
+	use hydradx_runtime::{Omnipool, XYK};
 	use hydradx_traits::router::PoolType;
 	use hydradx_traits::AssetKind;
 	use pallet_broadcast::types::{Destination, ExecutionType};
@@ -1601,8 +1600,7 @@ mod omnipool_router_tests {
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
 
-				let ed = InsufficientEDinHDX::get();
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
 
 				let amount_to_sell = 20 * UNITS;
 				assert_ok!(Router::sell(
@@ -1614,182 +1612,7 @@ mod omnipool_router_tests {
 					trades.try_into().unwrap()
 				));
 
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
-
-				TransactionOutcome::Commit(DispatchResult::Ok(()))
-			});
-		});
-	}
-
-	#[test]
-	fn ed_should_be_refunded_when_all_insufficient_assets_sold() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			let _ = with_transaction(|| {
-				//Arrange
-				let name = b"INSUF1".to_vec();
-				let insufficient_asset1 = AssetRegistry::register_insufficient_asset(
-					None,
-					Some(name.try_into().unwrap()),
-					AssetKind::External,
-					Some(1_000),
-					None,
-					None,
-					None,
-					None,
-				)
-				.unwrap();
-
-				let name = b"INSUF2".to_vec();
-				let insufficient_asset2 = AssetRegistry::register_insufficient_asset(
-					None,
-					Some(name.try_into().unwrap()),
-					AssetKind::External,
-					Some(1_000),
-					None,
-					None,
-					None,
-					None,
-				)
-				.unwrap();
-
-				assert_ok!(Currencies::deposit(insufficient_asset1, &DAVE.into(), 100000 * UNITS,));
-				assert_ok!(Currencies::deposit(insufficient_asset2, &DAVE.into(), 100000 * UNITS,));
-				assert_ok!(Currencies::deposit(ETH, &DAVE.into(), 100000 * UNITS,));
-
-				assert_ok!(XYK::create_pool(
-					RuntimeOrigin::signed(DAVE.into()),
-					insufficient_asset1,
-					10000 * UNITS,
-					insufficient_asset2,
-					10000 * UNITS,
-				));
-
-				assert_ok!(XYK::create_pool(
-					RuntimeOrigin::signed(DAVE.into()),
-					insufficient_asset2,
-					10000 * UNITS,
-					ETH,
-					10000 * UNITS,
-				));
-
-				let trades = vec![
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: insufficient_asset1,
-						asset_out: insufficient_asset2,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: insufficient_asset2,
-						asset_out: ETH,
-					},
-				];
-
-				let alice_balance_before_trade = Balances::free_balance(AccountId::from(ALICE));
-
-				let insufficient_asset1_balance = 100 * UNITS;
-				assert_ok!(Currencies::deposit(
-					insufficient_asset1,
-					&ALICE.into(),
-					insufficient_asset1_balance,
-				));
-
-				let extra_ed_charge = UNITS / 10;
-
-				let amount_to_sell = insufficient_asset1_balance;
-				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					insufficient_asset1,
-					ETH,
-					amount_to_sell,
-					0,
-					trades.try_into().unwrap()
-				));
-				let alice_balance_after_trade = Balances::free_balance(AccountId::from(ALICE));
-
-				//ED should be refunded to alice as she sold all her asset, minus the 10% extra
-				assert_eq!(alice_balance_before_trade, alice_balance_after_trade + extra_ed_charge);
-
-				TransactionOutcome::Commit(DispatchResult::Ok(()))
-			});
-		});
-	}
-
-	#[test]
-	fn ed_charging_should_not_be_disabled_when_only_one_trade_with_insufficient_assets() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			let _ = with_transaction(|| {
-				//Arrange
-				let name = b"INSUF1".to_vec();
-				let insufficient_asset_1 = AssetRegistry::register_insufficient_asset(
-					None,
-					Some(name.try_into().unwrap()),
-					AssetKind::External,
-					Some(1_000),
-					None,
-					None,
-					None,
-					None,
-				)
-				.unwrap();
-
-				let name = b"INSUF12".to_vec();
-				let insufficient_asset_2 = AssetRegistry::register_insufficient_asset(
-					None,
-					Some(name.try_into().unwrap()),
-					AssetKind::External,
-					Some(1_000),
-					None,
-					None,
-					None,
-					None,
-				)
-				.unwrap();
-				assert_ok!(Currencies::deposit(insufficient_asset_1, &DAVE.into(), 100000 * UNITS,));
-				assert_ok!(Currencies::deposit(insufficient_asset_2, &DAVE.into(), 100000 * UNITS,));
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DAVE.into(),
-					HDX,
-					100000 * UNITS as i128,
-				));
-
-				assert_ok!(XYK::create_pool(
-					RuntimeOrigin::signed(DAVE.into()),
-					insufficient_asset_1,
-					100000 * UNITS,
-					insufficient_asset_2,
-					100000 * UNITS,
-				));
-
-				let trades = vec![Trade {
-					pool: PoolType::XYK,
-					asset_in: insufficient_asset_1,
-					asset_out: insufficient_asset_2,
-				}];
-
-				//Act
-				let amount_to_sell = 10 * UNITS;
-				assert_ok!(Currencies::deposit(insufficient_asset_1, &ALICE.into(), amount_to_sell,));
-				let ed = InsufficientEDinHDX::get();
-				let extra_ed_charge = UNITS / 10;
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
-
-				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					insufficient_asset_1,
-					insufficient_asset_2,
-					amount_to_sell,
-					0,
-					trades.try_into().unwrap()
-				),);
-
-				//ED for insufficient_asset_1 is refunded, but ED for insufficient_asset_2 is charged plus extra 10%
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed - extra_ed_charge);
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});
@@ -1904,8 +1727,7 @@ mod omnipool_router_tests {
 
 				assert_ok!(Currencies::deposit(insufficient_asset1, &ALICE.into(), 1500 * UNITS,));
 
-				let ed = InsufficientEDinHDX::get();
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - ed);
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
 
 				let amount_to_buy = 20 * UNITS;
 				assert_ok!(Router::buy(
@@ -1917,199 +1739,7 @@ mod omnipool_router_tests {
 					trades.try_into().unwrap()
 				));
 
-				assert_balance!(ALICE.into(), HDX, 1000 * UNITS - 2 * ed);
-
-				TransactionOutcome::Commit(DispatchResult::Ok(()))
-			});
-		});
-	}
-
-	#[test]
-	fn sell_should_pass_when_ed_refund_after_selling_all_shitcoin() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			let _ = with_transaction(|| {
-				//Arrange
-				let name = b"SHITCO".to_vec();
-				let shitcoin = AssetRegistry::register_insufficient_asset(
-					None,
-					Some(name.try_into().unwrap()),
-					AssetKind::External,
-					Some(1_000),
-					None,
-					None,
-					None,
-					None,
-				)
-				.unwrap();
-
-				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 11000000 * UNITS,));
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DAVE.into(),
-					DAI,
-					10000000 * UNITS as i128,
-				));
-
-				assert_ok!(XYK::create_pool(
-					RuntimeOrigin::signed(DAVE.into()),
-					DAI,
-					10000000 * UNITS,
-					shitcoin,
-					10000000 * UNITS,
-				));
-
-				init_omnipool();
-
-				let trades = vec![
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: shitcoin,
-						asset_out: DAI,
-					},
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: DAI,
-						asset_out: HDX,
-					},
-				];
-
-				//Act
-				assert_ok!(Currencies::deposit(shitcoin, &ALICE.into(), 127_733_235_715_547_000));
-				let amount_to_sell = 127_733_235_715_547_000;
-				assert_ok!(Router::sell(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					shitcoin,
-					HDX,
-					amount_to_sell,
-					0,
-					trades.try_into().unwrap()
-				));
-
-				TransactionOutcome::Commit(DispatchResult::Ok(()))
-			});
-		});
-	}
-
-	#[test]
-	fn sell_should_pass_when_ed_refund_happens_in_intermediare_trade() {
-		TestNet::reset();
-
-		Hydra::execute_with(|| {
-			let _ = with_transaction(|| {
-				//Arrange
-				let name = b"SHITCO".to_vec();
-				let shitcoin = AssetRegistry::register_insufficient_asset(
-					None,
-					Some(name.try_into().unwrap()),
-					AssetKind::External,
-					Some(1_000),
-					None,
-					None,
-					None,
-					None,
-				)
-				.unwrap();
-
-				assert_ok!(Currencies::deposit(shitcoin, &DAVE.into(), 11000 * UNITS,));
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					DAVE.into(),
-					HDX,
-					10000 * UNITS as i128,
-				));
-
-				assert_ok!(XYK::create_pool(
-					RuntimeOrigin::signed(DAVE.into()),
-					shitcoin,
-					10000 * UNITS,
-					HDX,
-					10000 * UNITS,
-				));
-
-				init_omnipool();
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					shitcoin,
-					6000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					shitcoin,
-					FixedU128::from_rational(1, 2),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					BTC,
-					6000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					BTC,
-					FixedU128::from_rational(1, 3),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					Omnipool::protocol_account(),
-					ETH,
-					6000 * UNITS as i128,
-				));
-
-				assert_ok!(hydradx_runtime::Omnipool::add_token(
-					hydradx_runtime::RuntimeOrigin::root(),
-					ETH,
-					FixedU128::from_rational(1, 3),
-					Permill::from_percent(1),
-					AccountId::from(BOB),
-				));
-
-				let trades = vec![
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: ETH,
-						asset_out: shitcoin,
-					},
-					Trade {
-						pool: PoolType::XYK,
-						asset_in: shitcoin,
-						asset_out: HDX,
-					},
-					Trade {
-						pool: PoolType::Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					},
-				];
-
-				//Act
-				//let amount_to_buy = 127_733_235_715_547;
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					ALICE.into(),
-					ETH,
-					6000 * UNITS as i128,
-				));
-				//assert_ok!(Currencies::deposit(DAI, &ALICE.into(), 100000 * UNITS));
-				assert_ok!(Router::buy(
-					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-					ETH,
-					BTC,
-					UNITS,
-					u128::MAX,
-					trades.try_into().unwrap()
-				));
+				assert_balance!(ALICE.into(), HDX, 1000 * UNITS);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

@@ -98,27 +98,6 @@ impl<T: frame_system::Config> pallet_asset_registry::WeightInfo for HydraWeight<
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(5_u64))
 	}
-	/// Storage: `AssetRegistry::NextAssetId` (r:1 w:1)
-	/// Proof: `AssetRegistry::NextAssetId` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::LocationAssets` (r:1 w:1)
-	/// Proof: `AssetRegistry::LocationAssets` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
-	/// Storage: `EVM::AccountCodesMetadata` (r:0 w:1)
-	/// Proof: `EVM::AccountCodesMetadata` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `EVM::AccountCodes` (r:0 w:1)
-	/// Proof: `EVM::AccountCodes` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `AssetRegistry::AssetLocations` (r:0 w:1)
-	/// Proof: `AssetRegistry::AssetLocations` (`max_values`: None, `max_size`: Some(622), added: 3097, mode: `MaxEncodedLen`)
-	/// Storage: `AssetRegistry::Assets` (r:0 w:1)
-	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
-	fn register_external() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `367`
-		//  Estimated: `4087`
-		// Minimum execution time: 32_405_000 picoseconds.
-		Weight::from_parts(32_874_000, 4087)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(6_u64))
-	}
 	/// Storage: `AssetRegistry::Assets` (r:1 w:0)
 	/// Proof: `AssetRegistry::Assets` (`max_values`: None, `max_size`: Some(125), added: 2600, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::BannedAssets` (r:1 w:1)

@@ -15,14 +15,21 @@
 
 use crate::Runtime;
 
+pub mod remove_fee_fallbacks;
+
 // New migrations which need to be cleaned up after every Runtime upgrade
-pub type UnreleasedSingleBlockMigrations = pallet_stableswap::migrations::v2::MigrateV1ToV2<Runtime>;
+pub type UnreleasedSingleBlockMigrations = (
+	pallet_stableswap::migrations::v2::MigrateV1ToV2<Runtime>,
+	remove_fee_fallbacks::RetireInsufficientEdPool,
+);
 
 // These migrations can run on every runtime upgrade
 pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>;
 
 pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
 
-// Multi-block migrations executed by pallet-migrations
+// Multi-block migrations executed by pallet-migrations.
+// One-shot entries stay listed until the next release: `pallet-migrations` records completed ids,
+// so a finished migration is skipped rather than re-run.
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type MultiBlockMigrationsList = ();
+pub type MultiBlockMigrationsList = (remove_fee_fallbacks::PurgeUnsupportedFeeCurrencies,);

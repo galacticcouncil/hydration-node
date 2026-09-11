@@ -29,7 +29,7 @@ pub use crate::{
 	evm::accounts_conversion::{ExtendedAddressMapping, FindAuthorTruncated},
 	AssetLocation, Aura, NORMAL_DISPATCH_RATIO,
 };
-use crate::{AssetRegistry, DotAssetId, FeePriceOracle, MultiTransactionPayment, Runtime, XykPaymentAssetSupport};
+use crate::{AssetRegistry, FeePriceOracle, MultiTransactionPayment, Runtime};
 pub use fp_evm::GenesisAccount as EvmGenesisAccount;
 use frame_support::{
 	dispatch::RawOrigin,
@@ -174,7 +174,7 @@ impl pallet_evm::Config for Runtime {
 		pallet_evm::runner::stack::Runner<Self>, // Evm runner that we wrap
 		hydradx_adapters::price::FeeAssetBalanceInCurrency<
 			Runtime,
-			ConvertBalance<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+			ConvertBalance<TenMinutesOraclePrice>,
 			FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 			FungibleCurrencies<Runtime>,  // Account balance inspector
 		>,
@@ -183,10 +183,8 @@ impl pallet_evm::Config for Runtime {
 		evm_fee::DepositEvmFeeToTreasury,
 		FeeCurrencyOverrideOrDefault, // Get account's fee payment asset
 		WethAssetId,
-		ConvertBalance<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>,
+		ConvertBalance<TenMinutesOraclePrice>,
 		FungibleCurrencies<Runtime>, // Multi currency support
-		XykPaymentAssetSupport,
-		DotAssetId,
 		IgnoreWithdrawFuse<Runtime>,
 	>;
 	type OnCreate = ();

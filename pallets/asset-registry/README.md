@@ -21,4 +21,4 @@ An asset has additional details stored on chain such as name and type.
 
 The registry pallet supports storing of native location of an asset. This can be used in XCM where it is possible to create mapping between native location and local system asset ids. 
 
-The registry pallet implements single ppermissionles extrinsic `register_external` that collects storage deposit for created asset.
+All assets are registered through the governance-gated `register` extrinsic; there is no permissionless registration.

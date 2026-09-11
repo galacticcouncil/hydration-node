@@ -184,20 +184,17 @@ pub fn set_period(to: u32) {
 	}
 }
 
-fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
-	let dot = register_asset(b"DOT".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	set_location(dot, DOT_ASSET_LOCATION).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
+fn setup_accepted_external_asset() -> Result<AssetId, BenchmarkError> {
+	let asset =
+		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 	crate::benchmarking::dca::MultiPaymentPallet::<Runtime>::add_currency(
 		RawOrigin::Root.into(),
-		dot,
+		asset,
 		FixedU128::from(1),
 	)
 	.map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-	let insufficient_asset =
-		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	crate::benchmarking::dca::create_xyk_pool(insufficient_asset, dot);
 
-	Ok(insufficient_asset)
+	Ok(asset)
 }
 
 pub fn update_deposit_limit(asset_id: AssetId, limit: Balance) -> Result<(), ()> {

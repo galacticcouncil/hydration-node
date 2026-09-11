@@ -2822,3 +2822,62 @@ fn assert_that_dca_is_terminated(owner: AccountId, schedule_id: ScheduleId, erro
 	}
 	.into()]);
 }
+
+#[test]
+fn fee_should_be_charged_in_account_fee_currency_when_asset_in_is_not_a_fee_currency() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange - the sold asset cannot pay fees, so the owner's fee currency (HDX) is charged.
+			NON_FEE_ASSETS.with(|v| v.borrow_mut().push(DAI));
+			proceed_to_blocknumber(1, 500);
+
+			let amount_in = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+			let budget = 1000 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(budget)
+				.with_order(Order::Sell {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_in,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: DAI,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
+
+			let alice_hdx_before = Currencies::free_balance(HDX, &ALICE);
+			let treasury_hdx_before = Currencies::free_balance(HDX, &TreasuryAccount::get());
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+
+			//Act
+			set_to_blocknumber(502);
+
+			//Assert
+			assert_number_of_executed_sell_trades!(1);
+
+			let fee = get_fee_for_sell_in_hdx();
+			assert_eq!(Currencies::free_balance(HDX, &ALICE), alice_hdx_before - fee);
+			assert_eq!(
+				Currencies::free_balance(HDX, &TreasuryAccount::get()),
+				treasury_hdx_before + fee
+			);
+
+			//The budget paid for the trade only - the fee never touched it, and the treasury
+			//received no DAI.
+			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget - amount_in);
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+		});
+}
