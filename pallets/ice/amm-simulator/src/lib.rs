@@ -17,6 +17,7 @@ pub mod aave;
 pub mod omnipool;
 pub mod stableswap;
 pub mod uniswap_v3;
+pub mod xyk;
 
 /// Route discovery using on-chain routes, simulator `can_trade`, and RouteProvider fallback.
 ///

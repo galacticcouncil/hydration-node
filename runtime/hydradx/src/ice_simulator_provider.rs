@@ -203,3 +203,50 @@ where
 		HydraErc20Mapping::address_to_asset(address)
 	}
 }
+
+use amm_simulator::xyk::DataProvider as XykDataProvider;
+
+pub struct Xyk<T>(PhantomData<T>);
+
+impl<T: pallet_xyk::Config> XykDataProvider for Xyk<T> {
+	/// XYK is opt-in: only pairs governance has registered are read, and the rest of
+	/// the hundreds of permissionless pools on chain are never touched. Enumerating
+	/// them all cost ~13 us each in state load for pools that will never trade.
+	fn pools() -> Vec<(AssetId, AssetId, Balance, Balance)> {
+		pallet_ice::SolverRouting::<crate::Runtime>::iter()
+			.filter_map(|(target, state)| match (target, state) {
+				(RoutingTarget::XykPool(asset_a, asset_b), RoutingState::Included) => Some((asset_a, asset_b)),
+				_ => None,
+			})
+			.filter_map(|(asset_a, asset_b)| {
+				let pair_account = pallet_xyk::Pallet::<T>::pair_account_from_assets(asset_a, asset_b);
+				// A registered pair that does not exist on chain is skipped rather than
+				// fabricated with zero reserves. Reading the stored pair back also gives
+				// the order the pool was created with, not the normalised registry order.
+				let (asset_a, asset_b) = pallet_xyk::Pallet::<T>::pool_assets(&pair_account)?;
+				Some((
+					asset_a,
+					asset_b,
+					<T as pallet_xyk::Config>::Currency::free_balance(asset_a, &pair_account),
+					<T as pallet_xyk::Config>::Currency::free_balance(asset_b, &pair_account),
+				))
+			})
+			.collect()
+	}
+
+	fn exchange_fee() -> (u32, u32) {
+		T::GetExchangeFee::get()
+	}
+
+	fn min_trading_limit() -> Balance {
+		T::MinTradingLimit::get()
+	}
+
+	fn max_in_ratio() -> u128 {
+		T::MaxInRatio::get()
+	}
+
+	fn max_out_ratio() -> u128 {
+		T::MaxOutRatio::get()
+	}
+}

@@ -516,8 +516,8 @@ pub mod pallet {
 		///
 		/// `exclude = false` is the default for everything the simulators enumerate
 		/// themselves, so it drops the entry rather than storing a redundant one.
-		/// A Uniswap v3 pool is the exception: the solver has no way to discover it,
-		/// so an included entry is kept — that entry is the pool's registration.
+		/// Uniswap v3 and XYK pools are the exception — they are opt-in, so an
+		/// included entry is kept and that entry is the pool's registration.
 		///
 		/// Asset pairs are normalised, so a target cannot end up under two keys.
 		///
@@ -540,7 +540,7 @@ pub mod pallet {
 				(true, _) => Some(RoutingState::Excluded),
 				// Included is the default here, so storing it would say nothing.
 				(false, true) => None,
-				// ...but for Uniswap it is the registration.
+				// ...but for an opt-in venue it is the registration.
 				(false, false) => Some(RoutingState::Included),
 			};
 

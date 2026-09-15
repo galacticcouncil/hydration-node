@@ -67,7 +67,7 @@ const EXTRA_GAS: u64 = 1_000_000;
 /// `Aura::Authorities` must survive: `pallet_aura::find_author` takes
 /// `slot % authorities_len()`, so an empty authority set divides by zero on every
 /// EVM call.
-fn reset_consensus_slots() {
+pub(crate) fn reset_consensus_slots() {
 	use frame_support::storage::{storage_prefix, unhashed};
 
 	unhashed::kill(&storage_prefix(b"Aura", b"CurrentSlot"));

@@ -59,6 +59,7 @@ use amm_simulator::aave::Simulator as AaveSimulator;
 use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
 use amm_simulator::stableswap::Simulator as StableSwapSimulator;
 use amm_simulator::uniswap_v3::Simulator as UniswapV3Simulator;
+use amm_simulator::xyk::Simulator as XykSimulator;
 
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -1966,6 +1967,7 @@ pub type HydrationSimulators = (
 	StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
 	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
 	UniswapV3Simulator<ice_simulator_provider::UniswapV3<Runtime>>,
+	XykSimulator<ice_simulator_provider::Xyk<Runtime>>,
 );
 
 pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);

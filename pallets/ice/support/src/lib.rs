@@ -70,7 +70,7 @@ pub enum RoutingTarget {
 	OmnipoolAsset(AssetId),
 	/// A whole stableswap pool.
 	StableswapPool(PoolId),
-	/// An XYK pool, by its asset pair.
+	/// An XYK pool, by its asset pair. Opt-in — see `is_self_discovered`.
 	XykPool(AssetId, AssetId),
 	/// An Aave reserve/aToken wrap.
 	AaveWrap(AssetId, AssetId),
@@ -91,10 +91,13 @@ impl RoutingTarget {
 	/// Whether the solver finds this target on its own.
 	///
 	/// For everything the simulators enumerate from chain state, "included" is the
-	/// default and needs no entry. Uniswap v3 has no on-chain pool registry, so an
-	/// included entry *is* how the solver learns the pool exists and must be kept.
+	/// default and needs no entry. Uniswap v3 and XYK are opt-in instead, so an
+	/// included entry *is* how the solver learns the pool exists and must be kept:
+	/// v3 because there is no on-chain registry to enumerate, XYK because it is
+	/// permissionless and most of the hundreds of pools on chain never trade —
+	/// loading them all would cost the solver more than they could ever return.
 	pub fn is_self_discovered(&self) -> bool {
-		!matches!(self, RoutingTarget::UniswapV3Pool(_))
+		!matches!(self, RoutingTarget::UniswapV3Pool(_) | RoutingTarget::XykPool(..))
 	}
 }
 
