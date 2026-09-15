@@ -14,6 +14,11 @@ use sp_std::vec::Vec;
 use amm_simulator::omnipool::DataProvider as OmnipoolDataProvider;
 use pallet_omnipool::types::AssetState;
 
+/// Whether governance has taken this target out of the solver's routing.
+fn is_excluded(target: ice_support::RoutingTarget) -> bool {
+	pallet_ice::SolverRouting::<crate::Runtime>::get(target) == Some(ice_support::RoutingState::Excluded)
+}
+
 pub struct Omnipool<T>(PhantomData<T>);
 
 impl<T: pallet_omnipool::Config<AssetId = AssetId>> OmnipoolDataProvider for Omnipool<T> {
@@ -23,8 +28,12 @@ impl<T: pallet_omnipool::Config<AssetId = AssetId>> OmnipoolDataProvider for Omn
 		pallet_omnipool::Pallet::<T>::protocol_account()
 	}
 
+	/// Assets excluded by governance are dropped here rather than filtered later,
+	/// so they never enter the snapshot at all — no pool edge, no spot price, and
+	/// route discovery simply routes around them.
 	fn assets() -> impl Iterator<Item = (AssetId, AssetState<Balance>)> {
 		pallet_omnipool::pallet::Assets::<T>::iter()
+			.filter(|(asset_id, _)| !is_excluded(ice_support::RoutingTarget::OmnipoolAsset(*asset_id)))
 	}
 
 	fn free_balance(currncy_id: AssetId, who: &Self::AccountId) -> Balance {
@@ -67,8 +76,11 @@ pub struct Stableswap<T>(PhantomData<T>);
 impl<T: pallet_stableswap::Config<AssetId = AssetId>> StableswapDataProvider for Stableswap<T> {
 	type BlockNumber = BlockNumberFor<T>;
 
+	/// Excluded pools are dropped here, so they never reach the snapshot and route
+	/// discovery simply routes around them.
 	fn pools() -> impl Iterator<Item = (AssetId, PoolInfo<AssetId, Self::BlockNumber>)> {
 		pallet_stableswap::pallet::Pools::<T>::iter()
+			.filter(|(pool_id, _)| !is_excluded(ice_support::RoutingTarget::StableswapPool(*pool_id)))
 	}
 
 	fn pool_pegs(pool_id: AssetId) -> Option<PoolPegInfo<Self::BlockNumber, AssetId>> {
@@ -143,6 +155,51 @@ where
 				let atoken_asset = HydraErc20Mapping::address_to_asset(data.atoken_address)?;
 				Some((reserve_asset, atoken_asset))
 			})
+			.filter(|(reserve, atoken)| !is_excluded(ice_support::RoutingTarget::AaveWrap(*reserve, *atoken)))
 			.collect()
+	}
+}
+
+use amm_simulator::uniswap_v3::DataProvider as UniswapV3DataProvider;
+use ice_support::RoutingState;
+use ice_support::RoutingTarget;
+
+pub struct UniswapV3<T>(PhantomData<T>);
+
+impl<T> UniswapV3DataProvider for UniswapV3<T>
+where
+	T: frame_system::Config + pallet_ice::Config + pallet_evm::Config + pallet_dispatcher::Config,
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::AddressMapping: AddressMapping<T::AccountId>,
+	pallet_evm::AccountIdOf<T>: From<T::AccountId>,
+	NonceIdOf<T>: Into<T::Nonce>,
+{
+	fn view(context: hydradx_traits::evm::CallContext, data: Vec<u8>, gas: u64) -> (ExitReason, Vec<u8>) {
+		let CallResult {
+			exit_reason,
+			value,
+			contract: _,
+			gas_used: _,
+			gas_limit: _,
+		} = crate::evm::Executor::<T>::view(context, data, gas);
+
+		(exit_reason, value)
+	}
+
+	fn quoter() -> Option<EvmAddress> {
+		pallet_parameters::Pallet::<crate::Runtime>::uniswap_v3_quoter()
+	}
+
+	fn pools() -> Vec<EvmAddress> {
+		pallet_ice::SolverRouting::<T>::iter()
+			.filter_map(|(target, state)| match (target, state) {
+				(RoutingTarget::UniswapV3Pool(address), RoutingState::Included) => Some(address),
+				_ => None,
+			})
+			.collect()
+	}
+
+	fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
+		HydraErc20Mapping::address_to_asset(address)
 	}
 }

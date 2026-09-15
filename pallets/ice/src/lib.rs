@@ -58,6 +58,8 @@ use ice_support::Partial;
 use ice_support::PoolTrade;
 use ice_support::Price;
 use ice_support::ResolvedIntent;
+use ice_support::RoutingState;
+use ice_support::RoutingTarget;
 use ice_support::Score;
 use ice_support::Solution;
 use ice_support::SolverMode;
@@ -191,6 +193,12 @@ pub mod pallet {
 		ProtocolFeeSet { fee: Permill },
 		/// Active solver mode has been updated.
 		SolverModeSet { mode: SolverMode },
+		/// A routing rule has been updated. `None` means the entry was removed and
+		/// the target went back to its default.
+		RoutingUpdated {
+			target: RoutingTarget,
+			state: Option<RoutingState>,
+		},
 	}
 
 	/// Matched-volume protocol fee.
@@ -206,6 +214,18 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn solver_mode)]
 	pub type CurrentSolverMode<T: Config> = StorageValue<_, SolverMode, ValueQuery>;
+
+	/// Routing rules the solver is told about.
+	///
+	/// Only non-default rules are stored. For venues the simulators enumerate
+	/// themselves an absent entry means included; for Uniswap v3 there is nothing
+	/// to enumerate, so an included entry is what makes the pool visible at all.
+	///
+	/// Only the Uniswap simulator reads this today; honouring `Excluded` for the
+	/// self-discovering venues is still to come.
+	#[pallet::storage]
+	#[pallet::getter(fn routing)]
+	pub type SolverRouting<T: Config> = StorageMap<_, Blake2_128Concat, RoutingTarget, RoutingState, OptionQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -488,6 +508,48 @@ pub mod pallet {
 			}
 
 			Self::deposit_event(Event::SolverModeSet { mode });
+
+			Ok(())
+		}
+
+		/// Exclude a target from the solver's routing, or put it back.
+		///
+		/// `exclude = false` is the default for everything the simulators enumerate
+		/// themselves, so it drops the entry rather than storing a redundant one.
+		/// A Uniswap v3 pool is the exception: the solver has no way to discover it,
+		/// so an included entry is kept — that entry is the pool's registration.
+		///
+		/// Asset pairs are normalised, so a target cannot end up under two keys.
+		///
+		/// Can only be called by `AuthorityOrigin` (e.g. TechnicalCommittee or Root).
+		///
+		/// Parameters:
+		/// - `target`: the pool, pool asset or wrap the rule applies to
+		/// - `exclude`: `true` hides it from the solver
+		///
+		/// Emits `RoutingUpdated` event when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_routing())]
+		pub fn update_routing(origin: OriginFor<T>, target: RoutingTarget, exclude: bool) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let target = target.normalized();
+
+			let state = match (exclude, target.is_self_discovered()) {
+				(true, _) => Some(RoutingState::Excluded),
+				// Included is the default here, so storing it would say nothing.
+				(false, true) => None,
+				// ...but for Uniswap it is the registration.
+				(false, false) => Some(RoutingState::Included),
+			};
+
+			match state {
+				Some(state) => SolverRouting::<T>::insert(target, state),
+				None => SolverRouting::<T>::remove(target),
+			}
+
+			Self::deposit_event(Event::RoutingUpdated { target, state });
 
 			Ok(())
 		}

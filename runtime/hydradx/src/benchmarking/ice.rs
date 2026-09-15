@@ -8,6 +8,8 @@ use ice_support::Intent as IntentIce;
 use ice_support::IntentData;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
+use ice_support::RoutingState;
+use ice_support::RoutingTarget;
 use ice_support::Solution;
 use ice_support::SolverMode;
 use ice_support::SwapData;
@@ -141,6 +143,14 @@ runtime_benchmarks! {
 	}: { ICE::set_solver_mode(RawOrigin::Root.into(), mode)? }
 	verify {
 		assert_eq!(ICE::solver_mode(), SolverMode::Disabled);
+	}
+
+	update_routing {
+		let target = RoutingTarget::OmnipoolAsset(1);
+		assert_eq!(ICE::routing(target), None);
+	}: { ICE::update_routing(RawOrigin::Root.into(), target, true)? }
+	verify {
+		assert_eq!(ICE::routing(target), Some(RoutingState::Excluded));
 	}
 }
 

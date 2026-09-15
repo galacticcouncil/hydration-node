@@ -135,4 +135,14 @@ impl<T: frame_system::Config> pallet_ice::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(19_179_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: `ICE::SolverRouting` (r:0 w:1)
+	/// Proof: `ICE::SolverRouting` (`max_values`: None, `max_size`: Some(46), added: 2521, mode: `MaxEncodedLen`)
+	fn update_routing() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1012`
+		//  Estimated: `0`
+		// Minimum execution time: 18_726_000 picoseconds.
+		Weight::from_parts(19_179_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }
