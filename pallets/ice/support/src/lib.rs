@@ -8,6 +8,7 @@ use frame_support::sp_runtime::{DispatchError, Permill};
 use frame_support::BoundedVec;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::Route;
+use sp_core::H160;
 use sp_core::U256;
 
 pub type AssetId = u32;
@@ -54,6 +55,57 @@ pub enum SolverMode {
 	Passthrough,
 	/// Kill switch — no solution is accepted.
 	Disabled,
+}
+
+/// What a routing rule applies to.
+///
+/// Granularity differs by venue because that is where the useful lever sits: an
+/// Omnipool rule targets a single asset, while a Uniswap rule targets one pool
+/// contract. Asset pairs are ordered ascending so one target has exactly one key
+/// — except `AaveWrap`, whose `(reserve, aToken)` pair is directional.
+#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
+pub enum RoutingTarget {
+	/// One asset inside the Omnipool. Excluding it removes every Omnipool edge
+	/// touching that asset, so the solver routes around it.
+	OmnipoolAsset(AssetId),
+	/// A whole stableswap pool.
+	StableswapPool(PoolId),
+	/// An XYK pool, by its asset pair. Opt-in — see `is_self_discovered`.
+	XykPool(AssetId, AssetId),
+	/// An Aave reserve/aToken wrap.
+	AaveWrap(AssetId, AssetId),
+	/// A Uniswap v3 pool contract. The pair and fee tier are read from the
+	/// contract, which is their source of truth.
+	UniswapV3Pool(H160),
+}
+
+impl RoutingTarget {
+	/// Canonical form, so one target cannot be stored under two keys.
+	pub fn normalized(self) -> Self {
+		match self {
+			RoutingTarget::XykPool(a, b) if a > b => RoutingTarget::XykPool(b, a),
+			other => other,
+		}
+	}
+
+	/// Whether the solver finds this target on its own.
+	///
+	/// For everything the simulators enumerate from chain state, "included" is the
+	/// default and needs no entry. Uniswap v3 and XYK are opt-in instead, so an
+	/// included entry *is* how the solver learns the pool exists and must be kept:
+	/// v3 because there is no on-chain registry to enumerate, XYK because it is
+	/// permissionless and most of the hundreds of pools on chain never trade —
+	/// loading them all would cost the solver more than they could ever return.
+	pub fn is_self_discovered(&self) -> bool {
+		!matches!(self, RoutingTarget::UniswapV3Pool(_) | RoutingTarget::XykPool(..))
+	}
+}
+
+/// Whether the solver may use a target.
+#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
+pub enum RoutingState {
+	Included,
+	Excluded,
 }
 
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
