@@ -116,7 +116,10 @@ impl ReserveData {
 }
 
 const TRADE_GAS_LIMIT: u64 = 500_000;
-const VIEW_GAS_LIMIT: u64 = 100_000;
+const VIEW_GAS_LIMIT: u64 = 150_000;
+// getReservesList() walks every reserve, so its cost grows with the market:
+// ~116k gas at 27 reserves (2026-09), already past VIEW_GAS_LIMIT.
+const RESERVES_LIST_GAS_LIMIT: u64 = 1_000_000;
 
 impl<T> AaveTradeExecutor<T>
 where
@@ -157,7 +160,7 @@ where
 		let context = CallContext::new_view(pool);
 		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
 
-		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, RESERVES_LIST_GAS_LIMIT);
 
 		ensure!(
 			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
