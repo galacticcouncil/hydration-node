@@ -26,6 +26,10 @@ const relativeDays = (relayBlocksAway) => (relayBlocksAway * SECONDS_PER_BLOCK) 
 const LEADIN_ALERT_DAYS = Number(process.env.LEADIN_ALERT_DAYS ?? 3);
 const TOTAL_ALERT_DAYS = Number(process.env.TOTAL_ALERT_DAYS ?? 7);
 const ALERT_COOLDOWN_HOURS = Number(process.env.ALERT_COOLDOWN_HOURS ?? 12);
+// Optional Discord mention prefixed to every alert post. Mentions placed inside
+// an embed never notify anyone — only top-level `content` does — so this is what
+// makes an alert actually ping. Examples: '@here', '<@&ROLE_ID>', '<@USER_ID>'.
+const ALERT_MENTION = (process.env.ALERT_MENTION ?? '').trim();
 const STATE_FILE = process.env.STATE_FILE ?? new URL('./.state.json', import.meta.url).pathname;
 // Webhook may be given directly (env) or via a file (e.g. a mounted Swarm secret).
 function resolveWebhook() {
@@ -71,6 +75,7 @@ const argv = new Set(process.argv.slice(2));
 const DRY_RUN = argv.has('--dry-run');
 const FORCE = argv.has('--force');
 const TEST = argv.has('--test');
+const FAKE_ALERT = argv.has('--fake-alert');
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -214,15 +219,22 @@ function buildEmbed(chain, a, alert) {
 }
 
 async function sendDiscord(embeds) {
+  const payload = { username: 'coretime-watchdog', embeds };
+  if (ALERT_MENTION) {
+    payload.content = ALERT_MENTION;
+    // Be explicit rather than relying on the webhook default, so a role that is
+    // not flagged "mentionable" still pings.
+    payload.allowed_mentions = { parse: ['everyone', 'roles', 'users'] };
+  }
   if (DRY_RUN || !WEBHOOK) {
     log(DRY_RUN ? '[dry-run] would POST to Discord:' : '[no DISCORD_WEBHOOK_URL] payload:');
-    console.log(JSON.stringify({ embeds }, null, 2));
+    console.log(JSON.stringify(payload, null, 2));
     return;
   }
   const res = await fetch(WEBHOOK, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ username: 'coretime-watchdog', embeds }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`discord webhook ${res.status}: ${await res.text()}`);
   log(`posted ${embeds.length} alert(s) to Discord`);
@@ -254,7 +266,60 @@ function shouldSend(state, key, fingerprint) {
   return ageH >= ALERT_COOLDOWN_HOURS;
 }
 
+// Build a representative (but clearly labelled) alert for each configured chain,
+// so the full embed + mention path can be exercised without waiting for a real
+// renewal deadline. Touches no RPC.
+function fakeEmbeds() {
+  const shapes = [
+    {
+      severity: 'URGENT',
+      phase: 'fixed',
+      daysToLeadinEnd: -1,
+      daysToRegionBegin: 4.2,
+      reasons: ['only 4.2d until the region begins — renewal right is lost after that'],
+    },
+    {
+      severity: 'WARNING',
+      phase: 'leadin',
+      daysToLeadinEnd: 2.1,
+      daysToRegionBegin: 9.6,
+      reasons: ['lead-in ends in 2.1d'],
+    },
+  ];
+  return CHAINS.map((chain, i) => {
+    const shape = shapes[i % shapes.length];
+    const symbol = chain.relay === 'Polkadot' ? 'DOT' : 'KSM';
+    const a = {
+      endpoint: chain.coretime[0],
+      phase: shape.phase,
+      nowTs: 400000 + i,
+      daysToLeadinEnd: shape.daysToLeadinEnd,
+      daysToRegionBegin: shape.daysToRegionBegin,
+      activeCores: [10 + i, 11 + i, 12 + i],
+      securedCores: [10 + i],
+      shortfall: chain.desiredCores - 1,
+      pendingRenewals: [
+        { core: 11 + i, price: 0, priceFmt: `123.4567 ${symbol}` },
+        { core: 12 + i, price: 0, priceFmt: `123.4567 ${symbol}` },
+      ],
+      renewCalls: [
+        { core: 11 + i, callHex: '0x3a0b0b00' },
+        { core: 12 + i, callHex: '0x3a0b0c00' },
+      ],
+    };
+    const embed = buildEmbed(chain, a, { severity: shape.severity, reasons: shape.reasons });
+    embed.title = `🧪 [DRILL] ${embed.title}`;
+    embed.description = `**This is a test alert — nothing is actually at risk, no action needed.**\n${embed.description}`;
+    embed.footer = { text: `${embed.footer.text} • synthetic drill (--fake-alert)` };
+    return embed;
+  });
+}
+
 async function main() {
+  if (FAKE_ALERT) {
+    await sendDiscord(fakeEmbeds());
+    return;
+  }
   if (TEST) {
     await sendDiscord([{ title: '✅ coretime watchdog test', description: 'webhook reachable', color: 0x2ecc71, timestamp: new Date().toISOString() }]);
     return;
