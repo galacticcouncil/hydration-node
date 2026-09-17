@@ -683,7 +683,36 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 			T::NativeCurrency::repatriate_reserved_named(id, slashed, beneficiary, value, status)
 		} else {
 			match T::BoundErc20::contract_address(currency_id) {
-				Some(_) => fail!(Error::<T>::NotSupported),
+				// For a bound erc20 the orml balance is only a receipt - `reserve_named` moved the
+				// real tokens to `ReserveAccount` and minted the receipt there. So `Reserved` moves
+				// the receipt and leaves custody untouched, while `Free` burns the receipt and
+				// releases the same amount from custody. The total of all receipts for an asset must
+				// stay equal to the reserve account's erc20 balance.
+				Some(contract) => match status {
+					BalanceStatus::Reserved => T::MultiCurrency::repatriate_reserved_named(
+						id,
+						currency_id,
+						slashed,
+						beneficiary,
+						value,
+						status,
+					),
+					BalanceStatus::Free => with_transaction_result(|| {
+						let remaining = T::MultiCurrency::unreserve_named(id, currency_id, slashed, value);
+						let moved = value.saturating_sub(remaining);
+						if moved > Zero::zero() {
+							T::MultiCurrency::withdraw(currency_id, slashed, moved, ExistenceRequirement::AllowDeath)?;
+							T::Erc20Currency::transfer(
+								contract,
+								&T::ReserveAccount::get(),
+								beneficiary,
+								moved,
+								ExistenceRequirement::AllowDeath,
+							)?;
+						}
+						Ok(remaining)
+					}),
+				},
 				None => {
 					T::MultiCurrency::repatriate_reserved_named(id, currency_id, slashed, beneficiary, value, status)
 				}
