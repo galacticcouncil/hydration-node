@@ -453,8 +453,9 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 	assert!(v4.surplus >= pt.surplus, "matching must not pay worse than the AMM");
 
 	// Strict routes value through the pot and sweeps the matched fee; pass-through
-	// touches neither account.
-	assert_eq!(v4.pot_delta, vec![0, 22161927, 1]);
+	// touches neither account. The sub-ED HDX residual stays in the pot because the pot is a
+	// seeded, live account - as on mainnet; it used to be dust-reaped down to nothing.
+	assert_eq!(v4.pot_delta, vec![78130359444, 22161927, 1]);
 	assert_eq!(v4.fee_delta, vec![2800000000000, 0, 0]);
 	assert_eq!(pt.pot_delta, vec![0, 0, 0]);
 	assert_eq!(pt.fee_delta, vec![0, 0, 0]);
