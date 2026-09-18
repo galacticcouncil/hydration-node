@@ -50,6 +50,11 @@ runtime_benchmarks! {
 			(10_000 * TRIL) as i128,
 		)?;
 
+		// The holding pot must already hold HDX: `move_locked_funds` repatriates the
+		// intent input into it, and `pallet_balances` refuses to create the
+		// beneficiary (`DeadAccount`).
+		fund(ICE::get_pallet_account(), HDX, 10_000 * TRIL)?;
+
 		let counterparty: AccountId = account("counterparty", 1, SEED);
 
 		fund(caller.clone(), HDX, 10_000 * TRIL)?;
