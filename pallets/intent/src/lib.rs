@@ -570,7 +570,13 @@ impl<T: Config> Pallet<T> {
 					.try_into()
 					.unwrap_or(u32::MAX);
 
-				IntentData::Dca(data.clone().into_data(reserve_amount, current_block))
+				// Back-dated by one period so the first trade is due immediately: `period` is the gap
+				// between trades, not a delay before the first one. `resolve_dca_intent` stamps the
+				// real block, so the cadence is exact from the second trade on.
+				IntentData::Dca(
+					data.clone()
+						.into_data(reserve_amount, current_block.saturating_sub(data.period)),
+				)
 			}
 		};
 

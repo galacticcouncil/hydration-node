@@ -196,8 +196,8 @@ fn dca_single_trade_execution() {
 
 			assert_eq!(
 				pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
-				0,
-				"Not yet eligible"
+				1,
+				"Eligible at creation"
 			);
 
 			let _s = advance_and_solve(PERIOD);
@@ -753,7 +753,7 @@ fn dca_create_schedule_should_work() {
 					if owner == &alice
 			)));
 
-			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 0);
+			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 1);
 		});
 }
 
@@ -1840,12 +1840,10 @@ fn dca_residual_budget_returned_without_partial_trade() {
 		});
 }
 
-// DCA period must be enforced at resolve time, not only in get_valid_intents.
-// Fails today: a crafted intent list that skips the period filter gets its
-// solution accepted via submit_solution. Fix: add period check to
-// validate_dca_intent_resolve in pallets/intent/src/lib.rs.
+// DCA period must be enforced at resolve time, not only in get_valid_intents:
+// a crafted intent list that skips the pre-filter must still be rejected.
 #[test]
-fn dca_period_can_be_bypassed_at_resolve_time() {
+fn submit_solution_should_fail_when_dca_trades_out_of_period() {
 	TestNet::reset();
 	let alice: AccountId = ALICE.into();
 	let budget = 5 * TRADE_AMOUNT;
@@ -1855,6 +1853,9 @@ fn dca_period_can_be_bypassed_at_resolve_time() {
 		.execute(|| {
 			enable_slip_fees();
 			submit_dca_hdx_bnc_with_slippage(alice.clone(), Some(budget), Permill::from_percent(3));
+
+			// The first trade is due at creation; the period gate only binds from the second on.
+			run_solver_and_submit();
 
 			assert_eq!(pallet_intent::Pallet::<Runtime>::get_valid_intents().len(), 0);
 
