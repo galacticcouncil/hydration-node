@@ -66,6 +66,7 @@ pub use ice_support::Partial;
 use ice_support::ResolvedIntent;
 pub use ice_support::SwapData;
 pub use ice_support::SwapParams;
+use orml_traits::BalanceStatus;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
@@ -807,8 +808,8 @@ impl<T: Config> Pallet<T> {
 
 			if fully_resolved {
 				// Unreserve any remaining reserved funds.
-				// For swaps: submit_solution already unlocked and transferred the fill
-				// amount before calling intent_resolved, so nothing remains to unreserve.
+				// For swaps: submit_solution already moved the fill amount out of the reserve
+				// before calling intent_resolved, so nothing remains to unreserve.
 				// For DCA: remaining_budget tracks unspent reserved funds.
 				let unreserve_amount = match intent.data {
 					IntentData::Swap(_) => 0,
@@ -1018,6 +1019,33 @@ impl<T: Config> Pallet<T> {
 	#[inline(always)]
 	pub fn unlock_funds(who: &T::AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
 		if !T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_id, who, amount).is_zero() {
+			return Err(Error::<T>::InsufficientReservedBalance.into());
+		}
+
+		Ok(())
+	}
+
+	/// Function moves reserved `amount` of `asset_id` from `who` straight to `dest` as free balance.
+	///
+	/// Never routes the funds through `who`: for a bound erc20 the reserve account is the token
+	/// sender, and an aave aToken prices its solvency walk on the sender. Unreserving to `who`
+	/// first would make that walk the owner's - unbounded in their own aave footprint.
+	#[inline(always)]
+	pub fn move_locked_funds(
+		who: &T::AccountId,
+		dest: &T::AccountId,
+		asset_id: AssetId,
+		amount: Balance,
+	) -> DispatchResult {
+		let remaining = T::Currency::repatriate_reserved_named(
+			&NAMED_RESERVE_ID,
+			asset_id,
+			who,
+			dest,
+			amount,
+			BalanceStatus::Free,
+		)?;
+		if !remaining.is_zero() {
 			return Err(Error::<T>::InsufficientReservedBalance.into());
 		}
 
