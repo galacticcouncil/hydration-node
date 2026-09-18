@@ -137,6 +137,8 @@ pub mod module {
 		DepositFailed,
 		/// Operation is not supported for this currency
 		NotSupported,
+		/// The beneficiary cannot be the reserve account itself.
+		InvalidBeneficiary,
 	}
 
 	#[pallet::event]
@@ -697,6 +699,12 @@ impl<T: Config> NamedMultiReservableCurrency<T::AccountId> for Pallet<T> {
 						value,
 						status,
 					),
+					// Releasing to the vault itself is an erc20 self-transfer: the caller would be
+					// giving the tokens away to an account nobody controls. Refuse rather than
+					// silently succeed.
+					BalanceStatus::Free if *beneficiary == T::ReserveAccount::get() => {
+						fail!(Error::<T>::InvalidBeneficiary)
+					}
 					BalanceStatus::Free => with_transaction_result(|| {
 						let remaining = T::MultiCurrency::unreserve_named(id, currency_id, slashed, value);
 						let moved = value.saturating_sub(remaining);

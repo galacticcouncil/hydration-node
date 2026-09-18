@@ -604,6 +604,56 @@ mod repatriate_reserved_named_erc20 {
 	}
 
 	#[test]
+	fn repatriate_reserved_named_should_fail_when_beneficiary_is_the_reserve_account() {
+		with_reserved(|| {
+			assert_noop!(
+				Currencies::repatriate_reserved_named(
+					&RID_1,
+					ERC20_TOKEN_ID,
+					&ALICE,
+					&reserve_account(),
+					40,
+					BalanceStatus::Free
+				),
+				crate::Error::<Runtime>::InvalidBeneficiary
+			);
+
+			assert_eq!(
+				Currencies::reserved_balance_named(&RID_1, ERC20_TOKEN_ID, &ALICE),
+				RESERVED
+			);
+			assert_eq!(Tokens::total_issuance(ERC20_TOKEN_ID), RESERVED);
+			assert_eq!(Currencies::free_balance(ERC20_TOKEN_ID, &reserve_account()), RESERVED);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_move_the_receipt_when_beneficiary_is_the_reserve_account_and_status_is_reserved(
+	) {
+		with_reserved(|| {
+			// custody does not change here, so the invariant holds and there is nothing to guard
+			assert_eq!(
+				Currencies::repatriate_reserved_named(
+					&RID_1,
+					ERC20_TOKEN_ID,
+					&ALICE,
+					&reserve_account(),
+					40,
+					BalanceStatus::Reserved
+				),
+				Ok(0)
+			);
+
+			assert_eq!(
+				Currencies::reserved_balance_named(&RID_1, ERC20_TOKEN_ID, &reserve_account()),
+				40
+			);
+			assert_eq!(Tokens::total_issuance(ERC20_TOKEN_ID), RESERVED);
+			assert_eq!(Currencies::free_balance(ERC20_TOKEN_ID, &reserve_account()), RESERVED);
+		});
+	}
+
+	#[test]
 	fn repatriate_reserved_named_should_roll_back_receipt_burn_when_erc20_transfer_reverts() {
 		with_reserved(|| {
 			revert_erc20_transfers(true);

@@ -859,6 +859,27 @@ mod repatriate_reserved_named {
 	}
 
 	#[test]
+	fn repatriate_reserved_named_should_fail_when_beneficiary_is_the_reserve_account() {
+		with_reserved_erc20(|asset, _| {
+			assert_noop!(
+				Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&reserve_account(),
+					400,
+					BalanceStatus::Free
+				),
+				pallet_currencies::Error::<Runtime>::InvalidBeneficiary
+			);
+
+			assert_eq!(Currencies::reserved_balance_named(&RID, asset, &ALICE.into()), RESERVED);
+			assert_eq!(Tokens::total_issuance(asset), RESERVED);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), RESERVED);
+		});
+	}
+
+	#[test]
 	fn repatriate_reserved_named_should_keep_every_receipt_backed_when_draining_the_reserve() {
 		with_reserved_erc20(|asset, _| {
 			for amount in [100, 250, 650] {
