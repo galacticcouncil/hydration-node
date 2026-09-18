@@ -506,7 +506,7 @@ fn migration_should_not_execute_trade_when_conversion_happens() {
 }
 
 #[test]
-fn migrated_intent_should_first_fill_one_period_after_conversion() {
+fn migrated_intent_should_be_eligible_at_the_conversion_block() {
 	TestNet::reset();
 	let alice: AccountId = ALICE.into();
 
@@ -518,23 +518,32 @@ fn migrated_intent_should_first_fill_one_period_after_conversion() {
 		run_to(block);
 
 		let intent_id = migrated_intent_id(id);
-		assert_eq!(dca_data(intent_id).last_execution_block, block);
+		assert_eq!(dca_data(intent_id).last_execution_block, block - PERIOD);
+		assert_eq!(
+			pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
+			1,
+			"eligible at the conversion block, not one period later"
+		);
 
-		// Not eligible until a full period has passed.
+		// The cadence then runs from the first fill, which lands in the next block.
+		run_solver_and_submit();
+		let first_fill = hydradx_runtime::System::block_number();
+		assert_eq!(dca_data(intent_id).last_execution_block, first_fill);
+
 		for _ in 0..PERIOD - 1 {
+			hydradx_run_to_next_block();
 			assert!(
 				pallet_intent::Pallet::<Runtime>::get_valid_intents().is_empty(),
 				"eligible too early at block {}",
 				hydradx_runtime::System::block_number()
 			);
-			hydradx_run_to_next_block();
 		}
 
 		hydradx_run_to_next_block();
 		assert_eq!(
 			pallet_intent::Pallet::<Runtime>::get_valid_intents().len(),
 			1,
-			"eligible exactly one period after conversion"
+			"eligible exactly one period after the first fill"
 		);
 	});
 }
@@ -1140,7 +1149,7 @@ fn migrated_intent_should_carry_original_slippage_and_limits() {
 		assert_eq!(dca.period, PERIOD);
 		assert_eq!(dca.budget, Some(BUDGET));
 		assert_eq!(dca.remaining_budget, BUDGET);
-		assert_eq!(dca.last_execution_block, block);
+		assert_eq!(dca.last_execution_block, block - PERIOD);
 	});
 }
 
