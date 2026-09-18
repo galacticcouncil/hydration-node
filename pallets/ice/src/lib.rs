@@ -307,17 +307,18 @@ pub mod pallet {
 				Self::validate_intent_amounts(intent)?;
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
-				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
-				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), unlock and transfer amounts, owner: {:?}, asset: {:?}, amount: {:?}",
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), moving locked amounts to the holding pot, owner: {:?}, asset: {:?}, amount: {:?}",
 					LOG_PREFIX, owner, intent.asset_in(), intent.amount_in());
 
-				<T as Config>::Currency::transfer(
-					intent.asset_in(),
+				// Straight from the reserve to the pot - unreserving to the owner first would make
+				// the owner the erc20 sender, and an aToken transfer then pays for aave's solvency
+				// walk over every reserve the owner touches.
+				pallet_intent::Pallet::<T>::move_locked_funds(
 					&owner,
 					&holding_pot,
+					intent.asset_in(),
 					intent.amount_in(),
-					AllowDeath,
 				)?;
 
 				// Per-asset accumulation: intent input is X → holding pot.
