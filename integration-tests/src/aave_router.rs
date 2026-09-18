@@ -1603,3 +1603,107 @@ pub fn set_ed(asset_id: AssetId, ed: u128) {
 	)
 	.unwrap();
 }
+
+/// A `Free` repatriate sends the erc20 from the reserve account, never from the owner. On an aToken
+/// that is the whole point: Aave runs its solvency walk on the sender, and the reserve account
+/// carries no debt to walk.
+mod repatriate_reserved_named_atoken {
+	use super::*;
+	use fp_evm::ExitReason::Succeed;
+	use hydradx_runtime::evm::Function as Erc20Function;
+	use hydradx_traits::BoundErc20;
+	use orml_traits::{BalanceStatus, NamedMultiReservableCurrency};
+	use pallet_evm::ExitSucceed::Returned;
+
+	const RID: [u8; 8] = *b"repat_a#";
+	const AMOUNT: Balance = 1_000_000_000;
+
+	fn reserve_account() -> AccountId {
+		<Runtime as pallet_currencies::Config>::ReserveAccount::get()
+	}
+
+	/// The deployed aToken, not `encode_evm_address`'s synthetic asset address - only the real
+	/// contract runs aave's solvency walk, and only it prices the sender.
+	fn atoken_contract() -> EvmAddress {
+		<Runtime as pallet_currencies::Config>::BoundErc20::contract_address(ADOT).unwrap()
+	}
+
+	/// Gas an `ADOT.transfer` costs with `from` as the erc20 sender. Rolled back, so it only measures.
+	fn atoken_transfer_gas(from: &AccountId, to: &AccountId, amount: Balance) -> u64 {
+		let data = EvmDataWriter::new_with_selector(Erc20Function::Transfer)
+			.write(EVMAccounts::evm_address(to))
+			.write(U256::from(amount))
+			.build();
+		let context = CallContext::new_call(atoken_contract(), EVMAccounts::evm_address(from));
+
+		with_transaction(|| {
+			let result = Executor::<Runtime>::call(context, data, U256::zero(), 1_000_000);
+			assert_eq!(result.exit_reason, Succeed(Returned), "{:?}", hex::encode(result.value));
+			TransactionOutcome::Rollback(Ok::<u64, DispatchError>(result.gas_used.as_u64()))
+		})
+		.unwrap()
+	}
+
+	/// ALICE holds aDOT as collateral and owes DOT, so a transfer she sends runs the full walk.
+	fn with_indebted_atoken_owner(execute: impl FnOnce()) {
+		with_atoken(|| {
+			let alice: AccountId = ALICE.into();
+			borrow(
+				BorrowingContract::<Runtime>::get(),
+				EVMAccounts::evm_address(&alice),
+				HydraErc20Mapping::encode_evm_address(DOT),
+				BAG / 10,
+			);
+			execute()
+		})
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_send_the_atoken_from_the_reserve_account_when_status_is_free() {
+		with_indebted_atoken_owner(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+
+			let owner_sent_gas = atoken_transfer_gas(&alice, &bob, AMOUNT);
+
+			assert_ok!(Currencies::reserve_named(&RID, ADOT, &alice, AMOUNT));
+			let reserve_sent_gas = atoken_transfer_gas(&reserve_account(), &bob, AMOUNT);
+
+			// ALICE owes DOT, so aave walks her reserves; the reserve account owes nothing, so
+			// `calculateUserAccountData` is skipped entirely. Both are snapshot-bound.
+			assert_eq!(owner_sent_gas, 208_228);
+			assert_eq!(reserve_sent_gas, 141_562);
+
+			let bob_before = Currencies::free_balance(ADOT, &bob);
+			assert_eq!(
+				Currencies::repatriate_reserved_named(&RID, ADOT, &alice, &bob, AMOUNT, BalanceStatus::Free),
+				Ok(0)
+			);
+
+			assert_eq!(Currencies::free_balance(ADOT, &bob), bob_before + AMOUNT);
+			assert_eq!(Currencies::reserved_balance_named(&RID, ADOT, &alice), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), 0);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_not_move_the_atoken_when_status_is_reserved() {
+		with_indebted_atoken_owner(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+
+			assert_ok!(Currencies::reserve_named(&RID, ADOT, &alice, AMOUNT));
+			let bob_before = Currencies::free_balance(ADOT, &bob);
+
+			assert_eq!(
+				Currencies::repatriate_reserved_named(&RID, ADOT, &alice, &bob, AMOUNT, BalanceStatus::Reserved),
+				Ok(0)
+			);
+
+			assert_eq!(Currencies::reserved_balance_named(&RID, ADOT, &bob), AMOUNT);
+			assert_eq!(Currencies::reserved_balance_named(&RID, ADOT, &alice), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &bob), bob_before);
+			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), AMOUNT);
+		});
+	}
+}
