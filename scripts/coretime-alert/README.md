@@ -41,6 +41,7 @@ node check.mjs            # one-shot check; alerts if within thresholds
 ```sh
 node check.mjs --dry-run   # print the payload instead of POSTing (no webhook needed)
 node check.mjs --test      # POST a "webhook reachable" message and exit
+node check.mjs --fake-alert # POST a synthetic [DRILL] alert for both chains and exit
 node check.mjs --force     # ignore the cooldown and (re)send any active alert
 ```
 
@@ -54,6 +55,7 @@ node check.mjs --force     # ignore the cooldown and (re)send any active alert
 | `LEADIN_ALERT_DAYS` | `3` | warn when this many days are left in the lead-in period |
 | `TOTAL_ALERT_DAYS` | `7` | warn when this many days are left until the region begins |
 | `ALERT_COOLDOWN_HOURS` | `12` | minimum gap between repeat alerts for the same condition |
+| `ALERT_MENTION` | — | Discord mention prefixed to every alert so it actually pings (`@here`, `<@&ROLE_ID>`, `<@USER_ID>`) |
 | `HYDRATION_DESIRED_CORES` | `3` | target core count for task 2034 |
 | `BASILISK_DESIRED_CORES` | `3` | target core count for task 2090 |
 | `STATE_FILE` | `./.state.json` | where the throttle state is persisted |
@@ -61,6 +63,47 @@ node check.mjs --force     # ignore the cooldown and (re)send any active alert
 State persists across runs so a standing condition only re-pings every
 `ALERT_COOLDOWN_HOURS`; it re-alerts immediately if severity or shortfall changes,
 and clears itself once the cores are renewed.
+
+### pinging a person / role
+
+Discord **does not notify anyone for mentions inside an embed** — only the
+top-level message `content` triggers a notification. The alert body is an embed,
+so without `ALERT_MENTION` the alert lands silently in the channel and is only
+seen by whoever happens to look.
+
+Set `ALERT_MENTION` to have the mention posted as the message content above the
+embed:
+
+```sh
+ALERT_MENTION='<@&123456789012345678>'   # a role
+ALERT_MENTION='@here'                    # everyone currently online
+ALERT_MENTION='<@987654321098765432>'    # a single person
+```
+
+Role and user IDs come from Discord with Developer Mode on (right-click → Copy ID);
+the `<@&…>` / `<@…>` wrapper is required — a plain `@name` renders as text and
+pings nobody.
+
+It applies to **every** alert the watchdog posts, including the throttled
+`🔌 check failed` notice, `--test` and `--fake-alert`. Sends are already
+rate-limited by `ALERT_COOLDOWN_HOURS`, so this is at most a couple of pings a
+day per condition.
+
+### testing with a fake alert
+
+`--test` only proves the webhook is reachable. To see what a real alert looks
+like — full embed, core list, encoded renew calls, and the mention actually
+firing — use `--fake-alert`:
+
+```sh
+ALERT_MENTION='<@USER_ID>' node check.mjs --fake-alert
+```
+
+It posts one synthetic alert per configured chain (Hydration `URGENT`, Basilisk
+`WARNING`), each titled `🧪 [DRILL]` with a "this is a test alert" line and a
+`synthetic drill` footer, so nobody mistakes it for a live deadline. It contacts
+no RPC endpoint and does **not** touch the state file, so it cannot disturb the
+cooldown of a real standing alert. Add `--dry-run` to print instead of posting.
 
 ## running it as a service
 
