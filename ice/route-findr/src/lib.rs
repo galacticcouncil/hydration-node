@@ -73,6 +73,19 @@ pub fn get_routes(asset_in: AssetId, asset_out: AssetId, pools: Vec<PoolEdge>) -
 	strategy::suggest_routes(asset_in, asset_out, pools)
 }
 
+/// Search every edge in `pools`, shortest route first.
+///
+/// Unlike [`get_routes`], no trusted/isolated partitioning is applied: the caller
+/// decides which venues may take part.
+pub fn routes_over(
+	asset_in: AssetId,
+	asset_out: AssetId,
+	pools: &[PoolEdge],
+	limits: SearchLimits,
+) -> Vec<Route<AssetId>> {
+	bfs::find_paths(&graph::build_graph(pools), asset_in, asset_out, limits)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

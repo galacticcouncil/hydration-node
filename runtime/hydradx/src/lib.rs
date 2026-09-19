@@ -43,6 +43,7 @@ pub mod types;
 pub mod xcm;
 
 // tmp. implemenation of ice simualtors' data providers
+pub mod ice_oracle_routes;
 pub mod ice_simulator_provider;
 
 extern crate alloc;
@@ -132,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 446,
+	spec_version: 447,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
