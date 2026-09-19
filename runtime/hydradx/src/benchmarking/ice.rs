@@ -8,6 +8,8 @@ use ice_support::Intent as IntentIce;
 use ice_support::IntentData;
 use ice_support::IntentDataInput;
 use ice_support::IntentId;
+use ice_support::RoutingState;
+use ice_support::RoutingTarget;
 use ice_support::Solution;
 use ice_support::SolverMode;
 use ice_support::SwapData;
@@ -47,6 +49,11 @@ runtime_benchmarks! {
 			HDX,
 			(10_000 * TRIL) as i128,
 		)?;
+
+		// The holding pot must already hold HDX: `move_locked_funds` repatriates the
+		// intent input into it, and `pallet_balances` refuses to create the
+		// beneficiary (`DeadAccount`).
+		fund(ICE::get_pallet_account(), HDX, 10_000 * TRIL)?;
 
 		let counterparty: AccountId = account("counterparty", 1, SEED);
 
@@ -141,6 +148,19 @@ runtime_benchmarks! {
 	}: { ICE::set_solver_mode(RawOrigin::Root.into(), mode)? }
 	verify {
 		assert_eq!(ICE::solver_mode(), SolverMode::Disabled);
+	}
+
+	// One weight covers every target, so the benchmark writes the largest key there
+	// is: a full batch of the widest member type.
+	update_routing {
+		let pools: Vec<sp_core::H160> = (0..ice_support::MAX_ROUTING_BATCH)
+			.map(|i| sp_core::H160::repeat_byte(i as u8))
+			.collect();
+		let target = RoutingTarget::UniswapV3Pools(pools.try_into().unwrap());
+		assert_eq!(ICE::routing(&target), None);
+	}: { ICE::update_routing(RawOrigin::Root.into(), target.clone(), Some(RoutingState::Included))? }
+	verify {
+		assert_eq!(ICE::routing(&target), Some(RoutingState::Included));
 	}
 }
 

@@ -45,24 +45,6 @@ fn create_snapshot_should_work() {
 			available_liquidity: U256::from_dec_str("21288292675353670").unwrap(),
 		};
 
-		let expected_hollar = ReserveData {
-			configuration: U256::from_dec_str("2671197528984125440").unwrap(),
-			liquidity_index: U256::from_dec_str("1000000000000000000000000000").unwrap(),
-			current_liquidity_rate: U256::from_dec_str("1026085346880660334471661913").unwrap(),
-			variable_borrow_index: U256::from_dec_str("0").unwrap(),
-			current_variable_borrow_rate: U256::from_dec_str("44016888917752794000000000").unwrap(),
-			current_stable_borrow_rate: U256::from_dec_str("0").unwrap(),
-			last_update_timestamp: U256::from_dec_str("1775485962").unwrap(),
-			id: 10,
-			atoken_address: sp_core::H160(hex!("8c0f3b9602374198974d2b2679d14a386f5b108e")),
-			stable_debt_token_address: sp_core::H160(hex!("d95d27688f028addbe93fa0e19fb095ee1111dd1")),
-			variable_debt_token_address: sp_core::H160(hex!("342923782ccaebf9c38dd9cb40436e82c42c73b5")),
-			interest_rate_strategy_address: sp_core::H160(hex!("39dfb27d814db32f904a17560837c9be8bf1b761")),
-			accrued_to_treasury: U256::from_dec_str("0").unwrap(),
-			scaled_total_supply: U256::from_dec_str("0").unwrap(),
-			available_liquidity: U256::from_dec_str("75222628811767744241415").unwrap(),
-		};
-
 		let expected_gdot = ReserveData {
 			configuration: U256::from_dec_str("753997831576548625741237039960066689952748640410356").unwrap(),
 			liquidity_index: U256::from_dec_str("1000000000000000000000000000").unwrap(),
@@ -119,12 +101,15 @@ fn create_snapshot_should_work() {
 
 		let snapshot = Simulator::<Aave<Runtime>>::snapshot();
 		assert_eq!(snapshot.reserves.get(&5), Some(&expected_dot));
-		assert_eq!(snapshot.reserves.get(&222), Some(&expected_hollar));
+		// HOLLAR's aToken is not in the asset registry, so there is no wrap to register
+		// and the reserve is never loaded. It had no Aave edge before opt-in either —
+		// the pair was already dropped over the same missing mapping.
+		assert_eq!(snapshot.reserves.get(&222), None);
 		assert_eq!(snapshot.reserves.get(&690), Some(&expected_gdot));
 		assert_eq!(snapshot.reserves.get(&4200), Some(&expected_geth));
 		assert_eq!(snapshot.reserves.get(&10), Some(&expected_usdt));
 
-		assert_eq!(snapshot.reserves.len(), 21);
+		assert_eq!(snapshot.reserves.len(), 20);
 	});
 }
 

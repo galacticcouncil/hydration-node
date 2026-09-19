@@ -370,7 +370,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -6184,7 +6184,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.4.0"
+version = "1.6.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9943,7 +9943,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.9.0"
+version = "1.10.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",

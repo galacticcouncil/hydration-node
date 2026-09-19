@@ -4,7 +4,7 @@ pub const PATH_TO_SNAPSHOT: &str = "snapshots/ice/mainnet_apr";
 mod dca;
 mod dca_migration;
 mod forward;
-mod harness;
+pub(crate) mod harness;
 mod netting;
 mod node_solver;
 mod passthrough;
