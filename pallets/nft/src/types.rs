@@ -28,7 +28,7 @@ pub type CollectionId = u128;
 /// NFT Item ID
 pub type ItemId = u128;
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CollectionInfo<CollectionType, BoundedVec> {
 	/// A collection type that implies permissions, e.g. for transfer and other operations
@@ -37,14 +37,14 @@ pub struct CollectionInfo<CollectionType, BoundedVec> {
 	pub metadata: BoundedVec,
 }
 
-#[derive(Encode, Decode, Eq, Copy, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, Copy, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ItemInfo<BoundedVec> {
 	pub metadata: BoundedVec,
 }
 
 #[derive(
-	Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen,
+	Default, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, Debug, TypeInfo, MaxEncodedLen,
 )]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CollectionType {
@@ -62,7 +62,7 @@ pub trait NftPermission<InnerCollectionType> {
 	fn has_deposit(collection_type: &InnerCollectionType) -> bool;
 }
 
-#[derive(Encode, Decode, Eq, Copy, PartialEq, Clone, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, Eq, Copy, PartialEq, Clone, Debug, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct NftPermissions;
 

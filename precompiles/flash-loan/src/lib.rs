@@ -27,7 +27,6 @@ use core::marker::PhantomData;
 use ethabi::ethereum_types::BigEndianHash;
 use evm::ExitSucceed;
 use fp_evm::{ExitReason, ExitRevert, PrecompileFailure, PrecompileHandle};
-use frame_support::__private::RuntimeDebug;
 use frame_support::pallet_prelude::Get;
 use frame_support::traits::ConstU32;
 use frame_support::traits::IsType;
@@ -44,7 +43,7 @@ pub const CALL_DATA_LIMIT: u32 = 2u32.pow(16);
 pub const SUCCESS: [u8; 32] = keccak256!("ERC3156FlashBorrower.onFlashLoan");
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	Approve = "approve(address,uint256)",

@@ -1,6 +1,6 @@
 use codec::{Decode, Encode};
 use frame_support::sp_runtime::app_crypto::sp_core::U256;
-use frame_support::sp_runtime::{DispatchError, DispatchResult, RuntimeDebug};
+use frame_support::sp_runtime::{DispatchError, DispatchResult};
 use pallet_evm::ExitReason;
 use primitives::EvmAddress;
 use sp_std::vec::Vec;
@@ -29,7 +29,7 @@ pub trait InspectEvmAccounts<AccountId> {
 	fn is_approved_contract(address: EvmAddress) -> bool;
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug)]
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, Debug)]
 pub struct CallContext {
 	pub contract: EvmAddress,
 	/// msg.sender

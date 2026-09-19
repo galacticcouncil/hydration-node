@@ -27,7 +27,7 @@ use pallet_stableswap::types::PegSource;
 use pretty_assertions::assert_eq;
 use primitives::EvmAddress;
 use primitives::{AssetId, Balance};
-use sp_core::{RuntimeDebug, H256, U256};
+use sp_core::{H256, U256};
 use sp_runtime::traits::One;
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
@@ -38,7 +38,7 @@ pub const PATH_TO_SNAPSHOT: &str = "snapshots/hsm/SNAPSHOT";
 const RUNTIME_API_CALLER: EvmAddress = sp_core::H160(hex!("82db570265c37be24caf5bc943428a6848c3e9a6"));
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	AddFacilitator = "addFacilitator(address,string,uint128)",
