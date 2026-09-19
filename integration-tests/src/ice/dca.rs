@@ -1314,19 +1314,21 @@ fn dca_through_aave_pair() {
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
 		enable_slip_fees();
 
-		let aave_snapshot = AaveSimulator::<ice_simulator_provider::Aave<Runtime>>::snapshot();
-		let picked = aave_snapshot.pairs.iter().find_map(|(a, b)| {
-			let ed_in =
-				<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*a)?;
-			let ed_out =
-				<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(*b)?;
-			Some((*a, *b, ed_in, ed_out))
-		});
+		// Pinned to one wrap: the assertions below are exact, so picking whichever pair
+		// the registry happens to hand back first would tie them to its ordering.
+		let (asset_in, asset_out) = (22, 1003);
 
-		let Some((asset_in, asset_out, ed_in, ed_out)) = picked else {
-			// Snapshot has no Aave pairs — nothing to exercise, not a failure.
-			return;
+		let aave_snapshot = AaveSimulator::<ice_simulator_provider::Aave<Runtime>>::snapshot();
+		assert!(
+			aave_snapshot.pairs.contains(&(asset_in, asset_out)),
+			"aave wrap {asset_in}/{asset_out} should be registered in the snapshot"
+		);
+
+		let ed = |asset| {
+			<pallet_asset_registry::Pallet<Runtime> as hydradx_traits::registry::Inspect>::existential_deposit(asset)
+				.expect("registered asset has an existential deposit")
 		};
+		let (ed_in, ed_out) = (ed(asset_in), ed(asset_out));
 
 		let per_trade_in = ed_in.saturating_mul(100);
 		let per_trade_out_min = ed_out;
