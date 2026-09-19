@@ -423,6 +423,7 @@ fn trade_weight_should_cover_the_whole_buy_path() {
 use hydradx_runtime::evm::uniswap_v3_trade_executor::evm_token_address;
 use hydradx_runtime::HydrationSimulators;
 use hydradx_traits::amm::SimulatorSet;
+use ice_support::RoutingState;
 use ice_support::RoutingTarget;
 
 /// The pool the router already resolved, registered with the solver.
@@ -438,7 +439,7 @@ fn register_pool() -> EvmAddress {
 	assert_ok!(hydradx_runtime::ICE::update_routing(
 		RuntimeOrigin::root(),
 		RoutingTarget::UniswapV3Pool(pool),
-		false,
+		Some(RoutingState::Included),
 	));
 
 	pool
@@ -679,7 +680,7 @@ fn probe_uniswap_snapshot() {
 		assert_ok!(hydradx_runtime::ICE::update_routing(
 			RuntimeOrigin::root(),
 			RoutingTarget::UniswapV3Pool(UniswapV3::find_pool(1001, 222, 3000).unwrap().unwrap()),
-			false,
+			Some(RoutingState::Included),
 		));
 		let snap = <HydrationSimulators as SimulatorSet>::initial_state().3;
 		for (addr, curve) in snap.pools.iter() {
@@ -961,7 +962,7 @@ fn exclude_from_omnipool(asset: AssetId) {
 	assert_ok!(hydradx_runtime::ICE::update_routing(
 		RuntimeOrigin::root(),
 		RoutingTarget::OmnipoolAsset(asset),
-		true,
+		Some(RoutingState::Excluded),
 	));
 }
 
@@ -1187,7 +1188,7 @@ fn exclude(target: RoutingTarget) {
 	assert_ok!(hydradx_runtime::ICE::update_routing(
 		RuntimeOrigin::root(),
 		target,
-		true
+		Some(RoutingState::Excluded),
 	));
 }
 

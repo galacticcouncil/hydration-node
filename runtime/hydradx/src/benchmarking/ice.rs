@@ -150,12 +150,17 @@ runtime_benchmarks! {
 		assert_eq!(ICE::solver_mode(), SolverMode::Disabled);
 	}
 
+	// One weight covers every target, so the benchmark writes the largest key there
+	// is: a full batch of the widest member type.
 	update_routing {
-		let target = RoutingTarget::OmnipoolAsset(1);
-		assert_eq!(ICE::routing(target), None);
-	}: { ICE::update_routing(RawOrigin::Root.into(), target, true)? }
+		let pools: Vec<sp_core::H160> = (0..ice_support::MAX_ROUTING_BATCH)
+			.map(|i| sp_core::H160::repeat_byte(i as u8))
+			.collect();
+		let target = RoutingTarget::UniswapV3Pools(pools.try_into().unwrap());
+		assert_eq!(ICE::routing(&target), None);
+	}: { ICE::update_routing(RawOrigin::Root.into(), target.clone(), Some(RoutingState::Included))? }
 	verify {
-		assert_eq!(ICE::routing(target), Some(RoutingState::Excluded));
+		assert_eq!(ICE::routing(&target), Some(RoutingState::Included));
 	}
 }
 

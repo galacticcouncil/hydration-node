@@ -20,6 +20,7 @@ use hydradx_traits::amm::{AMMInterface, SimulatorError, SimulatorSet};
 use hydradx_traits::registry::{AssetKind, Create};
 use hydradx_traits::router::{PoolType, Route, Trade};
 use hydradx_traits::AMM;
+use ice_support::RoutingState;
 use ice_support::RoutingTarget;
 use orml_traits::MultiCurrency;
 use primitives::{AccountId, AssetId, Balance};
@@ -104,7 +105,7 @@ fn register_pool(asset: AssetId) {
 	assert_ok!(hydradx_runtime::ICE::update_routing(
 		RuntimeOrigin::root(),
 		RoutingTarget::XykPool(asset, HOLLAR),
-		false,
+		Some(RoutingState::Included),
 	));
 }
 
@@ -163,7 +164,7 @@ fn solver_snapshot_should_ignore_a_pool_that_was_never_registered() {
 		assert_ok!(hydradx_runtime::ICE::update_routing(
 			RuntimeOrigin::root(),
 			RoutingTarget::XykPool(asset, HOLLAR),
-			true,
+			Some(RoutingState::Excluded),
 		));
 
 		assert!(xyk_snapshot().pools.is_empty(), "no pool should be loaded");
@@ -350,7 +351,7 @@ fn excluding_an_xyk_pool_should_remove_it_from_the_pool_edges() {
 		assert_ok!(hydradx_runtime::ICE::update_routing(
 			RuntimeOrigin::root(),
 			RoutingTarget::XykPool(asset, HOLLAR),
-			true,
+			Some(RoutingState::Excluded),
 		));
 
 		assert!(!xyk_snapshot().pools.contains_key(&key(asset)));
@@ -369,7 +370,7 @@ fn excluding_an_xyk_pool_should_ignore_the_order_of_the_pair() {
 		assert_ok!(hydradx_runtime::ICE::update_routing(
 			RuntimeOrigin::root(),
 			RoutingTarget::XykPool(HOLLAR, asset),
-			true,
+			Some(RoutingState::Excluded),
 		));
 
 		assert!(!xyk_snapshot().pools.contains_key(&key(asset)));
@@ -451,7 +452,7 @@ fn intent_should_not_resolve_when_the_xyk_pool_is_excluded() {
 		assert_ok!(hydradx_runtime::ICE::update_routing(
 			RuntimeOrigin::root(),
 			RoutingTarget::XykPool(asset, HOLLAR),
-			true,
+			Some(RoutingState::Excluded),
 		));
 
 		assert_ok!(hydradx_runtime::Intent::submit_intent(
@@ -640,7 +641,7 @@ fn multi_hop_route_should_disappear_when_the_xyk_pool_is_excluded() {
 		assert_ok!(hydradx_runtime::ICE::update_routing(
 			RuntimeOrigin::root(),
 			RoutingTarget::XykPool(asset, HOLLAR),
-			true,
+			Some(RoutingState::Excluded),
 		));
 
 		let state = <HydrationSimulators as SimulatorSet>::initial_state();
