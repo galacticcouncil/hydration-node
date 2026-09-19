@@ -7,6 +7,7 @@ mod forward;
 pub(crate) mod harness;
 mod netting;
 mod node_solver;
+mod oracle_routes;
 mod passthrough;
 mod recorder;
 mod solver;
