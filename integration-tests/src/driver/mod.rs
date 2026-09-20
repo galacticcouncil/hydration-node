@@ -62,19 +62,25 @@ impl HydrationTestDriver {
 		let ext = hydra_live_ext(path);
 		let mut driver = Self::default();
 		driver.ext = Some(RefCell::new(ext));
-		// The fee-processor pot must hold ≥ ED of HDX before it can receive
-		// sub-ED fee takes (`Token(BelowMinimum)` otherwise). On mainnet this
-		// is a pre-deployment seeding op; older snapshots predate it.
+		// Pallet pots must hold ≥ ED of HDX: the fee-processor pot to receive sub-ED fee takes
+		// (`Token(BelowMinimum)` otherwise), the ICE holding pot to be repatriated into
+		// (`DeadAccount` otherwise). On mainnet both are pre-deployment seeding ops; older
+		// snapshots predate them.
 		driver.execute(|| {
-			let pot = pallet_fee_processor::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+			let pots = [
+				pallet_fee_processor::Pallet::<hydradx_runtime::Runtime>::pot_account_id(),
+				pallet_ice::Pallet::<hydradx_runtime::Runtime>::get_pallet_account(),
+			];
 			let ed = <hydradx_runtime::Runtime as pallet_balances::Config>::ExistentialDeposit::get();
-			if <Currencies as orml_traits::MultiCurrency<AccountId>>::free_balance(0, &pot) < ed {
-				assert_ok!(Currencies::update_balance(
-					hydradx_runtime::RuntimeOrigin::root(),
-					pot,
-					0,
-					ed as i128,
-				));
+			for pot in pots {
+				if <Currencies as orml_traits::MultiCurrency<AccountId>>::free_balance(0, &pot) < ed {
+					assert_ok!(Currencies::update_balance(
+						hydradx_runtime::RuntimeOrigin::root(),
+						pot,
+						0,
+						ed as i128,
+					));
+				}
 			}
 		});
 		driver

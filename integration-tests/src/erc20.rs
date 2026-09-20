@@ -717,3 +717,191 @@ mod error_handling {
 		});
 	}
 }
+
+/// `repatriate_reserved_named` against a real erc20 deployed in the evm. The unit tests cover the
+/// ledger bookkeeping; these cover what only a real contract can show - that custody actually moves
+/// on chain and that the erc20 sender is the reserve account, never the owner.
+mod repatriate_reserved_named {
+	use super::*;
+	use hydradx_runtime::Tokens;
+	use orml_traits::{BalanceStatus, NamedMultiReservableCurrency};
+
+	const RID: [u8; 8] = *b"repat_t#";
+	const RESERVED: Balance = 1_000;
+
+	fn reserve_account() -> AccountId {
+		<Runtime as pallet_currencies::Config>::ReserveAccount::get()
+	}
+
+	/// Deploys a token, binds it, and reserves `RESERVED` of ALICE's balance under `RID`.
+	fn with_reserved_erc20(execute: impl FnOnce(AssetId, Balance)) {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			let contract = deploy_token_contract();
+			let asset = bind_erc20(contract);
+			let alice_initial = Currencies::free_balance(asset, &ALICE.into());
+
+			assert_ok!(Currencies::reserve_named(&RID, asset, &ALICE.into(), RESERVED));
+
+			// the tokens really left ALICE and sit in the reserve account
+			assert_eq!(Currencies::free_balance(asset, &ALICE.into()), alice_initial - RESERVED);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), RESERVED);
+			assert_eq!(
+				Erc20Currency::<Runtime>::free_balance(contract, &reserve_account()),
+				RESERVED
+			);
+			assert_eq!(Currencies::reserved_balance_named(&RID, asset, &ALICE.into()), RESERVED);
+
+			execute(asset, alice_initial)
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_move_erc20_from_reserve_account_to_beneficiary_when_status_is_free() {
+		with_reserved_erc20(|asset, alice_initial| {
+			assert_eq!(
+				Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&BOB.into(),
+					400,
+					BalanceStatus::Free
+				),
+				Ok(0)
+			);
+
+			assert_eq!(Currencies::free_balance(asset, &BOB.into()), 400);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), RESERVED - 400);
+			assert_eq!(
+				Currencies::reserved_balance_named(&RID, asset, &ALICE.into()),
+				RESERVED - 400
+			);
+			// the owner is not a party to the transfer
+			assert_eq!(Currencies::free_balance(asset, &ALICE.into()), alice_initial - RESERVED);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_not_touch_the_contract_when_status_is_reserved() {
+		with_reserved_erc20(|asset, alice_initial| {
+			assert_eq!(
+				Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&BOB.into(),
+					400,
+					BalanceStatus::Reserved
+				),
+				Ok(0)
+			);
+
+			// only the receipt moved, and under the same identifier
+			assert_eq!(Currencies::reserved_balance_named(&RID, asset, &BOB.into()), 400);
+			assert_eq!(
+				Currencies::reserved_balance_named(&RID, asset, &ALICE.into()),
+				RESERVED - 400
+			);
+
+			assert_eq!(Currencies::free_balance(asset, &BOB.into()), 0);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), RESERVED);
+			assert_eq!(Currencies::free_balance(asset, &ALICE.into()), alice_initial - RESERVED);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_clamp_to_reserved_amount_when_value_exceeds_it() {
+		with_reserved_erc20(|asset, _| {
+			assert_eq!(
+				Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&BOB.into(),
+					RESERVED + 250,
+					BalanceStatus::Free
+				),
+				Ok(250)
+			);
+
+			assert_eq!(Currencies::free_balance(asset, &BOB.into()), RESERVED);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), 0);
+			assert_eq!(Currencies::reserved_balance_named(&RID, asset, &ALICE.into()), 0);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_return_custody_to_owner_when_slashed_is_beneficiary() {
+		with_reserved_erc20(|asset, alice_initial| {
+			assert_eq!(
+				Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&ALICE.into(),
+					400,
+					BalanceStatus::Free
+				),
+				Ok(0)
+			);
+
+			assert_eq!(
+				Currencies::free_balance(asset, &ALICE.into()),
+				alice_initial - RESERVED + 400
+			);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), RESERVED - 400);
+			assert_eq!(
+				Currencies::reserved_balance_named(&RID, asset, &ALICE.into()),
+				RESERVED - 400
+			);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_fail_when_beneficiary_is_the_reserve_account() {
+		with_reserved_erc20(|asset, _| {
+			assert_noop!(
+				Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&reserve_account(),
+					400,
+					BalanceStatus::Free
+				),
+				pallet_currencies::Error::<Runtime>::InvalidBeneficiary
+			);
+
+			assert_eq!(Currencies::reserved_balance_named(&RID, asset, &ALICE.into()), RESERVED);
+			assert_eq!(Tokens::total_issuance(asset), RESERVED);
+			assert_eq!(Currencies::free_balance(asset, &reserve_account()), RESERVED);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_keep_every_receipt_backed_when_draining_the_reserve() {
+		with_reserved_erc20(|asset, _| {
+			for amount in [100, 250, 650] {
+				assert_ok!(Currencies::repatriate_reserved_named(
+					&RID,
+					asset,
+					&ALICE.into(),
+					&BOB.into(),
+					amount,
+					BalanceStatus::Free
+				));
+
+				// every outstanding receipt is still backed by a token in the reserve account
+				assert_eq!(
+					Tokens::total_issuance(asset),
+					Currencies::free_balance(asset, &reserve_account())
+				);
+			}
+
+			assert_eq!(Currencies::reserved_balance_named(&RID, asset, &ALICE.into()), 0);
+			assert_eq!(Tokens::total_issuance(asset), 0);
+			assert_eq!(Currencies::free_balance(asset, &BOB.into()), RESERVED);
+		});
+	}
+}
