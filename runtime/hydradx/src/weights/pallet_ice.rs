@@ -143,4 +143,8 @@ impl<T: frame_system::Config> pallet_ice::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(39_848_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn price_derivation() -> Weight {
+		Weight::from_parts(5_000_000_000, 8_000)
+			.saturating_add(T::DbWeight::get().reads(40_u64))
+	}
 }

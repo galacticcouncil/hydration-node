@@ -20,7 +20,6 @@ use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
-use crate::types::ShortOraclePrice;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -1941,7 +1940,7 @@ impl pallet_intent::Config for Runtime {
 	type SolverDeadlineMargin = SolverDeadlineMargin;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
-	type OraclePriceProvider = ShortOraclePrice;
+	type OraclePriceProvider = crate::ice_oracle_routes::DerivedRouteShortPrice;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
