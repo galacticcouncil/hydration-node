@@ -27,6 +27,7 @@ use pallet_evm::GasWeightMapping;
 use pallet_evm_accounts::WeightInfo;
 use pallet_genesis_history::migration::Weight;
 use pallet_liquidation::BorrowingContract;
+use pallet_parameters::AaveGasLimits;
 use polkadot_xcm::v5::Location;
 use primitive_types::{H160, U256};
 use primitives::{AccountId, AssetId, Balance, EvmAddress};
@@ -115,11 +116,13 @@ impl ReserveData {
 	}
 }
 
-const TRADE_GAS_LIMIT: u64 = 500_000;
-const VIEW_GAS_LIMIT: u64 = 150_000;
 // getReservesList() walks every reserve, so its cost grows with the market:
-// ~116k gas at 27 reserves (2026-09), already past VIEW_GAS_LIMIT.
-const RESERVES_LIST_GAS_LIMIT: u64 = 1_000_000;
+// ~116k gas at 27 reserves (2026-09), already past the plain view limit.
+const DEFAULT_GAS_LIMITS: AaveGasLimits = AaveGasLimits {
+	trade: 500_000,
+	view: 150_000,
+	reserves_list: 1_000_000,
+};
 
 impl<T> AaveTradeExecutor<T>
 where
@@ -129,6 +132,7 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
 		+ pallet_dispatcher::Config
+		+ pallet_parameters::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>,
 	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
@@ -138,6 +142,10 @@ where
 	NonceIdOf<T>: Into<T::Nonce>,
 	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
+	fn gas_limits() -> AaveGasLimits {
+		pallet_parameters::Pallet::<T>::aave_gas_limits().unwrap_or(DEFAULT_GAS_LIMITS)
+	}
+
 	pub fn is_atoken(address: EvmAddress) -> bool {
 		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
 			return false;
@@ -160,7 +168,7 @@ where
 		let context = CallContext::new_view(pool);
 		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
 
-		let call_result = Executor::<T>::view(context, data, RESERVES_LIST_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, Self::gas_limits().reserves_list);
 
 		ensure!(
 			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
@@ -201,7 +209,7 @@ where
 			.write(asset)
 			.build();
 
-		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, Self::gas_limits().view);
 
 		ensure!(
 			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
@@ -266,7 +274,7 @@ where
 	fn get_scaled_total_supply(atoken: EvmAddress) -> Result<U256, ExecutorError<DispatchError>> {
 		let context = CallContext::new_view(atoken);
 		let data = EvmDataWriter::new_with_selector(Function::ScaledTotalSupply).build();
-		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, Self::gas_limits().view);
 		ensure!(
 			matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)),
 			ExecutorError::Error("Failed to get scaled total supply".into())
@@ -289,7 +297,7 @@ where
 			.to_be_bytes()
 			.to_vec();
 
-		let call_result = Executor::<T>::view(context, data, VIEW_GAS_LIMIT);
+		let call_result = Executor::<T>::view(context, data, Self::gas_limits().view);
 
 		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) || call_result.value.len() < 32 {
 			// not a token or invalid response
@@ -323,7 +331,8 @@ where
 			.write(referer_code)
 			.build();
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+		let gas = Self::gas_limits().trade;
+		handle_result(Executor::<T>::call(context, data, U256::zero(), gas))
 	}
 	fn withdraw(origin: OriginFor<T>, asset: EvmAddress, amount: Balance) -> Result<(), DispatchError> {
 		let who = ensure_signed(origin)?;
@@ -336,7 +345,8 @@ where
 			.write(to)
 			.build();
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+		let gas = Self::gas_limits().trade;
+		handle_result(Executor::<T>::call(context, data, U256::zero(), gas))
 	}
 
 	fn do_withdraw_all_to(from: &T::AccountId, to: &T::AccountId, asset: EvmAddress) -> Result<(), DispatchError> {
@@ -350,11 +360,13 @@ where
 			.write(to)
 			.build();
 
-		handle_result(Executor::<T>::call(context, data, U256::zero(), TRADE_GAS_LIMIT))
+		let gas = Self::gas_limits().trade;
+		handle_result(Executor::<T>::call(context, data, U256::zero(), gas))
 	}
 
 	pub fn trade_weight() -> Weight {
-		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(TRADE_GAS_LIMIT + VIEW_GAS_LIMIT, true)
+		let limits = Self::gas_limits();
+		<T as pallet_evm::Config>::GasWeightMapping::gas_to_weight(limits.trade.saturating_add(limits.view), true)
 			.saturating_add(<T as pallet_evm_accounts::Config>::WeightInfo::bind_evm_address())
 	}
 
@@ -427,7 +439,8 @@ where
 		+ pallet_evm_accounts::Config
 		+ pallet_broadcast::Config
 		+ frame_system::Config<AccountId = sp_runtime::AccountId32>
-		+ pallet_dispatcher::Config,
+		+ pallet_dispatcher::Config
+		+ pallet_parameters::Config,
 	T::AssetNativeLocation: Into<Location>,
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
 	T::AddressMapping: pallet_evm::AddressMapping<T::AccountId>,
