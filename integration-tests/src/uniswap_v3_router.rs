@@ -465,7 +465,7 @@ fn solver_snapshot_should_sample_the_pool_when_it_is_registered() {
 			(ASSET_OUT, ASSET_IN)
 		};
 		assert_eq!((curve.asset_a, curve.asset_b), (token0, token1));
-		assert_eq!((curve.consumed_a_to_b, curve.consumed_b_to_a), (0, 0));
+		assert!(!curve.traded);
 		assert_ne!(curve.sqrt_price_x96, sp_core::U256::zero());
 
 		// Both curves must be strictly increasing, or interpolation cannot bracket.
@@ -585,51 +585,41 @@ fn simulated_buy_should_not_understate_input_when_routed_through_uniswap_v3() {
 	});
 }
 
-/// Two legs the same way must cost exactly what one combined leg costs.
+/// A pool prices one trade per solution. A second leg would have to be read from a
+/// mid-curve offset, where differencing two interpolated points over-quotes.
 #[test]
-fn simulated_sell_should_compose_when_two_legs_run_the_same_direction() {
+fn simulated_sell_should_fail_when_the_pool_was_already_traded_the_same_way() {
 	with_uniswap_v3(|| {
 		register_pool();
 
-		let state = <HydrationSimulators as SimulatorSet>::initial_state();
 		let half = SELL_AMOUNT / 2;
-
-		let (state, first) = <HydrationSimulators as SimulatorSet>::simulate_sell(
+		let (state, _) = <HydrationSimulators as SimulatorSet>::simulate_sell(
 			PoolType::UniswapV3(FEE_TIER),
 			ASSET_IN,
 			ASSET_OUT,
 			half,
-			0,
-			&state,
-		)
-		.expect("first leg to succeed");
-
-		let (_, second) = <HydrationSimulators as SimulatorSet>::simulate_sell(
-			PoolType::UniswapV3(FEE_TIER),
-			ASSET_IN,
-			ASSET_OUT,
-			half,
-			0,
-			&state,
-		)
-		.expect("second leg to succeed");
-
-		let (_, combined) = <HydrationSimulators as SimulatorSet>::simulate_sell(
-			PoolType::UniswapV3(FEE_TIER),
-			ASSET_IN,
-			ASSET_OUT,
-			half + half,
 			0,
 			&<HydrationSimulators as SimulatorSet>::initial_state(),
 		)
-		.expect("combined leg to succeed");
+		.expect("first leg to succeed");
 
-		assert_eq!(first.amount_out + second.amount_out, combined.amount_out);
+		assert_eq!(
+			<HydrationSimulators as SimulatorSet>::simulate_sell(
+				PoolType::UniswapV3(FEE_TIER),
+				ASSET_IN,
+				ASSET_OUT,
+				half,
+				0,
+				&state,
+			)
+			.map(|(_, result)| result),
+			Err(hydradx_traits::amm::SimulatorError::NotSupported)
+		);
 	});
 }
 
-/// The curve is sampled one way only, so the opposite direction must be refused
-/// rather than answered from a curve that no longer describes the pool.
+/// The same refusal applies across directions: the curve is sampled one way and
+/// knows nothing about a pool the batch has already pushed back.
 #[test]
 fn simulated_sell_should_fail_when_the_pool_was_already_traded_the_other_way() {
 	with_uniswap_v3(|| {
