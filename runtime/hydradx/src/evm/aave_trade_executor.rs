@@ -12,7 +12,7 @@ use evm::ExitSucceed;
 use frame_support::dispatch::DispatchResult;
 use frame_support::ensure;
 use frame_support::pallet_prelude::TypeInfo;
-use frame_support::traits::IsType;
+use frame_support::traits::{Get, IsType};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::evm::EVM;
@@ -142,22 +142,39 @@ where
 	NonceIdOf<T>: Into<T::Nonce>,
 	<T as frame_system::Config>::AccountId: frame_support::traits::IsType<sp_runtime::AccountId32>,
 {
+	/// Gas limits for the router paths, where `trade_weight()` declares whatever is
+	/// configured. Clamped at the EVM block gas limit so a bad configuration cannot
+	/// declare a weight no block could ever hold.
+	///
+	/// Not for the duster paths, which pass `DEFAULT_GAS_LIMITS` explicitly.
 	fn gas_limits() -> AaveGasLimits {
-		pallet_parameters::Pallet::<T>::aave_gas_limits().unwrap_or(DEFAULT_GAS_LIMITS)
+		let max = <T as pallet_evm::Config>::BlockGasLimit::get().saturated_into::<u64>();
+		let limits = pallet_parameters::Pallet::<T>::aave_gas_limits().unwrap_or(DEFAULT_GAS_LIMITS);
+
+		AaveGasLimits {
+			trade: limits.trade.min(max),
+			view: limits.view.min(max),
+			reserves_list: limits.reserves_list.min(max),
+		}
 	}
 
+	// `is_atoken` and `withdraw_all_to` are the duster's entry points
+	// (`ATokenAccountDuster` in assets.rs). `dust_account` declares a fixed benchmark
+	// that does not read the configured limits, so these paths must not either —
+	// otherwise raising a limit hands any signed caller an EVM budget above the
+	// declared weight.
 	pub fn is_atoken(address: EvmAddress) -> bool {
 		let Some(atoken) = HydraErc20Mapping::address_to_asset(address) else {
 			return false;
 		};
-		Self::get_underlying_asset(atoken).is_some()
+		Self::get_underlying_asset(atoken, DEFAULT_GAS_LIMITS.view).is_some()
 	}
 
 	pub fn withdraw_all_to(contract_address: EvmAddress, from: &T::AccountId, to: &T::AccountId) -> DispatchResult {
 		let Some(atoken) = HydraErc20Mapping::address_to_asset(contract_address) else {
 			return Err(DispatchError::Other("Not an Aave token"));
 		};
-		let Some(underlying_asset) = Self::get_underlying_asset(atoken) else {
+		let Some(underlying_asset) = Self::get_underlying_asset(atoken, DEFAULT_GAS_LIMITS.view) else {
 			return Err(DispatchError::Other("Not an Aave token"));
 		};
 
@@ -286,7 +303,7 @@ where
 		Ok(U256::from_big_endian(call_result.value.as_slice()))
 	}
 
-	fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
+	fn get_underlying_asset(atoken: AssetId, gas: u64) -> Option<EvmAddress> {
 		let Some(atoken_address) = pallet_asset_registry::Pallet::<T>::contract_address(atoken) else {
 			// not a contract
 			return None;
@@ -297,7 +314,7 @@ where
 			.to_be_bytes()
 			.to_vec();
 
-		let call_result = Executor::<T>::view(context, data, Self::gas_limits().view);
+		let call_result = Executor::<T>::view(context, data, gas);
 
 		if !matches!(call_result.exit_reason, Succeed(ExitSucceed::Returned)) || call_result.value.len() < 32 {
 			// not a token or invalid response
@@ -360,7 +377,8 @@ where
 			.write(to)
 			.build();
 
-		let gas = Self::gas_limits().trade;
+		// Duster path only — fixed limit, see `is_atoken`.
+		let gas = DEFAULT_GAS_LIMITS.trade;
 		handle_result(Executor::<T>::call(context, data, U256::zero(), gas))
 	}
 
@@ -390,7 +408,7 @@ where
 
 		let _ = pallet_evm_accounts::Pallet::<T>::bind_evm_address(who.clone());
 
-		if let Some(underlying) = Self::get_underlying_asset(asset_out) {
+		if let Some(underlying) = Self::get_underlying_asset(asset_out, Self::gas_limits().view) {
 			// Supplying asset_in to get aToken (asset_out)
 			let asset_address = HydraErc20Mapping::asset_address(asset_in);
 			ensure!(
@@ -400,7 +418,7 @@ where
 			Self::supply(who, asset_address, amount_in).map_err(ExecutorError::Error)?;
 
 			Ok(asset_out)
-		} else if let Some(underlying) = Self::get_underlying_asset(asset_in) {
+		} else if let Some(underlying) = Self::get_underlying_asset(asset_in, Self::gas_limits().view) {
 			// Withdrawing aToken (asset_in) to get underlying asset
 			let asset_address = HydraErc20Mapping::asset_address(asset_out);
 			ensure!(
@@ -550,7 +568,9 @@ where
 
 		let pool = <BorrowingContract<T>>::get();
 
-		if let Some(underlying) = AaveTradeExecutor::<T>::get_underlying_asset(asset_out) {
+		if let Some(underlying) =
+			AaveTradeExecutor::<T>::get_underlying_asset(asset_out, AaveTradeExecutor::<T>::gas_limits().view)
+		{
 			let asset_address = pallet_asset_registry::Pallet::<T>::contract_address(asset_out).unwrap_or_default();
 			Ok(AaveTradeExecutor::<T>::get_available_liquidity(
 				asset_address,
