@@ -77,7 +77,9 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 
-impl parameters::Config for Test {}
+impl parameters::Config for Test {
+	type AuthorityOrigin = frame_system::EnsureRoot<AccountId>;
+}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
