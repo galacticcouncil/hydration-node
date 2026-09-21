@@ -303,7 +303,7 @@ where
 		Ok(U256::from_big_endian(call_result.value.as_slice()))
 	}
 
-	fn get_underlying_asset(atoken: AssetId, gas: u64) -> Option<EvmAddress> {
+	pub fn get_underlying_asset(atoken: AssetId) -> Option<EvmAddress> {
 		let Some(atoken_address) = pallet_asset_registry::Pallet::<T>::contract_address(atoken) else {
 			// not a contract
 			return None;

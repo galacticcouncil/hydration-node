@@ -20,7 +20,6 @@ use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
-use crate::types::ShortOraclePrice;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -58,6 +57,8 @@ pub use hydradx_traits::{
 use amm_simulator::aave::Simulator as AaveSimulator;
 use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
 use amm_simulator::stableswap::Simulator as StableSwapSimulator;
+use amm_simulator::uniswap_v3::Simulator as UniswapV3Simulator;
+use amm_simulator::xyk::Simulator as XykSimulator;
 
 use orml_traits::{
 	currency::{MultiCurrency, MultiLockableCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -1939,7 +1940,7 @@ impl pallet_intent::Config for Runtime {
 	type SolverDeadlineMargin = SolverDeadlineMargin;
 	type TimestampProvider = Timestamp;
 	type HubAssetId = LRNA;
-	type OraclePriceProvider = ShortOraclePrice;
+	type OraclePriceProvider = crate::ice_oracle_routes::DerivedRouteShortPrice;
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
@@ -1964,6 +1965,8 @@ pub type HydrationSimulators = (
 	OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
 	StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
 	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
+	UniswapV3Simulator<ice_simulator_provider::UniswapV3<Runtime>>,
+	XykSimulator<ice_simulator_provider::Xyk<Runtime>>,
 );
 
 pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);

@@ -58,6 +58,8 @@ use ice_support::Partial;
 use ice_support::PoolTrade;
 use ice_support::Price;
 use ice_support::ResolvedIntent;
+use ice_support::RoutingState;
+use ice_support::RoutingTarget;
 use ice_support::Score;
 use ice_support::Solution;
 use ice_support::SolverMode;
@@ -191,6 +193,12 @@ pub mod pallet {
 		ProtocolFeeSet { fee: Permill },
 		/// Active solver mode has been updated.
 		SolverModeSet { mode: SolverMode },
+		/// A routing rule has been updated. `None` means the entry was removed and
+		/// the target went back to its default.
+		RoutingUpdated {
+			target: RoutingTarget,
+			state: Option<RoutingState>,
+		},
 	}
 
 	/// Matched-volume protocol fee.
@@ -206,6 +214,20 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn solver_mode)]
 	pub type CurrentSolverMode<T: Config> = StorageValue<_, SolverMode, ValueQuery>;
+
+	/// Routing rules the solver is told about.
+	///
+	/// Omnipool and stableswap are the only venues the simulators enumerate on
+	/// their own, so for those an absent entry means included and `Excluded` is the
+	/// only rule worth storing. Every other venue is opt-in — an `Included` entry is
+	/// what makes it visible at all — and is normally registered in batches.
+	///
+	/// A venue's set is the union of every `Included` entry naming it, minus every
+	/// `Excluded` one. Exclusion wins, so a single wrap can be vetoed out of a batch
+	/// without rewriting the batch.
+	#[pallet::storage]
+	#[pallet::getter(fn routing)]
+	pub type SolverRouting<T: Config> = StorageMap<_, Blake2_128Concat, RoutingTarget, RoutingState, OptionQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -257,7 +279,13 @@ pub mod pallet {
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight({
-			let mut total_w = <T as Config>::WeightInfo::submit_solution().saturating_mul(solution.resolved_intents.len() as u64);
+			// Per intent: settlement, plus deriving the oracle floor. Only DCA intents
+			// pay the second, and only when the pair needs a route search, so this
+			// over-charges a solution of plain swaps — the safe direction, and the
+			// cost has to be covered when every intent is a DCA.
+			let per_intent = <T as Config>::WeightInfo::submit_solution()
+				.saturating_add(<T as Config>::WeightInfo::price_derivation());
+			let mut total_w = per_intent.saturating_mul(solution.resolved_intents.len() as u64);
 
 			for t in &solution.trades {
 				match t.direction {
@@ -489,6 +517,49 @@ pub mod pallet {
 			}
 
 			Self::deposit_event(Event::SolverModeSet { mode });
+
+			Ok(())
+		}
+
+		/// Set, or clear, one routing rule.
+		///
+		/// `Some(Included)` registers the target, `Some(Excluded)` vetoes it, and `None`
+		/// removes the entry. Storage is exactly what is set here — a veto is only
+		/// temporary if it is later cleared with `None`.
+		///
+		/// A batch target registers every venue it names under one key. It is bounded
+		/// per key, not in total: register another batch when one is full. Excluding one
+		/// member of a batch is done with a single-target `Excluded` entry, which wins
+		/// over any batch that lists it.
+		///
+		/// Asset pairs and batches are normalised, so a target cannot end up under two
+		/// keys.
+		///
+		/// Can only be called by `AuthorityOrigin` (e.g. TechnicalCommittee or Root).
+		///
+		/// Parameters:
+		/// - `target`: the pool, pool asset, wrap or batch of them the rule applies to
+		/// - `state`: `None` removes the rule
+		///
+		/// Emits `RoutingUpdated` event when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_routing())]
+		pub fn update_routing(
+			origin: OriginFor<T>,
+			target: RoutingTarget,
+			state: Option<RoutingState>,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			let target = target.normalized();
+
+			match state {
+				Some(state) => SolverRouting::<T>::insert(&target, state),
+				None => SolverRouting::<T>::remove(&target),
+			}
+
+			Self::deposit_event(Event::RoutingUpdated { target, state });
 
 			Ok(())
 		}

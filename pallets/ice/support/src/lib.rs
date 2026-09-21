@@ -2,12 +2,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::{ConstU32, RuntimeDebug, TypeInfo};
+use frame_support::pallet_prelude::{ConstU32, Get, RuntimeDebug, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
 use frame_support::sp_runtime::{DispatchError, Permill};
 use frame_support::BoundedVec;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::Route;
+use sp_core::H160;
 use sp_core::U256;
 
 pub type AssetId = u32;
@@ -19,6 +20,12 @@ pub type Score = u128;
 pub type PoolId = AssetId;
 pub type Price = Ratio;
 
+/// Per-key bound on a routing batch. Sized for headroom over the ~27 Aave wraps
+/// on chain rather than for the largest list imaginable: the key's
+/// `MaxEncodedLen` is what the map declares per entry, and overflowing into a
+/// second key is the designed escape hatch, not a failure.
+pub const MAX_ROUTING_BATCH: u32 = 64;
+
 pub const MAX_NUMBER_OF_RESOLVED_INTENTS: u32 = 100;
 /// Deliberately far below the resolved-intent cap: on 2s blocks `proof_size`
 /// binds first, and a solution anywhere near the old 200 is refused by
@@ -26,6 +33,9 @@ pub const MAX_NUMBER_OF_RESOLVED_INTENTS: u32 = 100;
 /// 100 intents is 41; 30 keeps headroom for multi-hop routes.
 /// See `ICE_PERF_RESULTS.md`, Budget B.
 pub const MAX_NUMBER_OF_SOLUTION_TRADES: u32 = 30;
+
+pub type BoundedRoutingPairs = BoundedVec<(AssetId, AssetId), ConstU32<MAX_ROUTING_BATCH>>;
+pub type BoundedRoutingPools = BoundedVec<H160, ConstU32<MAX_ROUTING_BATCH>>;
 
 pub type ResolvedIntents = BoundedVec<ResolvedIntent, ConstU32<MAX_NUMBER_OF_RESOLVED_INTENTS>>;
 pub type SolutionTrades = BoundedVec<PoolTrade, ConstU32<MAX_NUMBER_OF_SOLUTION_TRADES>>;
@@ -54,6 +64,87 @@ pub enum SolverMode {
 	Passthrough,
 	/// Kill switch — no solution is accepted.
 	Disabled,
+}
+
+/// What a routing rule applies to.
+///
+/// Granularity differs by venue because that is where the useful lever sits: an
+/// Omnipool rule targets a single asset, while a Uniswap rule targets one pool
+/// contract. Asset pairs are ordered ascending so one target has exactly one key
+/// — except `AaveWrap`, whose `(reserve, aToken)` pair is directional.
+///
+/// The batch variants register many venues under one key, which is how the opt-in
+/// venues are normally populated. `MAX_ROUTING_BATCH` is a per-key bound, not a
+/// total: a venue with more entries than one key holds takes another key, and the
+/// solver reads the union.
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum RoutingTarget {
+	/// One asset inside the Omnipool. Excluding it removes every Omnipool edge
+	/// touching that asset, so the solver routes around it.
+	OmnipoolAsset(AssetId),
+	/// A whole stableswap pool.
+	StableswapPool(PoolId),
+	/// An XYK pool, by its asset pair.
+	XykPool(AssetId, AssetId),
+	/// An Aave reserve/aToken wrap.
+	AaveWrap(AssetId, AssetId),
+	/// A Uniswap v3 pool contract. The pair and fee tier are read from the
+	/// contract, which is their source of truth.
+	UniswapV3Pool(H160),
+	/// Many Aave wraps under one key.
+	AaveWraps(BoundedRoutingPairs),
+	/// Many XYK pools under one key.
+	XykPools(BoundedRoutingPairs),
+	/// Many Uniswap v3 pools under one key.
+	UniswapV3Pools(BoundedRoutingPools),
+}
+
+impl RoutingTarget {
+	/// Canonical form, so one target cannot be stored under two keys.
+	///
+	/// Batches are sorted and deduplicated for the same reason pairs are ordered:
+	/// the same set listed in a different order must land on the same key.
+	pub fn normalized(self) -> Self {
+		fn pair(a: AssetId, b: AssetId) -> (AssetId, AssetId) {
+			if a > b {
+				(b, a)
+			} else {
+				(a, b)
+			}
+		}
+
+		fn sorted<T: Ord, S: Get<u32>>(v: BoundedVec<T, S>) -> BoundedVec<T, S> {
+			let mut v = v.into_inner();
+			v.sort();
+			v.dedup();
+			// Sorting and deduplicating cannot grow the vec, so the bound still holds.
+			BoundedVec::truncate_from(v)
+		}
+
+		match self {
+			RoutingTarget::XykPool(a, b) => {
+				let (a, b) = pair(a, b);
+				RoutingTarget::XykPool(a, b)
+			}
+			RoutingTarget::XykPools(pools) => {
+				let mut pools = pools.into_inner();
+				for p in pools.iter_mut() {
+					*p = pair(p.0, p.1);
+				}
+				RoutingTarget::XykPools(sorted(BoundedVec::truncate_from(pools)))
+			}
+			RoutingTarget::AaveWraps(wraps) => RoutingTarget::AaveWraps(sorted(wraps)),
+			RoutingTarget::UniswapV3Pools(pools) => RoutingTarget::UniswapV3Pools(sorted(pools)),
+			other => other,
+		}
+	}
+}
+
+/// Whether the solver may use a target.
+#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum RoutingState {
+	Included,
+	Excluded,
 }
 
 #[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

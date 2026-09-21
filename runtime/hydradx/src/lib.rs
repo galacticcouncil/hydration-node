@@ -43,6 +43,7 @@ pub mod types;
 pub mod xcm;
 
 // tmp. implemenation of ice simualtors' data providers
+pub mod ice_oracle_routes;
 pub mod ice_simulator_provider;
 
 extern crate alloc;
