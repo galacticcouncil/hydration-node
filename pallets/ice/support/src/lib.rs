@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::{ConstU32, TypeInfo};
+use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
 use frame_support::sp_runtime::{DispatchError, Permill};
 use frame_support::BoundedVec;
