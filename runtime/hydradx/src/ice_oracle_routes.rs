@@ -234,10 +234,19 @@ pub fn pricing_edges() -> Vec<PoolEdge<AssetId>> {
 	// their source of truth. Three view calls per registered pool, on the graph path
 	// only, and `pool_metadata` is the same read the solver's snapshot makes, so the
 	// two cannot disagree about which assets a pool connects.
+	// One curve per pair, matching the simulator: it keys on the pair alone, so a
+	// second fee tier on the same pair is skipped there. Emitting both here would put
+	// an edge in the graph for a pool the solver will not trade, and burn a candidate
+	// slot on a duplicate that prices identically — the oracle keys on the pair too.
+	let mut priced_pairs = BTreeSet::new();
 	for pool in uniswap_pools {
 		let Some(meta) = UniswapSimulator::pool_metadata(pool) else {
 			continue;
 		};
+		let pair = (meta.asset_a.min(meta.asset_b), meta.asset_a.max(meta.asset_b));
+		if !priced_pairs.insert(pair) {
+			continue;
+		}
 		edges.push(PoolEdge {
 			pool_type: PoolType::UniswapV3(meta.fee),
 			assets: vec![meta.asset_a, meta.asset_b],

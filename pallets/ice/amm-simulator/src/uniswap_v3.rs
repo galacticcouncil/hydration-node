@@ -75,7 +75,7 @@ pub trait DataProvider {
 /// A pool's sampled trade curve, taken at one block state.
 ///
 /// Samples are `(cumulative_amount_in, cumulative_amount_out)` in ascending
-/// order, so a second leg in the same direction is exact by differencing.
+/// order and are read only from the origin, never from a mid-curve offset.
 #[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq)]
 pub struct PoolCurve {
 	/// `token0` of the pool, which sorts first by EVM address.
@@ -85,9 +85,13 @@ pub struct PoolCurve {
 	pub sqrt_price_x96: U256,
 	pub a_to_b: Vec<(Balance, Balance)>,
 	pub b_to_a: Vec<(Balance, Balance)>,
-	/// Input already routed through this pool by earlier legs of the solution.
-	pub consumed_a_to_b: Balance,
-	pub consumed_b_to_a: Balance,
+	/// Set once the solution has traded this pool, in either direction.
+	///
+	/// A second trade would have to be priced as `interpolate(total) -
+	/// interpolate(consumed)`, and the difference of two chord under-estimates is
+	/// not itself an under-estimate — it over-quotes by up to 30% in the top
+	/// ladder interval, which then fails conservation at settlement.
+	pub traded: bool,
 }
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq, Default)]
@@ -204,6 +208,20 @@ fn invert(samples: &[(Balance, Balance)], target_out: Balance) -> Option<Balance
 	}
 
 	None
+}
+
+/// One trade per pool per solution — see `PoolCurve::traded`.
+fn ensure_untraded(curve: &PoolCurve) -> Result<(), SimulatorError> {
+	if curve.traded {
+		return Err(SimulatorError::NotSupported);
+	}
+	Ok(())
+}
+
+fn mark_traded(snapshot: &Snapshot, pool: &EvmAddress) -> Result<Snapshot, SimulatorError> {
+	let mut updated = snapshot.clone();
+	updated.pools.get_mut(pool).ok_or(SimulatorError::AssetNotFound)?.traded = true;
+	Ok(updated)
 }
 
 /// A Uniswap v3 pool's immutable identity.
@@ -382,8 +400,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 					sqrt_price_x96,
 					a_to_b: Self::sample(quoter, token0, token1, fee, max_a),
 					b_to_a: Self::sample(quoter, token1, token0, fee, max_b),
-					consumed_a_to_b: 0,
-					consumed_b_to_a: 0,
+					traded: false,
 				})
 			})() else {
 				log::warn!(target: LOG_TARGET, "skipping unreadable pool {pool:?}");
@@ -392,6 +409,18 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 
 			if curve.a_to_b.is_empty() || curve.b_to_a.is_empty() {
 				log::warn!(target: LOG_TARGET, "skipping unquotable pool {pool:?}");
+				continue;
+			}
+
+			// `find` keys on the pair alone, so a pair must map to one curve. Registering
+			// a second fee tier would otherwise let a route tagged with one tier's fee be
+			// priced off the other tier's curve and settle somewhere else.
+			if snapshot
+				.pools
+				.values()
+				.any(|c| c.asset_a == curve.asset_a && c.asset_b == curve.asset_b)
+			{
+				log::warn!(target: LOG_TARGET, "skipping pool {pool:?}: pair already registered");
 				continue;
 			}
 
@@ -413,36 +442,16 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			.ok_or(SimulatorError::AssetNotFound)?;
 		let forward = curve.asset_a == asset_in;
 
-		let (samples, consumed, opposite) = if forward {
-			(&curve.a_to_b, curve.consumed_a_to_b, curve.consumed_b_to_a)
-		} else {
-			(&curve.b_to_a, curve.consumed_b_to_a, curve.consumed_a_to_b)
-		};
+		ensure_untraded(curve)?;
+		let samples = if forward { &curve.a_to_b } else { &curve.b_to_a };
 
-		// One direction per pool per solution: the curve was sampled one way and
-		// carries no information about a pool the batch has already pushed back.
-		if opposite != 0 {
-			return Err(SimulatorError::NotSupported);
-		}
-
-		let total = consumed.checked_add(amount_in).ok_or(SimulatorError::MathError)?;
-		let before = interpolate(samples, consumed).ok_or(SimulatorError::TradeTooLarge)?;
-		let after = interpolate(samples, total).ok_or(SimulatorError::TradeTooLarge)?;
-		let amount_out = after.checked_sub(before).ok_or(SimulatorError::MathError)?;
+		let amount_out = interpolate(samples, amount_in).ok_or(SimulatorError::TradeTooLarge)?;
 
 		if amount_out < min_amount_out {
 			return Err(SimulatorError::LimitNotMet);
 		}
 
-		let mut updated = snapshot.clone();
-		let entry = updated.pools.get_mut(&pool).ok_or(SimulatorError::AssetNotFound)?;
-		if forward {
-			entry.consumed_a_to_b = total;
-		} else {
-			entry.consumed_b_to_a = total;
-		}
-
-		Ok((updated, TradeResult::new(amount_in, amount_out)))
+		Ok((mark_traded(snapshot, &pool)?, TradeResult::new(amount_in, amount_out)))
 	}
 
 	fn simulate_buy(
@@ -457,34 +466,16 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			.ok_or(SimulatorError::AssetNotFound)?;
 		let forward = curve.asset_a == asset_in;
 
-		let (samples, consumed, opposite) = if forward {
-			(&curve.a_to_b, curve.consumed_a_to_b, curve.consumed_b_to_a)
-		} else {
-			(&curve.b_to_a, curve.consumed_b_to_a, curve.consumed_a_to_b)
-		};
+		ensure_untraded(curve)?;
+		let samples = if forward { &curve.a_to_b } else { &curve.b_to_a };
 
-		if opposite != 0 {
-			return Err(SimulatorError::NotSupported);
-		}
-
-		let before = interpolate(samples, consumed).ok_or(SimulatorError::TradeTooLarge)?;
-		let target = before.checked_add(amount_out).ok_or(SimulatorError::MathError)?;
-		let total = invert(samples, target).ok_or(SimulatorError::TradeTooLarge)?;
-		let amount_in = total.checked_sub(consumed).ok_or(SimulatorError::MathError)?;
+		let amount_in = invert(samples, amount_out).ok_or(SimulatorError::TradeTooLarge)?;
 
 		if amount_in > max_amount_in {
 			return Err(SimulatorError::LimitNotMet);
 		}
 
-		let mut updated = snapshot.clone();
-		let entry = updated.pools.get_mut(&pool).ok_or(SimulatorError::AssetNotFound)?;
-		if forward {
-			entry.consumed_a_to_b = total;
-		} else {
-			entry.consumed_b_to_a = total;
-		}
-
-		Ok((updated, TradeResult::new(amount_in, amount_out)))
+		Ok((mark_traded(snapshot, &pool)?, TradeResult::new(amount_in, amount_out)))
 	}
 
 	/// Marginal price from `slot0`, exact and fee-free — matching the omnipool
@@ -538,6 +529,8 @@ mod tests {
 	/// Canned pool: price 1, so both virtual reserves equal `LIQUIDITY`, and the
 	/// quoter pays 2 out per 1 in until the pool is drained.
 	const POOL: EvmAddress = EvmAddress::repeat_byte(1);
+	/// Same token pair as `POOL`, standing in for a second registered fee tier.
+	const POOL_SAME_PAIR: EvmAddress = EvmAddress::repeat_byte(3);
 	const QUOTER: EvmAddress = EvmAddress::repeat_byte(2);
 	const TOKEN0: EvmAddress = EvmAddress::repeat_byte(0x10);
 	const TOKEN1: EvmAddress = EvmAddress::repeat_byte(0x11);
@@ -600,7 +593,7 @@ mod tests {
 		}
 
 		fn pools() -> Vec<EvmAddress> {
-			vec![POOL]
+			vec![POOL, POOL_SAME_PAIR]
 		}
 
 		fn address_to_asset(address: EvmAddress) -> Option<AssetId> {
@@ -650,8 +643,7 @@ mod tests {
 			sqrt_price_x96: U256::one() << 96,
 			a_to_b: vec![(1, 2)],
 			b_to_a: vec![(2, 1)],
-			consumed_a_to_b: 0,
-			consumed_b_to_a: 0,
+			traded: false,
 		};
 		let mut added = Snapshot::default();
 		added.pools.insert(EvmAddress::repeat_byte(7), pool);
@@ -739,11 +731,67 @@ mod tests {
 		assert_eq!(invert(&concave(), 681), None);
 	}
 
+	/// Why a pool is traded once per solution.
+	///
+	/// Both interpolated points sit below the true curve, and the one at `consumed`
+	/// is dragged down further, so their difference lands *above* the truth — the
+	/// opposite of the under-quoting the conservation check relies on. Reading the
+	/// same curve from the origin stays a lower bound, as the last two asserts pin.
 	#[test]
-	fn differencing_should_equal_a_single_larger_trade_when_direction_is_the_same() {
-		let samples = concave();
-		let first = interpolate(&samples, 200).unwrap();
-		let second = interpolate(&samples, 600).unwrap() - first;
-		assert_eq!(first + second, interpolate(&samples, 600).unwrap());
+	fn differencing_should_overquote_the_true_increment_when_legs_are_split() {
+		// Constant product at price 1, on the ladder the simulator samples.
+		const L: Balance = 32_768_000_000;
+		let out = |x: Balance| L * x / (L + x);
+		let samples: Vec<(Balance, Balance)> = (0..SAMPLES_PER_DIRECTION)
+			.map(|i| {
+				let x = (L >> (SAMPLES_PER_DIRECTION - 1)) << i;
+				(x, out(x))
+			})
+			.collect();
+
+		let consumed = 31_948_800_000;
+		let amount = 327_680_000;
+		let differenced = interpolate(&samples, consumed + amount).unwrap() - interpolate(&samples, consumed).unwrap();
+
+		assert_eq!(differenced, 109_226_666);
+		assert_eq!(out(consumed + amount) - out(consumed), 83_583_841);
+
+		assert_eq!(interpolate(&samples, amount).unwrap(), 324_045_623);
+		assert_eq!(out(amount), 324_435_643);
+	}
+
+	#[test]
+	fn snapshot_should_keep_one_curve_when_a_pair_is_registered_twice() {
+		let snapshot = Simulator::<Mock<Deep>>::snapshot();
+
+		assert_eq!(snapshot.pools.len(), 1);
+		assert!(snapshot.pools.contains_key(&POOL));
+		assert!(!snapshot.pools.contains_key(&POOL_SAME_PAIR));
+	}
+
+	#[test]
+	fn simulate_sell_should_fail_when_the_pool_was_already_traded() {
+		let snapshot = Simulator::<Mock<Deep>>::snapshot();
+		let (traded, _) =
+			Simulator::<Mock<Deep>>::simulate_sell(1, 2, 1_000_000, 0, &snapshot).expect("first sell to price");
+
+		assert_eq!(
+			Simulator::<Mock<Deep>>::simulate_sell(1, 2, 1_000_000, 0, &traded),
+			Err(SimulatorError::NotSupported)
+		);
+	}
+
+	/// The opposite direction is refused for the same reason: the curve is read from
+	/// the origin and knows nothing about a pool the batch has already pushed.
+	#[test]
+	fn simulate_buy_should_fail_when_the_pool_was_traded_in_the_other_direction() {
+		let snapshot = Simulator::<Mock<Deep>>::snapshot();
+		let (traded, _) =
+			Simulator::<Mock<Deep>>::simulate_sell(1, 2, 1_000_000, 0, &snapshot).expect("first sell to price");
+
+		assert_eq!(
+			Simulator::<Mock<Deep>>::simulate_buy(2, 1, 1_000_000, Balance::MAX, &traded),
+			Err(SimulatorError::NotSupported)
+		);
 	}
 }
