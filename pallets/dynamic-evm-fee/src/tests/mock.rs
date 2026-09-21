@@ -244,7 +244,9 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_parameters::Config for Test {}
+impl pallet_parameters::Config for Test {
+	type AuthorityOrigin = frame_system::EnsureRoot<AccountId>;
+}
 
 pub struct ExtBuilder {
 	base_weight: Weight,

@@ -5827,7 +5827,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "446.0.0"
+version = "447.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5934,7 +5934,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
- "pallet-parameters 1.4.0",
+ "pallet-parameters 1.5.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -9452,7 +9452,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
- "pallet-parameters 1.4.0",
+ "pallet-parameters 1.5.0",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",
@@ -10519,7 +10519,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parameters"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "frame-support",
  "frame-system",
