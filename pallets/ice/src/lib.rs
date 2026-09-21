@@ -279,7 +279,13 @@ pub mod pallet {
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight({
-			let mut total_w = <T as Config>::WeightInfo::submit_solution().saturating_mul(solution.resolved_intents.len() as u64);
+			// Per intent: settlement, plus deriving the oracle floor. Only DCA intents
+			// pay the second, and only when the pair needs a route search, so this
+			// over-charges a solution of plain swaps — the safe direction, and the
+			// cost has to be covered when every intent is a DCA.
+			let per_intent = <T as Config>::WeightInfo::submit_solution()
+				.saturating_add(<T as Config>::WeightInfo::price_derivation());
+			let mut total_w = per_intent.saturating_mul(solution.resolved_intents.len() as u64);
 
 			for t in &solution.trades {
 				match t.direction {

@@ -135,6 +135,10 @@ impl<T: frame_system::Config> pallet_ice::WeightInfo for HydraWeight<T> {
 	}
 	/// Storage: `ICE::SolverRouting` (r:0 w:1)
 	/// Proof: `ICE::SolverRouting` (`max_values`: None, `max_size`: Some(1300), added: 3775, mode: `MaxEncodedLen`)
+	fn price_derivation() -> Weight {
+		Weight::from_parts(5_000_000_000, 8_000)
+			.saturating_add(T::DbWeight::get().reads(40_u64))
+	}
 	fn update_routing() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1012`

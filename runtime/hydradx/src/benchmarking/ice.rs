@@ -4,6 +4,7 @@ use crate::*;
 use frame_benchmarking::account;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
+use hydradx_traits::price::PriceProvider;
 use ice_support::Intent as IntentIce;
 use ice_support::IntentData;
 use ice_support::IntentDataInput;
@@ -18,7 +19,9 @@ use orml_benchmarking::runtime_benchmarks;
 use pallet_intent::types::Intent as IntentT;
 use pallet_intent::types::IntentInput;
 use pallet_intent::types::OnResolved;
+use sp_runtime::DispatchError;
 use sp_runtime::DispatchResult;
+use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 
 const SEED: u32 = 1;
@@ -34,6 +37,28 @@ const DEADLINE: Option<u64> = Some(12 * 3_600 * 1_000);
 
 fn fund(to: AccountId, currency: AssetId, amount: Balance) -> DispatchResult {
 	Currencies::deposit(currency, &to, amount)
+}
+
+fn register_asset(id: AssetId) -> Result<AssetId, DispatchError> {
+	AssetRegistry::register(
+		RawOrigin::Root.into(),
+		Some(id),
+		// Names are unique in the registry, so they carry the id.
+		Some(
+			alloc::format!("BENCH{id}")
+				.into_bytes()
+				.try_into()
+				.map_err(|_| "name")?,
+		),
+		pallet_asset_registry::AssetType::Token,
+		Some(1_000),
+		None,
+		None,
+		None,
+		None,
+		true,
+	)?;
+	Ok(id)
 }
 
 runtime_benchmarks! {
@@ -152,6 +177,68 @@ runtime_benchmarks! {
 
 	// One weight covers every target, so the benchmark writes the largest key there
 	// is: a full batch of the widest member type.
+	// The per-intent cost of deriving a DCA's oracle floor.
+	//
+	// `submit_solution` already multiplies its base weight by the resolved-intent
+	// count, so charging this the same way covers a solution made entirely of DCA
+	// intents that all take the graph path. It over-charges a solution of plain
+	// swaps, which never price at all — the safe direction.
+	//
+	// The graph is built here rather than measured on genesis on purpose: the cost
+	// is a function of how many venues exist, and a benchmark chain has none. The
+	// setup below is deliberately larger than mainnet (13 Omnipool assets and 26
+	// Aave wraps as of 2026-09), so the number stays conservative as the chain
+	// grows. Uniswap pools are the exception — they cost three EVM view calls each
+	// and cannot be deployed here, so a chain with many registered pools needs this
+	// re-measured.
+	price_derivation {
+		crate::benchmarking::omnipool::init()?;
+
+		let omnipool_assets = 24u32;
+		let mut graph_assets: Vec<AssetId> = Vec::new();
+		let mut candidate: AssetId = 500_000;
+		while graph_assets.len() < omnipool_assets as usize {
+			// The benchmark genesis already holds assets; take the next free ids
+			// rather than assuming a range is clear.
+			if pallet_asset_registry::Assets::<Runtime>::get(candidate).is_none() {
+				let asset = register_asset(candidate)?;
+				graph_assets.push(asset);
+			}
+			candidate += 1;
+		}
+		for asset in graph_assets.iter().copied() {
+			let acc = Omnipool::protocol_account();
+			Currencies::update_balance(RawOrigin::Root.into(), acc.clone(), asset, (1_000 * QUINTIL) as i128)?;
+			Omnipool::add_token(
+				RawOrigin::Root.into(),
+				asset,
+				FixedU128::from(1),
+				Permill::from_percent(100),
+				acc,
+			)?;
+		}
+
+		// Wraps are plain storage for the pricing graph, so a realistic count is free
+		// to set up.
+		let wraps: Vec<(AssetId, AssetId)> = (0..ice_support::MAX_ROUTING_BATCH)
+			.map(|i| (3_000 + i, 4_000 + i))
+			.collect();
+		ICE::update_routing(
+			RawOrigin::Root.into(),
+			RoutingTarget::AaveWraps(wraps.try_into().unwrap()),
+			Some(RoutingState::Included),
+		)?;
+
+		// Worst case: both legs are in the graph, so the fast path is skipped and the
+		// search runs, but nothing prices, so every candidate is tried before the
+		// floor is given up on.
+		let (asset_in, asset_out) = (graph_assets[0], graph_assets[graph_assets.len() - 1]);
+		assert!(pallet_omnipool::Assets::<Runtime>::contains_key(asset_in));
+		assert!(pallet_omnipool::Assets::<Runtime>::contains_key(asset_out));
+	}: {
+		assert!(crate::ice_oracle_routes::DerivedRouteShortPrice::get_price(asset_in, asset_out).is_none());
+	}
+
 	update_routing {
 		let pools: Vec<sp_core::H160> = (0..ice_support::MAX_ROUTING_BATCH)
 			.map(|i| sp_core::H160::repeat_byte(i as u8))

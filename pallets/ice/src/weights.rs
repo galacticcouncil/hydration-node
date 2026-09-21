@@ -5,6 +5,7 @@ pub trait WeightInfo {
 	fn set_protocol_fee() -> Weight;
 	fn set_solver_mode() -> Weight;
 	fn update_routing() -> Weight;
+	fn price_derivation() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -21,6 +22,10 @@ impl WeightInfo for () {
 	}
 
 	fn update_routing() -> Weight {
+		Weight::default()
+	}
+
+	fn price_derivation() -> Weight {
 		Weight::default()
 	}
 }
