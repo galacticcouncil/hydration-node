@@ -206,6 +206,15 @@ fn invert(samples: &[(Balance, Balance)], target_out: Balance) -> Option<Balance
 	None
 }
 
+/// A Uniswap v3 pool's immutable identity.
+pub struct PoolMeta {
+	pub token0: EvmAddress,
+	pub token1: EvmAddress,
+	pub asset_a: AssetId,
+	pub asset_b: AssetId,
+	pub fee: u32,
+}
+
 pub struct Simulator<DP>(PhantomData<DP>);
 
 impl<DP: DataProvider> Simulator<DP> {
@@ -216,6 +225,25 @@ impl<DP: DataProvider> Simulator<DP> {
 			return None;
 		}
 		Some(U256::from_big_endian(&value[0..32]))
+	}
+
+	/// The pool's immutable identity: the tokens it trades, as both EVM addresses and
+	/// asset ids, and its fee tier.
+	///
+	/// Three view calls, and the only part of a pool a caller that wants just the
+	/// topology has to ask the chain for — the rest of `snapshot` is price and depth.
+	/// Shared so the solver's snapshot and the oracle pricing graph cannot disagree
+	/// about which assets a registered pool connects.
+	pub fn pool_metadata(pool: EvmAddress) -> Option<PoolMeta> {
+		let token0 = Self::address(pool, Function::Token0)?;
+		let token1 = Self::address(pool, Function::Token1)?;
+		Some(PoolMeta {
+			asset_a: DP::address_to_asset(token0)?,
+			asset_b: DP::address_to_asset(token1)?,
+			fee: Self::call_word(pool, Function::Fee, VIEW_GAS_LIMIT)?.try_into().ok()?,
+			token0,
+			token1,
+		})
 	}
 
 	fn address(pool: EvmAddress, function: Function) -> Option<EvmAddress> {
@@ -336,11 +364,13 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 
 		for pool in DP::pools() {
 			let Some(curve) = (|| {
-				let token0 = Self::address(pool, Function::Token0)?;
-				let token1 = Self::address(pool, Function::Token1)?;
-				let asset_a = DP::address_to_asset(token0)?;
-				let asset_b = DP::address_to_asset(token1)?;
-				let fee: u32 = Self::call_word(pool, Function::Fee, VIEW_GAS_LIMIT)?.try_into().ok()?;
+				let PoolMeta {
+					token0,
+					token1,
+					asset_a,
+					asset_b,
+					fee,
+				} = Self::pool_metadata(pool)?;
 				let sqrt_price_x96 = Self::sqrt_price(pool)?;
 				let liquidity = Self::call_word(pool, Function::Liquidity, VIEW_GAS_LIMIT)?;
 				let (max_a, max_b) = Self::depth(liquidity, sqrt_price_x96)?;

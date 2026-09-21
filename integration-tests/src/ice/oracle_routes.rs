@@ -7,6 +7,7 @@
 //! ```
 
 use crate::polkadot_test_net::hydradx_run_to_next_block;
+use frame_support::assert_ok;
 use hydradx_runtime::ice_oracle_routes::DerivedRouteShortPrice;
 use hydradx_runtime::{Runtime, System};
 use hydradx_traits::price::PriceProvider;
@@ -356,6 +357,48 @@ fn route_is_live(route: &[hydradx_traits::router::Trade<AssetId>]) -> bool {
 	})
 }
 
+/// The live aDOT/HOLLAR pool, registered exactly as governance registers it, must
+/// appear in the graph with the pair and fee read from the contract.
+#[test]
+#[ignore = "needs the gitignored snapshots/ice/mainnet_sep scrape"]
+fn registered_uniswap_pool_should_enter_the_pricing_graph() {
+	use hydradx_traits::router::PoolType;
+	use ice_support::{RoutingState, RoutingTarget};
+
+	driver().execute(|| {
+		let pool = sp_core::H160(hex_literal::hex!("5C6208A3c316A801f8996750aA7b6f45Fc988548"));
+
+		let uniswap_edges = || {
+			hydradx_runtime::ice_oracle_routes::pricing_edges()
+				.into_iter()
+				.filter_map(|e| match e.pool_type {
+					PoolType::UniswapV3(fee) => Some((e.assets, fee)),
+					_ => None,
+				})
+				.collect::<Vec<_>>()
+		};
+		assert!(uniswap_edges().is_empty(), "nothing registered on the scrape");
+
+		assert_ok!(hydradx_runtime::ICE::update_routing(
+			hydradx_runtime::RuntimeOrigin::root(),
+			RoutingTarget::UniswapV3Pool(pool),
+			Some(RoutingState::Included),
+		));
+
+		// token0/token1/fee come from the contract, through the same read the
+		// solver's snapshot makes.
+		assert_eq!(uniswap_edges(), vec![(vec![ADOT, HOLLAR], 3000u32)]);
+
+		// ...and excluding it takes the edge back out.
+		assert_ok!(hydradx_runtime::ICE::update_routing(
+			hydradx_runtime::RuntimeOrigin::root(),
+			RoutingTarget::UniswapV3Pool(pool),
+			Some(RoutingState::Excluded),
+		));
+		assert!(uniswap_edges().is_empty());
+	});
+}
+
 // ---------------------------------------------------------------------------
 // CI cover. The tests above read a mainnet scrape and are `#[ignore]`d with it;
 // these build their state programmatically so the consensus-critical parts of the
@@ -493,6 +536,54 @@ mod derivation {
 			// Exclusion wins over inclusion, matching `ice_simulator_provider::registered`.
 			register(RoutingTarget::AaveWrap(reserve, atoken), RoutingState::Excluded);
 			assert!(edges_of(PoolType::Aave).is_empty());
+		});
+	}
+
+	#[test]
+	fn derived_price_should_refuse_an_excluded_omnipool_asset_on_the_fast_path() {
+		driver()
+			.execute(|| {
+				assert_ok!(hydradx_runtime::Omnipool::sell(
+					RuntimeOrigin::signed(crate::polkadot_test_net::ALICE.into()),
+					HDX,
+					crate::polkadot_test_net::DOT,
+					1_000_000_000_000,
+					0,
+				));
+			})
+			.new_block()
+			.execute(|| {
+				let dot = crate::polkadot_test_net::DOT;
+				assert!(DerivedRouteShortPrice::get_price(HDX, dot).is_some());
+
+				// The graph drops an excluded asset; the direct-hop fast path has to
+				// as well, or the excluded venue still sets the floor for a trade the
+				// solver is forbidden to execute.
+				register(RoutingTarget::OmnipoolAsset(dot), RoutingState::Excluded);
+
+				assert_eq!(
+					DerivedRouteShortPrice::get_price(HDX, dot),
+					None,
+					"an excluded asset must not price through the Omnipool fast path"
+				);
+			});
+	}
+
+	#[test]
+	fn pricing_graph_should_ignore_a_uniswap_registration_when_the_pool_has_no_contract() {
+		driver().execute(|| {
+			assert!(edges_of(PoolType::UniswapV3(0)).is_empty());
+
+			// A registered address with no contract behind it answers nothing, so there
+			// is no pair to connect — the edge must not be invented.
+			register(
+				RoutingTarget::UniswapV3Pool(sp_core::H160::repeat_byte(0xab)),
+				RoutingState::Included,
+			);
+
+			assert!(hydradx_runtime::ice_oracle_routes::pricing_edges()
+				.iter()
+				.all(|e| !matches!(e.pool_type, PoolType::UniswapV3(_))));
 		});
 	}
 

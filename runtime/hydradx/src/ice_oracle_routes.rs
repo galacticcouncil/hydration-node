@@ -6,6 +6,7 @@
 //! throughout, and membership-only edges — nothing that moves within a block.
 
 use crate::{EmaOracle, Runtime, LRNA};
+use amm_simulator::uniswap_v3::Simulator as UniswapV3Simulator;
 use frame_support::BoundedVec;
 use hydra_dx_math::ema::EmaPrice;
 use hydradx_traits::price::PriceProvider;
@@ -18,14 +19,21 @@ use sp_std::vec;
 use sp_std::vec::Vec;
 
 type Oracle = hydradx_adapters::OraclePriceProvider<AssetId, EmaOracle, LRNA>;
+type UniswapSimulator = UniswapV3Simulator<crate::ice_simulator_provider::UniswapV3<Runtime>>;
 
 /// Every hop multiplies in another EMA, so a long reference path says less about
 /// the pair than a short one. Coverage saturates just past this.
 const MAX_HOPS: usize = 6;
 
-/// Membership does not imply an oracle entry, so the shortest route can come back
-/// unpriceable while the next one prices.
-const MAX_CANDIDATES: usize = 4;
+/// Routes enumerated, and so the most that can be priced before giving up.
+///
+/// Membership does not imply an oracle entry, so a short route can come back
+/// unpriceable while a longer one prices; this bound is how many such misses are
+/// tolerated before the floor is abandoned. It deliberately bounds routes
+/// *examined* rather than routes that price: this runs in `validate_unsigned`,
+/// which is unweighted, so the work has to be bounded by construction and not by
+/// how long finding an answer takes.
+const MAX_CANDIDATES: usize = 16;
 
 /// Guard only — measured never to bind on the live graph. It is here because this
 /// runs in `validate_unsigned`, which is not weighted.
@@ -89,7 +97,17 @@ fn search_limits() -> route_findr::SearchLimits {
 }
 
 fn is_omnipool_leg(asset: AssetId) -> bool {
-	asset == LRNA::get() || pallet_omnipool::Assets::<Runtime>::contains_key(asset)
+	if asset == LRNA::get() {
+		return true;
+	}
+	// Both halves are required, for different reasons. Membership, because an EMA
+	// entry outlives the venue that fed it. Exclusion, because governance removing an
+	// asset from the solver's routing has to remove it as a reference price too — the
+	// graph already drops it, and a fast path that did not would let an excluded venue
+	// set the floor for a trade it is not allowed to execute.
+	pallet_omnipool::Assets::<Runtime>::contains_key(asset)
+		&& pallet_ice::SolverRouting::<Runtime>::get(RoutingTarget::OmnipoolAsset(asset))
+			!= Some(RoutingState::Excluded)
 }
 
 /// The venues allowed to set a reference price, in canonical order.
@@ -105,6 +123,7 @@ pub fn pricing_edges() -> Vec<PoolEdge<AssetId>> {
 	let mut excluded = Vec::new();
 	let (mut wraps, mut excluded_wraps) = (BTreeSet::new(), BTreeSet::new());
 	let (mut xyk_pools, mut excluded_xyk) = (BTreeSet::new(), BTreeSet::new());
+	let (mut uniswap_pools, mut excluded_uniswap) = (BTreeSet::new(), BTreeSet::new());
 	for (target, state) in pallet_ice::SolverRouting::<Runtime>::iter() {
 		let (pairs, bucket, excluded_bucket) = match (&target, state) {
 			(RoutingTarget::AaveWrap(reserve, atoken), _) => {
@@ -113,6 +132,22 @@ pub fn pricing_edges() -> Vec<PoolEdge<AssetId>> {
 			(RoutingTarget::AaveWraps(batch), _) => (batch.to_vec(), &mut wraps, &mut excluded_wraps),
 			(RoutingTarget::XykPool(a, b), _) => (vec![(*a, *b)], &mut xyk_pools, &mut excluded_xyk),
 			(RoutingTarget::XykPools(batch), _) => (batch.to_vec(), &mut xyk_pools, &mut excluded_xyk),
+			(RoutingTarget::UniswapV3Pool(address), RoutingState::Included) => {
+				uniswap_pools.insert(*address);
+				continue;
+			}
+			(RoutingTarget::UniswapV3Pool(address), RoutingState::Excluded) => {
+				excluded_uniswap.insert(*address);
+				continue;
+			}
+			(RoutingTarget::UniswapV3Pools(batch), RoutingState::Included) => {
+				uniswap_pools.extend(batch.iter().copied());
+				continue;
+			}
+			(RoutingTarget::UniswapV3Pools(batch), RoutingState::Excluded) => {
+				excluded_uniswap.extend(batch.iter().copied());
+				continue;
+			}
 			_ => {
 				if state == RoutingState::Excluded {
 					excluded.push(target);
@@ -127,6 +162,7 @@ pub fn pricing_edges() -> Vec<PoolEdge<AssetId>> {
 	}
 	wraps.retain(|pair| !excluded_wraps.contains(pair));
 	xyk_pools.retain(|pair| !excluded_xyk.contains(pair));
+	uniswap_pools.retain(|pool| !excluded_uniswap.contains(pool));
 
 	let mut edges = Vec::new();
 
@@ -190,6 +226,21 @@ pub fn pricing_edges() -> Vec<PoolEdge<AssetId>> {
 		edges.push(PoolEdge {
 			pool_type: PoolType::XYK,
 			assets: vec![asset_a, asset_b],
+		});
+	}
+
+	// Uniswap is the one venue whose pair the registry does not carry — a target is
+	// just a pool address — so the tokens and fee come from the contract, which is
+	// their source of truth. Three view calls per registered pool, on the graph path
+	// only, and `pool_metadata` is the same read the solver's snapshot makes, so the
+	// two cannot disagree about which assets a pool connects.
+	for pool in uniswap_pools {
+		let Some(meta) = UniswapSimulator::pool_metadata(pool) else {
+			continue;
+		};
+		edges.push(PoolEdge {
+			pool_type: PoolType::UniswapV3(meta.fee),
+			assets: vec![meta.asset_a, meta.asset_b],
 		});
 	}
 
