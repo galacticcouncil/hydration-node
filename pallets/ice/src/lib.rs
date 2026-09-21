@@ -217,12 +217,14 @@ pub mod pallet {
 
 	/// Routing rules the solver is told about.
 	///
-	/// Only non-default rules are stored. For venues the simulators enumerate
-	/// themselves an absent entry means included; for Uniswap v3 there is nothing
-	/// to enumerate, so an included entry is what makes the pool visible at all.
+	/// Omnipool and stableswap are the only venues the simulators enumerate on
+	/// their own, so for those an absent entry means included and `Excluded` is the
+	/// only rule worth storing. Every other venue is opt-in — an `Included` entry is
+	/// what makes it visible at all — and is normally registered in batches.
 	///
-	/// Only the Uniswap simulator reads this today; honouring `Excluded` for the
-	/// self-discovering venues is still to come.
+	/// A venue's set is the union of every `Included` entry naming it, minus every
+	/// `Excluded` one. Exclusion wins, so a single wrap can be vetoed out of a batch
+	/// without rewriting the batch.
 	#[pallet::storage]
 	#[pallet::getter(fn routing)]
 	pub type SolverRouting<T: Config> = StorageMap<_, Blake2_128Concat, RoutingTarget, RoutingState, OptionQuery>;
@@ -327,17 +329,18 @@ pub mod pallet {
 				Self::validate_intent_amounts(intent)?;
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
-				pallet_intent::Pallet::<T>::unlock_funds(&owner, intent.asset_in(), intent.amount_in())?;
 
-				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), unlock and transfer amounts, owner: {:?}, asset: {:?}, amount: {:?}",
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), moving locked amounts to the holding pot, owner: {:?}, asset: {:?}, amount: {:?}",
 					LOG_PREFIX, owner, intent.asset_in(), intent.amount_in());
 
-				<T as Config>::Currency::transfer(
-					intent.asset_in(),
+				// Straight from the reserve to the pot - unreserving to the owner first would make
+				// the owner the erc20 sender, and an aToken transfer then pays for aave's solvency
+				// walk over every reserve the owner touches.
+				pallet_intent::Pallet::<T>::move_locked_funds(
 					&owner,
 					&holding_pot,
+					intent.asset_in(),
 					intent.amount_in(),
-					AllowDeath,
 				)?;
 
 				// Per-asset accumulation: intent input is X → holding pot.
@@ -512,41 +515,42 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Exclude a target from the solver's routing, or put it back.
+		/// Set, or clear, one routing rule.
 		///
-		/// `exclude = false` is the default for everything the simulators enumerate
-		/// themselves, so it drops the entry rather than storing a redundant one.
-		/// Uniswap v3 and XYK pools are the exception — they are opt-in, so an
-		/// included entry is kept and that entry is the pool's registration.
+		/// `Some(Included)` registers the target, `Some(Excluded)` vetoes it, and `None`
+		/// removes the entry. Storage is exactly what is set here — a veto is only
+		/// temporary if it is later cleared with `None`.
 		///
-		/// Asset pairs are normalised, so a target cannot end up under two keys.
+		/// A batch target registers every venue it names under one key. It is bounded
+		/// per key, not in total: register another batch when one is full. Excluding one
+		/// member of a batch is done with a single-target `Excluded` entry, which wins
+		/// over any batch that lists it.
+		///
+		/// Asset pairs and batches are normalised, so a target cannot end up under two
+		/// keys.
 		///
 		/// Can only be called by `AuthorityOrigin` (e.g. TechnicalCommittee or Root).
 		///
 		/// Parameters:
-		/// - `target`: the pool, pool asset or wrap the rule applies to
-		/// - `exclude`: `true` hides it from the solver
+		/// - `target`: the pool, pool asset, wrap or batch of them the rule applies to
+		/// - `state`: `None` removes the rule
 		///
 		/// Emits `RoutingUpdated` event when successful.
 		///
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::update_routing())]
-		pub fn update_routing(origin: OriginFor<T>, target: RoutingTarget, exclude: bool) -> DispatchResult {
+		pub fn update_routing(
+			origin: OriginFor<T>,
+			target: RoutingTarget,
+			state: Option<RoutingState>,
+		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let target = target.normalized();
 
-			let state = match (exclude, target.is_self_discovered()) {
-				(true, _) => Some(RoutingState::Excluded),
-				// Included is the default here, so storing it would say nothing.
-				(false, true) => None,
-				// ...but for an opt-in venue it is the registration.
-				(false, false) => Some(RoutingState::Included),
-			};
-
 			match state {
-				Some(state) => SolverRouting::<T>::insert(target, state),
-				None => SolverRouting::<T>::remove(target),
+				Some(state) => SolverRouting::<T>::insert(&target, state),
+				None => SolverRouting::<T>::remove(&target),
 			}
 
 			Self::deposit_event(Event::RoutingUpdated { target, state });

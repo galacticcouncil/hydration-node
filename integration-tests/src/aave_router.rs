@@ -1603,3 +1603,238 @@ pub fn set_ed(asset_id: AssetId, ed: u128) {
 	)
 	.unwrap();
 }
+
+/// A `Free` repatriate sends the erc20 from the reserve account, never from the owner. On an aToken
+/// that is the whole point: Aave runs its solvency walk on the sender, and the reserve account
+/// carries no debt to walk.
+mod repatriate_reserved_named_atoken {
+	use super::*;
+	use fp_evm::ExitReason::Succeed;
+	use hydradx_runtime::evm::Function as Erc20Function;
+	use hydradx_traits::BoundErc20;
+	use orml_traits::{BalanceStatus, NamedMultiReservableCurrency};
+	use pallet_evm::ExitSucceed::Returned;
+
+	const RID: [u8; 8] = *b"repat_a#";
+	const AMOUNT: Balance = 1_000_000_000;
+
+	pub(super) fn reserve_account() -> AccountId {
+		<Runtime as pallet_currencies::Config>::ReserveAccount::get()
+	}
+
+	/// The deployed aToken, not `encode_evm_address`'s synthetic asset address - only the real
+	/// contract runs aave's solvency walk, and only it prices the sender.
+	pub(super) fn atoken_contract() -> EvmAddress {
+		<Runtime as pallet_currencies::Config>::BoundErc20::contract_address(ADOT).unwrap()
+	}
+
+	/// Gas an `ADOT.transfer` costs with `from` as the erc20 sender. Rolled back, so it only measures.
+	pub(super) fn atoken_transfer_gas(from: &AccountId, to: &AccountId, amount: Balance) -> u64 {
+		let data = EvmDataWriter::new_with_selector(Erc20Function::Transfer)
+			.write(EVMAccounts::evm_address(to))
+			.write(U256::from(amount))
+			.build();
+		let context = CallContext::new_call(atoken_contract(), EVMAccounts::evm_address(from));
+
+		with_transaction(|| {
+			let result = Executor::<Runtime>::call(context, data, U256::zero(), 1_000_000);
+			assert_eq!(result.exit_reason, Succeed(Returned), "{:?}", hex::encode(result.value));
+			TransactionOutcome::Rollback(Ok::<u64, DispatchError>(result.gas_used.as_u64()))
+		})
+		.unwrap()
+	}
+
+	/// ALICE holds aDOT as collateral and owes DOT, so a transfer she sends runs the full walk.
+	pub(super) fn with_indebted_atoken_owner(execute: impl FnOnce()) {
+		with_atoken(|| {
+			let alice: AccountId = ALICE.into();
+			borrow(
+				BorrowingContract::<Runtime>::get(),
+				EVMAccounts::evm_address(&alice),
+				HydraErc20Mapping::encode_evm_address(DOT),
+				BAG / 10,
+			);
+			execute()
+		})
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_send_the_atoken_from_the_reserve_account_when_status_is_free() {
+		with_indebted_atoken_owner(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+
+			let owner_sent_gas = atoken_transfer_gas(&alice, &bob, AMOUNT);
+
+			assert_ok!(Currencies::reserve_named(&RID, ADOT, &alice, AMOUNT));
+			let reserve_sent_gas = atoken_transfer_gas(&reserve_account(), &bob, AMOUNT);
+
+			// ALICE owes DOT, so aave walks her reserves; the reserve account owes nothing, so
+			// `calculateUserAccountData` is skipped entirely. Both are snapshot-bound.
+			assert_eq!(owner_sent_gas, 208_228);
+			assert_eq!(reserve_sent_gas, 141_562);
+
+			let bob_before = Currencies::free_balance(ADOT, &bob);
+			assert_eq!(
+				Currencies::repatriate_reserved_named(&RID, ADOT, &alice, &bob, AMOUNT, BalanceStatus::Free),
+				Ok(0)
+			);
+
+			assert_eq!(Currencies::free_balance(ADOT, &bob), bob_before + AMOUNT);
+			assert_eq!(Currencies::reserved_balance_named(&RID, ADOT, &alice), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), 0);
+		});
+	}
+
+	#[test]
+	fn repatriate_reserved_named_should_not_move_the_atoken_when_status_is_reserved() {
+		with_indebted_atoken_owner(|| {
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+
+			assert_ok!(Currencies::reserve_named(&RID, ADOT, &alice, AMOUNT));
+			let bob_before = Currencies::free_balance(ADOT, &bob);
+
+			assert_eq!(
+				Currencies::repatriate_reserved_named(&RID, ADOT, &alice, &bob, AMOUNT, BalanceStatus::Reserved),
+				Ok(0)
+			);
+
+			assert_eq!(Currencies::reserved_balance_named(&RID, ADOT, &bob), AMOUNT);
+			assert_eq!(Currencies::reserved_balance_named(&RID, ADOT, &alice), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &bob), bob_before);
+			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), AMOUNT);
+		});
+	}
+}
+
+/// ICE settlement of an aToken intent. The input must reach the holding pot without ever touching
+/// the owner's account: the owner is the one party aave prices, and an indebted owner's transfer
+/// grows with every reserve they touch.
+mod ice_settlement_atoken {
+	use super::repatriate_reserved_named_atoken::{atoken_transfer_gas, reserve_account, with_indebted_atoken_owner};
+	use super::*;
+	use frame_support::traits::Time;
+	use hydradx_runtime::Timestamp;
+	use ice_support::{IntentData, Partial, PoolTrade, ResolvedIntent, Solution, SwapData, SwapType};
+	use orml_traits::NamedMultiReservableCurrency;
+	use pallet_intent::NAMED_RESERVE_ID;
+
+	const AMOUNT_IN: Balance = BAG / 10;
+	/// Aave withdraws 1:1, so the slack only has to cover index rounding.
+	const MIN_OUT: Balance = AMOUNT_IN - 200;
+	const PAID_OUT: Balance = AMOUNT_IN - 100;
+
+	fn pot() -> AccountId {
+		pallet_ice::Pallet::<Runtime>::get_pallet_account()
+	}
+
+	fn reserved(asset: AssetId, who: &AccountId) -> Balance {
+		<Currencies as NamedMultiReservableCurrency<AccountId>>::reserved_balance_named(&NAMED_RESERVE_ID, asset, who)
+	}
+
+	/// Returns the id the pallet generated - it embeds the submission timestamp, so it is never 0.
+	fn submit_atoken_intent(who: &AccountId) -> u128 {
+		assert_ok!(hydradx_runtime::Intent::submit_intent(
+			RuntimeOrigin::signed(who.clone()),
+			pallet_intent::types::IntentInput {
+				data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+					asset_in: ADOT,
+					asset_out: DOT,
+					amount_in: AMOUNT_IN,
+					amount_out: MIN_OUT,
+					partial: false,
+				}),
+				deadline: Some(Timestamp::now() + 600_000),
+				on_resolved: None,
+			}
+		));
+
+		pallet_intent::AccountIntents::<Runtime>::iter_key_prefix(who)
+			.next()
+			.expect("intent to be stored")
+	}
+
+	fn solution_for(id: u128) -> Solution {
+		Solution::new(
+			vec![ResolvedIntent {
+				id,
+				data: IntentData::Swap(SwapData {
+					asset_in: ADOT,
+					asset_out: DOT,
+					amount_in: AMOUNT_IN,
+					amount_out: PAID_OUT,
+					partial: Partial::No,
+				}),
+			}]
+			.try_into()
+			.unwrap(),
+			vec![PoolTrade {
+				direction: SwapType::ExactIn,
+				amount_in: AMOUNT_IN,
+				amount_out: MIN_OUT,
+				route: vec![Trade {
+					pool: Aave,
+					asset_in: ADOT,
+					asset_out: DOT,
+				}]
+				.try_into()
+				.unwrap(),
+			}]
+			.try_into()
+			.unwrap(),
+			PAID_OUT - MIN_OUT,
+		)
+	}
+
+	#[test]
+	fn submit_solution_should_settle_atoken_intent_when_owner_has_aave_debt() {
+		with_indebted_atoken_owner(|| {
+			let alice: AccountId = ALICE.into();
+			let id = submit_atoken_intent(&alice);
+
+			// `reserve_named` already took the aTokens out of her position.
+			assert_eq!(reserved(ADOT, &alice), AMOUNT_IN);
+			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), AMOUNT_IN);
+			let alice_adot = Currencies::free_balance(ADOT, &alice);
+			let alice_dot = Currencies::free_balance(DOT, &alice);
+
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution_for(id)
+			));
+
+			assert_eq!(Currencies::free_balance(DOT, &alice), alice_dot + PAID_OUT);
+			// The settlement never put the input back into her position.
+			assert_eq!(Currencies::free_balance(ADOT, &alice), alice_adot);
+			assert_eq!(reserved(ADOT, &alice), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), 0);
+			assert_eq!(Currencies::free_balance(ADOT, &pot()), 0);
+			// The pool paid 2 units over the aToken face value (aave's scaled-balance rounding),
+			// and everything the intent did not claim stays in the pot.
+			assert_eq!(Currencies::free_balance(DOT, &pot()), AMOUNT_IN - PAID_OUT + 2);
+			assert!(pallet_intent::Pallet::<Runtime>::get_intent(id).is_none());
+		});
+	}
+
+	/// The number the whole change exists for: the settlement transfer is sent by the reserve
+	/// account, whose cost does not move when the owner's aave footprint does.
+	#[test]
+	fn settlement_transfer_should_cost_the_reserve_account_path_when_owner_is_indebted() {
+		with_indebted_atoken_owner(|| {
+			let alice: AccountId = ALICE.into();
+			submit_atoken_intent(&alice);
+
+			let reserve_sent = atoken_transfer_gas(&reserve_account(), &pot(), AMOUNT_IN);
+			let owner_sent = atoken_transfer_gas(&alice, &pot(), AMOUNT_IN);
+
+			println!("reserve_sent {reserve_sent}, owner_sent {owner_sent}");
+
+			// Both snapshot-bound. The gap is aave's solvency walk over ALICE's reserves, and it
+			// is what settlement used to pay for every intent - here with a single borrowed
+			// reserve, which is the smallest walk there is.
+			assert_eq!(reserve_sent, 141_490);
+			assert_eq!(owner_sent, 208_156);
+		});
+	}
+}
