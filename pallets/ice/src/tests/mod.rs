@@ -1,6 +1,8 @@
 mod matched_fee;
 mod mock;
 mod ocw;
+mod routing;
+mod settlement_transfers;
 mod solver_input;
 mod solver_mode;
 mod submit_solution;

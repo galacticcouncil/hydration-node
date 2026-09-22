@@ -40,13 +40,28 @@ use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::OriginFor;
 use sp_core::H160;
 
+/// EVM gas limits the Aave trade executor caps its calls with.
+///
+/// Each field is the ceiling of one call shape, not a charge: unused gas costs
+/// nothing, but `trade` and `view` also size the router's declared weight.
+#[derive(Clone, Copy, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct AaveGasLimits {
+	pub trade: u64,
+	pub view: u64,
+	/// `getReservesList()` walks every reserve, so its cost grows with the market.
+	pub reserves_list: u64,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::BlockNumberFor;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {}
+	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
+		/// Origin allowed to change parameters.
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -57,6 +72,8 @@ pub mod pallet {
 			swap_router: H160,
 			quoter: H160,
 		},
+		/// The Aave trade executor gas limits were set, or cleared back to the built-in defaults.
+		AaveGasLimitsSet { limits: Option<AaveGasLimits> },
 	}
 
 	#[pallet::pallet]
@@ -79,6 +96,10 @@ pub mod pallet {
 	#[pallet::getter(fn two_sec_blocks_since)]
 	/// Block number at which the runtime switched from 6-second to 2-second blocks.
 	pub type TwoSecBlocksSince<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery, DefaultTwoSecBlocksSince<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn aave_gas_limits)]
+	pub type AaveGasLimitsOverride<T> = StorageValue<_, AaveGasLimits, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn uniswap_v3_factory)]
@@ -156,6 +177,29 @@ pub mod pallet {
 				swap_router,
 				quoter,
 			});
+			Ok(())
+		}
+
+		/// Override the EVM gas limits the Aave trade executor caps its calls with.
+		///
+		/// `None` restores the built-in defaults. The limits are ceilings, but `trade`
+		/// and `view` also feed the router's declared weight for every Aave trade, so a
+		/// value large enough to exceed the block weight limit makes those trades
+		/// unincludable rather than failing loudly.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		/// - `limits`: The gas limits to apply, or `None` to fall back to the defaults
+		///
+		/// Emits `AaveGasLimitsSet` event when successful.
+		///
+		#[pallet::call_index(1)]
+		#[pallet::weight(T::DbWeight::get().writes(1))]
+		pub fn set_aave_gas_limits(origin: OriginFor<T>, limits: Option<AaveGasLimits>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			AaveGasLimitsOverride::<T>::set(limits);
+
+			Self::deposit_event(Event::AaveGasLimitsSet { limits });
 			Ok(())
 		}
 	}
