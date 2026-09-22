@@ -41,7 +41,7 @@ impl Tradability {
 	}
 }
 
-#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct AssetState<Balance> {
 	/// Quantity of Hub Asset matching this asset
 	pub(super) hub_reserve: Balance,
@@ -88,7 +88,7 @@ where
 }
 
 /// Position in Omnipool represents a moment when LP provided liquidity of an asset at that moment’s price.
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {
 	/// Provided Asset
 	pub asset_id: AssetId,

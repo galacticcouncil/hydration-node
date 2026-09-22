@@ -8,7 +8,6 @@ use ethabi::ParamType;
 use evm::ExitReason;
 use evm::ExitSucceed;
 use frame_support::ensure;
-use frame_support::pallet_prelude::RuntimeDebug;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
 use hydradx_traits::evm::CallContext;
@@ -58,7 +57,7 @@ pub enum Function {
 	BalanceOf = "balanceOf(address)",
 }
 
-#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 pub struct ReserveData {
 	pub configuration: U256,
 	pub liquidity_index: U256,
@@ -190,7 +189,7 @@ impl ReserveData {
 	}
 }
 
-#[derive(Clone, Encode, Decode, RuntimeDebug, Eq, PartialEq)]
+#[derive(Clone, Encode, Decode, Debug, Eq, PartialEq)]
 pub struct Snapshot {
 	/// Map of aave reserves
 	pub reserves: BTreeMap<AssetId, ReserveData>,

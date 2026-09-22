@@ -26,7 +26,7 @@ pub use crate::types::{Amount, AssetId, AssetPair, Balance};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::sp_runtime::{
 	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Zero},
-	DispatchError, RuntimeDebug,
+	DispatchError,
 };
 use frame_support::{
 	dispatch::DispatchResult,
@@ -76,7 +76,7 @@ type PoolId<T> = <T as frame_system::Config>::AccountId;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(
-	Default, RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen,
+	Default, Debug, Encode, Decode, DecodeWithMemTracking, Copy, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen,
 )]
 pub enum WeightCurveType {
 	#[default]
@@ -93,7 +93,7 @@ pub const MAX_SALE_DURATION: u32 = (60 * 60 * 24 / 6) * 14;
 pub const COLLECTOR_LOCK_ID: LockIdentifier = *b"lbpcllct";
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct Pool<AccountId, BlockNumber: AtLeast32BitUnsigned + Copy> {
 	/// owner of the pool after `CreatePoolOrigin` creates it
 	pub owner: AccountId,

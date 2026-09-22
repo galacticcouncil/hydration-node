@@ -313,7 +313,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v8::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::v9::AccountId>::into_account_truncating(&id);
 
 				let state_version = Cli::runtime_version().state_version();
 

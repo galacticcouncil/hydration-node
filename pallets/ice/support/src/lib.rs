@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::{ConstU32, Get, RuntimeDebug, TypeInfo};
+use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
 use frame_support::sp_runtime::{DispatchError, Permill};
 use frame_support::BoundedVec;
@@ -55,7 +55,7 @@ pub struct Intent {
 /// Under `Passthrough` the claimed `Solution` amounts and `score` are advisory —
 /// the binding limits are re-derived from stored intent state at execution.
 #[derive(
-	Clone, Copy, Default, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo,
+	Clone, Copy, Default, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo,
 )]
 pub enum SolverMode {
 	#[default]
@@ -77,7 +77,7 @@ pub enum SolverMode {
 /// venues are normally populated. `MAX_ROUTING_BATCH` is a per-key bound, not a
 /// total: a venue with more entries than one key holds takes another key, and the
 /// solver reads the union.
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub enum RoutingTarget {
 	/// One asset inside the Omnipool. Excluding it removes every Omnipool edge
 	/// touching that asset, so the solver routes around it.
@@ -141,13 +141,13 @@ impl RoutingTarget {
 }
 
 /// Whether the solver may use a target.
-#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub enum RoutingState {
 	Included,
 	Excluded,
 }
 
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub enum IntentData {
 	Swap(SwapData),
 	Dca(DcaData),
@@ -155,7 +155,7 @@ pub enum IntentData {
 
 /// User-facing intent data for extrinsic submission.
 /// Uses SwapParams/DcaParams instead of SwapData/DcaData to avoid exposing internal state.
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub enum IntentDataInput {
 	Swap(SwapParams),
 	Dca(DcaParams),
@@ -243,7 +243,7 @@ impl IntentData {
 }
 
 /// Whether an intent supports partial fills.
-#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Copy, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub enum Partial {
 	/// All-or-nothing: intent must be fully resolved or not at all.
 	No,
@@ -278,7 +278,7 @@ impl From<bool> for Partial {
 }
 
 /// User-facing swap parameters for intent submission.
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct SwapParams {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
@@ -290,7 +290,7 @@ pub struct SwapParams {
 /// Stored swap data with partial fill tracking.
 /// Original `amount_in` and `amount_out` are immutable — minimum rate is
 /// always derived from their ratio.
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct SwapData {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
@@ -321,7 +321,7 @@ impl From<&SwapParams> for SwapData {
 /// User-facing DCA parameters for intent submission.
 /// Does not include internal state fields (remaining_budget, last_execution_block)
 /// which are initialized by the pallet.
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct DcaParams {
 	/// Asset being sold per trade
 	pub asset_in: AssetId,
@@ -365,7 +365,7 @@ pub trait IntentMigrator<AccountId> {
 	fn add_migrated_intent(owner: AccountId, params: DcaParams) -> Result<IntentId, DispatchError>;
 }
 
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct DcaData {
 	/// Asset being sold per trade
 	pub asset_in: AssetId,
@@ -414,7 +414,7 @@ impl DcaData {
 	Decode,
 	Eq,
 	PartialEq,
-	RuntimeDebug,
+	Debug,
 	MaxEncodedLen,
 	TypeInfo,
 	PartialOrd,

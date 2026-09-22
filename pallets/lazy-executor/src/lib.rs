@@ -24,7 +24,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use evm::ExitReason;
 use frame_support::{
 	dispatch::{DispatchClass, DispatchInfo, GetDispatchInfo, Pays, PostDispatchInfo},
-	pallet_prelude::{RuntimeDebug, TypeInfo},
+	pallet_prelude::TypeInfo,
 	storage::{with_transaction, TransactionOutcome},
 	traits::{ExistenceRequirement::AllowDeath, Get},
 	transactional,
@@ -59,7 +59,7 @@ pub type CallId = u128;
 type BalanceOf<T> = <<T as pallet_transaction_payment::Config>::OnChargeTransaction as OnChargeTransaction<T>>::Balance;
 
 /// A queued forward together with the owner whose funds back it.
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct StoredForward<AccountId> {
 	pub owner: AccountId,
 	pub action: ForwardAction,
@@ -75,7 +75,7 @@ pub(crate) const OCW_TAG_PREFIX: &str = "lazy-executor-dispatch-top";
 
 /// ABI selectors of the receiver interface invoked on a forward.
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	Execute = "execute(address,uint256,address,uint256,address,uint256,bytes)",
