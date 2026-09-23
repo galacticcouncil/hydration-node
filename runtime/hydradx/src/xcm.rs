@@ -27,10 +27,7 @@ use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v5::{prelude::*, InstructionError, InteriorLocation, Location, Weight as XcmWeight};
 use scale_info::TypeInfo;
-use sp_runtime::{
-	traits::{MaybeEquivalence, Zero},
-	Perbill,
-};
+use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AliasChildLocation, AliasOriginRootUsingFilter, AllowKnownQueryResponses,
 	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,
@@ -485,9 +482,12 @@ where
 		let result = MessageProcessor::process_message(message, origin, meter, id);
 
 		if let Some((withdrawn, deposited)) = pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::take() {
-			let net = withdrawn.saturating_sub(deposited);
-			if !net.is_zero() {
-				let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(net);
+			// Inbound reserve transfers have withdrawn == 0; they must offset earlier egress,
+			// not be dropped by a saturating subtraction.
+			if withdrawn > deposited {
+				let _ = pallet_circuit_breaker::Pallet::<Runtime>::note_egress(withdrawn.saturating_sub(deposited));
+			} else if deposited > withdrawn {
+				pallet_circuit_breaker::Pallet::<Runtime>::note_deposit(deposited.saturating_sub(withdrawn));
 			}
 		}
 		result
