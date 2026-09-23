@@ -463,6 +463,14 @@ impl pallet_message_queue::Config for Runtime {
 }
 
 pub struct ProcessXcmWithBreaker<MessageOrigin, MessageProcessor>(PhantomData<(MessageOrigin, MessageProcessor)>);
+
+fn process_xcm_with_breaker_weight() -> Weight {
+	// Worst-case settlement performs eight reads and four writes. The fixed component covers
+	// the comparison and accumulator arithmetic; the proof size covers all five storage keys.
+	Weight::from_parts(10_000_000, 4096)
+		.saturating_add(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(8, 4))
+}
+
 impl<MessageOrigin, MessageProcessor> frame_support::traits::ProcessMessage
 	for ProcessXcmWithBreaker<MessageOrigin, MessageProcessor>
 where
@@ -477,6 +485,11 @@ where
 		meter: &mut frame_support::weights::WeightMeter,
 		id: &mut [u8; 32],
 	) -> Result<bool, frame_support::traits::ProcessMessageError> {
+		let overhead = process_xcm_with_breaker_weight();
+		meter
+			.try_consume(overhead)
+			.map_err(|_| frame_support::traits::ProcessMessageError::Overweight(overhead))?;
+
 		pallet_circuit_breaker::XcmEgressBuffer::<Runtime>::put((0u128, 0u128));
 
 		let result = MessageProcessor::process_message(message, origin, meter, id);
@@ -490,7 +503,12 @@ where
 				pallet_circuit_breaker::Pallet::<Runtime>::note_deposit(deposited.saturating_sub(withdrawn));
 			}
 		}
-		result
+		result.map_err(|error| match error {
+			frame_support::traits::ProcessMessageError::Overweight(required) => {
+				frame_support::traits::ProcessMessageError::Overweight(required.saturating_add(overhead))
+			}
+			other => other,
+		})
 	}
 }
 
