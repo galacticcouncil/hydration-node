@@ -609,8 +609,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Function returns valid intents.
 	///
-	/// DCA intents are included only when their period has elapsed, budget is sufficient,
-	/// and oracle price indicates the trade is feasible (pre-filter).
+	/// DCA intents are included only when their period has elapsed and budget is sufficient.
 	/// They are transformed into `IntentData::Swap` with the hard limit as `amount_out`,
 	/// so the solver treats them as regular one-shot swaps.
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
@@ -662,20 +661,9 @@ impl<T: Config> Pallet<T> {
 								LOG_PREFIX, id, dca.remaining_budget, dca.amount_in);
 							return None;
 						}
-						// Oracle pre-filter. The floor computed here is exactly what
-						// `validate_dca_intent_resolve` enforces, so it is handed to the
-						// solver rather than discarded — otherwise the solver optimises
-						// against the hard limit and the chain rejects the whole solution.
-						let mut floor = None;
-						if let Some(oracle_min) = Self::compute_dca_oracle_limit(dca) {
-							if oracle_min > 0 && dca.amount_out > oracle_min {
-								log::debug!(target: OCW_LOG_TARGET, "{:?}: solver_intents(), DCA intent {:?} skipped: oracle pre-filter (hard_limit: {} > oracle_min: {} for {} -> {})",
-									LOG_PREFIX, id, dca.amount_out, oracle_min, dca.asset_in, dca.asset_out);
-								return None;
-							}
-							// Mirrors `compute_dca_effective_limit` without a second oracle read.
-							floor = Some(cmp::max(oracle_min, dca.amount_out));
-						}
+						// Handed to the solver as an admission floor, not used to filter here: a hard
+						// limit above `oracle_min` is still settleable when the market clears it.
+						let floor = Self::compute_dca_oracle_limit(dca).map(|oracle_min| cmp::max(oracle_min, dca.amount_out));
 						// Transform to Swap with hard limit for solver
 						let swap = dca.to_swap_data(dca.amount_out);
 						let transformed = Intent {

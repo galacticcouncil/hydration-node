@@ -11,6 +11,9 @@ use hydradx_traits::router::Route;
 use sp_core::H160;
 use sp_core::U256;
 
+// TEMPORARY — remove with the module once the runtime pre-filter fix is live.
+pub mod readmit;
+
 pub type AssetId = u32;
 pub type Balance = u128;
 pub type BlockNumber = u32;
