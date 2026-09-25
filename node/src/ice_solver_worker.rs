@@ -21,7 +21,7 @@ use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use ice_solver::{passthrough, v4, IceSolver};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
 use primitives::{AssetId, Balance};
-use sc_client_api::BlockchainEvents;
+use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_network_sync::SyncingService;
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::TransactionPool;
@@ -168,12 +168,37 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 	Some((opaque, decode_ms, solve_ms))
 }
 
-pub struct IceSolverTask<B, C, P>(PhantomData<(B, C, P)>);
-
-impl<B, C, P> IceSolverTask<B, C, P>
+// TEMPORARY — delete with `ice_support::readmit` once the runtime pre-filter fix is live.
+fn readmit_withheld_dcas<B, BE, C>(client: &C, hash: B::Hash, block_no: u32, input: &mut SolverInput) -> usize
 where
 	B: BlockT,
-	C: ProvideRuntimeApi<B> + BlockchainEvents<B> + HeaderBackend<B> + Send + Sync + 'static,
+	BE: Backend<B>,
+	C: StorageProvider<B, BE>,
+{
+	let prefix = StorageKey([sp_core::twox_128(b"Intent"), sp_core::twox_128(b"Intents")].concat());
+	let pairs = match client.storage_pairs(hash, Some(&prefix), None) {
+		Ok(pairs) => pairs,
+		Err(e) => {
+			tracing::error!(target: LOG_TARGET, "reading Intent::Intents failed at block {block_no}: {e:?}");
+			return 0;
+		}
+	};
+	// The key ends in the `Blake2_128Concat` id; `data` is the stored `Intent`'s first field.
+	let stored = pairs.filter_map(|(key, value)| {
+		let id = ice_support::IntentId::decode(&mut &key.0[key.0.len().checked_sub(16)?..]).ok()?;
+		let data = ice_support::IntentData::decode(&mut &value.0[..]).ok()?;
+		Some((id, data))
+	});
+	ice_support::readmit::readmit_withheld_dcas(&mut input.intents, &input.existential_deposits, stored, block_no)
+}
+
+pub struct IceSolverTask<B, C, P, BE>(PhantomData<(B, C, P, BE)>);
+
+impl<B, C, P, BE> IceSolverTask<B, C, P, BE>
+where
+	B: BlockT,
+	C: ProvideRuntimeApi<B> + BlockchainEvents<B> + HeaderBackend<B> + StorageProvider<B, BE> + Send + Sync + 'static,
+	BE: Backend<B> + 'static,
 	C::Api: IceSolverApi<B>,
 	P: TransactionPool<Block = B> + 'static,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
@@ -238,7 +263,13 @@ where
 						return;
 					}
 					match api.solver_input(hash) {
-						Ok(Some(input)) => input,
+						Ok(Some(mut input)) => {
+							let readmitted = readmit_withheld_dcas(&*client, hash, block_no, &mut input);
+							if readmitted > 0 {
+								tracing::info!(target: LOG_TARGET, "re-admitted {readmitted} withheld DCA intent(s) at block {block_no}");
+							}
+							input
+						}
 						Ok(None) => return, // idle block, no valid intents
 						Err(e) => {
 							tracing::error!(target: LOG_TARGET, "solver_input failed at block {block_no}: {e:?}");
