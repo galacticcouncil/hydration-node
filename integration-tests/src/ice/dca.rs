@@ -2071,3 +2071,121 @@ fn submit_intent_should_fail_when_dca_slippage_exceeds_the_runtime_cap() {
 			assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);
 		});
 }
+
+/// Mirrors mainnet intent 33022831560945506806898098176165: 3% slippage with a hard
+/// limit 1.4% under the oracle estimate. Settlement enforces `max(hard_limit, oracle_min)`
+/// and the market clears the hard limit, but runtimes up to spec 447 withhold the DCA
+/// from `solver_input` because its hard limit exceeds `oracle_min`.
+///
+/// Follows the node path: `solver_input` → `readmit_withheld_dcas` → solve on the
+/// decoded snapshot → `validate_unsigned` → `submit_solution`. BOB's above-market swap
+/// stands in for mainnet's dormant swaps: without an admitted intent `solver_input`
+/// returns no snapshot and the node has nothing to solve on.
+#[test]
+fn dca_should_resolve_when_hard_limit_is_between_oracle_floor_and_market() {
+	use codec::Decode;
+	use frame_support::pallet_prelude::{TransactionSource, ValidateUnsigned};
+	use hydradx_traits::price::PriceProvider;
+	use hydradx_traits::router::{AssetPair, RouteProvider, RouterT};
+
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let bob: AccountId = BOB.into();
+	let budget = 3 * TRADE_AMOUNT;
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), HDX, budget * 10)
+		.endow_account(bob.clone(), HDX, TRADE_AMOUNT * 10)
+		.submit_swap_intent(bob, HDX, BNC, TRADE_AMOUNT, 100 * MIN_OUT_BNC, None)
+		.execute(|| {
+			enable_slip_fees();
+
+			let oracle =
+				<Runtime as pallet_intent::Config>::OraclePriceProvider::get_price(HDX, BNC).expect("oracle price");
+			let oracle_estimate =
+				<sp_runtime::FixedU128 as sp_runtime::FixedPointNumber>::checked_from_rational(oracle.d, oracle.n)
+					.and_then(|p| sp_runtime::FixedPointNumber::checked_mul_int(p, TRADE_AMOUNT))
+					.expect("oracle estimate");
+			let oracle_min = oracle_estimate - Permill::from_percent(3).mul_floor(oracle_estimate);
+			let hard_limit = oracle_estimate - Permill::from_rational(14u32, 1000u32).mul_floor(oracle_estimate);
+
+			let route = hydradx_runtime::Router::get_route(AssetPair::new(HDX, BNC));
+			let market_out = hydradx_runtime::Router::calculate_sell_trade_amounts(&route, TRADE_AMOUNT)
+				.expect("quote")
+				.last()
+				.expect("non-empty route")
+				.amount_out;
+
+			assert_eq!(oracle_min, 656_128_457_968);
+			assert_eq!(hard_limit, 666_951_195_419);
+			assert_eq!(market_out, 674_393_147_996);
+
+			assert_ok!(hydradx_runtime::Intent::submit_intent(
+				RuntimeOrigin::signed(alice.clone()),
+				pallet_intent::types::IntentInput {
+					data: ice_support::IntentDataInput::Dca(ice_support::DcaParams {
+						asset_in: HDX,
+						asset_out: BNC,
+						amount_in: TRADE_AMOUNT,
+						amount_out: hard_limit,
+						slippage: Permill::from_percent(3),
+						budget: Some(budget),
+						period: PERIOD,
+					}),
+					deadline: None,
+					on_resolved: None,
+				}
+			));
+			let dca_id = pallet_intent::AccountIntents::<Runtime>::iter_prefix(&alice)
+				.next()
+				.expect("DCA stored")
+				.0;
+
+			for _ in 0..PERIOD {
+				hydradx_run_to_next_block();
+			}
+
+			let block = hydradx_runtime::System::block_number();
+			let (mut intents, encoded_state, eds, min_outs, fee, _mode) =
+				pallet_ice::Pallet::<Runtime>::solver_input().expect("BOB's swap keeps the input non-empty");
+			ice_support::readmit::readmit_withheld_dcas(
+				&mut intents,
+				&eds,
+				pallet_intent::Intents::<Runtime>::iter().map(|(id, intent)| (id, intent.data)),
+				block,
+			);
+			assert!(
+				intents.iter().any(|i| i.id == dca_id),
+				"DCA {dca_id} not offered to the solver"
+			);
+
+			let state: CombinedSimulatorState = Decode::decode(&mut &encoded_state[..]).expect("snapshot decodes");
+			let mut solution = Solver::solve_with_limits(intents, min_outs.into_iter().collect(), state, fee)
+				.expect("solver should produce a solution");
+			solution.built_at = block;
+			assert_eq!(solution.resolved_intents.len(), 1);
+			assert_eq!(solution.resolved_intents[0].id, dca_id);
+
+			let call = pallet_ice::Call::submit_solution {
+				solution: solution.clone(),
+			};
+			assert_ok!(pallet_ice::Pallet::<Runtime>::validate_unsigned(
+				TransactionSource::Local,
+				&call
+			));
+
+			hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution
+			));
+
+			let ice_support::IntentData::Dca(dca) = pallet_intent::Intents::<Runtime>::get(dca_id)
+				.expect("DCA still active")
+				.data
+			else {
+				panic!("expected Dca");
+			};
+			assert_eq!(dca.remaining_budget, budget - TRADE_AMOUNT);
+		});
+}
