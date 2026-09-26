@@ -28,9 +28,9 @@ pub const PATH_TO_SNAPSHOT: &str = "snapshots/ice/SNAPSHOT_uni";
 /// on the source chain bakes the real addresses into the snapshot, which is the
 /// preferred path — it keeps the addresses and the EVM state that backs them in
 /// lockstep. These constants exist for a snapshot taken before that call.
-const UNISWAP_V3_FACTORY: EvmAddress = H160(hex!("A7E6615794613Eb652d3E6e5D93ad4582eE88c07"));
-const UNISWAP_V3_SWAP_ROUTER: EvmAddress = H160(hex!("424eD53e987cbaB5BfdA0dbefa7c937482AaE184"));
-const UNISWAP_V3_QUOTER: EvmAddress = H160(hex!("e26B29a77E0d73c2E9eFC247a3DF201A88B6D5eA"));
+pub(crate) const UNISWAP_V3_FACTORY: EvmAddress = H160(hex!("A7E6615794613Eb652d3E6e5D93ad4582eE88c07"));
+pub(crate) const UNISWAP_V3_SWAP_ROUTER: EvmAddress = H160(hex!("424eD53e987cbaB5BfdA0dbefa7c937482AaE184"));
+pub(crate) const UNISWAP_V3_QUOTER: EvmAddress = H160(hex!("e26B29a77E0d73c2E9eFC247a3DF201A88B6D5eA"));
 
 /// aDOT / HOLLAR, the only Uniswap v3 pool deployed on mainnet.
 /// Both are `Erc20`-kind assets, so they cannot be minted — see `fund_alice`.
@@ -152,7 +152,7 @@ fn fund_alice() {
 		assert_ok!(Dispatcher::dispatch_with_extra_gas(
 			RuntimeOrigin::signed(treasury.clone()),
 			Box::new(RuntimeCall::Currencies(pallet_currencies::Call::transfer {
-				dest: AccountId::from(ALICE).into(),
+				dest: AccountId::from(ALICE),
 				currency_id: asset,
 				amount,
 			})),
@@ -422,7 +422,7 @@ fn trade_weight_should_cover_the_whole_buy_path() {
 
 use hydradx_runtime::evm::uniswap_v3_trade_executor::evm_token_address;
 use hydradx_runtime::HydrationSimulators;
-use hydradx_traits::amm::SimulatorSet;
+use hydradx_traits::amm::{AMMInterface, SimulatorSet};
 use ice_support::RoutingState;
 use ice_support::RoutingTarget;
 
@@ -693,7 +693,52 @@ fn probe_uniswap_snapshot() {
 				meta.map(|m| (m.decimals, m.asset_type)),
 			);
 		}
+
+		// Every discovered route's quote per size, and what the split search makes
+		// of the pair — whether the pool prices the first chunk better than the
+		// Omnipool prices the last.
+		let state = <HydrationSimulators as SimulatorSet>::initial_state();
+		let adot = 10_000_000_000u128;
+		let hollar = 1_000_000_000_000_000_000u128;
+		for (asset_in, asset_out, unit, sizes) in [
+			(ASSET_IN, ASSET_OUT, adot, [1u128, 10, 41, 60, 100, 300]),
+			(ASSET_OUT, ASSET_IN, hollar, [1u128, 100, 1_000, 2_660, 4_500, 10_000]),
+		] {
+			let routes = SplitProbe::discover_routes(asset_in, asset_out, &state).unwrap_or_default();
+			for size in sizes {
+				let amount = size * unit;
+				for route in &routes {
+					let out =
+						SplitProbe::sell(asset_in, asset_out, amount, route.clone(), &state).map(|(_, e)| e.amount_out);
+					println!("{asset_in}->{asset_out} {size}: {:?} -> {out:?}", pools(route));
+				}
+				let split = ice_solver::common::RouteCache::<SplitProbe>::new().best_split_sell(
+					asset_in,
+					asset_out,
+					amount,
+					&state,
+					2,
+					ice_solver::common::split::SPLIT_GRID,
+					&mut ice_solver::common::split::SellBudget::new(10_000),
+				);
+				let legs: Vec<_> = split
+					.map(|r| {
+						r.legs
+							.iter()
+							.map(|l| (pools(&l.route), l.amount_in, l.amount_out))
+							.collect()
+					})
+					.unwrap_or_default();
+				println!("  split: {legs:?}");
+			}
+		}
 	});
+}
+
+type SplitProbe = crate::ice::harness::TestSimulator;
+
+fn pools(route: &hydradx_traits::router::Route<AssetId>) -> Vec<PoolType<AssetId>> {
+	route.iter().map(|t| t.pool).collect()
 }
 
 /// End to end: an intent on the pool's pair is solved and settled on chain.
@@ -764,6 +809,137 @@ fn intent_should_resolve_and_settle_when_solution_routes_through_uniswap_v3() {
 	});
 }
 
+/// 10 000 HOLLAR: at this size the Omnipool's price for the last HOLLAR has
+/// fallen below what the pool pays for the first, so on this snapshot the
+/// solver splits the sale — about a quarter through the pool, capped below its
+/// sampled curve, the rest through the Omnipool.
+const SPLIT_SALE: Balance = 10_000 * 1_000_000_000_000_000_000;
+
+fn submit_intent(asset_in: AssetId, asset_out: AssetId, amount_in: Balance, amount_out: Balance) {
+	assert_ok!(hydradx_runtime::Intent::submit_intent(
+		RuntimeOrigin::signed(AccountId::from(ALICE)),
+		pallet_intent::types::IntentInput {
+			data: ice_support::IntentDataInput::Swap(ice_support::SwapParams {
+				asset_in,
+				asset_out,
+				amount_in,
+				amount_out,
+				partial: false,
+			}),
+			deadline: Some(<hydradx_runtime::Timestamp as frame_support::traits::Time>::now() + 600_000),
+			on_resolved: None,
+		}
+	));
+}
+
+type TradeShape = (Vec<PoolType<AssetId>>, Balance, Balance);
+
+fn trade_shapes(solution: &ice_support::Solution) -> Vec<TradeShape> {
+	solution
+		.trades
+		.iter()
+		.map(|t| (pools(&t.route), t.amount_in, t.amount_out))
+		.collect()
+}
+
+fn paid_out(solution: &ice_support::Solution) -> Balance {
+	solution.resolved_intents[0].data.amount_out()
+}
+
+/// The split of [`SPLIT_SALE`]: the pool's leg is its sampled curve (2 660
+/// HOLLAR) backed off by 1/16, the rest goes through the Omnipool.
+fn split_sale_trades() -> Vec<TradeShape> {
+	vec![
+		(
+			vec![PoolType::Omnipool],
+			7_509_765_624_999_999_999_998,
+			72_530_277_595_417,
+		),
+		(
+			vec![PoolType::UniswapV3(FEE_TIER)],
+			2_490_234_375_000_000_000_000,
+			24_147_885_566_400,
+		),
+	]
+}
+
+#[test]
+fn intent_should_settle_through_omnipool_and_uniswap_v3_when_amount_exceeds_v3_capacity() {
+	with_uniswap_v3(|| {
+		register_pool();
+		fund_alice_from_treasury(ASSET_OUT, SPLIT_SALE);
+		submit_intent(ASSET_OUT, ASSET_IN, SPLIT_SALE, 90_000_000_000_000);
+
+		let single = crate::ice::harness::solve_as::<crate::ice::harness::V4NoSplit>()
+			.expect("the Omnipool alone clears the limit");
+		let before = Currencies::free_balance(ASSET_IN, &AccountId::from(ALICE));
+		let router_before = router_balances();
+		let solution = crate::ice::harness::run_and_submit_as::<crate::ice::harness::V4Solver>(
+			ice_support::SolverMode::V4,
+			"uniswap_v3_split",
+		);
+		let received = Currencies::free_balance(ASSET_IN, &AccountId::from(ALICE)) - before;
+
+		assert_eq!(
+			trade_shapes(&single),
+			vec![(vec![PoolType::Omnipool], SPLIT_SALE, 96_101_217_529_770)]
+		);
+		assert_eq!(paid_out(&single), 96_101_217_529_770);
+		assert_eq!(trade_shapes(&solution), split_sale_trades());
+		assert_eq!(paid_out(&solution), 96_678_163_161_817);
+		assert_eq!(solution.score, 6_678_163_161_817);
+		assert_eq!(received, 96_678_163_161_817);
+		assert_eq!(
+			router_balances(),
+			router_before,
+			"the router holds nothing after settlement"
+		);
+	});
+}
+
+#[test]
+fn intent_should_be_admitted_when_only_the_split_clears_its_limit() {
+	with_uniswap_v3(|| {
+		register_pool();
+		fund_alice_from_treasury(ASSET_OUT, SPLIT_SALE);
+		// Between what the Omnipool alone pays (96_101_217_529_770) and what the
+		// split pays (96_678_163_161_817).
+		submit_intent(ASSET_OUT, ASSET_IN, SPLIT_SALE, 96_400_000_000_000);
+
+		let single = crate::ice::harness::solve_as::<crate::ice::harness::V4NoSplit>();
+		let solution = crate::ice::harness::run_and_submit_as::<crate::ice::harness::V4Solver>(
+			ice_support::SolverMode::V4,
+			"uniswap_v3_split_admission",
+		);
+
+		assert!(single.is_none(), "the single route cannot pay the limit");
+		assert_eq!(trade_shapes(&solution), split_sale_trades());
+		assert_eq!(paid_out(&solution), 96_678_163_161_817);
+		assert_eq!(solution.score, 278_163_161_817);
+	});
+}
+
+#[test]
+fn intent_should_stay_on_omnipool_when_uniswap_v3_never_prices_better() {
+	with_uniswap_v3(|| {
+		register_pool();
+		// 60 aDOT is above the pool's capacity, but the Omnipool pays more than the
+		// pool even for the first aDOT, so there is nothing to split off.
+		submit_intent(ASSET_IN, ASSET_OUT, 600_000_000_000, 50_000_000_000_000_000_000);
+
+		let single = crate::ice::harness::solve_as::<crate::ice::harness::V4NoSplit>().expect("resolves");
+		let solution = crate::ice::harness::run_and_submit_as::<crate::ice::harness::V4Solver>(
+			ice_support::SolverMode::V4,
+			"uniswap_v3_no_split",
+		);
+
+		let omnipool_only = vec![(vec![PoolType::Omnipool], 600_000_000_000, 60_803_583_319_537_154_011)];
+		assert_eq!(trade_shapes(&single), omnipool_only);
+		assert_eq!(trade_shapes(&solution), omnipool_only);
+		assert_eq!(paid_out(&solution), 60_803_583_319_537_154_011);
+	});
+}
+
 /// Extra aDOT for tests that need more than the treasury holds, taken from the
 /// Omnipool's own reserve. Sound only because its callers either freeze aDOT in
 /// the Omnipool or never trade the Omnipool at all, so the reserve they borrow
@@ -775,7 +951,7 @@ fn fund_alice_from_omnipool(amount: Balance) {
 	assert_ok!(Dispatcher::dispatch_with_extra_gas(
 		RuntimeOrigin::signed(omnipool),
 		Box::new(RuntimeCall::Currencies(pallet_currencies::Call::transfer {
-			dest: AccountId::from(ALICE).into(),
+			dest: AccountId::from(ALICE),
 			currency_id: ASSET_IN,
 			amount,
 		})),
@@ -935,7 +1111,7 @@ fn fund_alice_from_treasury(asset: AssetId, amount: Balance) {
 	assert_ok!(Dispatcher::dispatch_with_extra_gas(
 		RuntimeOrigin::signed(treasury),
 		Box::new(RuntimeCall::Currencies(pallet_currencies::Call::transfer {
-			dest: AccountId::from(ALICE).into(),
+			dest: AccountId::from(ALICE),
 			currency_id: asset,
 			amount,
 		})),

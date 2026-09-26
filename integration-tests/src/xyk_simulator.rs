@@ -80,7 +80,7 @@ fn with_xyk_pool(execution: impl FnOnce(AssetId)) {
 		assert!(held >= FUND_HOLLAR, "treasury holds {held} HOLLAR, need {FUND_HOLLAR}");
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(treasury),
-			AccountId::from(ALICE).into(),
+			AccountId::from(ALICE),
 			HOLLAR,
 			FUND_HOLLAR,
 		));
