@@ -1165,8 +1165,10 @@ fn dca_through_stableswap_single_hop() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 98373368849516443925, "score");
-			assert_eq!(solution.trades.len(), 1, "trades count");
+			assert_eq!(solution.score, 98490489034185927448, "score");
+			// The first trade left the stableswap pools imbalanced enough that the
+			// second is split across the paths through assets 21 and 23 (+~12 bps).
+			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
 				assert_eq!(r.id, 32752052247409382067756072960000);
@@ -1176,7 +1178,7 @@ fn dca_through_stableswap_single_hop() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 18);
 				assert_eq!(s.amount_in, 100000000u128);
-				assert_eq!(s.amount_out, 99373368849516443925u128);
+				assert_eq!(s.amount_out, 99490489034185927448u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution

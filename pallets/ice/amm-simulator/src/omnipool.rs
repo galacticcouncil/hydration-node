@@ -4,6 +4,7 @@ use codec::Decode;
 use codec::Encode;
 use core::marker::PhantomData;
 use hydra_dx_math::omnipool::types::SignedBalance;
+use hydra_dx_math::omnipool::types::TradeFee;
 use hydra_dx_math::omnipool::types::TradeSlipFees;
 use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
@@ -19,6 +20,7 @@ use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::SlipFeeConfig;
 use pallet_omnipool::types::Tradability;
 use primitive_types::U256;
+use primitives::constants::chain::CORE_ASSET_ID;
 use sp_runtime::traits::Zero;
 use sp_runtime::Permill;
 use sp_std::collections::btree_map::BTreeMap;
@@ -96,6 +98,17 @@ impl OmnipoolSnapshot {
 
 	pub fn with_slip_delta(mut self, asset_id: AssetId, delta: SignedBalance) -> Self {
 		self.slip_fee_delta.insert(asset_id, delta);
+		self
+	}
+
+	/// `pallet_omnipool::process_protocol_fee`: the unburned protocol fee, slip fee
+	/// included, is added to HDX's hub reserve after every trade.
+	fn with_protocol_fee(mut self, fee: &TradeFee<Balance>) -> Self {
+		if let Some(hdx) = self.assets.get_mut(&CORE_ASSET_ID) {
+			hdx.hub_reserve = hdx
+				.hub_reserve
+				.saturating_add(fee.protocol_fee.saturating_sub(fee.burned_protocol_fee));
+		}
 		self
 	}
 
@@ -259,8 +272,12 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooLarge);
 		}
 
-		let new_asset_in_state = apply_state_changes(asset_in_state, &state_changes.asset_in)?;
-		let new_asset_out_state = apply_state_changes(asset_out_state, &state_changes.asset_out)?;
+		let new_asset_in_state = asset_in_state
+			.delta_update(&state_changes.asset_in)
+			.ok_or(SimulatorError::MathError)?;
+		let new_asset_out_state = asset_out_state
+			.delta_update(&state_changes.asset_out)
+			.ok_or(SimulatorError::MathError)?;
 
 		let mut new_snapshot = snapshot
 			.clone()
@@ -284,7 +301,10 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 				.with_slip_delta(asset_out, d_out);
 		}
 
-		Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
+		Ok((
+			new_snapshot.with_protocol_fee(&state_changes.fee),
+			TradeResult::new(amount_in, amount_out),
+		))
 	}
 
 	fn simulate_buy(
@@ -362,8 +382,12 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooLarge);
 		}
 
-		let new_asset_in_state = apply_state_changes(asset_in_state, &state_changes.asset_in)?;
-		let new_asset_out_state = apply_state_changes(asset_out_state, &state_changes.asset_out)?;
+		let new_asset_in_state = asset_in_state
+			.delta_update(&state_changes.asset_in)
+			.ok_or(SimulatorError::MathError)?;
+		let new_asset_out_state = asset_out_state
+			.delta_update(&state_changes.asset_out)
+			.ok_or(SimulatorError::MathError)?;
 
 		let mut new_snapshot = snapshot
 			.clone()
@@ -387,7 +411,10 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 				.with_slip_delta(asset_out, d_out);
 		}
 
-		Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
+		Ok((
+			new_snapshot.with_protocol_fee(&state_changes.fee),
+			TradeResult::new(amount_in, amount_out),
+		))
 	}
 
 	fn get_spot_price(
@@ -447,44 +474,4 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			assets,
 		}]
 	}
-}
-
-fn apply_state_changes(
-	current: &AssetReserveState<Balance>,
-	changes: &hydra_dx_math::omnipool::types::AssetStateChange<Balance>,
-) -> Result<AssetReserveState<Balance>, SimulatorError> {
-	use hydra_dx_math::omnipool::types::BalanceUpdate;
-
-	let new_reserve = match &changes.delta_reserve {
-		BalanceUpdate::Increase(delta) => current.reserve.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.reserve.checked_sub(*delta),
-	}
-	.ok_or(SimulatorError::MathError)?;
-
-	let new_hub_reserve = match &changes.delta_hub_reserve {
-		BalanceUpdate::Increase(delta) => current.hub_reserve.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.hub_reserve.checked_sub(*delta),
-	}
-	.ok_or(SimulatorError::MathError)?;
-
-	let new_shares = match &changes.delta_shares {
-		BalanceUpdate::Increase(delta) => current.shares.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.shares.checked_sub(*delta),
-	}
-	.ok_or(SimulatorError::MathError)?;
-
-	let new_protocol_shares = match &changes.delta_protocol_shares {
-		BalanceUpdate::Increase(delta) => current.protocol_shares.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.protocol_shares.checked_sub(*delta),
-	}
-	.ok_or(SimulatorError::MathError)?;
-
-	Ok(AssetReserveState {
-		reserve: new_reserve,
-		hub_reserve: new_hub_reserve,
-		shares: new_shares,
-		protocol_shares: new_protocol_shares,
-		cap: current.cap,
-		tradable: current.tradable,
-	})
 }
