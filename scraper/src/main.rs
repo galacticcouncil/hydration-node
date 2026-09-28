@@ -106,7 +106,7 @@ fn main() {
 			let path = cmd.shared.get_path();
 			let excluded_pallets = cmd.exclude;
 			let slim = cmd.slim;
-			let transport = Transport::Uri(cmd.shared.uri);
+			let transport_uris = vec![cmd.shared.uri];
 
 			if slim {
 				if !excluded_pallets.is_empty() {
@@ -117,7 +117,7 @@ fn main() {
 					at: cmd.at,
 					state_snapshot: None,
 					pallets: cmd.pallet,
-					transport,
+					transport_uris,
 					..Default::default()
 				};
 
@@ -139,7 +139,7 @@ fn main() {
 					at: cmd.at,
 					state_snapshot: Some(snapshot_config),
 					pallets: cmd.pallet,
-					transport,
+					transport_uris,
 					..Default::default()
 				};
 

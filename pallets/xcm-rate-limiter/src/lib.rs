@@ -77,7 +77,6 @@ use sp_core::MaxEncodedLen;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Convert;
-use sp_runtime::RuntimeDebug;
 use sp_runtime::SaturatedConversion;
 use sp_std::vec::Vec;
 use xcm::lts::prelude::*;
@@ -90,7 +89,7 @@ mod tests;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-#[derive(Clone, Default, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
+#[derive(Clone, Default, Encode, Decode, Debug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 pub struct AccumulatedAmount {
 	pub amount: u128,
 	pub last_updated: RelayChainBlockNumber,

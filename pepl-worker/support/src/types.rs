@@ -17,7 +17,6 @@ use sc_client_api::StorageData;
 use sc_client_api::StorageKey;
 use sc_client_api::{Backend, StorageProvider};
 use sp_api::ProvideRuntimeApi;
-use sp_core::RuntimeDebug;
 use sp_core::U256;
 use sp_runtime::traits::Block;
 use sp_runtime::traits::Zero;
@@ -65,14 +64,14 @@ pub type EmodeId = U256;
 pub type BlockNumber = u32;
 
 /// Collateral and debt amounts of a reserve in the base currency.
-#[derive(Default, Eq, PartialEq, RuntimeDebug, Clone)]
+#[derive(Default, Eq, PartialEq, Debug, Clone)]
 pub struct UserReserve {
 	pub collateral: U256,
 	pub debt: U256,
 }
 
 /// User's data. The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
-#[derive(RuntimeDebug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Borrower {
 	pub configuration: UserConfiguration,
 	pub address: EvmAddress,
@@ -167,13 +166,13 @@ impl Borrower {
 	}
 }
 
-#[derive(Eq, PartialEq, RuntimeDebug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum ReserveOpp {
 	SubCollateral(U256),
 	SubDebt(U256),
 }
 
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct EModeCategory {
 	pub liquidation_threshold: u16,
 	pub liquidation_bonus: u16,
@@ -195,7 +194,7 @@ impl EModeCategory {
 /// Bitmap of the users collaterals and borrows. It is divided into pairs of bits, one pair per asset.
 /// The first bit indicates if the user uses an asset as collateral, the second whether the user borrows an asset.
 /// The corresponding assets are in the same position as `fetch_reserves_list()`.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct UserConfiguration(pub U256);
 impl UserConfiguration {
 	/// Returns `true` if the user uses the asset as collateral.
@@ -221,7 +220,7 @@ impl UserConfiguration {
 /// Configuration of the reserve.
 /// https://github.com/aave/aave-v3-core/blob/782f51917056a53a2c228701058a6c3fb233684a/contracts/protocol/libraries/types/DataTypes.sol#L5
 /// Not all data fields are used.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ReserveData {
 	pub configuration: U256, // https://github.com/aave-dao/aave-v3-origin/blob/3aad8ca184159732e4b3d8c82cd56a8707a106a2/src/core/contracts/protocol/libraries/types/DataTypes.sol#L79
 	pub liquidity_index: u128,
@@ -271,7 +270,7 @@ impl ReserveData {
 }
 
 /// State of asset reserve.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Reserve {
 	//index in original mm constract's array. It's used to access e.g. `UserReserve` by index without hashing
 	pub idx: usize,
@@ -395,7 +394,7 @@ impl Reserve {
 
 /// Captures the state of the money market related to liquidations.
 /// The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct MoneyMarket {
 	pub pool: EvmAddress,
 	pub oracle: EvmAddress,
@@ -796,6 +795,7 @@ where
 			false,
 			None,
 			None,
+			None,
 		) {
 			Ok(Ok(r)) => Ok(r),
 			Ok(Err(e)) => Err(RuntimeApiErr::Dispatch(e)),
@@ -847,7 +847,7 @@ pub fn select_best_liquidation_option(
 	options.into_iter().next_back()
 }
 
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct LiquidationOption {
 	pub health_factor: U256,
 	pub collateral_asset: EvmAddress,
@@ -855,7 +855,7 @@ pub struct LiquidationOption {
 	pub debt_to_liquidate: U256,
 }
 
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct LiquidationAmounts {
 	pub debt_amount: U256,
 	pub collateral_amount: U256,
@@ -863,7 +863,7 @@ pub struct LiquidationAmounts {
 	pub collateral_in_base_currency: U256,
 }
 
-#[derive(RuntimeDebug)]
+#[derive(Debug)]
 pub enum Error {
 	RuntimeApi(RuntimeApiErr),
 	AbiDecode(ethabi::Error),

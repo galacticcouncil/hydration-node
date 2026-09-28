@@ -11,7 +11,7 @@ mod v0 {
 	use super::*;
 	use frame_support::storage_alias;
 
-	#[derive(RuntimeDebug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
+	#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 	pub struct OracleEntry<BlockNumber> {
 		pub price: Price,
 		pub volume: Volume<Balance>,

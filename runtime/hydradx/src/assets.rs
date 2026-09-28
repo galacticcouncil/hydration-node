@@ -1266,7 +1266,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 
 		//For the stored route we expect a worst case with max number of trades in the most expensive pool which is stableswap
 		//We have have two sell calculation for that, normal and inverse
-		weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0)
+		let _ = weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0)
 			.checked_mul(MAX_NUMBER_OF_TRADES.into());
 
 		//Calculate sell amounts for the new route

@@ -23,12 +23,12 @@ use frame_support::traits::Get;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{Saturating, Zero},
-	BoundedVec, RuntimeDebug,
+	BoundedVec,
 };
 use sp_std::prelude::*;
 
 /// A number of lock periods, plus a vote, one way or the other.
-#[derive(Copy, Clone, Eq, PartialEq, Default, RuntimeDebug, DecodeWithMemTracking)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, Debug, DecodeWithMemTracking)]
 pub struct Vote {
 	pub aye: bool,
 	pub conviction: Conviction,
@@ -72,7 +72,7 @@ impl TypeInfo for Vote {
 }
 
 /// A vote for a referendum of a particular account.
-#[derive(Encode, MaxEncodedLen, Decode, DecodeWithMemTracking, Copy, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
+#[derive(Encode, MaxEncodedLen, Decode, DecodeWithMemTracking, Copy, Clone, Eq, PartialEq, Debug, TypeInfo)]
 pub enum AccountVote<Balance> {
 	/// A standard vote, one-way (approve or reject) with a given amount of conviction.
 	Standard { vote: Vote, balance: Balance },
@@ -113,9 +113,7 @@ impl<Balance: Saturating> AccountVote<Balance> {
 }
 
 /// A "prior" lock, i.e. a lock for some now-forgotten reason.
-#[derive(
-	Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, TypeInfo,
-)]
+#[derive(Encode, MaxEncodedLen, Decode, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, TypeInfo)]
 pub struct PriorLock<BlockNumber, Balance>(pub BlockNumber, pub Balance);
 
 impl<BlockNumber: Ord + Copy + Zero, Balance: Ord + Copy + Zero> PriorLock<BlockNumber, Balance> {
@@ -138,7 +136,7 @@ impl<BlockNumber: Ord + Copy + Zero, Balance: Ord + Copy + Zero> PriorLock<Block
 }
 
 /// An indicator for what an account is doing; it can either be delegating or voting.
-#[derive(Clone, Encode, Decode, Eq, MaxEncodedLen, PartialEq, RuntimeDebug, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, MaxEncodedLen, PartialEq, Debug, TypeInfo)]
 #[codec(mel_bound(skip_type_params(MaxVotes)))]
 #[scale_info(skip_type_params(MaxVotes))]
 pub enum Voting<Balance, AccountId, BlockNumber, MaxVotes: Get<u32>> {

@@ -68,8 +68,8 @@ use sp_runtime::{
 	offchain::storage_lock::{StorageLock, Time},
 	traits::{AccountIdConversion, Zero},
 	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidity, ValidTransaction},
-	AccountId32, ArithmeticError, DispatchError, FixedU128, Perbill, Permill, Rounding, RuntimeDebug,
-	SaturatedConversion, TransactionOutcome,
+	AccountId32, ArithmeticError, DispatchError, FixedU128, Perbill, Permill, Rounding, SaturatedConversion,
+	TransactionOutcome,
 };
 use sp_std::vec::Vec;
 
@@ -85,7 +85,7 @@ pub mod trade_execution;
 pub mod weights;
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum ERC20Function {
 	Mint = "mint(address,uint256)",
