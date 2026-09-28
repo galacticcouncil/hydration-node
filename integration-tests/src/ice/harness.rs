@@ -8,8 +8,8 @@
 use amm_simulator::HydrationSimulator;
 use frame_support::assert_ok;
 use hydradx_runtime::{Omnipool, Runtime, RuntimeOrigin, System};
-use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::IceSolver;
+use hydradx_traits::amm::{AMMInterface, SimulatorConfig, SimulatorSet};
+use ice_solver::{IceSolver, SolverOptions, SplitConfig};
 use ice_support::{Solution, SolverMode};
 use pallet_omnipool::types::SlipFeeConfig;
 use sp_runtime::Permill;
@@ -19,6 +19,24 @@ pub(crate) type V4Solver = ice_solver::v4::Solver<TestSimulator>;
 pub(crate) type PassthroughSolver = ice_solver::passthrough::Solver<TestSimulator>;
 pub(crate) type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
+
+/// v4 with route splitting off — the single-route baseline on the same state.
+pub(crate) struct V4NoSplit;
+
+impl IceSolver<TestSimulator> for V4NoSplit {
+	fn solve_with_options(
+		intents: Vec<ice_support::Intent>,
+		min_outs: ice_solver::MinOuts,
+		state: CombinedSimulatorState,
+		fee: Permill,
+		_options: &SolverOptions,
+	) -> Result<Solution, <TestSimulator as AMMInterface>::Error> {
+		let single_route = SolverOptions {
+			split: SplitConfig::disabled(),
+		};
+		V4Solver::solve_with_options(intents, min_outs, state, fee, &single_route)
+	}
+}
 
 pub(crate) fn enable_slip_fees() {
 	assert_ok!(Omnipool::set_slip_fee(

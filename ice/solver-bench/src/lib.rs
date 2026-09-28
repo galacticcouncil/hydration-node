@@ -214,6 +214,83 @@ pub fn clear_intent_storage() {
 	let _ = pallet_intent::Intents::<hydradx_runtime::Runtime>::clear(u32::MAX, None);
 }
 
+/// WETH / ETH. Their route on `mainnet_apr` runs through Aave, which the
+/// offline snapshot externalities leave without reserves, so here the pair has
+/// no route until [`create_two_venue_pools`] adds two.
+pub const TWO_VENUE_ASSETS: (u32, u32) = (20, 34);
+
+/// Two pool-disjoint ETH -> WETH routes: a balanced 5/5 stableswap pool, and a
+/// path through a synthetic token whose ETH-scarce first pool pays more for the
+/// first ETH, so a transfer of a few ETH is split between them. Must be called
+/// inside `execute_with`.
+///
+/// A second pool of the same pair would not do: the stableswap simulator looks
+/// a pool up by its assets, not its id, so it would price both routes on one
+/// curve. And WETH cannot be minted past the snapshot's circuit-breaker deposit
+/// limit (~15 WETH on `mainnet_apr`) — the rest lands reserved, not free.
+pub fn create_two_venue_pools() {
+	use frame_support::storage::{with_transaction, TransactionOutcome};
+	use hydradx_runtime::AssetRegistry;
+	use hydradx_traits::{AssetKind, Create};
+
+	const UNIT: u128 = 1_000_000_000_000_000_000;
+	let (weth, eth) = TWO_VENUE_ASSETS;
+	let register = |kind| {
+		with_transaction(|| {
+			TransactionOutcome::Commit(AssetRegistry::register_sufficient_asset(
+				None,
+				None,
+				kind,
+				1u128,
+				None,
+				Some(18),
+				None,
+				None,
+			))
+		})
+		.expect("asset should register")
+	};
+	let bridge = register(AssetKind::Token);
+	create_pool(register(AssetKind::StableSwap), [(weth, 5 * UNIT), (eth, 5 * UNIT)]);
+	create_pool(register(AssetKind::StableSwap), [(eth, UNIT), (bridge, 2 * UNIT)]);
+	create_pool(register(AssetKind::StableSwap), [(bridge, 2 * UNIT), (weth, 2 * UNIT)]);
+}
+
+fn create_pool(pool: u32, reserves: [(u32, u128); 2]) {
+	use frame_support::assert_ok;
+	use frame_support::BoundedVec;
+	use hydradx_runtime::{Currencies, RuntimeOrigin, Stableswap};
+	use hydradx_traits::stableswap::AssetAmount;
+
+	let lp = primitives::AccountId::from([7u8; 32]);
+	assert_ok!(Stableswap::create_pool(
+		RuntimeOrigin::root(),
+		pool,
+		BoundedVec::truncate_from(reserves.iter().map(|(asset, _)| *asset).collect()),
+		100,
+		sp_runtime::Permill::from_rational(1u32, 10_000u32),
+	));
+	for (asset, amount) in reserves {
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			lp.clone(),
+			asset,
+			amount as i128,
+		));
+	}
+	assert_ok!(Stableswap::add_assets_liquidity(
+		RuntimeOrigin::signed(lp),
+		pool,
+		BoundedVec::truncate_from(
+			reserves
+				.iter()
+				.map(|(asset, amount)| AssetAmount::new(*asset, *amount))
+				.collect()
+		),
+		0,
+	));
+}
+
 /// Generate `count` partial-fill intents (alternating HDX→BNC and BNC→HDX).
 /// Uses large amounts with tight limits to exercise the binary search.
 pub fn generate_partial_intents(count: usize) -> Vec<SolverIntent> {

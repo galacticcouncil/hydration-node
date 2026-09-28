@@ -370,7 +370,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "ethabi",
  "evm",
@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.5.2"
+version = "15.6.0"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -6140,7 +6140,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -6154,7 +6154,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver-bench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "amm-simulator",
  "criterion",
@@ -9943,7 +9943,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -14188,7 +14188,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.116.0"
+version = "1.118.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",

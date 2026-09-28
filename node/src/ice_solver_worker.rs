@@ -18,7 +18,7 @@ use hydradx_runtime::{
 	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::{passthrough, v4, IceSolver};
+use ice_solver::{passthrough, v4, IceSolver, SolverOptions, SplitConfig};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
 use primitives::{AssetId, Balance};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
@@ -45,6 +45,22 @@ pub struct IceSolverWorkerConfig {
 	/// Enable/disable the ICE solver worker. Defaults to enabled on validators.
 	#[clap(long)]
 	pub ice_solver_worker: Option<bool>,
+
+	/// Allow one AMM transfer to be split across several routes. Default on;
+	/// `--ice-solver-split=false` falls back to single-route trades.
+	#[clap(long, default_value_t = true, action = clap::ArgAction::Set)]
+	pub ice_solver_split: bool,
+}
+
+impl IceSolverWorkerConfig {
+	pub fn solver_options(&self) -> SolverOptions {
+		let split = if self.ice_solver_split {
+			SplitConfig::default()
+		} else {
+			SplitConfig::disabled()
+		};
+		SolverOptions { split }
+	}
 }
 
 thread_local! {
@@ -107,9 +123,10 @@ impl Drop for BusyGuard {
 fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
 	input: SolverInput,
 	state: <HydrationSimulators as SimulatorSet>::State,
+	options: &SolverOptions,
 ) -> Option<Solution> {
 	let min_outs = input.min_amount_out.into_iter().collect();
-	S::solve_with_limits(input.intents, min_outs, state, input.fee).ok()
+	S::solve_with_options(input.intents, min_outs, state, input.fee, options).ok()
 }
 
 /// Pure transform: `SolverInput` → bare `submit_solution` extrinsic. No client,
@@ -120,7 +137,11 @@ fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
 ///
 /// `built_at` is the block the input state was read at; it is stamped into the
 /// solution so consecutive solutions never share an extrinsic hash.
-pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
+pub(crate) fn build_extrinsic(
+	input: SolverInput,
+	built_at: u32,
+	options: &SolverOptions,
+) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
 	let mode = input.mode;
 	// Before the decode: nothing this block produces can be accepted, so the
 	// snapshot decode and the solve are both pure waste.
@@ -149,8 +170,10 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 
 	let t_solve = Instant::now();
 	let mut solution = match mode {
-		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
-		SolverMode::Passthrough => solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
+		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state, options),
+		SolverMode::Passthrough => {
+			solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state, options)
+		}
 		// Returned above, before the decode.
 		SolverMode::Disabled => None,
 	}?;
@@ -208,13 +231,18 @@ where
 	/// still-running one.
 	pub async fn run(
 		client: Arc<C>,
-		_config: IceSolverWorkerConfig,
+		config: IceSolverWorkerConfig,
 		transaction_pool: Arc<P>,
 		sync_service: Arc<SyncingService<B>>,
 		spawner: SpawnTaskHandle,
 		task_data: Arc<IceSolverTaskData>,
 	) {
-		tracing::info!(target: LOG_TARGET, "starting");
+		let options = config.solver_options();
+		tracing::info!(
+			target: LOG_TARGET,
+			"starting, route splitting enabled={}",
+			options.split.max_legs > 1
+		);
 
 		let mut block_stream = client.import_notification_stream();
 		while let Some(notification) = block_stream.next().await {
@@ -280,7 +308,7 @@ where
 				let state_query_ms = t_state.elapsed().as_millis();
 				let intents = input.intents.len() as u32;
 
-				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no) else {
+				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no, &options) else {
 					tracing::debug!(target: LOG_TARGET, "no solution for block {block_no}");
 					return;
 				};
@@ -369,6 +397,7 @@ pub mod rpc {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use clap::Parser;
 	use sp_runtime::Permill;
 
 	fn input_with(mode: SolverMode, state: Vec<u8>) -> SolverInput {
@@ -385,7 +414,7 @@ mod tests {
 	#[test]
 	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
 		let input = input_with(SolverMode::V4, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default()).is_none());
 	}
 
 	#[test]
@@ -393,7 +422,20 @@ mod tests {
 		// Same undecodable state as the test above: reaching the decode at all
 		// would have to log an error, so `None` here proves the mode check runs first.
 		let input = input_with(SolverMode::Disabled, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default()).is_none());
+	}
+
+	#[test]
+	fn solver_options_should_split_when_the_flag_is_absent() {
+		let config = IceSolverWorkerConfig::try_parse_from(["hydradx"]).expect("flags should parse");
+		assert_eq!(config.solver_options().split, SplitConfig::default());
+	}
+
+	#[test]
+	fn solver_options_should_not_split_when_the_flag_is_false() {
+		let config =
+			IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-split=false"]).expect("flags should parse");
+		assert_eq!(config.solver_options().split, SplitConfig::disabled());
 	}
 
 	#[test]

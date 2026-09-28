@@ -34,9 +34,10 @@
 use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
+use crate::common::split::{self, adjust_amm_output, Leg, Routed, SellBudget, LIGHT_SPLIT_GRID, SPLIT_GRID};
 use crate::common::FlowDirection;
 use crate::common::RouteCache;
-use crate::{IceSolver, MinOuts};
+use crate::{IceSolver, MinOuts, SolverOptions, SplitConfig};
 use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::AMMInterface;
@@ -101,10 +102,6 @@ struct DirAccum {
 	ring_out: Balance,
 }
 
-/// AMM outputs are haircut by 1 bps so the on-chain execution can never
-/// undershoot the solver's claim.
-const AMM_SIMULATION_TOLERANCE_BPS: Balance = 1;
-
 /// Bisection budget for fill searches. A `Balance` search interval halves every
 /// step, so 128 steps make every search exact over the full `u128` range; the
 /// loop exits as soon as the interval is empty, which for realistic balances is
@@ -128,10 +125,6 @@ fn unordered_pair(a: AssetId, b: AssetId) -> AssetPair {
 	} else {
 		(b, a)
 	}
-}
-
-fn adjust_amm_output(simulated_out: Balance) -> Balance {
-	simulated_out.saturating_sub(simulated_out * AMM_SIMULATION_TOLERANCE_BPS / 10_000)
 }
 
 /// `amount_in * n / d` (integer floor), exact in `U512`.
@@ -179,15 +172,27 @@ fn rate_meets_limit(out: Balance, v: Balance, limit_n: Balance, limit_d: Balance
 /// shared [`RouteCache`].
 struct SolveCache<A: AMMInterface> {
 	route_cache: RouteCache<A>,
-	/// Best `(amount_out, route index)` for a `(pair, amount_in)` probe.
-	quotes: BTreeMap<(AssetId, AssetId, Balance), Option<(Balance, usize)>>,
+	/// Best legs for a `(pair, amount_in)` probe — one leg unless fitting splits.
+	quotes: BTreeMap<(AssetId, AssetId, Balance), Option<Vec<Leg>>>,
+	split: SplitConfig,
+	/// Separate so fitting, which runs first, cannot starve trade building of
+	/// the splits the crossing already counted on.
+	fitting_budget: SellBudget,
+	building_budget: SellBudget,
+	/// A fitting quote or a transfer came back split, so the solution can
+	/// differ from the single-route one.
+	split_used: bool,
 }
 
 impl<A: AMMInterface> SolveCache<A> {
-	fn new() -> Self {
+	fn new(split: SplitConfig) -> Self {
 		Self {
 			route_cache: RouteCache::new(),
 			quotes: BTreeMap::new(),
+			split,
+			fitting_budget: SellBudget::new(split.sell_budget),
+			building_budget: SellBudget::new(split.sell_budget),
+			split_used: false,
 		}
 	}
 
@@ -204,35 +209,70 @@ impl<A: AMMInterface> SolveCache<A> {
 		self.route_cache.route_at(asset_in, asset_out, i)
 	}
 
-	/// Pick the best route by simulating every cached route against `state`.
-	/// Used by the trade-building phase where the state is threaded between
-	/// trades and memoized quotes would be stale.
-	fn best_sell(
+	/// One AMM transfer in trade building, simulated against the threaded
+	/// `state`: the single best route, or its split over at most `max_legs`.
+	fn transfer(
 		&mut self,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 		state: &A::State,
-	) -> Option<(Route<AssetId>, Balance, A::State)> {
-		self.route_cache.best_sell(asset_in, asset_out, amount_in, state)
+		max_legs: u8,
+	) -> Option<Routed<A::State>> {
+		let grid = if max_legs > 2 { LIGHT_SPLIT_GRID } else { SPLIT_GRID };
+		let routed = self.route_cache.best_split_sell(
+			asset_in,
+			asset_out,
+			amount_in,
+			state,
+			max_legs,
+			grid,
+			&mut self.building_budget,
+		)?;
+		self.split_used |= routed.legs.len() > 1;
+		Some(routed)
 	}
 
-	/// Best sell quote (raw simulator output, no haircut) against the fitting
-	/// state, together with the route that produced it.
+	/// Best legs for selling `amount_in` against the fitting state (raw
+	/// simulator outputs, no haircut). When fitting splits, a two-leg search on
+	/// the light grid.
 	fn quote(
 		&mut self,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
 		state: &A::State,
-	) -> Option<(Balance, Route<AssetId>)> {
-		let (out, idx) = self.best_quote(asset_in, asset_out, amount_in, state)?;
-		let route = self.route_at(asset_in, asset_out, idx)?;
-		Some((out, route))
+	) -> Option<&Vec<Leg>> {
+		if amount_in == 0 {
+			return None;
+		}
+		let key = (asset_in, asset_out, amount_in);
+		if !self.quotes.contains_key(&key) {
+			let max_legs = if self.split.fitting {
+				self.split.max_legs.min(2)
+			} else {
+				1
+			};
+			let legs = self
+				.route_cache
+				.best_split_sell(
+					asset_in,
+					asset_out,
+					amount_in,
+					state,
+					max_legs,
+					LIGHT_SPLIT_GRID,
+					&mut self.fitting_budget,
+				)
+				.map(|routed| routed.legs);
+			self.split_used |= legs.as_ref().is_some_and(|l| l.len() > 1);
+			self.quotes.insert(key, legs);
+		}
+		self.quotes.get(&key)?.as_ref()
 	}
 
-	/// As [`Self::quote`] but without cloning the winning route — the fitting
-	/// phase only ever needs the amount.
+	/// Total raw output of [`Self::quote`] — the fitting phase only ever needs
+	/// the amount.
 	fn quote_out(
 		&mut self,
 		asset_in: AssetId,
@@ -240,40 +280,8 @@ impl<A: AMMInterface> SolveCache<A> {
 		amount_in: Balance,
 		state: &A::State,
 	) -> Option<Balance> {
-		self.best_quote(asset_in, asset_out, amount_in, state)
-			.map(|(out, _)| out)
-	}
-
-	fn best_quote(
-		&mut self,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		state: &A::State,
-	) -> Option<(Balance, usize)> {
-		if amount_in == 0 {
-			return None;
-		}
-		let key = (asset_in, asset_out, amount_in);
-		if let Some(cached) = self.quotes.get(&key) {
-			return *cached;
-		}
-		let mut best: Option<(Balance, usize)> = None;
-		for i in 0..self.routes(asset_in, asset_out, state).len() {
-			let Some(route) = self.route_at(asset_in, asset_out, i) else {
-				break;
-			};
-			if let Ok((_, exec)) = A::sell(asset_in, asset_out, amount_in, route, state) {
-				// `>=` keeps the last maximum on ties, matching `max_by_key`; the
-				// route list is deterministic, so the choice is stable across
-				// collators.
-				if best.map(|(out, _)| exec.amount_out >= out).unwrap_or(true) {
-					best = Some((exec.amount_out, i));
-				}
-			}
-		}
-		self.quotes.insert(key, best);
-		best
+		self.quote(asset_in, asset_out, amount_in, state)
+			.map(|legs| split::raw_out(legs))
 	}
 
 	/// One structured line per solve. An empty solution is otherwise
@@ -287,19 +295,59 @@ impl<A: AMMInterface> SolveCache<A> {
 		let pairs = self.route_cache.discovered_pairs();
 		let unroutable = self.route_cache.unroutable_pairs();
 		let quotes = self.quotes.len();
+		let split_legs = split_legs(solution);
+		let split_sells = self.fitting_budget.spent().saturating_add(self.building_budget.spent());
 		if resolved == 0 {
 			log::info!(
 				target: LOG_TARGET,
 				"solve produced no solution: {outcome:?} (intents={intents}, candidates={candidates}, \
-				 pairs={pairs}, unroutable_pairs={unroutable}, quotes={quotes})",
+				 pairs={pairs}, unroutable_pairs={unroutable}, quotes={quotes}, split_sells={split_sells})",
 			);
 		} else {
 			log::info!(
 				target: LOG_TARGET,
 				"solve {outcome:?}: resolved={resolved}/{intents} trades={trades} score={score} \
-				 (candidates={candidates}, pairs={pairs}, unroutable_pairs={unroutable}, quotes={quotes})",
+				 (candidates={candidates}, pairs={pairs}, unroutable_pairs={unroutable}, quotes={quotes}, \
+				 split_legs={split_legs}, split_sells={split_sells})",
 			);
 		}
+	}
+}
+
+/// Trades sharing their directed pair with another trade. Every engine routes
+/// a directed pair at most once, so these are exactly the legs of splits.
+fn split_legs(solution: &Solution) -> usize {
+	let mut per_pair: BTreeMap<(AssetId, AssetId), usize> = BTreeMap::new();
+	for t in solution.trades.iter() {
+		if let (Some(first), Some(last)) = (t.route.first(), t.route.last()) {
+			*per_pair.entry((first.asset_in, last.asset_out)).or_default() += 1;
+		}
+	}
+	per_pair.values().filter(|n| **n > 1).sum()
+}
+
+/// `a` fills every intent `b` fills, at least as far, and something more.
+fn fills_more(a: &Solution, b: &Solution) -> bool {
+	let fills = |s: &Solution| -> BTreeMap<IntentId, Balance> {
+		s.resolved_intents.iter().map(|r| (r.id, r.data.amount_in())).collect()
+	};
+	let (a, b) = (fills(a), fills(b));
+	a != b && b.iter().all(|(id, x)| a.get(id).is_some_and(|y| y >= x))
+}
+
+/// Legs a transfer may use: `max_legs`, less whatever would eat into trades the
+/// rest of the batch still needs.
+fn legs_within(max_legs: u8, spare_legs: usize, trades_left: usize) -> u8 {
+	let room = spare_legs.saturating_add(1).min(trades_left);
+	max_legs.min(u8::try_from(room).unwrap_or(u8::MAX))
+}
+
+fn pool_trade(leg: &Leg) -> PoolTrade {
+	PoolTrade {
+		direction: SwapType::ExactIn,
+		amount_in: leg.amount_in,
+		amount_out: leg.claimed_out(),
+		route: leg.route.clone(),
 	}
 }
 
@@ -371,8 +419,8 @@ impl<A: AMMInterface> Solver<A> {
 
 	fn run_solve(
 		intents: &[Intent],
-		min_outs: MinOuts,
-		initial_state: A::State,
+		min_outs: &MinOuts,
+		initial_state: &A::State,
 		matched_fee: Permill,
 		cache: &mut SolveCache<A>,
 	) -> Result<Solution, A::Error> {
@@ -385,11 +433,11 @@ impl<A: AMMInterface> Solver<A> {
 
 		let fee_ctx = FeeCtx::new(matched_fee);
 
-		let spot_prices = Self::collect_spot_prices(intents, &initial_state, cache);
+		let spot_prices = Self::collect_spot_prices(intents, initial_state, cache);
 
 		let candidates: Vec<&Intent> = intents
 			.iter()
-			.filter(|intent| Self::is_candidate(intent, &spot_prices, &initial_state, cache))
+			.filter(|intent| Self::is_candidate(intent, &spot_prices, initial_state, cache))
 			.collect();
 
 		log::debug!(target: LOG_TARGET, "candidates: {}/{} intents", candidates.len(), intents.len());
@@ -399,7 +447,7 @@ impl<A: AMMInterface> Solver<A> {
 			return Ok(empty_solution());
 		}
 		if candidates.len() == 1 {
-			let solution = Self::solve_single_intent(candidates[0], &min_outs, &initial_state, cache)?;
+			let solution = Self::solve_single_intent(candidates[0], min_outs, initial_state, cache)?;
 			cache.report(Outcome::SingleIntent, intents.len(), 1, &solution);
 			return Ok(solution);
 		}
@@ -417,7 +465,7 @@ impl<A: AMMInterface> Solver<A> {
 				fill: remaining,
 				// The crossing engine must sort and trim on the limit the chain
 				// enforces, not the one stored on the intent.
-				limit_n: admission_n(intent.id, swap, &min_outs),
+				limit_n: admission_n(intent.id, swap, min_outs),
 				limit_d: swap.amount_in,
 				partial: swap.partial.is_partial(),
 			};
@@ -442,7 +490,7 @@ impl<A: AMMInterface> Solver<A> {
 				ed_b: cache.ed(asset_b),
 				fee_ctx,
 			};
-			for (id, fill) in Self::cross_pair(&ctx, fwd, bwd, &initial_state, cache) {
+			for (id, fill) in Self::cross_pair(&ctx, fwd, bwd, initial_state, cache) {
 				fills.insert(id, fill);
 			}
 		}
@@ -468,7 +516,7 @@ impl<A: AMMInterface> Solver<A> {
 		if included.len() > MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
 			log::debug!(target: LOG_TARGET, "capping included from {} to {} (keeping highest surplus)",
 				included.len(), MAX_NUMBER_OF_RESOLVED_INTENTS);
-			let surpluses = Self::estimate_surpluses(&included, &fills, &spot_prices, &initial_state, cache, fee_ctx);
+			let surpluses = Self::estimate_surpluses(&included, &fills, &spot_prices, initial_state, cache, fee_ctx);
 			Self::sort_by_surplus_desc(&mut included, &surpluses);
 			included.truncate(MAX_NUMBER_OF_RESOLVED_INTENTS as usize);
 		}
@@ -476,7 +524,7 @@ impl<A: AMMInterface> Solver<A> {
 		if included.len() == 1 {
 			let intent = included[0];
 			let fill = fills.get(&intent.id).copied().unwrap_or(0);
-			let solution = Self::solve_single_intent_with_fill(intent, fill, &min_outs, &initial_state, cache)?;
+			let solution = Self::solve_single_intent_with_fill(intent, fill, min_outs, initial_state, cache)?;
 			cache.report(Outcome::SingleIntent, intents.len(), candidates.len(), &solution);
 			return Ok(solution);
 		}
@@ -488,15 +536,8 @@ impl<A: AMMInterface> Solver<A> {
 		for round in 0..MAX_STABILIZATION_ROUNDS {
 			log::debug!(target: LOG_TARGET, "stabilization round {}, {} included intents", round, included.len());
 
-			let (resolved_intents, executed_trades, total_score) = Self::netting_round(
-				&included,
-				&fills,
-				&min_outs,
-				&spot_prices,
-				&initial_state,
-				cache,
-				fee_ctx,
-			);
+			let (resolved_intents, executed_trades, total_score) =
+				Self::netting_round(&included, &fills, min_outs, &spot_prices, initial_state, cache, fee_ctx);
 
 			log::debug!(target: LOG_TARGET, "round {}: {} resolved, {} trades, score: {} (from {} included)",
 				round, resolved_intents.len(), executed_trades.len(), total_score, included.len());
@@ -525,7 +566,7 @@ impl<A: AMMInterface> Solver<A> {
 			if included.len() == 1 {
 				let intent = included[0];
 				let fill = fills.get(&intent.id).copied().unwrap_or(0);
-				let solution = Self::solve_single_intent_with_fill(intent, fill, &min_outs, &initial_state, cache)?;
+				let solution = Self::solve_single_intent_with_fill(intent, fill, min_outs, initial_state, cache)?;
 				cache.report(Outcome::SingleIntent, intents.len(), candidates.len(), &solution);
 				return Ok(solution);
 			}
@@ -535,14 +576,14 @@ impl<A: AMMInterface> Solver<A> {
 		// instead of discarding everything.
 		log::warn!(target: LOG_TARGET, "stabilization did not converge after {MAX_STABILIZATION_ROUNDS} rounds; trying single-intent fallback");
 		let mut fallback: Vec<&Intent> = candidates.clone();
-		let surpluses = Self::estimate_surpluses(&fallback, &fills, &spot_prices, &initial_state, cache, fee_ctx);
+		let surpluses = Self::estimate_surpluses(&fallback, &fills, &spot_prices, initial_state, cache, fee_ctx);
 		Self::sort_by_surplus_desc(&mut fallback, &surpluses);
 		for intent in fallback {
 			let IntentData::Swap(swap) = &intent.data else {
 				continue;
 			};
 			let fill = fills.get(&intent.id).copied().unwrap_or_else(|| swap.remaining());
-			let solution = Self::solve_single_intent_with_fill(intent, fill, &min_outs, &initial_state, cache)?;
+			let solution = Self::solve_single_intent_with_fill(intent, fill, min_outs, initial_state, cache)?;
 			if !solution.resolved_intents.is_empty() {
 				cache.report(
 					Outcome::SingleIntentFallback,
@@ -1126,6 +1167,11 @@ impl<A: AMMInterface> Solver<A> {
 				deficit.push((asset, d - s));
 			}
 		}
+		// Every emitted transfer zeroes a surplus or a deficit and the last one
+		// zeroes both, so the walk emits at most `surplus + deficit − 1` of them.
+		// Only the trade cap beyond that may go to extra legs.
+		let mut spare_legs =
+			(MAX_NUMBER_OF_SOLUTION_TRADES as usize).saturating_sub((surplus.len() + deficit.len()).saturating_sub(1));
 		'surplus: for (sx, mut s_rem) in surplus {
 			for d in deficit.iter_mut() {
 				if s_rem.is_zero() {
@@ -1146,22 +1192,27 @@ impl<A: AMMInterface> Solver<A> {
 					log::warn!(target: LOG_TARGET, "cannot convert {move_hdx} of reference value back into asset {sx}");
 					continue;
 				};
-				let Some((route, out, ns)) = cache.best_sell(sx, d.0, amount, &state) else {
+				let max_legs = legs_within(
+					cache.split.max_legs,
+					spare_legs,
+					MAX_NUMBER_OF_SOLUTION_TRADES as usize - executed_trades.len(),
+				);
+				let Some(routed) = cache.transfer(sx, d.0, amount, &state, max_legs) else {
 					continue;
 				};
-				let adj = adjust_amm_output(out);
-				if !Self::trade_is_executable(cache, sx, d.0, amount, adj) {
+				if !routed
+					.legs
+					.iter()
+					.all(|l| Self::trade_is_executable(cache, sx, d.0, l.amount_in, l.claimed_out()))
+				{
 					continue;
 				}
-				executed_trades.push(PoolTrade {
-					direction: SwapType::ExactIn,
-					amount_in: amount,
-					amount_out: adj,
-					route,
-				});
-				state = ns;
-				add(&mut pool_in, sx, amount);
-				add(&mut pool_out, d.0, adj);
+				spare_legs = spare_legs.saturating_sub(routed.legs.len() - 1);
+				executed_trades.extend(routed.legs.iter().map(pool_trade));
+				// A split leaves rounding dust of `amount` in the pot.
+				add(&mut pool_in, sx, split::amount_in(&routed.legs));
+				add(&mut pool_out, d.0, split::claimed_out(&routed.legs));
+				state = routed.state;
 				// Only a trade that was actually emitted consumes the imbalance;
 				// otherwise the surplus stays available for the next deficit asset.
 				s_rem = s_rem.saturating_sub(move_hdx);
@@ -1291,6 +1342,10 @@ impl<A: AMMInterface> Solver<A> {
 			}
 		}
 
+		// At most one AMM sell per direction of each pair; only the trade cap
+		// beyond that may go to extra legs.
+		let mut spare_legs = (MAX_NUMBER_OF_SOLUTION_TRADES as usize).saturating_sub(2 * pair_groups.len());
+
 		for (&(asset_a, asset_b), (forward, backward)) in &pair_groups {
 			let net_volume = |entries: &[(IntentId, &SwapData)]| -> Balance {
 				entries
@@ -1321,19 +1376,24 @@ impl<A: AMMInterface> Solver<A> {
 					}
 					return None;
 				}
-				let (route, amount_out, new_state) = cache.best_sell(sell_asset, buy_asset, amount, state)?;
-				let adjusted_out = adjust_amm_output(amount_out);
-				if !Self::trade_is_executable(cache, sell_asset, buy_asset, amount, adjusted_out) {
+				let max_legs = legs_within(
+					cache.split.max_legs,
+					spare_legs,
+					MAX_NUMBER_OF_SOLUTION_TRADES as usize - executed_trades.len(),
+				);
+				let routed = cache.transfer(sell_asset, buy_asset, amount, state, max_legs)?;
+				if !routed
+					.legs
+					.iter()
+					.all(|l| Self::trade_is_executable(cache, sell_asset, buy_asset, l.amount_in, l.claimed_out()))
+				{
 					return None;
 				}
-				executed_trades.push(PoolTrade {
-					direction: SwapType::ExactIn,
-					amount_in: amount,
-					amount_out: adjusted_out,
-					route,
-				});
-				*state = new_state;
-				Some(adjusted_out)
+				spare_legs = spare_legs.saturating_sub(routed.legs.len() - 1);
+				let out = split::claimed_out(&routed.legs);
+				executed_trades.extend(routed.legs.iter().map(pool_trade));
+				*state = routed.state;
+				Some(out)
 			};
 
 			let flow = match (spot_prices.get(&asset_a), spot_prices.get(&asset_b)) {
@@ -1615,20 +1675,15 @@ impl<A: AMMInterface> Solver<A> {
 		let ed_in = cache.ed(swap.asset_in);
 		let ed_out = cache.ed(swap.asset_out);
 
-		let try_fill = |cache: &mut SolveCache<A>, amount: Balance| -> Option<(Balance, Balance, Route<AssetId>)> {
+		let try_fill = |cache: &mut SolveCache<A>, amount: Balance| -> Option<Balance> {
 			if amount < ed_in.max(1) {
 				return None;
 			}
-			let (raw_out, route) = cache.quote(swap.asset_in, swap.asset_out, amount, initial_state)?;
-			let net_out = adjust_amm_output(raw_out);
+			let net_out = adjust_amm_output(cache.quote_out(swap.asset_in, swap.asset_out, amount, initial_state)?);
 			let pro_rata_min = apply_rate(amount, min_n, min_d);
-			// `net_out >= ed_out` is both the resolved-intent guard and the trade
-			// guard: the solution's single trade is exactly (amount, net_out).
-			if net_out >= pro_rata_min && net_out >= ed_out.max(1) {
-				Some((amount, net_out, route))
-			} else {
-				None
-			}
+			// `net_out >= ed_out` is both the resolved-intent guard and, for a
+			// one-leg quote, the trade guard; split legs clear both EDs already.
+			(net_out >= pro_rata_min && net_out >= ed_out.max(1)).then_some(amount)
 		};
 
 		let result = if swap.partial.is_partial() {
@@ -1654,7 +1709,7 @@ impl<A: AMMInterface> Solver<A> {
 				}
 			}
 			// ED guard on the remainder: never leave dust behind.
-			if let Some(found_fill) = best.as_ref().map(|(f, _, _)| *f) {
+			if let Some(found_fill) = best {
 				let remaining_after = swap.remaining().saturating_sub(found_fill);
 				if remaining_after > 0 && remaining_after < ed_in {
 					let reduced = swap.remaining().saturating_sub(ed_in).min(fill);
@@ -1670,9 +1725,28 @@ impl<A: AMMInterface> Solver<A> {
 			try_fill(cache, fill)
 		};
 
-		let Some((actual_fill, net_out, route)) = result else {
+		let Some(actual_fill) = result else {
 			return Ok(empty_solution());
 		};
+		let Some(mut legs) = cache
+			.quote(swap.asset_in, swap.asset_out, actual_fill, initial_state)
+			.cloned()
+		else {
+			return Ok(empty_solution());
+		};
+		// The fill was sized on the fitting quote; the full trade-building search
+		// replaces its legs only when it claims more.
+		let max_legs = cache.split.max_legs;
+		if max_legs > 1 {
+			if let Some(full) = cache.transfer(swap.asset_in, swap.asset_out, actual_fill, initial_state, max_legs) {
+				if split::claimed_out(&full.legs) > split::claimed_out(&legs) {
+					legs = full.legs;
+				}
+			}
+		}
+		// Paid exactly what the legs claim, which is at least the haircut total
+		// the fill was checked against.
+		let net_out = split::claimed_out(&legs);
 
 		let surplus = net_out.saturating_sub(apply_rate(actual_fill, score_n, min_d));
 
@@ -1689,25 +1763,42 @@ impl<A: AMMInterface> Solver<A> {
 
 		Ok(Solution::new(
 			ResolvedIntents::truncate_from(vec![resolved]),
-			SolutionTrades::truncate_from(vec![PoolTrade {
-				direction: SwapType::ExactIn,
-				amount_in: actual_fill,
-				amount_out: net_out,
-				route,
-			}]),
+			SolutionTrades::truncate_from(legs.iter().map(pool_trade).collect()),
 			surplus,
 		))
 	}
 }
 
 impl<A: AMMInterface> IceSolver<A> for Solver<A> {
-	fn solve_with_limits(
+	fn solve_with_options(
 		intents: Vec<Intent>,
 		min_outs: MinOuts,
 		initial_state: A::State,
 		matched_fee: Permill,
+		options: &SolverOptions,
 	) -> Result<Solution, A::Error> {
-		let mut cache = SolveCache::<A>::new();
-		Self::run_solve(&intents, min_outs, initial_state, matched_fee, &mut cache)
+		let mut cache = SolveCache::<A>::new(options.split);
+		let solution = Self::run_solve(&intents, &min_outs, &initial_state, matched_fee, &mut cache)?;
+		if !cache.split_used {
+			return Ok(solution);
+		}
+		// A split is chosen transfer by transfer, so it can use up a pool a later
+		// transfer, or another pair's fitting quote, counted on. Keep the batch's
+		// split solution only when it does not come out worse on single routes.
+		let mut single_cache = SolveCache::<A>::new(SplitConfig::disabled());
+		let Ok(single) = Self::run_solve(&intents, &min_outs, &initial_state, matched_fee, &mut single_cache) else {
+			return Ok(solution);
+		};
+		if solution.score > single.score || fills_more(&solution, &single) {
+			Ok(solution)
+		} else {
+			log::info!(
+				target: LOG_TARGET,
+				"split solution dropped: score {} vs {} on single routes",
+				solution.score,
+				single.score,
+			);
+			Ok(single)
+		}
 	}
 }
