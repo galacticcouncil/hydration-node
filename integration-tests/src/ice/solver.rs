@@ -280,6 +280,53 @@ fn simulator_sell() {
 }
 
 #[test]
+fn omnipool_simulator_should_price_a_second_sell_as_executed_when_it_follows_in_the_same_block() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+		let (vdot, hdx, amount) = (15, 0, 2_000 * 10u128.pow(10));
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			vdot,
+			(2 * amount) as i128,
+		));
+
+		let mut state = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
+		let mut outs = Vec::new();
+		for _ in 0..2 {
+			let (next, simulated) =
+				<OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>> as AmmSimulator>::simulate_sell(
+					vdot, hdx, amount, 0, &state,
+				)
+				.expect("sell should simulate");
+			state = next;
+			let before = Currencies::free_balance(hdx, &ALICE.into());
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				vdot,
+				hdx,
+				amount,
+				0
+			));
+			outs.push((
+				simulated.amount_out,
+				Currencies::free_balance(hdx, &ALICE.into()) - before,
+			));
+		}
+		// The fee processor's cut of the HDX fee leaves the pool and is not in the
+		// snapshot; everything else the first sell changes is.
+		assert_eq!(
+			outs,
+			vec![
+				(1_920_635_057_106_215_027, 1_920_635_057_106_215_027),
+				(1_769_700_652_774_169_161, 1_769_700_579_366_877_312),
+			]
+		);
+	});
+}
+
+#[test]
 fn stableswap_snapshot() {
 	TestNet::reset();
 	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
@@ -3019,7 +3066,7 @@ fn solver_mixed_batch_12_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 12, "resolved count");
-			assert_eq!(solution.score, 11875285687821560, "score");
+			assert_eq!(solution.score, 11875285390615776, "score");
 			assert_eq!(solution.trades.len(), 2, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -3066,7 +3113,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 673942394974417u128);
+				assert_eq!(s.amount_out, 673942286697384u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3078,7 +3125,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 8000000000000000u128);
-				assert_eq!(s.amount_out, 539153915979533u128);
+				assert_eq!(s.amount_out, 539153829357907u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3102,7 +3149,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 100000000000u128);
-				assert_eq!(s.amount_out, 424522825359372u128);
+				assert_eq!(s.amount_out, 424522757154622u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3114,7 +3161,7 @@ fn solver_mixed_batch_12_intents() {
 				assert_eq!(s.asset_in, 5);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 50000000000u128);
-				assert_eq!(s.amount_out, 212261412679686u128);
+				assert_eq!(s.amount_out, 212261378577311u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -3393,7 +3440,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					panic!("Expected submit_solution call");
 				};
 				assert_eq!(solution.resolved_intents.len(), 12, "resolved count");
-				assert_eq!(solution.score, 11875285687821560, "score");
+				assert_eq!(solution.score, 11875285390615776, "score");
 				assert_eq!(solution.trades.len(), 2, "trades count");
 				{
 					let r = &solution.resolved_intents[0];
@@ -3440,7 +3487,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 10000000000000000u128);
-					assert_eq!(s.amount_out, 673942394974417u128);
+					assert_eq!(s.amount_out, 673942286697384u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3452,7 +3499,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 0);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 8000000000000000u128);
-					assert_eq!(s.amount_out, 539153915979533u128);
+					assert_eq!(s.amount_out, 539153829357907u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3476,7 +3523,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 5);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 100000000000u128);
-					assert_eq!(s.amount_out, 424522825359372u128);
+					assert_eq!(s.amount_out, 424522757154622u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -3488,7 +3535,7 @@ fn solver_mixed_batch_vs_direct_trades() {
 					assert_eq!(s.asset_in, 5);
 					assert_eq!(s.asset_out, 14);
 					assert_eq!(s.amount_in, 50000000000u128);
-					assert_eq!(s.amount_out, 212261412679686u128);
+					assert_eq!(s.amount_out, 212261378577311u128);
 					assert_eq!(s.partial, ice_support::Partial::No);
 				}
 				{
@@ -6637,7 +6684,7 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 4, "resolved count");
-			assert_eq!(solution.score, 76475194787456964279, "score");
+			assert_eq!(solution.score, 76475192482968161955, "score");
 			assert_eq!(solution.trades.len(), 4, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -6660,7 +6707,7 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 1111);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 20119698138402900128u128);
+				assert_eq!(s.amount_out, 20119697733594157716u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -6672,7 +6719,7 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 1112);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 20104234873408945429u128);
+				assert_eq!(s.amount_out, 20104234095044339459u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -6684,7 +6731,7 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 1113);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 20098700243456728695u128);
+				assert_eq!(s.amount_out, 20098699122141274753u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			let fee_before = fee_receiver_snapshot(&solution);

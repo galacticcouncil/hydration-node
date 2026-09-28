@@ -55,6 +55,10 @@ An optimizer has no cheap ground-truth optimum, so we assert properties every
 - **Bounds / id-validity** — resolved ⊆ submitted, `amount_in ≤ original`,
   no duplicates, within `MAX_*` limits.
 - **No panic / overflow** — the solver must never panic on any generated input.
+- **Route splits** are tracked, not asserted: the `split` stat counts batches
+  whose solution routes a directed pair through more than one trade (Tier 2:
+  executed on chain), and Tier 1 re-solves each on single routes — `+`/`-` is a
+  higher/lower score, `[fill more]` the lower ones that filled a strict superset.
 - **Submission executes** (Tier 2) — a solution the solver produced must be
   accepted by the pallet; a deliberately over-paying solution must be rejected.
 
@@ -65,7 +69,10 @@ random intents just route independently and never exercise matching/netting):
 `independent`, `opposing_pair`, `ring` (3–6 assets), `chain`, `whale_dust`,
 `boundary` (limits on the feasibility edge), `degenerate` (empty / single /
 duplicate / self-pair / max-size). Core asset universe is all-Omnipool —
-HDX, DOT, BNC, WETH, ETH — for reliable routing.
+HDX, DOT, BNC, WETH, ETH — for reliable routing. Setup adds two pool-disjoint
+ETH → WETH routes (`create_two_venue_pools`) so batches exercise route
+splitting; the snapshot externalities have no Aave reserves, so WETH/ETH has
+no other route here.
 
 ## Reproducing & triaging a finding
 

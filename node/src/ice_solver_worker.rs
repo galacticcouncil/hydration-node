@@ -18,10 +18,10 @@ use hydradx_runtime::{
 	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::{passthrough, v4, IceSolver};
+use ice_solver::{passthrough, v4, IceSolver, SolverOptions, SplitConfig};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
 use primitives::{AssetId, Balance};
-use sc_client_api::BlockchainEvents;
+use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_network_sync::SyncingService;
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::TransactionPool;
@@ -45,6 +45,22 @@ pub struct IceSolverWorkerConfig {
 	/// Enable/disable the ICE solver worker. Defaults to enabled on validators.
 	#[clap(long)]
 	pub ice_solver_worker: Option<bool>,
+
+	/// Allow one AMM transfer to be split across several routes. Default on;
+	/// `--ice-solver-split=false` falls back to single-route trades.
+	#[clap(long, default_value_t = true, action = clap::ArgAction::Set)]
+	pub ice_solver_split: bool,
+}
+
+impl IceSolverWorkerConfig {
+	pub fn solver_options(&self) -> SolverOptions {
+		let split = if self.ice_solver_split {
+			SplitConfig::default()
+		} else {
+			SplitConfig::disabled()
+		};
+		SolverOptions { split }
+	}
 }
 
 thread_local! {
@@ -107,9 +123,10 @@ impl Drop for BusyGuard {
 fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
 	input: SolverInput,
 	state: <HydrationSimulators as SimulatorSet>::State,
+	options: &SolverOptions,
 ) -> Option<Solution> {
 	let min_outs = input.min_amount_out.into_iter().collect();
-	S::solve_with_limits(input.intents, min_outs, state, input.fee).ok()
+	S::solve_with_options(input.intents, min_outs, state, input.fee, options).ok()
 }
 
 /// Pure transform: `SolverInput` → bare `submit_solution` extrinsic. No client,
@@ -120,7 +137,11 @@ fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
 ///
 /// `built_at` is the block the input state was read at; it is stamped into the
 /// solution so consecutive solutions never share an extrinsic hash.
-pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
+pub(crate) fn build_extrinsic(
+	input: SolverInput,
+	built_at: u32,
+	options: &SolverOptions,
+) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
 	let mode = input.mode;
 	// Before the decode: nothing this block produces can be accepted, so the
 	// snapshot decode and the solve are both pure waste.
@@ -149,8 +170,10 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 
 	let t_solve = Instant::now();
 	let mut solution = match mode {
-		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
-		SolverMode::Passthrough => solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
+		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state, options),
+		SolverMode::Passthrough => {
+			solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state, options)
+		}
 		// Returned above, before the decode.
 		SolverMode::Disabled => None,
 	}?;
@@ -168,12 +191,37 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 	Some((opaque, decode_ms, solve_ms))
 }
 
-pub struct IceSolverTask<B, C, P>(PhantomData<(B, C, P)>);
-
-impl<B, C, P> IceSolverTask<B, C, P>
+// TEMPORARY — delete with `ice_support::readmit` once the runtime pre-filter fix is live.
+fn readmit_withheld_dcas<B, BE, C>(client: &C, hash: B::Hash, block_no: u32, input: &mut SolverInput) -> usize
 where
 	B: BlockT,
-	C: ProvideRuntimeApi<B> + BlockchainEvents<B> + HeaderBackend<B> + Send + Sync + 'static,
+	BE: Backend<B>,
+	C: StorageProvider<B, BE>,
+{
+	let prefix = StorageKey([sp_core::twox_128(b"Intent"), sp_core::twox_128(b"Intents")].concat());
+	let pairs = match client.storage_pairs(hash, Some(&prefix), None) {
+		Ok(pairs) => pairs,
+		Err(e) => {
+			tracing::error!(target: LOG_TARGET, "reading Intent::Intents failed at block {block_no}: {e:?}");
+			return 0;
+		}
+	};
+	// The key ends in the `Blake2_128Concat` id; `data` is the stored `Intent`'s first field.
+	let stored = pairs.filter_map(|(key, value)| {
+		let id = ice_support::IntentId::decode(&mut &key.0[key.0.len().checked_sub(16)?..]).ok()?;
+		let data = ice_support::IntentData::decode(&mut &value.0[..]).ok()?;
+		Some((id, data))
+	});
+	ice_support::readmit::readmit_withheld_dcas(&mut input.intents, &input.existential_deposits, stored, block_no)
+}
+
+pub struct IceSolverTask<B, C, P, BE>(PhantomData<(B, C, P, BE)>);
+
+impl<B, C, P, BE> IceSolverTask<B, C, P, BE>
+where
+	B: BlockT,
+	C: ProvideRuntimeApi<B> + BlockchainEvents<B> + HeaderBackend<B> + StorageProvider<B, BE> + Send + Sync + 'static,
+	BE: Backend<B> + 'static,
 	C::Api: IceSolverApi<B>,
 	P: TransactionPool<Block = B> + 'static,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
@@ -183,13 +231,18 @@ where
 	/// still-running one.
 	pub async fn run(
 		client: Arc<C>,
-		_config: IceSolverWorkerConfig,
+		config: IceSolverWorkerConfig,
 		transaction_pool: Arc<P>,
 		sync_service: Arc<SyncingService<B>>,
 		spawner: SpawnTaskHandle,
 		task_data: Arc<IceSolverTaskData>,
 	) {
-		tracing::info!(target: LOG_TARGET, "starting");
+		let options = config.solver_options();
+		tracing::info!(
+			target: LOG_TARGET,
+			"starting, route splitting enabled={}",
+			options.split.max_legs > 1
+		);
 
 		let mut block_stream = client.import_notification_stream();
 		while let Some(notification) = block_stream.next().await {
@@ -238,7 +291,13 @@ where
 						return;
 					}
 					match api.solver_input(hash) {
-						Ok(Some(input)) => input,
+						Ok(Some(mut input)) => {
+							let readmitted = readmit_withheld_dcas(&*client, hash, block_no, &mut input);
+							if readmitted > 0 {
+								tracing::info!(target: LOG_TARGET, "re-admitted {readmitted} withheld DCA intent(s) at block {block_no}");
+							}
+							input
+						}
 						Ok(None) => return, // idle block, no valid intents
 						Err(e) => {
 							tracing::error!(target: LOG_TARGET, "solver_input failed at block {block_no}: {e:?}");
@@ -249,7 +308,7 @@ where
 				let state_query_ms = t_state.elapsed().as_millis();
 				let intents = input.intents.len() as u32;
 
-				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no) else {
+				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no, &options) else {
 					tracing::debug!(target: LOG_TARGET, "no solution for block {block_no}");
 					return;
 				};
@@ -338,6 +397,7 @@ pub mod rpc {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use clap::Parser;
 	use sp_runtime::Permill;
 
 	fn input_with(mode: SolverMode, state: Vec<u8>) -> SolverInput {
@@ -354,7 +414,7 @@ mod tests {
 	#[test]
 	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
 		let input = input_with(SolverMode::V4, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default()).is_none());
 	}
 
 	#[test]
@@ -362,7 +422,20 @@ mod tests {
 		// Same undecodable state as the test above: reaching the decode at all
 		// would have to log an error, so `None` here proves the mode check runs first.
 		let input = input_with(SolverMode::Disabled, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default()).is_none());
+	}
+
+	#[test]
+	fn solver_options_should_split_when_the_flag_is_absent() {
+		let config = IceSolverWorkerConfig::try_parse_from(["hydradx"]).expect("flags should parse");
+		assert_eq!(config.solver_options().split, SplitConfig::default());
+	}
+
+	#[test]
+	fn solver_options_should_not_split_when_the_flag_is_false() {
+		let config =
+			IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-split=false"]).expect("flags should parse");
+		assert_eq!(config.solver_options().split, SplitConfig::disabled());
 	}
 
 	#[test]
