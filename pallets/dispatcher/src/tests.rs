@@ -1,5 +1,5 @@
 use crate::mock::*;
-use crate::{Event, ExtraGas};
+use crate::{Event, ExtraGas, LastEvmCallExitReason};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, Pays};
 use frame_support::{assert_noop, assert_ok, dispatch::PostDispatchInfo};
 use orml_tokens::Error;
@@ -288,4 +288,88 @@ fn dispatch_with_fee_payer_should_require_signed_origin() {
 			DispatchError::BadOrigin
 		);
 	});
+}
+
+fn mock_evm_call(outcome: u8) -> Box<RuntimeCall> {
+	Box::new(RuntimeCall::MockEvm(mock_evm::Call::call { outcome }))
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_use_fixed_account_when_evm_call_succeeds() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Dispatcher::dispatch_as_cross_chain_governance(
+			RuntimeOrigin::root(),
+			mock_evm_call(0),
+		));
+
+		assert_eq!(MockEvm::last_caller(), Some(CrossChainGovernanceAccount::get()));
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_accept_stopped() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Dispatcher::dispatch_as_cross_chain_governance(
+			RuntimeOrigin::root(),
+			mock_evm_call(1),
+		));
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_fail_when_origin_is_not_root() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Dispatcher::dispatch_as_cross_chain_governance(RuntimeOrigin::signed(ALICE), mock_evm_call(0)),
+			DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_fail_when_call_is_not_evm() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call = Box::new(RuntimeCall::System(frame_system::Call::remark { remark: vec![] }));
+
+		assert_noop!(
+			Dispatcher::dispatch_as_cross_chain_governance(RuntimeOrigin::root(), call),
+			crate::Error::<Test>::NotEvmCall
+		);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_fail_when_exit_reason_is_missing() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Dispatcher::dispatch_as_cross_chain_governance(RuntimeOrigin::root(), mock_evm_call(7)),
+			crate::Error::<Test>::MissingEvmCallExitReason
+		);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_not_accept_stale_exit_reason() {
+	ExtBuilder::default().build().execute_with(|| {
+		LastEvmCallExitReason::<Test>::put(pallet_evm::ExitReason::Succeed(pallet_evm::ExitSucceed::Returned));
+
+		assert_noop!(
+			Dispatcher::dispatch_as_cross_chain_governance(RuntimeOrigin::root(), mock_evm_call(7)),
+			crate::Error::<Test>::MissingEvmCallExitReason
+		);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_reject_unsuccessful_evm_exit_reasons() {
+	for outcome in [2, 3, 4, 5] {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_noop!(
+				Dispatcher::dispatch_as_cross_chain_governance(RuntimeOrigin::root(), mock_evm_call(outcome)),
+				crate::Error::<Test>::EvmCallFailed
+			);
+		});
+	}
 }

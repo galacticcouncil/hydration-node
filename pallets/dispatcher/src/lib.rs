@@ -89,6 +89,8 @@ pub mod pallet {
 		type TreasuryAccount: Get<Self::AccountId>;
 		type DefaultAaveManagerAccount: Get<Self::AccountId>;
 		type EmergencyAdminAccount: Get<Self::AccountId>;
+		/// The synthetic account used by Hydration governance for cross-chain EVM calls.
+		type CrossChainGovernanceAccount: Get<Self::AccountId>;
 
 		/// Gas to Weight conversion.
 		type GasWeightMapping: GasWeightMapping;
@@ -125,6 +127,8 @@ pub mod pallet {
 		EvmCallFailed,
 		/// The provided call is not an EVM call. This extrinsic only accepts `pallet_evm::Call::call`.
 		NotEvmCall,
+		/// The EVM runner did not record an exit reason for the dispatched call.
+		MissingEvmCallExitReason,
 		/// The EVM call ran out of gas.
 		EvmOutOfGas,
 		/// The EVM call resulted in an arithmetic overflow or underflow.
@@ -155,6 +159,10 @@ pub mod pallet {
 			result: DispatchResultWithPostInfo,
 		},
 		EmergencyAdminCallDispatched {
+			call_hash: T::Hash,
+			result: DispatchResultWithPostInfo,
+		},
+		CrossChainGovernanceCallDispatched {
 			call_hash: T::Hash,
 			result: DispatchResultWithPostInfo,
 		},
@@ -381,6 +389,72 @@ pub mod pallet {
 			Ok(actual_weight.into())
 		}
 
+		/// Dispatch an EVM call as the fixed cross-chain governance account.
+		///
+		/// The previous EVM exit reason is cleared before dispatch and the fresh result is
+		/// consumed afterwards. Only `Returned` and `Stopped` are accepted as successful.
+		///
+		/// Parameters:
+		/// - `origin`: Must be Root.
+		/// - `call`: Must be `pallet_evm::Call::call` as a boxed `RuntimeCall`.
+		///
+		/// Emits `CrossChainGovernanceCallDispatched` with the call hash and dispatch result.
+		#[pallet::call_index(6)]
+		#[pallet::weight({
+			let call_weight = call.get_dispatch_info().call_weight;
+			let call_len = call.encoded_size() as u32;
+
+			T::WeightInfo::dispatch_as_cross_chain_governance(call_len)
+				.saturating_add(call_weight)
+		})]
+		pub fn dispatch_as_cross_chain_governance(
+			origin: OriginFor<T>,
+			call: Box<<T as Config>::RuntimeCall>,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			ensure!(T::EvmCallIdentifier::is_evm_call(&call), Error::<T>::NotEvmCall);
+
+			let call_hash = T::Hashing::hash_of(&call);
+			let call_len = call.encoded_size() as u32;
+			LastEvmCallExitReason::<T>::kill();
+
+			let (inner_result, actual_weight) = Self::do_dispatch(
+				frame_system::Origin::<T>::Signed(T::CrossChainGovernanceAccount::get()).into(),
+				*call,
+			);
+			let actual_weight =
+				actual_weight.map(|w| w.saturating_add(T::WeightInfo::dispatch_as_cross_chain_governance(call_len)));
+			let post_info = PostDispatchInfo {
+				actual_weight,
+				pays_fee: Pays::Yes,
+			};
+
+			let result = match LastEvmCallExitReason::<T>::take() {
+				Some(ExitReason::Succeed(ExitSucceed::Returned | ExitSucceed::Stopped)) => match inner_result {
+					Ok(_) => Ok(post_info),
+					Err(err) => Err(DispatchErrorWithPostInfo {
+						post_info,
+						error: err.error,
+					}),
+				},
+				Some(_) => Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: Error::<T>::EvmCallFailed.into(),
+				}),
+				None => Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: Error::<T>::MissingEvmCallExitReason.into(),
+				}),
+			};
+
+			Self::deposit_event(Event::<T>::CrossChainGovernanceCallDispatched {
+				call_hash,
+				result: result.clone(),
+			});
+
+			result
+		}
+
 		#[pallet::call_index(7)]
 		#[pallet::weight({
 			let call_weight = call.get_dispatch_info().call_weight;
@@ -414,6 +488,17 @@ pub mod pallet {
 					error: err.error,
 				}),
 			}
+		}
+
+		/// Provide a successful inner call for dispatcher benchmarks.
+		#[cfg(feature = "runtime-benchmarks")]
+		#[pallet::call_index(8)]
+		#[pallet::weight(Weight::zero())]
+		pub fn benchmark_evm_call(origin: OriginFor<T>, input: Vec<u8>) -> DispatchResult {
+			ensure_signed(origin)?;
+			let _ = input;
+			LastEvmCallExitReason::<T>::put(ExitReason::Succeed(ExitSucceed::Returned));
+			Ok(())
 		}
 	}
 }

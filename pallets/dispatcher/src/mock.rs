@@ -66,11 +66,59 @@ pub const BOB: AccountId = 2;
 
 pub const TREASURY_INITIAL_BALANCE: Balance = 1_000_000 * ONE;
 
+#[frame_support::pallet]
+pub mod mock_evm {
+	use super::dispatcher;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
+	use pallet_evm::{ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config + dispatcher::Config {}
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
+
+	#[pallet::storage]
+	#[pallet::getter(fn last_caller)]
+	pub type LastCaller<T: Config> = StorageValue<_, T::AccountId>;
+
+	#[pallet::error]
+	pub enum Error<T> {
+		RequestedFailure,
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
+		#[pallet::weight(Weight::zero())]
+		pub fn call(origin: OriginFor<T>, outcome: u8) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			LastCaller::<T>::put(caller);
+
+			let reason = match outcome {
+				0 => ExitReason::Succeed(ExitSucceed::Returned),
+				1 => ExitReason::Succeed(ExitSucceed::Stopped),
+				2 => ExitReason::Revert(ExitRevert::Reverted),
+				3 => ExitReason::Error(ExitError::OutOfGas),
+				4 => ExitReason::Fatal(ExitFatal::NotSupported),
+				5 => ExitReason::Succeed(ExitSucceed::Suicided),
+				6 => return Err(Error::<T>::RequestedFailure.into()),
+				_ => return Ok(()),
+			};
+
+			dispatcher::Pallet::<T>::set_last_evm_call_exit_reason(&reason);
+			Ok(())
+		}
+	}
+}
+
 frame_support::construct_runtime!(
 	pub enum Test
 	 {
 		 System: frame_system,
 		 Dispatcher: dispatcher,
+		 MockEvm: mock_evm,
 		 Tokens: orml_tokens,
 	 }
 );
@@ -108,6 +156,12 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 
 pub struct EvmCallIdentifier;
 impl MaybeEvmCall<RuntimeCall> for EvmCallIdentifier {
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	fn is_evm_call(call: &RuntimeCall) -> bool {
+		matches!(call, RuntimeCall::MockEvm(mock_evm::Call::call { .. }))
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
 	fn is_evm_call(_call: &RuntimeCall) -> bool {
 		true
 	}
@@ -132,7 +186,10 @@ pub fn get_fee_payer() -> Option<AccountId> {
 
 parameter_types! {
 	pub EmergencyAdminAccount: AccountId = 99;
+	pub CrossChainGovernanceAccount: AccountId = 98;
 }
+
+impl mock_evm::Config for Test {}
 
 impl dispatcher::Config for Test {
 	type RuntimeCall = RuntimeCall;
@@ -142,6 +199,7 @@ impl dispatcher::Config for Test {
 	type TreasuryAccount = TreasuryAccount;
 	type DefaultAaveManagerAccount = TreasuryAccount;
 	type EmergencyAdminAccount = EmergencyAdminAccount;
+	type CrossChainGovernanceAccount = CrossChainGovernanceAccount;
 	type WeightInfo = ();
 	type EvmCallIdentifier = EvmCallIdentifier;
 	type GasWeightMapping = MockGasWeightMapping;

@@ -103,6 +103,14 @@ impl<T: frame_system::Config> pallet_dispatcher::WeightInfo for HydraWeight<T> {
 			// Standard Error: 1
 			.saturating_add(Weight::from_parts(1_212, 0).saturating_mul(n.into()))
 	}
+	/// Storage: `Dispatcher::LastEvmCallExitReason` (r:1 w:2)
+	/// The range of component `n` is `[1, 10000]`.
+	fn dispatch_as_cross_chain_governance(n: u32, ) -> Weight {
+		// Conservative placeholder until this extrinsic is benchmarked on target hardware.
+		Weight::from_parts(15_000_000, 0)
+			.saturating_add(Weight::from_parts(1_300, 0).saturating_mul(n.into()))
+			.saturating_add(T::DbWeight::get().reads_writes(1_u64, 2_u64))
+	}
 	/// The range of component `n` is `[1, 10000]`.
 	fn dispatch_with_extra_gas(n: u32, ) -> Weight {
 		// Proof Size summary in bytes:
