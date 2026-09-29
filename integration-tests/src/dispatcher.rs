@@ -22,7 +22,7 @@ use sp_core::{Encode, Pair};
 use sp_runtime::traits::IdentifyAccount;
 
 use sp_runtime::traits::{DispatchTransaction, TransactionExtension};
-use sp_runtime::{DispatchErrorWithPostInfo, MultiSigner};
+use sp_runtime::{DispatchError, DispatchErrorWithPostInfo, MultiSigner};
 use test_utils::last_events;
 use xcm_emulator::TestExt;
 
@@ -42,6 +42,81 @@ fn testnet_manager() -> AccountId {
 
 fn emergency_admin_address() -> EvmAddress {
 	hex!["aa7e0000000000000000000000000000000aa7e1"].into()
+}
+
+fn cross_chain_governance_address() -> EvmAddress {
+	hex!["aa7e0000000000000000000000000000000aa7e2"].into()
+}
+
+fn cross_chain_governance_call(source: EvmAddress) -> Box<RuntimeCall> {
+	Box::new(RuntimeCall::EVM(pallet_evm::Call::call {
+		source,
+		target: hex!["0000000000000000000000000000000000000042"].into(),
+		input: vec![],
+		value: U256::zero(),
+		gas_limit: 100_000,
+		max_fee_per_gas: gas_price(),
+		max_priority_fee_per_gas: None,
+		nonce: None,
+		access_list: vec![],
+		authorization_list: vec![],
+	}))
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_execute_evm_call_from_configured_address() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_ok!(Tokens::set_balance(
+			RuntimeOrigin::root(),
+			EVMAccounts::account_id(cross_chain_governance_address()),
+			WethAssetId::get(),
+			1_000_000_000_000_000_000u128,
+			0,
+		));
+
+		assert_ok!(Dispatcher::dispatch_as_cross_chain_governance(
+			RuntimeOrigin::root(),
+			cross_chain_governance_call(cross_chain_governance_address()),
+		));
+
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+		assert!(matches!(
+			last_events::<RuntimeEvent, Runtime>(1).as_slice(),
+			[RuntimeEvent::Dispatcher(
+				pallet_dispatcher::Event::CrossChainGovernanceCallDispatched { result: Ok(_), .. }
+			)]
+		));
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_reject_mismatched_evm_source() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_noop!(
+			Dispatcher::dispatch_as_cross_chain_governance(
+				RuntimeOrigin::root(),
+				cross_chain_governance_call(evm_address()),
+			),
+			DispatchError::BadOrigin
+		);
+		assert_eq!(Dispatcher::last_evm_call_exit_reason(), None);
+	});
+}
+
+#[test]
+fn dispatch_as_cross_chain_governance_should_reject_non_root_origin() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_noop!(
+			Dispatcher::dispatch_as_cross_chain_governance(
+				RuntimeOrigin::signed(ALICE.into()),
+				cross_chain_governance_call(cross_chain_governance_address()),
+			),
+			DispatchError::BadOrigin
+		);
+	});
 }
 
 #[test]

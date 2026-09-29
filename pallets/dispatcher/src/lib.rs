@@ -429,22 +429,23 @@ pub mod pallet {
 				pays_fee: Pays::Yes,
 			};
 
-			let result = match LastEvmCallExitReason::<T>::take() {
-				Some(ExitReason::Succeed(ExitSucceed::Returned | ExitSucceed::Stopped)) => match inner_result {
-					Ok(_) => Ok(post_info),
-					Err(err) => Err(DispatchErrorWithPostInfo {
+			let exit_reason = LastEvmCallExitReason::<T>::take();
+			let result = match inner_result {
+				Err(err) => Err(DispatchErrorWithPostInfo {
+					post_info,
+					error: err.error,
+				}),
+				Ok(_) => match exit_reason {
+					Some(ExitReason::Succeed(ExitSucceed::Returned | ExitSucceed::Stopped)) => Ok(post_info),
+					Some(_) => Err(DispatchErrorWithPostInfo {
 						post_info,
-						error: err.error,
+						error: Error::<T>::EvmCallFailed.into(),
+					}),
+					None => Err(DispatchErrorWithPostInfo {
+						post_info,
+						error: Error::<T>::MissingEvmCallExitReason.into(),
 					}),
 				},
-				Some(_) => Err(DispatchErrorWithPostInfo {
-					post_info,
-					error: Error::<T>::EvmCallFailed.into(),
-				}),
-				None => Err(DispatchErrorWithPostInfo {
-					post_info,
-					error: Error::<T>::MissingEvmCallExitReason.into(),
-				}),
 			};
 
 			Self::deposit_event(Event::<T>::CrossChainGovernanceCallDispatched {
