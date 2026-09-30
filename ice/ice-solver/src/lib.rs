@@ -60,9 +60,22 @@ impl SplitConfig {
 	}
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SolverOptions {
 	pub split: SplitConfig,
+	/// Smallest partial fill, as a share of the intent's `amount_in`; a smaller
+	/// remainder is only ever filled whole. A limit only small trades clear would
+	/// otherwise be filled a sliver per block, one solution each.
+	pub min_partial_fill: Permill,
+}
+
+impl Default for SolverOptions {
+	fn default() -> Self {
+		Self {
+			split: SplitConfig::default(),
+			min_partial_fill: Permill::from_percent(1),
+		}
+	}
 }
 
 /// The entry points every solver generation exposes.

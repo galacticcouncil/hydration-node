@@ -33,6 +33,7 @@ impl IceSolver<TestSimulator> for V4NoSplit {
 	) -> Result<Solution, <TestSimulator as AMMInterface>::Error> {
 		let single_route = SolverOptions {
 			split: SplitConfig::disabled(),
+			..SolverOptions::default()
 		};
 		V4Solver::solve_with_options(intents, min_outs, state, fee, &single_route)
 	}
