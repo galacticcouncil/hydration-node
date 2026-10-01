@@ -34,7 +34,9 @@
 use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
-use crate::common::split::{self, adjust_amm_output, Leg, Routed, SellBudget, LIGHT_SPLIT_GRID, SPLIT_GRID};
+use crate::common::split::{
+	self, adjust_amm_output, adjust_amm_output_strict, Leg, Routed, SellBudget, LIGHT_SPLIT_GRID, SPLIT_GRID,
+};
 use crate::common::FlowDirection;
 use crate::common::RouteCache;
 use crate::{IceSolver, MinOuts, SolverOptions, SplitConfig};
@@ -163,6 +165,12 @@ fn rate_meets_limit(out: Balance, v: Balance, limit_n: Balance, limit_d: Balance
 	U256::from(out).saturating_mul(U256::from(limit_d.max(1))) >= U256::from(limit_n).saturating_mul(U256::from(v))
 }
 
+/// The smallest fill a partial intent may take: `share` of its `amount_in`, or
+/// the whole remainder once less than that is left.
+fn min_partial_fill(amount_in: Balance, remaining: Balance, share: Permill) -> Balance {
+	share.mul_ceil(amount_in).min(remaining)
+}
+
 /// Per-solve memo: route discovery, AMM quotes and existential deposits.
 ///
 /// Quotes are memoized per `(pair, amount)` and are only valid against the
@@ -182,10 +190,11 @@ struct SolveCache<A: AMMInterface> {
 	/// A fitting quote or a transfer came back split, so the solution can
 	/// differ from the single-route one.
 	split_used: bool,
+	min_partial_fill: Permill,
 }
 
 impl<A: AMMInterface> SolveCache<A> {
-	fn new(split: SplitConfig) -> Self {
+	fn new(split: SplitConfig, min_partial_fill: Permill) -> Self {
 		Self {
 			route_cache: RouteCache::new(),
 			quotes: BTreeMap::new(),
@@ -193,6 +202,7 @@ impl<A: AMMInterface> SolveCache<A> {
 			fitting_budget: SellBudget::new(split.sell_budget),
 			building_budget: SellBudget::new(split.sell_budget),
 			split_used: false,
+			min_partial_fill,
 		}
 	}
 
@@ -692,12 +702,12 @@ impl<A: AMMInterface> Solver<A> {
 		let quote_f = |cache: &mut SolveCache<A>, amount: Balance| {
 			cache
 				.quote_out(ctx.asset_a, ctx.asset_b, amount, state)
-				.map(adjust_amm_output)
+				.map(adjust_amm_output_strict)
 		};
 		let quote_b = |cache: &mut SolveCache<A>, amount: Balance| {
 			cache
 				.quote_out(ctx.asset_b, ctx.asset_a, amount, state)
-				.map(adjust_amm_output)
+				.map(adjust_amm_output_strict)
 		};
 
 		if v_f == 0 && v_b == 0 {
@@ -800,7 +810,14 @@ impl<A: AMMInterface> Solver<A> {
 				// Feasible at these volumes. Enforcing the ED remainder rule can
 				// lower a fill, which invalidates the fit that was just proven —
 				// so loop once more instead of returning.
-				if Self::enforce_ed_remainder(ctx, &mut fwd, &mut bwd, &mut ed_adjusted, &mut trimmed) {
+				if Self::enforce_ed_remainder(
+					ctx,
+					&mut fwd,
+					&mut bwd,
+					&mut ed_adjusted,
+					&mut trimmed,
+					cache.min_partial_fill,
+				) {
 					continue;
 				}
 				converged = true;
@@ -824,7 +841,8 @@ impl<A: AMMInterface> Solver<A> {
 				let base = v_dir.saturating_sub(tightest.fill);
 				let limit = (tightest.limit_n, tightest.limit_d);
 				let max_x = tightest.fill;
-				match Self::trim_search(ctx, is_fwd, base, max_x, v_other, limit, state, cache) {
+				let min_x = min_partial_fill(tightest.limit_d, tightest.remaining, cache.min_partial_fill);
+				match Self::trim_search(ctx, is_fwd, base, min_x, max_x, v_other, limit, state, cache) {
 					Some(x) => {
 						log::debug!(target: LOG_TARGET, "pair ({}, {}): trimmed partial {} to fill {}",
 							ctx.asset_a, ctx.asset_b, id, x);
@@ -877,6 +895,7 @@ impl<A: AMMInterface> Solver<A> {
 		bwd: &mut [Cand<'a>],
 		ed_adjusted: &mut BTreeSet<IntentId>,
 		trimmed: &mut BTreeSet<IntentId>,
+		min_share: Permill,
 	) -> bool {
 		let mut changed = false;
 		for (cand, ed) in fwd
@@ -894,9 +913,10 @@ impl<A: AMMInterface> Solver<A> {
 			let new_fill = if ed_adjusted.contains(&cand.intent.id) {
 				0
 			} else {
-				let reduced = cand.remaining.saturating_sub(ed);
-				if reduced >= ed.max(1) {
-					reduced.min(cand.fill)
+				let reduced = cand.remaining.saturating_sub(ed).min(cand.fill);
+				let min_fill = min_partial_fill(cand.limit_d, cand.remaining, min_share);
+				if reduced >= ed.max(1) && reduced >= min_fill {
+					reduced
 				} else {
 					0
 				}
@@ -926,12 +946,13 @@ impl<A: AMMInterface> Solver<A> {
 
 	/// Bisect the largest fill `x` for the blocked direction's tightest intent
 	/// such that the direction's uniform rate still meets its limit. Returns
-	/// `None` when no fill ≥ max(ED, 1) is feasible.
+	/// `None` when no fill ≥ max(ED, 1, `min_x`) is feasible.
 	#[allow(clippy::too_many_arguments)]
 	fn trim_search(
 		ctx: &PairCtx,
 		is_fwd: bool,
 		base: Balance,
+		min_x: Balance,
 		max_x: Balance,
 		v_other: Balance,
 		limit: (Balance, Balance),
@@ -939,7 +960,7 @@ impl<A: AMMInterface> Solver<A> {
 		cache: &mut SolveCache<A>,
 	) -> Option<Balance> {
 		let ed_in = if is_fwd { ctx.ed_a } else { ctx.ed_b };
-		let mut lo: Balance = ed_in.max(1);
+		let mut lo: Balance = ed_in.max(1).max(min_x);
 		let mut hi: Balance = max_x;
 		let mut best: Option<Balance> = None;
 
@@ -1669,28 +1690,34 @@ impl<A: AMMInterface> Solver<A> {
 			intent.id, swap.asset_in, swap.asset_out, fill, swap.amount_out, swap.amount_in);
 
 		// Admission clears the enforced floor; the score below stays on `amount_out`.
-		let min_n = U256::from(admission_n(intent.id, swap, min_outs));
+		let min_n = admission_n(intent.id, swap, min_outs);
 		let score_n = U256::from(swap.amount_out);
 		let min_d = U256::from(swap.amount_in);
 		let ed_in = cache.ed(swap.asset_in);
 		let ed_out = cache.ed(swap.asset_out);
+		let min_fill = if swap.partial.is_partial() {
+			min_partial_fill(swap.amount_in, swap.remaining(), cache.min_partial_fill)
+		} else {
+			0
+		};
 
 		let try_fill = |cache: &mut SolveCache<A>, amount: Balance| -> Option<Balance> {
 			if amount < ed_in.max(1) {
 				return None;
 			}
-			let net_out = adjust_amm_output(cache.quote_out(swap.asset_in, swap.asset_out, amount, initial_state)?);
-			let pro_rata_min = apply_rate(amount, min_n, min_d);
-			// `net_out >= ed_out` is both the resolved-intent guard and, for a
-			// one-leg quote, the trade guard; split legs clear both EDs already.
-			(net_out >= pro_rata_min && net_out >= ed_out.max(1)).then_some(amount)
+			let simulated = cache.quote_out(swap.asset_in, swap.asset_out, amount, initial_state)?;
+			// `adjust_amm_output >= ed_out` is both the resolved-intent guard and,
+			// for a one-leg quote, the trade guard; split legs clear both EDs already.
+			(rate_meets_limit(adjust_amm_output_strict(simulated), amount, min_n, swap.amount_in)
+				&& adjust_amm_output(simulated) >= ed_out.max(1))
+			.then_some(amount)
 		};
 
 		let result = if swap.partial.is_partial() {
 			// Full fill first, then bisect for the largest feasible fill.
 			let mut best = try_fill(cache, fill);
 			if best.is_none() {
-				let mut lo: Balance = ed_in.max(1);
+				let mut lo: Balance = ed_in.max(1).max(min_fill);
 				let mut hi: Balance = fill;
 				for _ in 0..MAX_SEARCH_ITERATIONS {
 					if lo > hi {
@@ -1720,7 +1747,7 @@ impl<A: AMMInterface> Solver<A> {
 					};
 				}
 			}
-			best
+			best.filter(|found| *found >= min_fill)
 		} else {
 			try_fill(cache, fill)
 		};
@@ -1777,7 +1804,7 @@ impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 		matched_fee: Permill,
 		options: &SolverOptions,
 	) -> Result<Solution, A::Error> {
-		let mut cache = SolveCache::<A>::new(options.split);
+		let mut cache = SolveCache::<A>::new(options.split, options.min_partial_fill);
 		let solution = Self::run_solve(&intents, &min_outs, &initial_state, matched_fee, &mut cache)?;
 		if !cache.split_used {
 			return Ok(solution);
@@ -1785,7 +1812,7 @@ impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 		// A split is chosen transfer by transfer, so it can use up a pool a later
 		// transfer, or another pair's fitting quote, counted on. Keep the batch's
 		// split solution only when it does not come out worse on single routes.
-		let mut single_cache = SolveCache::<A>::new(SplitConfig::disabled());
+		let mut single_cache = SolveCache::<A>::new(SplitConfig::disabled(), options.min_partial_fill);
 		let Ok(single) = Self::run_solve(&intents, &min_outs, &initial_state, matched_fee, &mut single_cache) else {
 			return Ok(solution);
 		};

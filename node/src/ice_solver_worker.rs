@@ -15,11 +15,12 @@ use cumulus_primitives_core::BlockT;
 use frame_support::__private::sp_tracing::tracing;
 use futures::StreamExt;
 use hydradx_runtime::{
-	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder,
+	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder, LRNA,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use ice_solver::{passthrough, v4, IceSolver, SolverOptions, SplitConfig};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
+use pallet_omnipool::types::Tradability;
 use primitives::{AssetId, Balance};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_network_sync::SyncingService;
@@ -59,7 +60,10 @@ impl IceSolverWorkerConfig {
 		} else {
 			SplitConfig::disabled()
 		};
-		SolverOptions { split }
+		SolverOptions {
+			split,
+			..SolverOptions::default()
+		}
 	}
 }
 
@@ -215,6 +219,42 @@ where
 	ice_support::readmit::readmit_withheld_dcas(&mut input.intents, &input.existential_deposits, stored, block_no)
 }
 
+/// Unset reads as the pallet's default, `SELL`.
+fn hub_sells_allowed(hub_asset_tradability: Option<&[u8]>) -> bool {
+	hub_asset_tradability
+		.is_none_or(|mut raw| Tradability::decode(&mut raw).is_ok_and(|t| t.contains(Tradability::SELL)))
+}
+
+/// The snapshot does not carry `Omnipool::HubAssetTradability`, so while it disallows
+/// selling H2O one H2O leg would make the whole solution revert.
+fn drop_hub_sells_while_disallowed<B, BE, C>(client: &C, hash: B::Hash, block_no: u32, input: &mut SolverInput) -> usize
+where
+	B: BlockT,
+	BE: Backend<B>,
+	C: StorageProvider<B, BE>,
+{
+	let key = StorageKey(
+		[
+			sp_core::twox_128(b"Omnipool"),
+			sp_core::twox_128(b"HubAssetTradability"),
+		]
+		.concat(),
+	);
+	let allowed = match client.storage(hash, &key) {
+		Ok(value) => hub_sells_allowed(value.as_ref().map(|v| &v.0[..])),
+		Err(e) => {
+			tracing::error!(target: LOG_TARGET, "reading Omnipool::HubAssetTradability failed at block {block_no}: {e:?}");
+			false
+		}
+	};
+	if allowed {
+		return 0;
+	}
+	let before = input.intents.len();
+	input.intents.retain(|intent| intent.data.asset_in() != LRNA::get());
+	before - input.intents.len()
+}
+
 pub struct IceSolverTask<B, C, P, BE>(PhantomData<(B, C, P, BE)>);
 
 impl<B, C, P, BE> IceSolverTask<B, C, P, BE>
@@ -295,6 +335,10 @@ where
 							let readmitted = readmit_withheld_dcas(&*client, hash, block_no, &mut input);
 							if readmitted > 0 {
 								tracing::info!(target: LOG_TARGET, "re-admitted {readmitted} withheld DCA intent(s) at block {block_no}");
+							}
+							let dropped = drop_hub_sells_while_disallowed(&*client, hash, block_no, &mut input);
+							if dropped > 0 {
+								tracing::info!(target: LOG_TARGET, "held back {dropped} intent(s) selling H2O at block {block_no}: hub asset selling is off");
 							}
 							input
 						}
@@ -436,6 +480,21 @@ mod tests {
 		let config =
 			IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-split=false"]).expect("flags should parse");
 		assert_eq!(config.solver_options().split, SplitConfig::disabled());
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_true_when_hub_asset_tradability_is_unset() {
+		assert!(hub_sells_allowed(None));
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_true_when_hub_asset_tradability_allows_sell() {
+		assert!(hub_sells_allowed(Some(&Tradability::SELL.encode())));
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_false_when_hub_asset_tradability_lacks_sell() {
+		assert!(!hub_sells_allowed(Some(&Tradability::BUY.encode())));
 	}
 
 	#[test]
