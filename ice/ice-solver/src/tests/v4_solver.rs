@@ -1413,3 +1413,68 @@ fn crossing_should_drop_a_partial_when_its_trimmed_fill_is_below_the_minimum_sha
 	assert_eq!(fills(&with_minimum), vec![(1, 1_000, 998)]);
 	assert_eq!(fills(&without), vec![(2, 3_923, 3_884), (1, 1_000, 990)]);
 }
+
+/// Mainnet 15_261_305: a partial aUSDC→PAXG limit sat inside spot but outside
+/// spot-minus-fee, beside a PAXG→DOT DCA. Priced pair by pair the limit never
+/// cleared, so it filled one block later against the DCA's price impact instead
+/// of against the DCA's PAXG.
+fn cross_pair_market() -> scripted::Builder {
+	scripted::script().default_sell(scripted::SellRule::Rate { n: 99, d: 100 })
+}
+
+#[test]
+fn partial_should_be_matched_across_pairs_when_only_the_other_pair_flow_clears_its_limit() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 1_000_000, 995_000),
+		make_intent(2, 2, 3, 1_000_000, 980_000),
+	];
+	let solution = cross_pair_market()
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::from_parts(200)).unwrap());
+
+	let fills = solution
+		.resolved_intents
+		.iter()
+		.map(|r| (r.id, r.data.amount_in(), r.data.amount_out()))
+		.collect::<Vec<_>>();
+	assert_eq!(fills, vec![(1, 1_000_000, 999_800), (2, 1_000_000, 989_901)]);
+	assert_conserves(&solution);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}
+
+#[test]
+fn partial_should_be_trimmed_to_the_cross_pair_flow_when_its_full_size_exceeds_it() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 3_000_000, 2_985_000),
+		make_intent(2, 2, 3, 1_000_000, 980_000),
+	];
+	let solution = cross_pair_market()
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::from_parts(200)).unwrap());
+
+	let fills = solution
+		.resolved_intents
+		.iter()
+		.map(|r| (r.id, r.data.amount_in(), r.data.amount_out()))
+		.collect::<Vec<_>>();
+	assert_eq!(fills, vec![(1, 1_941_500, 1_931_792), (2, 1_000_000, 989_901)]);
+	assert_conserves(&solution);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}
+
+#[test]
+fn partial_should_stay_unfilled_when_no_other_pair_supplies_its_output() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 1_000_000, 995_000),
+		make_intent(2, 3, 4, 1_000_000, 980_000),
+	];
+	let solution = cross_pair_market()
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::from_parts(200)).unwrap());
+
+	let ids = solution.resolved_intents.iter().map(|r| r.id).collect::<Vec<_>>();
+	assert_eq!(ids, vec![2]);
+}
