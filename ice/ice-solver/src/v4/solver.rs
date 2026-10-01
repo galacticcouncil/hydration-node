@@ -113,6 +113,11 @@ const MAX_SEARCH_ITERATIONS: u32 = 128;
 /// Stabilization rounds for the trade/resolution loop.
 const MAX_STABILIZATION_ROUNDS: u32 = 6;
 
+/// Intents the cross-pair re-admission pass may try per solve, and the
+/// bisection steps it may spend on each. Every step is a full netting round.
+const MAX_READMIT_INTENTS: usize = 8;
+const MAX_READMIT_SEARCH_ITERATIONS: u32 = 24;
+
 fn empty_solution() -> Solution {
 	Solution::new(
 		ResolvedIntents::truncate_from(Vec::new()),
@@ -521,6 +526,17 @@ impl<A: AMMInterface> Solver<A> {
 			.copied()
 			.filter(|intent| fills.contains_key(&intent.id))
 			.collect();
+
+		Self::readmit_cross_pair(
+			&candidates,
+			&mut included,
+			&mut fills,
+			min_outs,
+			&spot_prices,
+			initial_state,
+			cache,
+			fee_ctx,
+		);
 
 		// Cap to MAX_NUMBER_OF_RESOLVED_INTENTS, keeping the highest estimated surplus.
 		if included.len() > MAX_NUMBER_OF_RESOLVED_INTENTS as usize {
@@ -1094,6 +1110,109 @@ impl<A: AMMInterface> Solver<A> {
 			return false;
 		}
 		true
+	}
+
+	/// Give intents the crossing dropped or trimmed a second chance against the
+	/// whole batch. The crossing prices each pair against the AMM alone, so an
+	/// intent that clears only on another pair's flow (A→B beside B→C) never
+	/// reached netting. Each fill is proven by a full netting round in which
+	/// every included intent still resolves.
+	#[allow(clippy::too_many_arguments)]
+	fn readmit_cross_pair<'a>(
+		candidates: &[&'a Intent],
+		included: &mut Vec<&'a Intent>,
+		fills: &mut BTreeMap<IntentId, Balance>,
+		min_outs: &MinOuts,
+		spot_prices: &BTreeMap<AssetId, Ratio>,
+		initial_state: &A::State,
+		cache: &mut SolveCache<A>,
+		fee_ctx: FeeCtx,
+	) {
+		// Trial rounds route trades too; they must not spend the split budget
+		// the real stabilization rounds count on.
+		let saved_budget = core::mem::replace(&mut cache.building_budget, SellBudget::new(cache.split.sell_budget));
+		let mut attempts = 0;
+		for &intent in candidates {
+			if attempts >= MAX_READMIT_INTENTS {
+				break;
+			}
+			let IntentData::Swap(swap) = &intent.data else {
+				continue;
+			};
+			let remaining = swap.remaining();
+			let current = fills.get(&intent.id).copied().unwrap_or(0);
+			if current >= remaining {
+				continue;
+			}
+			let pair = unordered_pair(swap.asset_in, swap.asset_out);
+			let has_cross_flow = included.iter().any(|other| match &other.data {
+				IntentData::Swap(o) => {
+					unordered_pair(o.asset_in, o.asset_out) != pair
+						&& (o.asset_in == swap.asset_out || o.asset_out == swap.asset_in)
+				}
+				_ => false,
+			});
+			if !has_cross_flow {
+				continue;
+			}
+			attempts += 1;
+
+			let mut trial: Vec<&Intent> = included.iter().copied().filter(|i| i.id != intent.id).collect();
+			trial.push(intent);
+			let feasible = |x: Balance, cache: &mut SolveCache<A>| -> bool {
+				let mut trial_fills = fills.clone();
+				trial_fills.insert(intent.id, x);
+				let (resolved, _, _) = Self::netting_round(
+					&trial,
+					&trial_fills,
+					min_outs,
+					spot_prices,
+					initial_state,
+					cache,
+					fee_ctx,
+				);
+				resolved.len() == trial.len()
+			};
+
+			let found = if feasible(remaining, cache) {
+				Some(remaining)
+			} else if swap.partial.is_partial() {
+				let ed_in = cache.ed(swap.asset_in);
+				let mut lo = current.saturating_add(1).max(ed_in.max(1)).max(min_partial_fill(
+					swap.amount_in,
+					remaining,
+					cache.min_partial_fill,
+				));
+				// A partial fill must leave at least ED behind.
+				let mut hi = remaining.saturating_sub(ed_in.max(1));
+				let mut best = None;
+				for _ in 0..MAX_READMIT_SEARCH_ITERATIONS {
+					if lo > hi {
+						break;
+					}
+					let mid = midpoint(lo, hi);
+					if feasible(mid, cache) {
+						best = Some(mid);
+						lo = mid.saturating_add(1);
+					} else {
+						hi = mid.saturating_sub(1);
+					}
+				}
+				best
+			} else {
+				None
+			};
+
+			if let Some(fill) = found {
+				log::debug!(target: LOG_TARGET, "intent {}: re-admitted on cross-pair flow, fill {} -> {}",
+					intent.id, current, fill);
+				fills.insert(intent.id, fill);
+				if !included.iter().any(|i| i.id == intent.id) {
+					included.push(intent);
+				}
+			}
+		}
+		cache.building_budget = saved_budget;
 	}
 
 	/// Global-netting round. Nets every asset's flow across the whole batch
