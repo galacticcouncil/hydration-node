@@ -10,7 +10,7 @@ use hydradx_runtime::{
 	AssetId, AssetRegistry, Currencies, Dispatcher, Parameters, Router, Runtime, RuntimeCall, RuntimeEvent,
 	RuntimeOrigin, System, Treasury, DCA,
 };
-use hydradx_traits::router::{PoolType, Trade};
+use hydradx_traits::router::{ExecutorError, PoolType, Trade};
 use hydradx_traits::OraclePeriod;
 use orml_traits::MultiCurrency;
 use pallet_broadcast::types::Filler;
@@ -226,6 +226,28 @@ fn router_sell_should_increase_output_balance_when_routed_through_uniswap_v3() {
 }
 
 #[test]
+fn router_sell_should_succeed_at_every_amount_when_the_input_is_an_atoken() {
+	with_uniswap_v3(|| {
+		for amount in SELL_AMOUNT..SELL_AMOUNT + 32 {
+			let before = Currencies::free_balance(ASSET_OUT, &ALICE.into());
+			let result = Router::sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				ASSET_IN,
+				ASSET_OUT,
+				amount,
+				0,
+				uniswap_route().try_into().unwrap(),
+			);
+			assert!(result.is_ok(), "router sell of {amount} failed: {result:?}");
+			assert!(
+				Currencies::free_balance(ASSET_OUT, &ALICE.into()) > before,
+				"router sell of {amount} delivered nothing"
+			);
+		}
+	});
+}
+
+#[test]
 fn router_buy_should_deliver_exact_output_when_routed_through_uniswap_v3() {
 	with_uniswap_v3(|| {
 		let buy_amount = SELL_AMOUNT / 2;
@@ -414,6 +436,43 @@ fn trade_weight_should_cover_the_whole_buy_path() {
 		needed.ref_time(),
 		path_gas
 	);
+}
+
+#[test]
+fn trade_weight_should_cover_the_atoken_sell_path() {
+	use hydradx_runtime::Runtime as R;
+	use pallet_evm::GasWeightMapping;
+
+	let path_gas = 250_000 + 1_000_000 + 100_000 + 1_000_000 + 4 * 100_000 + 2 * 100_000 + 250_000;
+	let declared = UniswapV3::trade_weight();
+	let needed = <R as pallet_evm::Config>::GasWeightMapping::gas_to_weight(path_gas, true);
+
+	assert!(
+		declared.ref_time() >= needed.ref_time(),
+		"trade_weight() declares {} but the aToken sell path can reserve {} ({} gas)",
+		declared.ref_time(),
+		needed.ref_time(),
+		path_gas
+	);
+}
+
+#[test]
+fn execute_sell_should_fail_with_a_named_error_when_the_swap_reverts() {
+	with_uniswap_v3(|| {
+		assert_eq!(
+			UniswapV3::execute_sell(
+				RuntimeOrigin::signed(ALICE.into()),
+				PoolType::UniswapV3(FEE_TIER),
+				ASSET_IN,
+				ASSET_OUT,
+				SELL_AMOUNT,
+				Balance::MAX,
+			),
+			Err(ExecutorError::Error(
+				pallet_dispatcher::Error::<Runtime>::UniswapV3SwapFailed.into()
+			))
+		);
+	});
 }
 
 // ---------------------------------------------------------------------------

@@ -29,6 +29,7 @@ use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use sp_std::marker::PhantomData;
 use sp_std::vec;
+use sp_std::vec::Vec;
 
 pub struct UniswapV3TradeExecutor<T>(PhantomData<T>);
 
@@ -47,6 +48,10 @@ pub enum Function {
 	ExactInputSingle = "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))",
 	ExactOutputSingle = "exactOutputSingle((address,address,uint24,address,uint256,uint256,uint160))",
 	Approve = "approve(address,uint256)",
+	UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
+	AavePool = "POOL()",
+	ScaledBalanceOf = "scaledBalanceOf(address)",
+	GetReserveNormalizedIncome = "getReserveNormalizedIncome(address)",
 }
 
 // Per-call gas ceilings. These are CEILINGS, not consumption — the chain charges
@@ -67,6 +72,8 @@ const QUOTE_GAS_LIMIT: u64 = 1_000_000;
 const SWAP_GAS_LIMIT: u64 = 1_000_000;
 const IN_GIVEN_OUT_ROUNDING: Balance = 1;
 const FEE_DENOMINATOR: u128 = 1_000_000;
+const RAY: u128 = 1_000_000_000_000_000_000_000_000_000;
+const MAX_ROUNDING_STEPS: Balance = 1_000;
 
 pub fn evm_token_address(asset: AssetId) -> EvmAddress {
 	HydraErc20Mapping::asset_address(asset)
@@ -98,6 +105,35 @@ fn price_token1_per_token0(sqrt_price_x96: U256) -> FixedU128 {
 		>> 96;
 	let inner = scaled.checked_mul(scaled).unwrap_or(U256::MAX).saturated_into::<u128>();
 	FixedU128::from_inner(inner)
+}
+
+fn ray_mul(a: U256, b: U256) -> Option<U256> {
+	a.checked_mul(b)?
+		.checked_add(U256::from(RAY / 2))?
+		.checked_div(U256::from(RAY))
+}
+
+fn ray_div(a: U256, b: U256) -> Option<U256> {
+	a.checked_mul(U256::from(RAY))?.checked_add(b / 2)?.checked_div(b)
+}
+
+fn pool_balance_increase(amount: Balance, index: U256, pool_scaled: U256) -> Option<Balance> {
+	let received_scaled = ray_div(U256::from(amount), index)?;
+	let before = ray_mul(pool_scaled, index)?;
+	let after = ray_mul(pool_scaled.checked_add(received_scaled)?, index)?;
+	Balance::try_from(after.checked_sub(before)?).ok()
+}
+
+fn safe_sell_amount(amount: Balance, index: U256, pool_scaled: U256) -> Balance {
+	for step in 0..=MAX_ROUNDING_STEPS {
+		let Some(candidate) = amount.checked_sub(step) else {
+			break;
+		};
+		if pool_balance_increase(candidate, index, pool_scaled).is_some_and(|increase| increase >= candidate) {
+			return candidate;
+		}
+	}
+	amount
 }
 
 impl<T> UniswapV3TradeExecutor<T>
@@ -351,6 +387,35 @@ where
 		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
 	}
 
+	fn view_word(target: EvmAddress, data: Vec<u8>) -> Option<[u8; 32]> {
+		let result = Executor::<T>::view(CallContext::new_view(target), data, ERC20_VIEW_GAS_LIMIT);
+		if !matches!(result.exit_reason, Succeed(ExitSucceed::Returned)) {
+			return None;
+		}
+		result.value.get(0..32)?.try_into().ok()
+	}
+
+	fn atoken_rounding_state(token: EvmAddress, pool: EvmAddress) -> Option<(U256, U256)> {
+		let underlying = Self::view_word(
+			token,
+			EvmDataWriter::new_with_selector(Function::UnderlyingAssetAddress).build(),
+		)?;
+		let aave_pool = Self::view_word(token, EvmDataWriter::new_with_selector(Function::AavePool).build())?;
+		let index = Self::view_word(
+			EvmAddress::from_slice(&aave_pool[12..]),
+			EvmDataWriter::new_with_selector(Function::GetReserveNormalizedIncome)
+				.write(EvmAddress::from_slice(&underlying[12..]))
+				.build(),
+		)?;
+		let pool_scaled = Self::view_word(
+			token,
+			EvmDataWriter::new_with_selector(Function::ScaledBalanceOf)
+				.write(pool)
+				.build(),
+		)?;
+		Some((U256::from_big_endian(&index), U256::from_big_endian(&pool_scaled)))
+	}
+
 	/// Report an executed swap to the EMA oracle under `UNISWAPV3_SOURCE`.
 	///
 	/// Without this a v3 pool has no oracle history at all, and every consumer of
@@ -427,7 +492,7 @@ where
 		Self::pool_address(factory, asset_a, asset_b, fee)
 	}
 
-	/// Worst-case gas the buy path can reserve, summed from the calls it actually makes.
+	/// Worst-case gas a trade can reserve, summed from the calls each path actually makes.
 	///
 	/// Derived rather than written down so the number cannot drift away from the code:
 	///
@@ -441,15 +506,22 @@ where
 	///            slot0               POOL_VIEW
 	/// ```
 	///
-	/// The sell path is the same minus one APPROVE, so this bounds both.
+	/// The sell path drops the second APPROVE but adds four ERC20_VIEW reads of the
+	/// input token's aToken state, so this returns whichever of the two is larger.
 	const fn worst_case_gas() -> u64 {
-		POOL_VIEW_GAS_LIMIT
+		let shared = POOL_VIEW_GAS_LIMIT
 			+ QUOTE_GAS_LIMIT
 			+ APPROVE_GAS_LIMIT
 			+ SWAP_GAS_LIMIT
-			+ APPROVE_GAS_LIMIT
 			+ 2 * ERC20_VIEW_GAS_LIMIT
-			+ POOL_VIEW_GAS_LIMIT
+			+ POOL_VIEW_GAS_LIMIT;
+		let buy = shared + APPROVE_GAS_LIMIT;
+		let sell = shared + 4 * ERC20_VIEW_GAS_LIMIT;
+		if buy > sell {
+			buy
+		} else {
+			sell
+		}
 	}
 
 	pub fn trade_weight() -> Weight {
@@ -542,7 +614,7 @@ where
 		);
 		ensure!(
 			matches!(swap_result.exit_reason, Succeed(_)),
-			ExecutorError::Error("uniswapv3: swap failed".into())
+			ExecutorError::Error(pallet_dispatcher::Error::<T>::UniswapV3SwapFailed.into())
 		);
 
 		Self::decode_swap_amount(&swap_result)
@@ -585,7 +657,7 @@ where
 		);
 		ensure!(
 			matches!(swap_result.exit_reason, Succeed(_)),
-			ExecutorError::Error("uniswapv3: swap failed".into())
+			ExecutorError::Error(pallet_dispatcher::Error::<T>::UniswapV3SwapFailed.into())
 		);
 
 		let amount_in = Self::decode_swap_amount(&swap_result)?;
@@ -646,15 +718,13 @@ where
 		let PoolType::UniswapV3(fee) = pool_type else {
 			return Err(ExecutorError::NotSupported);
 		};
-		let amount_out = Self::do_sell(who.clone(), asset_in, asset_out, fee, amount_in, min_limit)?;
-		Self::report_trade(
-			Self::find_pool(asset_in, asset_out, fee)?
-				.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?,
-			asset_in,
-			asset_out,
-			amount_in,
-			amount_out,
-		)?;
+		let pool = Self::find_pool(asset_in, asset_out, fee)?
+			.ok_or(ExecutorError::Error("uniswapv3: pool not found".into()))?;
+		let amount_to_sell = Self::atoken_rounding_state(evm_token_address(asset_in), pool)
+			.map(|(index, pool_scaled)| safe_sell_amount(amount_in, index, pool_scaled))
+			.unwrap_or(amount_in);
+		let amount_out = Self::do_sell(who.clone(), asset_in, asset_out, fee, amount_to_sell, min_limit)?;
+		Self::report_trade(pool, asset_in, asset_out, amount_to_sell, amount_out)?;
 		let trader = ensure_signed(who).map_err(|_| ExecutorError::Error("uniswapv3: bad origin".into()))?;
 		let filler = pallet_evm_accounts::Pallet::<T>::truncated_account_id(Self::swap_router().unwrap_or_default());
 		pallet_broadcast::Pallet::<T>::deposit_trade_event(
@@ -662,7 +732,7 @@ where
 			filler,
 			pallet_broadcast::types::Filler::UniswapV3,
 			pallet_broadcast::types::TradeOperation::ExactIn,
-			vec![Asset::new(asset_in, amount_in)],
+			vec![Asset::new(asset_in, amount_to_sell)],
 			vec![Asset::new(asset_out, amount_out)],
 			vec![],
 		);
@@ -832,5 +902,77 @@ mod tests {
 	fn sort_tokens_should_return_same_pair_when_equal() {
 		let a = EvmAddress::from_low_u64_be(0x1_0000_0007);
 		assert_eq!(sort_tokens(a, a), (a, a));
+	}
+
+	#[test]
+	fn safe_sell_amount_should_step_down_when_the_pool_would_gain_one_wei_less() {
+		let index = U256::from(13 * RAY / 10);
+		let pool_scaled = U256::from(1002);
+		assert_eq!(pool_balance_increase(3, index, pool_scaled), Some(2));
+		assert_eq!(safe_sell_amount(3, index, pool_scaled), 2);
+	}
+
+	#[test]
+	fn safe_sell_amount_should_keep_the_amount_when_the_pool_gains_it_in_full() {
+		let index = U256::from(13 * RAY / 10);
+		let pool_scaled = U256::from(1002);
+		assert_eq!(pool_balance_increase(2, index, pool_scaled), Some(2));
+		assert_eq!(safe_sell_amount(2, index, pool_scaled), 2);
+	}
+
+	#[test]
+	fn pool_balance_increase_should_equal_the_amount_when_the_index_is_one() {
+		let pool_scaled = U256::from(5_000_000_000_000_000u128);
+		assert_eq!(
+			pool_balance_increase(1_000_000_000, U256::from(RAY), pool_scaled),
+			Some(1_000_000_000)
+		);
+	}
+
+	#[test]
+	fn safe_sell_amount_should_return_zero_when_the_amount_is_zero() {
+		let index = U256::from(107 * RAY / 100);
+		let pool_scaled = U256::from(1_000_000_000_000_000u128);
+		assert_eq!(pool_balance_increase(0, index, pool_scaled), Some(0));
+		assert_eq!(safe_sell_amount(0, index, pool_scaled), 0);
+	}
+
+	#[test]
+	fn safe_sell_amount_should_keep_the_amount_when_the_index_is_zero() {
+		let pool_scaled = U256::from(1_000_000_000_000_000u128);
+		assert_eq!(pool_balance_increase(1_000_000_000, U256::zero(), pool_scaled), None);
+		assert_eq!(
+			safe_sell_amount(1_000_000_000, U256::zero(), pool_scaled),
+			1_000_000_000
+		);
+	}
+
+	#[test]
+	fn safe_sell_amount_should_keep_the_amount_when_no_safe_amount_is_within_the_cap() {
+		let index = U256::from(RAY + RAY / 1_000_000);
+		let pool_scaled = U256::from(1_000_000_000_600_000u128);
+		assert_eq!(pool_balance_increase(600_001, index, pool_scaled), Some(600_000));
+		assert_eq!(safe_sell_amount(600_001, index, pool_scaled), 600_001);
+	}
+
+	#[test]
+	fn safe_sell_amount_should_find_an_amount_the_pool_accepts_when_the_index_is_realistic() {
+		let index = U256::from(107 * RAY / 100);
+		let pool_scaled = U256::from(1_000_000_000_000_008u128);
+		assert_eq!(
+			pool_balance_increase(1_000_000_000, index, pool_scaled),
+			Some(999_999_999)
+		);
+
+		let safe = safe_sell_amount(1_000_000_000, index, pool_scaled);
+		assert_eq!(safe, 999_999_996);
+		assert_eq!(pool_balance_increase(safe, index, pool_scaled), Some(safe));
+	}
+
+	#[test]
+	fn pool_balance_increase_should_return_none_when_the_math_overflows() {
+		let index = U256::from(107 * RAY / 100);
+		assert_eq!(pool_balance_increase(1_000_000_000, index, U256::MAX / 2), None);
+		assert_eq!(safe_sell_amount(1_000_000_000, index, U256::MAX / 2), 1_000_000_000);
 	}
 }
