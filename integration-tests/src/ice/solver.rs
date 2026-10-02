@@ -9,7 +9,7 @@ use hydradx_runtime::{
 };
 use hydradx_traits::amm::{AmmSimulator, SimulatorConfig, SimulatorSet};
 use hydradx_traits::registry::Inspect as RegistryInspect;
-use hydradx_traits::router::RouteProvider;
+use hydradx_traits::router::{PoolType, RouteProvider, Trade};
 use hydradx_traits::BoundErc20;
 use ice_solver::v4::Solver as IceSolver;
 use ice_support::{Solution, MAX_NUMBER_OF_RESOLVED_INTENTS};
@@ -324,6 +324,188 @@ fn omnipool_simulator_should_price_a_second_sell_as_executed_when_it_follows_in_
 			]
 		);
 	});
+}
+
+#[test]
+fn omnipool_simulator_should_price_h2o_sells_as_executed_when_two_follow_in_the_same_block() {
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		enable_slip_fees();
+		let (h2o, hdx, amount) = (1, 0, 25 * 10u128.pow(12));
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			ALICE.into(),
+			h2o,
+			(2 * amount) as i128,
+		));
+
+		let mut state = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
+		let mut outs = Vec::new();
+		for _ in 0..2 {
+			let (next, simulated) =
+				<OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>> as AmmSimulator>::simulate_sell(
+					h2o, hdx, amount, 0, &state,
+				)
+				.expect("sell should simulate");
+			state = next;
+			let before = Currencies::free_balance(hdx, &ALICE.into());
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(ALICE.into()), h2o, hdx, amount, 0));
+			outs.push((
+				simulated.amount_out,
+				Currencies::free_balance(hdx, &ALICE.into()) - before,
+			));
+		}
+		// As for any Omnipool sell, the fee processor's cut of the HDX fee leaves the
+		// pool and is not in the snapshot; everything else the first sell changes is.
+		assert_eq!(
+			outs,
+			vec![
+				(88_912_633_502_990_999, 88_912_633_502_990_999),
+				(88_836_202_987_981_297, 88_836_202_979_769_497),
+			]
+		);
+		assert_eq!(
+			(
+				state.slip_fee_hubreserve_at_block_start.get(&hdx).copied(),
+				state.slip_fee_delta.get(&hdx).copied(),
+			),
+			(
+				pallet_omnipool::SlipFeeHubReserveAtBlockStart::<Runtime>::get(hdx),
+				Some(pallet_omnipool::SlipFeeDelta::<Runtime>::get(hdx)),
+			)
+		);
+	});
+}
+
+fn solve_now() -> Option<ice_support::Solution> {
+	let call = pallet_ice::Pallet::<Runtime>::run(
+		hydradx_runtime::System::block_number(),
+		|intents: Vec<ice_support::Intent>,
+		 limits: Vec<(ice_support::IntentId, ice_support::Balance)>,
+		 state: CombinedSimulatorState| {
+			Solver::solve_with_limits(
+				intents,
+				limits.into_iter().collect(),
+				state,
+				pallet_ice::ProtocolFee::<Runtime>::get(),
+			)
+			.ok()
+		},
+	)?;
+	let pallet_ice::Call::submit_solution { solution, .. } = call else {
+		panic!("Expected submit_solution call");
+	};
+	Some(solution)
+}
+
+#[test]
+fn solver_should_settle_an_intent_selling_h2o() {
+	TestNet::reset();
+	let alice: AccountId = ALICE.into();
+	let (h2o, usdt) = (1u32, 10u32);
+	let amount_in = 25 * 10u128.pow(12);
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), h2o, amount_in)
+		.submit_swap_intent(alice.clone(), h2o, usdt, amount_in, 180_000_000, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+			let solution = solve_now().expect("the H2O intent should be solved");
+			assert_eq!(solution.score, 1_295_603);
+			assert_eq!(
+				solution
+					.resolved_intents
+					.iter()
+					.map(|r| (r.data.asset_in(), r.data.amount_in(), r.data.amount_out()))
+					.collect::<Vec<_>>(),
+				vec![(h2o, amount_in, 181_295_603)]
+			);
+			assert_eq!(
+				solution
+					.trades
+					.iter()
+					.map(|t| (t.amount_in, t.amount_out, t.route.to_vec()))
+					.collect::<Vec<_>>(),
+				vec![(
+					amount_in,
+					181_295_603,
+					vec![
+						Trade {
+							pool: PoolType::Omnipool,
+							asset_in: h2o,
+							asset_out: 222,
+						},
+						Trade {
+							pool: PoolType::Stableswap(111),
+							asset_in: 222,
+							asset_out: 1002,
+						},
+						Trade {
+							pool: PoolType::Aave,
+							asset_in: 1002,
+							asset_out: usdt,
+						},
+					],
+				)]
+			);
+
+			let usdt_before = Currencies::total_balance(usdt, &alice);
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			assert_eq!(Currencies::total_balance(usdt, &alice) - usdt_before, 181_295_603);
+			assert_eq!(Currencies::total_balance(h2o, &alice), 0);
+		});
+}
+
+#[test]
+fn solver_should_settle_an_intent_selling_h2o_alongside_other_intents() {
+	TestNet::reset();
+	let (alice, bob): (AccountId, AccountId) = (ALICE.into(), BOB.into());
+	let (h2o, hdx, dot, usdt) = (1u32, 0u32, 5u32, 10u32);
+	let h2o_in = 25 * 10u128.pow(12);
+	let hdx_in = 10_000 * 10u128.pow(12);
+
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT)
+		.endow_account(alice.clone(), h2o, h2o_in)
+		.endow_account(bob.clone(), hdx, hdx_in * 2)
+		.submit_swap_intent(alice.clone(), h2o, usdt, h2o_in, 180_000_000, Some(10))
+		.submit_swap_intent(bob.clone(), hdx, dot, hdx_in, 150_000_000_000, Some(10))
+		.execute(|| {
+			enable_slip_fees();
+			let solution = solve_now().expect("both intents should be solved");
+			assert_eq!(solution.score, 8_343_786_022);
+			assert_eq!(
+				solution
+					.resolved_intents
+					.iter()
+					.map(|r| (r.data.asset_in(), r.data.amount_in(), r.data.amount_out()))
+					.collect::<Vec<_>>(),
+				vec![(hdx, hdx_in, 158_342_490_419), (h2o, h2o_in, 181_295_603)]
+			);
+			assert!(
+				solution
+					.trades
+					.iter()
+					.all(|trade| trade.route.iter().all(|hop| hop.asset_out != h2o)),
+				"no hop may buy H2O"
+			);
+
+			let (usdt_before, dot_before) = (
+				Currencies::total_balance(usdt, &alice),
+				Currencies::total_balance(dot, &bob),
+			);
+			crate::polkadot_test_net::hydradx_run_to_next_block();
+			assert_ok!(pallet_ice::Pallet::<Runtime>::submit_solution(
+				RuntimeOrigin::none(),
+				solution,
+			));
+			assert_eq!(Currencies::total_balance(usdt, &alice) - usdt_before, 181_295_603);
+			assert_eq!(Currencies::total_balance(dot, &bob) - dot_before, 158_342_490_419);
+			assert_eq!(Currencies::total_balance(h2o, &alice), 0);
+		});
 }
 
 #[test]
@@ -4480,7 +4662,7 @@ fn solver_v2_partial_fill_whale() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 4, "resolved count");
-			assert_eq!(solution.score, 1946999999999997, "score");
+			assert_eq!(solution.score, 1947000000000001, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4490,7 +4672,7 @@ fn solver_v2_partial_fill_whale() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1048233527765180661u128);
+				assert_eq!(s.amount_in, 1048233527765180646u128);
 				assert_eq!(s.amount_out, 68135179304736742u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
@@ -4503,7 +4685,7 @@ fn solver_v2_partial_fill_whale() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 649999999999999u128);
+				assert_eq!(s.amount_out, 650000000000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4515,7 +4697,7 @@ fn solver_v2_partial_fill_whale() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 649999999999999u128);
+				assert_eq!(s.amount_out, 650000000000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			{
@@ -4527,7 +4709,7 @@ fn solver_v2_partial_fill_whale() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
 				assert_eq!(s.amount_in, 10000000000000000u128);
-				assert_eq!(s.amount_out, 649999999999999u128);
+				assert_eq!(s.amount_out, 650000000000000u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 
@@ -4698,7 +4880,7 @@ fn solver_v2_single_partial_whale() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 0, "score");
+			assert_eq!(solution.score, 2, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4708,8 +4890,8 @@ fn solver_v2_single_partial_whale() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1078233527765180676u128);
-				assert_eq!(s.amount_out, 70085179304736743u128);
+				assert_eq!(s.amount_in, 1078233527765166276u128);
+				assert_eq!(s.amount_out, 70085179304735809u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			let fee_before = fee_receiver_snapshot(&solution);
@@ -4723,7 +4905,7 @@ fn solver_v2_single_partial_whale() {
 			);
 
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 0, "score");
+			assert_eq!(solution.score, 2, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -4733,8 +4915,8 @@ fn solver_v2_single_partial_whale() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1078233527765180676u128);
-				assert_eq!(s.amount_out, 70085179304736743u128);
+				assert_eq!(s.amount_in, 1078233527765166276u128);
+				assert_eq!(s.amount_out, 70085179304735809u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 
@@ -4791,8 +4973,8 @@ fn solver_v2_single_partial_whale() {
 			// Verify Dave's balances
 			let dave_hdx_after = Currencies::total_balance(hdx, &dave);
 			let dave_bnc_after = Currencies::total_balance(bnc, &dave);
-			assert_eq!(dave_hdx_after, 8921766472234819324u128);
-			assert_eq!(dave_bnc_after, 70085179304736743u128);
+			assert_eq!(dave_hdx_after, 8921766472234833724u128);
+			assert_eq!(dave_bnc_after, 70085179304735809u128);
 			let hdx_spent = dave_hdx_before.saturating_sub(dave_hdx_after);
 			let bnc_received = dave_bnc_after.saturating_sub(dave_bnc_before);
 
@@ -5717,7 +5899,7 @@ fn solver_v2_competing_partial_intents() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 1, "score");
+			assert_eq!(solution.score, 2, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -5727,7 +5909,7 @@ fn solver_v2_competing_partial_intents() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 625537982916863060u128);
+				assert_eq!(s.amount_in, 625537982916863045u128);
 				assert_eq!(s.amount_out, 41285506872512962u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
@@ -6130,7 +6312,7 @@ fn solver_v2_cancel_after_partial_fill() {
 				panic!("Expected submit_solution call");
 			};
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 0, "score");
+			assert_eq!(solution.score, 2, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -6140,8 +6322,8 @@ fn solver_v2_cancel_after_partial_fill() {
 				};
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 14);
-				assert_eq!(s.amount_in, 1078233527765180676u128);
-				assert_eq!(s.amount_out, 70085179304736743u128);
+				assert_eq!(s.amount_in, 1078233527765166276u128);
+				assert_eq!(s.amount_out, 70085179304735809u128);
 				assert_eq!(s.partial, ice_support::Partial::Yes(0u128));
 			}
 			let fee_before = fee_receiver_snapshot(&solution);

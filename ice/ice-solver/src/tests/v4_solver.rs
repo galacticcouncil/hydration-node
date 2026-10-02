@@ -650,7 +650,7 @@ fn tight_partial_should_not_throttle_loose_partial_when_sharing_direction() {
 	// Depth-10_000 pool. Combined volume 2_000 clears at ~0.83 — below the tight
 	// partial's 0.9 limit. Price priority: the loose partial fills fully, the
 	// tight partial is trimmed to a fill that keeps the uniform rate at its
-	// limit (the bisection lands on 105 — integer floor jitter makes the exact
+	// limit (the bisection lands on 94 — integer floor jitter makes the exact
 	// feasibility boundary non-monotone, so the result is conservative).
 	let intents = vec![make_partial(1, 1, 2, 1_000, 500), make_partial(2, 1, 2, 1_000, 900)];
 	let solution = Solver::<MockAMMDepth>::solve(intents.clone(), (), Permill::zero()).unwrap();
@@ -659,14 +659,14 @@ fn tight_partial_should_not_throttle_loose_partial_when_sharing_direction() {
 	let loose = find_resolved(&solution.resolved_intents, 1);
 	let tight = find_resolved(&solution.resolved_intents, 2);
 	assert_eq!(loose.data.amount_in(), 1_000);
-	assert_eq!(loose.data.amount_out(), 900);
-	assert_eq!(tight.data.amount_in(), 105);
-	assert_eq!(tight.data.amount_out(), 94);
+	assert_eq!(loose.data.amount_out(), 901);
+	assert_eq!(tight.data.amount_in(), 94);
+	assert_eq!(tight.data.amount_out(), 84);
 	assert!(same_rate_within(loose, tight, 1));
 	assert_eq!(solution.trades.len(), 1);
-	assert_eq!(solution.trades[0].amount_in, 1_105);
-	assert_eq!(solution.trades[0].amount_out, 995);
-	assert_eq!(solution.score, 400);
+	assert_eq!(solution.trades[0].amount_in, 1_094);
+	assert_eq!(solution.trades[0].amount_out, 986);
+	assert_eq!(solution.score, 401);
 	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
 }
 
@@ -804,12 +804,12 @@ fn partial_should_fill_maximum_when_full_amount_infeasible() {
 
 	assert_eq!(solution.resolved_intents.len(), 1);
 	let r = &solution.resolved_intents[0];
-	assert_eq!(r.data.amount_in(), 4_002);
-	assert_eq!(r.data.amount_out(), 3_001);
+	assert_eq!(r.data.amount_in(), 3_990);
+	assert_eq!(r.data.amount_out(), 2_994);
 	assert_eq!(solution.trades.len(), 1);
-	assert_eq!(solution.trades[0].amount_in, 4_002);
-	assert_eq!(solution.trades[0].amount_out, 3_001);
-	assert_eq!(solution.score, 0);
+	assert_eq!(solution.trades[0].amount_in, 3_990);
+	assert_eq!(solution.trades[0].amount_out, 2_994);
+	assert_eq!(solution.score, 2);
 }
 
 #[test]
@@ -967,9 +967,8 @@ fn crossing_should_refit_the_partial_when_ed_remainder_adjustment_lowers_its_fil
 
 	// The crossing trims the partial, the ED-remainder rule then lowers that
 	// fill further, and the lower volume no longer clears the limit the trim was
-	// proven against. Re-fitting after the adjustment lands on 251 (which clears
-	// its pro-rata minimum with a unit to spare) instead of keeping the stale
-	// 271 that only just met it.
+	// proven against. Re-fitting after the adjustment (947 -> 800) lands on 216
+	// instead of keeping the 800 that no longer clears.
 	let intents = vec![make_partial(1, 1, 2, 1_000, 950), make_intent(2, 2, 1, 900, 810)];
 	let solution = script()
 		.ed(1, 200)
@@ -980,9 +979,9 @@ fn crossing_should_refit_the_partial_when_ed_remainder_adjustment_lowers_its_fil
 	assert_eq!(solution.resolved_intents.len(), 1);
 	let r = &solution.resolved_intents[0];
 	assert_eq!(r.id, 1);
-	assert_eq!(r.data.amount_in(), 251);
-	assert_eq!(r.data.amount_out(), 239);
-	assert_eq!(solution.score, 1);
+	assert_eq!(r.data.amount_in(), 216);
+	assert_eq!(r.data.amount_out(), 207);
+	assert_eq!(solution.score, 2);
 	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
 	// The untouched remainder stays tradeable in a later block.
 	assert!(1_000 - r.data.amount_in() >= 200);
@@ -1294,4 +1293,188 @@ fn ring_should_not_fill_more_than_remaining_when_partial_is_already_filled() {
 		);
 	}
 	assert_conserves(&solution);
+}
+
+fn solve_with_min_partial_fill(intents: Vec<Intent>, share: Permill) -> ice_support::Solution {
+	use scripted::ScriptedAmm;
+	let options = crate::SolverOptions {
+		min_partial_fill: share,
+		..crate::SolverOptions::default()
+	};
+	<Solver<ScriptedAmm> as crate::IceSolver<ScriptedAmm>>::solve_with_options(
+		intents,
+		Default::default(),
+		(),
+		Permill::zero(),
+		&options,
+	)
+	.unwrap()
+}
+
+#[test]
+fn partial_should_not_fill_in_slivers_when_market_clears_its_limit_by_less_than_the_tolerance() {
+	use scripted::{script, SellRule};
+
+	// The market pays 0.8 bp over the limit, less than the 1 bp tolerance, at every
+	// size. Rounded down, the tolerance vanished on a tiny trade and the intent was
+	// filled a sliver per block; the minimum share is off to show the strict check
+	// alone refuses it.
+	let intents = vec![make_partial(1, 1, 2, 10u128.pow(18), 10u128.pow(18))];
+	let solution = script()
+		.default_sell(SellRule::Rate { n: 100_008, d: 100_000 })
+		.run(|| solve_with_min_partial_fill(intents, Permill::zero()));
+
+	assert_eq!(solution.resolved_intents.len(), 0);
+	assert_eq!(solution.trades.len(), 0);
+}
+
+#[test]
+fn partial_should_fill_in_one_trade_when_market_clears_its_limit_by_more_than_the_tolerance() {
+	use scripted::{script, ScriptedAmm, SellRule};
+
+	let intents = vec![make_partial(1, 1, 2, 10u128.pow(18), 10u128.pow(18))];
+	let solution = script()
+		.default_sell(SellRule::Rate { n: 100_012, d: 100_000 })
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::zero()).unwrap());
+
+	assert_eq!(solution.resolved_intents.len(), 1);
+	let r = &solution.resolved_intents[0];
+	assert_eq!(r.data.amount_in(), 1_000_000_000_000_000_000);
+	assert_eq!(r.data.amount_out(), 1_000_019_988_000_000_000);
+	assert_eq!(solution.trades.len(), 1);
+	assert_eq!(solution.score, 19_988_000_000_000);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}
+
+#[test]
+fn partial_should_not_fill_when_only_fills_below_the_minimum_share_clear_its_limit() {
+	use scripted::{script, ScriptedAmm, SellRule};
+
+	// Depth 500_000 at a 0.99 limit: only fills up to ~0.5 % of the intent clear it.
+	let intents = || vec![make_partial(1, 1, 2, 1_000_000, 990_000)];
+	let market = || script().default_sell(SellRule::Depth(500_000));
+
+	let with_minimum = market().run(|| Solver::<ScriptedAmm>::solve(intents(), (), Permill::zero()).unwrap());
+	let without = market().run(|| solve_with_min_partial_fill(intents(), Permill::zero()));
+
+	assert_eq!(with_minimum.resolved_intents.len(), 0);
+	assert_eq!(with_minimum.trades.len(), 0);
+	assert_eq!(
+		without
+			.resolved_intents
+			.iter()
+			.map(|r| (r.data.amount_in(), r.data.amount_out()))
+			.collect::<Vec<_>>(),
+		vec![(4_871, 4_824)]
+	);
+}
+
+#[test]
+fn partial_should_fill_its_whole_remainder_when_the_remainder_is_below_the_minimum_share() {
+	use scripted::{script, ScriptedAmm, SellRule};
+
+	// 4_000 left of 1_000_000, under the 10_000 minimum share: filled whole.
+	let intents = vec![make_partial_filled(1, 1, 2, 1_000_000, 990_000, 996_000)];
+	let solution = script()
+		.default_sell(SellRule::Depth(500_000))
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::zero()).unwrap());
+
+	assert_eq!(solution.resolved_intents.len(), 1);
+	let r = &solution.resolved_intents[0];
+	assert_eq!(r.data.amount_in(), 4_000);
+	assert_eq!(r.data.amount_out(), 3_968);
+	assert_eq!(solution.score, 8);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}
+
+#[test]
+fn crossing_should_drop_a_partial_when_its_trimmed_fill_is_below_the_minimum_share() {
+	use scripted::{script, ScriptedAmm, SellRule};
+
+	// The loose partial fills whole; the tight one could only be trimmed to a
+	// fill below 1 % of its size, so the crossing drops it instead.
+	let intents = || {
+		vec![
+			make_partial(1, 1, 2, 1_000, 500),
+			make_partial(2, 1, 2, 1_000_000, 990_000),
+		]
+	};
+	let market = || script().default_sell(SellRule::Depth(500_000));
+
+	let with_minimum = market().run(|| Solver::<ScriptedAmm>::solve(intents(), (), Permill::zero()).unwrap());
+	let without = market().run(|| solve_with_min_partial_fill(intents(), Permill::zero()));
+
+	let fills = |s: &ice_support::Solution| {
+		s.resolved_intents
+			.iter()
+			.map(|r| (r.id, r.data.amount_in(), r.data.amount_out()))
+			.collect::<Vec<_>>()
+	};
+	assert_eq!(fills(&with_minimum), vec![(1, 1_000, 998)]);
+	assert_eq!(fills(&without), vec![(2, 3_923, 3_884), (1, 1_000, 990)]);
+}
+
+/// Mainnet 15_261_305: a partial aUSDC→PAXG limit sat inside spot but outside
+/// spot-minus-fee, beside a PAXG→DOT DCA. Priced pair by pair the limit never
+/// cleared, so it filled one block later against the DCA's price impact instead
+/// of against the DCA's PAXG.
+fn cross_pair_market() -> scripted::Builder {
+	scripted::script().default_sell(scripted::SellRule::Rate { n: 99, d: 100 })
+}
+
+#[test]
+fn partial_should_be_matched_across_pairs_when_only_the_other_pair_flow_clears_its_limit() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 1_000_000, 995_000),
+		make_intent(2, 2, 3, 1_000_000, 980_000),
+	];
+	let solution = cross_pair_market()
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::from_parts(200)).unwrap());
+
+	let fills = solution
+		.resolved_intents
+		.iter()
+		.map(|r| (r.id, r.data.amount_in(), r.data.amount_out()))
+		.collect::<Vec<_>>();
+	assert_eq!(fills, vec![(1, 1_000_000, 999_800), (2, 1_000_000, 989_901)]);
+	assert_conserves(&solution);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}
+
+#[test]
+fn partial_should_be_trimmed_to_the_cross_pair_flow_when_its_full_size_exceeds_it() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 3_000_000, 2_985_000),
+		make_intent(2, 2, 3, 1_000_000, 980_000),
+	];
+	let solution = cross_pair_market()
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::from_parts(200)).unwrap());
+
+	let fills = solution
+		.resolved_intents
+		.iter()
+		.map(|r| (r.id, r.data.amount_in(), r.data.amount_out()))
+		.collect::<Vec<_>>();
+	assert_eq!(fills, vec![(1, 1_941_500, 1_931_792), (2, 1_000_000, 989_901)]);
+	assert_conserves(&solution);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}
+
+#[test]
+fn partial_should_stay_unfilled_when_no_other_pair_supplies_its_output() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 1_000_000, 995_000),
+		make_intent(2, 3, 4, 1_000_000, 980_000),
+	];
+	let solution = cross_pair_market()
+		.run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::from_parts(200)).unwrap());
+
+	let ids = solution.resolved_intents.iter().map(|r| r.id).collect::<Vec<_>>();
+	assert_eq!(ids, vec![2]);
 }
