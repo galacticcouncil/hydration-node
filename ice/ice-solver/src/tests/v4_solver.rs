@@ -1478,3 +1478,30 @@ fn partial_should_stay_unfilled_when_no_other_pair_supplies_its_output() {
 	let ids = solution.resolved_intents.iter().map(|r| r.id).collect::<Vec<_>>();
 	assert_eq!(ids, vec![2]);
 }
+
+#[test]
+fn partial_should_be_readmitted_at_the_minimum_fill_when_only_that_fill_clears_its_limit() {
+	use scripted::ScriptedAmm;
+
+	let intents = vec![
+		make_partial(1, 1, 2, 3_000_000_000_000_000_000, 3_000_000_000_000_000_000),
+		make_intent(2, 2, 3, 30_000_000_000_000_000, 29_400_000_000_000_000),
+	];
+	let solution =
+		cross_pair_market().run(|| Solver::<ScriptedAmm>::solve(intents.clone(), (), Permill::zero()).unwrap());
+
+	let fills = solution
+		.resolved_intents
+		.iter()
+		.map(|r| (r.id, r.data.amount_in(), r.data.amount_out()))
+		.collect::<Vec<_>>();
+	assert_eq!(
+		fills,
+		vec![
+			(1, 30_000_000_000_000_000, 30_000_000_000_000_000),
+			(2, 30_000_000_000_000_000, 29_697_030_000_000_000),
+		]
+	);
+	assert_conserves(&solution);
+	assert_eq!(solution.score, pallet_score(&intents, &solution.resolved_intents));
+}

@@ -1128,9 +1128,10 @@ impl<A: AMMInterface> Solver<A> {
 		cache: &mut SolveCache<A>,
 		fee_ctx: FeeCtx,
 	) {
-		// Trial rounds route trades too; they must not spend the split budget
-		// the real stabilization rounds count on.
-		let saved_budget = core::mem::replace(&mut cache.building_budget, SellBudget::new(cache.split.sell_budget));
+		// Trials take single routes: a shared split budget would run out partway and
+		// make a probe's verdict depend on how many probes ran before it, and the real
+		// stabilization rounds keep theirs untouched.
+		let saved_budget = core::mem::replace(&mut cache.building_budget, SellBudget::new(0));
 		let mut attempts = 0;
 		for &intent in candidates {
 			if attempts >= MAX_READMIT_INTENTS {
@@ -1185,20 +1186,28 @@ impl<A: AMMInterface> Solver<A> {
 				));
 				// A partial fill must leave at least ED behind.
 				let mut hi = remaining.saturating_sub(ed_in.max(1));
-				let mut best = None;
-				for _ in 0..MAX_READMIT_SEARCH_ITERATIONS {
-					if lo > hi {
-						break;
+				// Bounded bisection only records midpoints, so a feasible range narrower
+				// than its last step above `lo` would go unseen. Probing `lo` first also
+				// ends a hopeless search after one round instead of the full allowance.
+				if lo > hi || !feasible(lo, cache) {
+					None
+				} else {
+					let mut best = lo;
+					lo = lo.saturating_add(1);
+					for _ in 0..MAX_READMIT_SEARCH_ITERATIONS {
+						if lo > hi {
+							break;
+						}
+						let mid = midpoint(lo, hi);
+						if feasible(mid, cache) {
+							best = mid;
+							lo = mid.saturating_add(1);
+						} else {
+							hi = mid.saturating_sub(1);
+						}
 					}
-					let mid = midpoint(lo, hi);
-					if feasible(mid, cache) {
-						best = Some(mid);
-						lo = mid.saturating_add(1);
-					} else {
-						hi = mid.saturating_sub(1);
-					}
+					Some(best)
 				}
-				best
 			} else {
 				None
 			};
