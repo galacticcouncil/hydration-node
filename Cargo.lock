@@ -370,7 +370,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "ethabi",
  "evm",
@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.7.0"
+version = "15.7.1"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -14190,7 +14190,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.119.0"
+version = "1.120.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
