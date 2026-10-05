@@ -73,6 +73,10 @@ pub struct OmnipoolSnapshot {
 	pub slip_fee_hubreserve_at_block_start: BTreeMap<AssetId, Balance>,
 	/// Cumulative net hub asset delta per asset in the current block.
 	pub slip_fee_delta: BTreeMap<AssetId, SignedBalance>,
+	/// Mirrors `Omnipool::HubAssetTradability` lacking `SELL`. Set by the node, not
+	/// shipped: skipping it keeps the encoding the runtime produces unchanged.
+	#[codec(skip)]
+	pub hub_sells_disabled: bool,
 }
 
 impl OmnipoolSnapshot {
@@ -206,6 +210,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			//NOTE: these are per block and solver is always first in the block so they should be empty
 			slip_fee_hubreserve_at_block_start: BTreeMap::new(),
 			slip_fee_delta: BTreeMap::new(),
+			hub_sells_disabled: false,
 		}
 	}
 
@@ -225,6 +230,9 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 		}
 
 		if asset_in == snapshot.hub_asset_id {
+			if snapshot.hub_sells_disabled {
+				return Err(SimulatorError::Other);
+			}
 			return sell_hub_asset(asset_out, amount_in, min_amount_out, snapshot);
 		}
 		if asset_out == snapshot.hub_asset_id {
@@ -469,7 +477,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 
 	fn can_trade(asset_in: AssetId, asset_out: AssetId, snapshot: &Self::Snapshot) -> Option<PoolType<u32>> {
 		// The hub asset can be sold, not bought.
-		if asset_out == snapshot.hub_asset_id {
+		if asset_out == snapshot.hub_asset_id || (asset_in == snapshot.hub_asset_id && snapshot.hub_sells_disabled) {
 			return None;
 		}
 
@@ -489,8 +497,11 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return sp_std::vec::Vec::new();
 		}
 		// A route uses a pool once, so the hub asset can only start or end one;
-		// a route ending in it fails `simulate_sell`.
-		assets.push(snapshot.hub_asset_id);
+		// a route ending in it fails `simulate_sell`. Without the edge no route can
+		// sell it, including one that reaches it through another pool first.
+		if !snapshot.hub_sells_disabled {
+			assets.push(snapshot.hub_asset_id);
+		}
 		sp_std::vec![PoolEdge {
 			pool_type: PoolType::Omnipool,
 			assets,

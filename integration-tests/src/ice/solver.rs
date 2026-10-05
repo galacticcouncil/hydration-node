@@ -9196,3 +9196,37 @@ fn solver_should_drop_intent_expiring_within_the_margin_and_settle_the_rest() {
 			);
 		});
 }
+
+#[test]
+fn omnipool_simulator_should_offer_no_h2o_sell_when_hub_sells_are_disabled() {
+	type Sim = OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>;
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let mut snapshot = Sim::snapshot();
+		snapshot.hub_sells_disabled = true;
+		let hub = snapshot.hub_asset_id;
+		let hdx = 0;
+
+		assert_eq!(<Sim as AmmSimulator>::can_trade(hub, hdx, &snapshot), None);
+		assert!(<Sim as AmmSimulator>::pool_edges(&snapshot)
+			.iter()
+			.all(|edge| !edge.assets.contains(&hub)));
+		assert!(matches!(
+			<Sim as AmmSimulator>::simulate_sell(hub, hdx, 1_000_000_000_000, 0, &snapshot),
+			Err(hydradx_traits::amm::SimulatorError::Other)
+		));
+	});
+}
+
+#[test]
+fn omnipool_snapshot_encoding_should_not_change_when_hub_sells_are_disabled() {
+	use codec::Encode;
+	TestNet::reset();
+	crate::driver::HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		let mut snapshot = OmnipoolSimulator::<ice_simulator_provider::Omnipool<Runtime>>::snapshot();
+		let shipped = snapshot.encode();
+		snapshot.hub_sells_disabled = true;
+
+		assert_eq!(snapshot.encode(), shipped);
+	});
+}
