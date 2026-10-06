@@ -286,7 +286,10 @@ fn solve_with(intents: Vec<Intent>, state: Book, split: SplitConfig) -> Solution
 		MinOuts::new(),
 		state,
 		Permill::zero(),
-		&SolverOptions { split },
+		&SolverOptions {
+			split,
+			..SolverOptions::default()
+		},
 	)
 	.expect("solver should succeed")
 }
@@ -341,7 +344,8 @@ fn split_legs_of_1000() -> Trades {
 
 #[test]
 fn solve_should_match_the_single_route_solver_when_splitting_is_disabled() {
-	// Pinned from the solver before splitting existed, on the same markets.
+	// Pinned from the solver before splitting existed, on the same markets; the
+	// partial fill is sized by the strict limit check since.
 	let off = SplitConfig::disabled();
 	assert_eq!(
 		shape(&solve_with(
@@ -366,9 +370,9 @@ fn solve_should_match_the_single_route_solver_when_splitting_is_disabled() {
 			off
 		)),
 		(
-			vec![(1, 694_864_048_338_476, 690_000_000_000_106)],
-			vec![(694_864_048_338_476, 690_000_000_000_106, vec![PoolType::Omnipool])],
-			0,
+			vec![(1, 694_864_048_338_113, 689_999_999_999_748)],
+			vec![(694_864_048_338_113, 689_999_999_999_748, vec![PoolType::Omnipool])],
+			2,
 		),
 	);
 	assert_eq!(
@@ -604,12 +608,12 @@ fn fitting_should_fill_a_partial_in_full_when_only_the_split_pays_its_limit() {
 	assert_eq!(
 		shape(&trimmed),
 		(
-			vec![(1, 694_864_048_338_476, 693_772_089_606_745)],
+			vec![(1, 694_864_048_338_113, 693_772_089_606_383)],
 			vec![
-				(320_288_897_281_025, 319_234_396_064_401, vec![PoolType::Omnipool]),
-				(374_575_151_057_449, 374_537_693_542_344, vec![PoolType::Stableswap(7)]),
+				(320_288_897_280_856, 319_234_396_064_233, vec![PoolType::Omnipool]),
+				(374_575_151_057_255, 374_537_693_542_150, vec![PoolType::Stableswap(7)]),
 			],
-			3_772_089_606_639,
+			3_772_089_606_637,
 		),
 	);
 	assert_conserves(&trimmed);

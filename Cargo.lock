@@ -243,7 +243,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.3.1"
+version = "0.4.1"
 dependencies = [
  "ethabi",
  "evm",
@@ -4181,7 +4181,7 @@ dependencies = [
  "futures",
  "kvdb-rocksdb",
  "log",
- "parity-db 0.5.6",
+ "parity-db 0.5.7",
  "parity-scale-codec",
  "parking_lot 0.12.3",
  "sc-client-api",
@@ -5704,7 +5704,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "17.1.0"
+version = "17.2.0"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5758,6 +5758,7 @@ dependencies = [
  "pallet-ice",
  "pallet-ice-runtime-api",
  "pallet-liquidation",
+ "pallet-omnipool",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "pepl-worker",
@@ -6178,7 +6179,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.9.0"
+version = "0.11.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -6192,7 +6193,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver-bench"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "amm-simulator",
  "criterion",
@@ -6210,6 +6211,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-fee-processor",
  "pallet-ice",
+ "pallet-ice-runtime-api",
  "pallet-intent",
  "pallet-omnipool",
  "parity-scale-codec",
@@ -10035,7 +10037,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -11410,9 +11412,9 @@ dependencies = [
 
 [[package]]
 name = "parity-db"
-version = "0.5.6"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd67682e0852e7b476b8502a4abe27890f82d3c482a65e4acf985d17f6048f9d"
+checksum = "7697e37afbb7410115e32f2da9a96e908a601d103c7c769540ad08bb8406aa0c"
 dependencies = [
  "ahash 0.8.11",
  "blake2 0.10.6",
@@ -14234,7 +14236,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.118.0"
+version = "1.120.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
@@ -16693,7 +16695,7 @@ dependencies = [
  "slab",
  "smallvec",
  "soketto",
- "twox-hash 2.1.4",
+ "twox-hash 2.1.5",
  "wasmi",
  "x25519-dalek",
  "zeroize",
@@ -19006,9 +19008,9 @@ dependencies = [
 
 [[package]]
 name = "twox-hash"
-version = "2.1.4"
+version = "2.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5283634e518fe9e82c7b20520bb4bc209009fd16c82077c802f8111ecbb0117a"
+checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
 
 [[package]]
 name = "typenum"
