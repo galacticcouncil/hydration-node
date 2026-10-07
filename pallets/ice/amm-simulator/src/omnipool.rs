@@ -3,7 +3,9 @@
 use codec::Decode;
 use codec::Encode;
 use core::marker::PhantomData;
+use hydra_dx_math::omnipool::types::HubTradeSlipFees;
 use hydra_dx_math::omnipool::types::SignedBalance;
+use hydra_dx_math::omnipool::types::TradeFee;
 use hydra_dx_math::omnipool::types::TradeSlipFees;
 use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
@@ -19,6 +21,7 @@ use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::SlipFeeConfig;
 use pallet_omnipool::types::Tradability;
 use primitive_types::U256;
+use primitives::constants::chain::CORE_ASSET_ID;
 use sp_runtime::traits::Zero;
 use sp_runtime::Permill;
 use sp_std::collections::btree_map::BTreeMap;
@@ -70,6 +73,10 @@ pub struct OmnipoolSnapshot {
 	pub slip_fee_hubreserve_at_block_start: BTreeMap<AssetId, Balance>,
 	/// Cumulative net hub asset delta per asset in the current block.
 	pub slip_fee_delta: BTreeMap<AssetId, SignedBalance>,
+	/// Mirrors `Omnipool::HubAssetTradability` lacking `SELL`. Set by the node, not
+	/// shipped: skipping it keeps the encoding the runtime produces unchanged.
+	#[codec(skip)]
+	pub hub_sells_disabled: bool,
 }
 
 impl OmnipoolSnapshot {
@@ -99,6 +106,17 @@ impl OmnipoolSnapshot {
 		self
 	}
 
+	/// `pallet_omnipool::process_protocol_fee`: the unburned protocol fee, slip fee
+	/// included, is added to HDX's hub reserve after every trade.
+	fn with_protocol_fee(mut self, fee: &TradeFee<Balance>) -> Self {
+		if let Some(hdx) = self.assets.get_mut(&CORE_ASSET_ID) {
+			hdx.hub_reserve = hdx
+				.hub_reserve
+				.saturating_add(fee.protocol_fee.saturating_sub(fee.burned_protocol_fee));
+		}
+		self
+	}
+
 	pub fn load_trade_slip_fees(
 		&self,
 		asset_in: AssetId,
@@ -119,6 +137,23 @@ impl OmnipoolSnapshot {
 				.get(&asset_out)
 				.unwrap_or(&asset_out_hub_reserve),
 			asset_out_delta: *self.slip_fee_delta.get(&asset_out).unwrap_or(&SignedBalance::default()),
+			max_slip_fee: cfg.max_slip_fee,
+		})
+	}
+
+	pub fn load_hub_trade_slip_fees(
+		&self,
+		asset_out: AssetId,
+		asset_out_hub_reserve: Balance,
+	) -> Option<HubTradeSlipFees> {
+		let cfg = self.slip_fee.clone()?;
+
+		Some(HubTradeSlipFees {
+			asset_hub_reserve: *self
+				.slip_fee_hubreserve_at_block_start
+				.get(&asset_out)
+				.unwrap_or(&asset_out_hub_reserve),
+			asset_delta: *self.slip_fee_delta.get(&asset_out).unwrap_or(&SignedBalance::default()),
 			max_slip_fee: cfg.max_slip_fee,
 		})
 	}
@@ -175,6 +210,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			//NOTE: these are per block and solver is always first in the block so they should be empty
 			slip_fee_hubreserve_at_block_start: BTreeMap::new(),
 			slip_fee_delta: BTreeMap::new(),
+			hub_sells_disabled: false,
 		}
 	}
 
@@ -193,8 +229,13 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooSmall);
 		}
 
-		// Hub asset not allowed
-		if asset_in == snapshot.hub_asset_id || asset_out == snapshot.hub_asset_id {
+		if asset_in == snapshot.hub_asset_id {
+			if snapshot.hub_sells_disabled {
+				return Err(SimulatorError::Other);
+			}
+			return sell_hub_asset(asset_out, amount_in, min_amount_out, snapshot);
+		}
+		if asset_out == snapshot.hub_asset_id {
 			return Err(SimulatorError::Other);
 		}
 
@@ -259,8 +300,12 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooLarge);
 		}
 
-		let new_asset_in_state = apply_state_changes(asset_in_state, &state_changes.asset_in)?;
-		let new_asset_out_state = apply_state_changes(asset_out_state, &state_changes.asset_out)?;
+		let new_asset_in_state = asset_in_state
+			.delta_update(&state_changes.asset_in)
+			.ok_or(SimulatorError::MathError)?;
+		let new_asset_out_state = asset_out_state
+			.delta_update(&state_changes.asset_out)
+			.ok_or(SimulatorError::MathError)?;
 
 		let mut new_snapshot = snapshot
 			.clone()
@@ -284,7 +329,10 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 				.with_slip_delta(asset_out, d_out);
 		}
 
-		Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
+		Ok((
+			new_snapshot.with_protocol_fee(&state_changes.fee),
+			TradeResult::new(amount_in, amount_out),
+		))
 	}
 
 	fn simulate_buy(
@@ -362,8 +410,12 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooLarge);
 		}
 
-		let new_asset_in_state = apply_state_changes(asset_in_state, &state_changes.asset_in)?;
-		let new_asset_out_state = apply_state_changes(asset_out_state, &state_changes.asset_out)?;
+		let new_asset_in_state = asset_in_state
+			.delta_update(&state_changes.asset_in)
+			.ok_or(SimulatorError::MathError)?;
+		let new_asset_out_state = asset_out_state
+			.delta_update(&state_changes.asset_out)
+			.ok_or(SimulatorError::MathError)?;
 
 		let mut new_snapshot = snapshot
 			.clone()
@@ -387,7 +439,10 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 				.with_slip_delta(asset_out, d_out);
 		}
 
-		Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
+		Ok((
+			new_snapshot.with_protocol_fee(&state_changes.fee),
+			TradeResult::new(amount_in, amount_out),
+		))
 	}
 
 	fn get_spot_price(
@@ -421,13 +476,12 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	}
 
 	fn can_trade(asset_in: AssetId, asset_out: AssetId, snapshot: &Self::Snapshot) -> Option<PoolType<u32>> {
-		// Hub asset trades are not supported directly
-		if asset_in == snapshot.hub_asset_id || asset_out == snapshot.hub_asset_id {
+		// The hub asset can be sold, not bought.
+		if asset_out == snapshot.hub_asset_id || (asset_in == snapshot.hub_asset_id && snapshot.hub_sells_disabled) {
 			return None;
 		}
 
-		// Both assets must be in the omnipool
-		let has_in = snapshot.assets.contains_key(&asset_in);
+		let has_in = asset_in == snapshot.hub_asset_id || snapshot.assets.contains_key(&asset_in);
 		let has_out = snapshot.assets.contains_key(&asset_out);
 
 		if has_in && has_out {
@@ -438,9 +492,15 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	}
 
 	fn pool_edges(snapshot: &Self::Snapshot) -> sp_std::vec::Vec<PoolEdge<AssetId>> {
-		let assets: sp_std::vec::Vec<AssetId> = snapshot.assets.keys().copied().collect();
+		let mut assets: sp_std::vec::Vec<AssetId> = snapshot.assets.keys().copied().collect();
 		if assets.is_empty() {
 			return sp_std::vec::Vec::new();
+		}
+		// A route uses a pool once, so the hub asset can only start or end one;
+		// a route ending in it fails `simulate_sell`. Without the edge no route can
+		// sell it, including one that reaches it through another pool first.
+		if !snapshot.hub_sells_disabled {
+			assets.push(snapshot.hub_asset_id);
 		}
 		sp_std::vec![PoolEdge {
 			pool_type: PoolType::Omnipool,
@@ -449,42 +509,75 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	}
 }
 
-fn apply_state_changes(
-	current: &AssetReserveState<Balance>,
-	changes: &hydra_dx_math::omnipool::types::AssetStateChange<Balance>,
-) -> Result<AssetReserveState<Balance>, SimulatorError> {
-	use hydra_dx_math::omnipool::types::BalanceUpdate;
+/// `pallet_omnipool::sell_hub_asset`. Unlike other sells it charges no protocol fee:
+/// the slip fee stays in `asset_out`'s hub reserve and HDX's is untouched.
+fn sell_hub_asset(
+	asset_out: AssetId,
+	amount_in: Balance,
+	min_amount_out: Balance,
+	snapshot: &OmnipoolSnapshot,
+) -> Result<(OmnipoolSnapshot, TradeResult), SimulatorError> {
+	let asset_out_state = snapshot.get_asset(asset_out).ok_or(SimulatorError::AssetNotFound)?;
 
-	let new_reserve = match &changes.delta_reserve {
-		BalanceUpdate::Increase(delta) => current.reserve.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.reserve.checked_sub(*delta),
+	if !asset_out_state.tradable.contains(Tradability::BUY) {
+		return Err(SimulatorError::Other);
 	}
+
+	if amount_in
+		> asset_out_state
+			.hub_reserve
+			.checked_div(snapshot.max_in_ratio)
+			.ok_or(SimulatorError::MathError)?
+	{
+		return Err(SimulatorError::TradeTooLarge);
+	}
+
+	let (asset_fee, _) = snapshot.get_fees(asset_out);
+	let slip = snapshot.load_hub_trade_slip_fees(asset_out, asset_out_state.hub_reserve);
+
+	let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
+		&asset_out_state.into(),
+		amount_in,
+		asset_fee,
+		slip.as_ref(),
+	)
 	.ok_or(SimulatorError::MathError)?;
 
-	let new_hub_reserve = match &changes.delta_hub_reserve {
-		BalanceUpdate::Increase(delta) => current.hub_reserve.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.hub_reserve.checked_sub(*delta),
-	}
-	.ok_or(SimulatorError::MathError)?;
+	let amount_out = *state_changes.asset.delta_reserve;
 
-	let new_shares = match &changes.delta_shares {
-		BalanceUpdate::Increase(delta) => current.shares.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.shares.checked_sub(*delta),
+	if amount_out == Balance::zero() {
+		return Err(SimulatorError::InsufficientLiquidity);
 	}
-	.ok_or(SimulatorError::MathError)?;
 
-	let new_protocol_shares = match &changes.delta_protocol_shares {
-		BalanceUpdate::Increase(delta) => current.protocol_shares.checked_add(*delta),
-		BalanceUpdate::Decrease(delta) => current.protocol_shares.checked_sub(*delta),
+	if amount_out < min_amount_out {
+		return Err(SimulatorError::LimitNotMet);
 	}
-	.ok_or(SimulatorError::MathError)?;
 
-	Ok(AssetReserveState {
-		reserve: new_reserve,
-		hub_reserve: new_hub_reserve,
-		shares: new_shares,
-		protocol_shares: new_protocol_shares,
-		cap: current.cap,
-		tradable: current.tradable,
-	})
+	if amount_out
+		> asset_out_state
+			.reserve
+			.checked_div(snapshot.max_out_ratio)
+			.ok_or(SimulatorError::MathError)?
+	{
+		return Err(SimulatorError::TradeTooLarge);
+	}
+
+	let new_asset_out_state = asset_out_state
+		.delta_update(&state_changes.asset)
+		.ok_or(SimulatorError::MathError)?;
+
+	let mut new_snapshot = snapshot.clone().with_updated_asset(asset_out, new_asset_out_state);
+
+	if let Some(s_fees) = slip {
+		let delta = s_fees
+			.asset_delta
+			.checked_add(SignedBalance::Positive(*state_changes.asset.delta_hub_reserve))
+			.ok_or(SimulatorError::Other)?;
+
+		new_snapshot = new_snapshot
+			.with_q0(asset_out, s_fees.asset_hub_reserve)
+			.with_slip_delta(asset_out, delta);
+	}
+
+	Ok((new_snapshot, TradeResult::new(amount_in, amount_out)))
 }

@@ -14,7 +14,7 @@
 //! skipped intent, never a reverted solution.
 
 use crate::common::RouteCache;
-use crate::{IceSolver, MinOuts};
+use crate::{IceSolver, MinOuts, SolverOptions};
 use frame_support::sp_runtime::Permill;
 use hydradx_traits::amm::AMMInterface;
 use ice_support::{
@@ -69,12 +69,14 @@ impl<A: AMMInterface> Solver<A> {
 
 impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 	/// `matched_fee` is ignored: nothing is matched in this mode, so there is no
-	/// matched volume to charge it on.
-	fn solve_with_limits(
+	/// matched volume to charge it on. `options` too: the chain accepts exactly
+	/// one trade per intent here, so a transfer is never split.
+	fn solve_with_options(
 		intents: Vec<Intent>,
 		min_outs: MinOuts,
 		initial_state: A::State,
 		_matched_fee: Permill,
+		_options: &SolverOptions,
 	) -> Result<Solution, A::Error> {
 		let mut ordered: Vec<&Intent> = intents.iter().collect();
 		ordered.sort_unstable_by_key(|intent| intent.id);

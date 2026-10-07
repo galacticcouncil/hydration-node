@@ -10,6 +10,7 @@ use super::rng::{scenario_seed, Rng};
 use super::{SolverV4, State};
 use crate::{get_initial_state, load_snapshot, SolverIntent};
 use codec::Encode;
+use ice_solver::{IceSolver, MinOuts, SolverOptions, SplitConfig};
 use ice_support::{IntentData, Partial, Solution, SwapData};
 use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::Permill;
@@ -64,17 +65,32 @@ struct Stats {
 	failures: u64,
 	submit_ok: u64,
 	submit_rejected: u64,
+	/// Solutions with split legs (Tier 2: executed on chain), and how their
+	/// score compares to the same batch solved on single routes. Splitting is
+	/// greedy per transfer and can admit intents a single route could not pay,
+	/// whose uniform price then lowers other fills' surplus — tracked, not a
+	/// violation.
+	split: u64,
+	split_better: u64,
+	split_worse: u64,
+	/// Of `split_worse`, the batches where splitting filled every single-route
+	/// fill at least as far and something more.
+	split_worse_filled_more: u64,
 }
 
 impl Stats {
 	fn print(&self, label: &str, start: Instant) {
 		let secs = start.elapsed().as_secs_f64().max(0.001);
 		println!(
-			"[{label}] {:>8} scen ({:.0}/s) | solved {} no_sol {} | submit ok {} rej {} | panics {} | FAIL {}",
+			"[{label}] {:>8} scen ({:.0}/s) | solved {} no_sol {} | split {} (+{} -{} [{} fill more]) | submit ok {} rej {} | panics {} | FAIL {}",
 			self.scenarios,
 			self.scenarios as f64 / secs,
 			self.solved,
 			self.no_solution,
+			self.split,
+			self.split_better,
+			self.split_worse,
+			self.split_worse_filled_more,
 			self.submit_ok,
 			self.submit_rejected,
 			self.panics,
@@ -100,14 +116,47 @@ fn panic_msg(p: Box<dyn std::any::Any + Send>) -> String {
 }
 
 fn solve(intents: &[SolverIntent], state: &State, fee: Permill) -> SolveResult {
+	solve_with(intents, state, fee, SplitConfig::default())
+}
+
+fn solve_with(intents: &[SolverIntent], state: &State, fee: Permill, split: SplitConfig) -> SolveResult {
 	let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-		SolverV4::solve(intents.to_vec(), state.clone(), fee).ok()
+		SolverV4::solve_with_options(
+			intents.to_vec(),
+			MinOuts::new(),
+			state.clone(),
+			fee,
+			&SolverOptions {
+				split,
+				..SolverOptions::default()
+			},
+		)
+		.ok()
 	}));
 	match res {
 		Ok(Some(s)) => SolveResult::Solved(s),
 		Ok(None) => SolveResult::NoSolution,
 		Err(p) => SolveResult::Panicked(panic_msg(p)),
 	}
+}
+
+/// `a` fills every intent `b` fills, at least as far, and something more.
+fn fills_more(a: &Solution, b: &Solution) -> bool {
+	let fills = |s: &Solution| -> std::collections::BTreeMap<u128, Balance> {
+		s.resolved_intents.iter().map(|r| (r.id, r.data.amount_in())).collect()
+	};
+	let (a, b) = (fills(a), fills(b));
+	a != b && b.iter().all(|(id, x)| a.get(id).is_some_and(|y| y >= x))
+}
+
+/// Some directed pair is routed by more than one trade.
+fn has_split(solution: &Solution) -> bool {
+	let mut pairs = std::collections::BTreeSet::new();
+	solution
+		.trades
+		.iter()
+		.filter_map(|t| Some((t.route.first()?.asset_in, t.route.last()?.asset_out)))
+		.any(|pair| !pairs.insert(pair))
 }
 
 /// Spot output for `amount_in` of `asset_in → asset_out`, via a single-intent
@@ -136,7 +185,10 @@ pub fn run(mut cfg: Config) {
 	// hook so caught panics don't spam the soak output with backtraces.
 	std::panic::set_hook(Box::new(|_| {}));
 	let mut ext = load_snapshot(&cfg.snapshot);
-	ext.execute_with(|| seed_pot_and_fees(cfg.max_slip));
+	ext.execute_with(|| {
+		seed_pot_and_fees(cfg.max_slip);
+		crate::create_two_venue_pools();
+	});
 	// Solve with the pallet's live protocol fee so Tier-2 submissions match the
 	// on-chain validation exactly.
 	cfg.fee = ext.execute_with(pallet_ice::ProtocolFee::<Runtime>::get);
@@ -164,22 +216,27 @@ pub fn run(mut cfg: Config) {
 	}
 }
 
-/// One-time chain prep: seed the fee-processor pot to ≥ED HDX (else sub-ED fee
-/// takes hit `Token(BelowMinimum)`) and enable slip fees, matching the
-/// integration-test driver.
+/// One-time chain prep: seed the fee-processor pot and the ICE holding pot to
+/// ≥ED HDX (else sub-ED fee takes hit `Token(BelowMinimum)` and settlement's
+/// repatriation into the holding pot hits `DeadAccount`) and enable slip fees,
+/// matching the integration-test driver.
 fn seed_pot_and_fees(max_slip: Permill) {
 	use frame_support::assert_ok;
 	use orml_traits::MultiCurrency;
 
-	let pot = pallet_fee_processor::Pallet::<Runtime>::pot_account_id();
 	let ed = <Runtime as pallet_balances::Config>::ExistentialDeposit::get();
-	if <hydradx_runtime::Currencies as MultiCurrency<AccountId>>::free_balance(0, &pot) < ed {
-		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			pot,
-			0,
-			ed as i128,
-		));
+	for pot in [
+		pallet_fee_processor::Pallet::<Runtime>::pot_account_id(),
+		pallet_ice::Pallet::<Runtime>::get_pallet_account(),
+	] {
+		if <hydradx_runtime::Currencies as MultiCurrency<AccountId>>::free_balance(0, &pot) < ed {
+			assert_ok!(hydradx_runtime::Currencies::update_balance(
+				hydradx_runtime::RuntimeOrigin::root(),
+				pot,
+				0,
+				ed as i128,
+			));
+		}
 	}
 	assert_ok!(pallet_omnipool::Pallet::<Runtime>::set_slip_fee(
 		hydradx_runtime::RuntimeOrigin::root(),
@@ -247,6 +304,22 @@ fn tier1_check(cfg: &Config, intents: &[SolverIntent], state: &State, stats: &mu
 				);
 			}
 			solution = Some(sol);
+		}
+	}
+
+	if let Some(sol) = solution.as_ref().filter(|s| has_split(s)) {
+		stats.split += 1;
+		if let SolveResult::Solved(single) = solve_with(intents, state, cfg.fee, SplitConfig::disabled()) {
+			match sol.score.cmp(&single.score) {
+				std::cmp::Ordering::Greater => stats.split_better += 1,
+				std::cmp::Ordering::Less => {
+					stats.split_worse += 1;
+					if fills_more(sol, &single) {
+						stats.split_worse_filled_more += 1;
+					}
+				}
+				std::cmp::Ordering::Equal => {}
+			}
 		}
 	}
 
@@ -400,8 +473,12 @@ fn tier2_scenario(
 				});
 			}
 		} else {
+			let split = has_split(&solution);
 			match pallet_ice::Pallet::<Runtime>::submit_solution(hydradx_runtime::RuntimeOrigin::none(), solution) {
-				Ok(_) => stats.submit_ok += 1,
+				Ok(_) => {
+					stats.submit_ok += 1;
+					stats.split += u64::from(split);
+				}
 				Err(e) => {
 					stats.submit_rejected += 1;
 					violations.push(Violation {

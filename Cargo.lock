@@ -370,7 +370,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "ethabi",
  "evm",
@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.5.1"
+version = "15.7.1"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5720,6 +5720,7 @@ dependencies = [
  "pallet-ice",
  "pallet-ice-runtime-api",
  "pallet-liquidation",
+ "pallet-omnipool",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "pepl-worker",
@@ -6140,7 +6141,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.8.0"
+version = "0.11.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -6154,7 +6155,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver-bench"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "amm-simulator",
  "criterion",
@@ -6172,6 +6173,7 @@ dependencies = [
  "pallet-ema-oracle",
  "pallet-fee-processor",
  "pallet-ice",
+ "pallet-ice-runtime-api",
  "pallet-intent",
  "pallet-omnipool",
  "parity-scale-codec",
@@ -6184,7 +6186,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9943,7 +9945,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.10.0"
+version = "1.12.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -10038,7 +10040,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14188,7 +14190,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.116.0"
+version = "1.121.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
