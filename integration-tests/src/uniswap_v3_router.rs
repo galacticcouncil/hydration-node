@@ -373,6 +373,55 @@ fn dca_should_execute_through_a_uniswap_v3_leg_once_the_pool_has_oracle_history(
 	});
 }
 
+#[test]
+fn dca_should_retry_when_uniswap_v3_pool_cannot_take_the_full_amount() {
+	with_uniswap_v3(|| {
+		assert_ok!(alice_sells_hollar(1_000_000_000_000_000_000));
+		hydradx_run_to_next_block();
+
+		let per_trade = oversized_hollar_sell() / 2;
+		fund_alice_from_treasury(ASSET_OUT, per_trade * 3);
+		let mut schedule = schedule_fake_with_sell_order(
+			ALICE,
+			PoolType::UniswapV3(FEE_TIER),
+			per_trade * 3,
+			ASSET_OUT,
+			ASSET_IN,
+			per_trade,
+		);
+		schedule.slippage = Some(sp_runtime::Permill::from_percent(100));
+		let schedule_id = DCA::next_schedule_id();
+		assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule, None));
+		let planned_at = System::events()
+			.into_iter()
+			.find_map(|record| match record.event {
+				RuntimeEvent::DCA(pallet_dca::Event::ExecutionPlanned { id, block, .. }) if id == schedule_id => {
+					Some(block)
+				}
+				_ => None,
+			})
+			.expect("schedule should have been planned");
+
+		while System::block_number() < planned_at {
+			hydradx_run_to_next_block();
+		}
+
+		let trade_error = System::events().into_iter().find_map(|record| match record.event {
+			RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. }) if id == schedule_id => Some(error),
+			_ => None,
+		});
+		assert_eq!(
+			trade_error,
+			Some(pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity.into())
+		);
+		assert!(
+			DCA::schedules(schedule_id).is_some(),
+			"schedule was terminated instead of retried"
+		);
+		assert_eq!(DCA::retries_on_error(schedule_id), 1);
+	});
+}
+
 /// `get_liquidity_depth` must report the IN-RANGE liquidity, not the pool's balance.
 ///
 /// `route-executor::set_route` sizes its reference trade at 1% of this figure, so a
@@ -1146,13 +1195,12 @@ fn router_balances() -> (Balance, Balance) {
 
 /// A sell past the pool's capacity is refused outright.
 ///
-/// Selling `ASSET_IN` that far drives the pool to `MIN_SQRT_RATIO`, where the
-/// executor's post-trade oracle read (`spot_price_raw`) has no representable
-/// price, so `execute_sell` fails and the router call rolls back. Worth pinning:
-/// an ICE solution carrying such a leg would abort the whole batch at settlement,
-/// which is why the simulator must never size one.
+/// The pool runs dry before taking the whole amount, so the executor fails the hop
+/// instead of leaving the rest in the router account. Worth pinning: an ICE
+/// solution carrying such a leg would abort the whole batch at settlement, which is
+/// why the simulator must never size one.
 #[test]
-fn oversized_router_sell_should_revert_when_the_post_trade_price_underflows() {
+fn router_sell_should_fail_when_uniswap_v3_pool_cannot_take_all_the_adot() {
 	with_uniswap_v3(|| {
 		let oversized = oversized_for_pool(ASSET_IN, ASSET_OUT, SELL_AMOUNT);
 		fund_alice_from_omnipool(oversized * 2);
@@ -1166,8 +1214,81 @@ fn oversized_router_sell_should_revert_when_the_post_trade_price_underflows() {
 				0,
 				uniswap_route().try_into().unwrap(),
 			),
-			sp_runtime::DispatchError::Other("uniswapv3: zero price")
+			pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity
 		);
+	});
+}
+
+fn hollar_to_adot_route() -> Vec<Trade<AssetId>> {
+	vec![Trade {
+		pool: PoolType::UniswapV3(FEE_TIER),
+		asset_in: ASSET_OUT,
+		asset_out: ASSET_IN,
+	}]
+}
+
+fn oversized_hollar_sell() -> Balance {
+	oversized_for_pool(ASSET_OUT, ASSET_IN, 1_000_000_000_000_000_000)
+}
+
+fn alice_sells_hollar(amount: Balance) -> sp_runtime::DispatchResult {
+	Router::sell(
+		RuntimeOrigin::signed(ALICE.into()),
+		ASSET_OUT,
+		ASSET_IN,
+		amount,
+		0,
+		hollar_to_adot_route().try_into().unwrap(),
+	)
+}
+
+#[test]
+fn router_sell_should_fail_when_uniswap_v3_pool_cannot_take_all_the_hollar() {
+	with_uniswap_v3(|| {
+		let oversized = oversized_hollar_sell();
+		fund_alice_from_treasury(ASSET_OUT, oversized);
+
+		assert_noop!(
+			alice_sells_hollar(oversized),
+			pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity
+		);
+	});
+}
+
+#[test]
+fn router_sell_should_leave_nothing_in_the_router_when_hollar_sell_is_within_capacity() {
+	with_uniswap_v3(|| {
+		let router_before = router_balances();
+		let adot_before = Currencies::free_balance(ASSET_IN, &ALICE.into());
+
+		assert_ok!(alice_sells_hollar(1_000_000_000_000_000_000));
+
+		assert!(Currencies::free_balance(ASSET_IN, &ALICE.into()) > adot_before);
+		assert_eq!(router_balances(), router_before);
+	});
+}
+
+#[test]
+fn router_sell_should_succeed_when_amount_is_just_under_pool_capacity() {
+	with_uniswap_v3(|| {
+		let just_under = oversized_hollar_sell() / 4;
+		fund_alice_from_treasury(ASSET_OUT, just_under);
+		let router_before = router_balances();
+
+		assert_ok!(alice_sells_hollar(just_under));
+
+		assert_eq!(router_balances(), router_before);
+	});
+}
+
+#[test]
+fn router_sell_should_succeed_when_selling_one_wei() {
+	with_uniswap_v3(|| {
+		let router_before = router_balances();
+
+		assert_ok!(alice_sells_hollar(1));
+
+		assert_eq!(router_balances(), router_before);
 	});
 }
 
