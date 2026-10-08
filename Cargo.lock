@@ -5866,7 +5866,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "447.0.0"
+version = "448.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -14236,7 +14236,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.120.0"
+version = "1.121.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
