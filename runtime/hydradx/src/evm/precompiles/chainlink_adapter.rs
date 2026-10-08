@@ -27,13 +27,13 @@ use primitives::{
 	constants::chain::{GIGAHDX_SOURCE, OMNIPOOL_SOURCE},
 	AssetId,
 };
-use sp_runtime::{traits::Dispatchable, RuntimeDebug};
+use sp_runtime::traits::Dispatchable;
 use sp_std::{cmp::Ordering, marker::PhantomData};
 
 const EMPTY_SOURCE: Source = [0u8; 8];
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum AggregatorInterface {
 	LatestAnswer = "latestAnswer()",

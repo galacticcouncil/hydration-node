@@ -44,7 +44,7 @@ where
 		let config = <T as Config>::config();
 		let precompiles = T::PrecompilesValue::get();
 		let metadata = StackSubstateMetadata::new(gas, config);
-		let state = SubstrateStackState::new(&vicinity, metadata, None, None);
+		let state = SubstrateStackState::new(&vicinity, metadata, None, None, None);
 		let account = T::AddressMapping::into_account_id(origin);
 		let nonce = T::AccountProvider::account_nonce(&account.clone().into());
 		let mut executor = StackExecutor::new_with_precompiles(state, config, &precompiles);
@@ -88,6 +88,7 @@ where
 			false, // validate
 			None,  // weight_limit
 			None,  // proof_size_base_cost
+			None,  // state_override
 			evm_config,
 		);
 

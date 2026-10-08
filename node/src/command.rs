@@ -292,6 +292,7 @@ pub fn run() -> sc_cli::Result<()> {
 					pool_config.tx_ban_seconds,
 					pool_type,
 					config.dev_key_seed.is_some(),
+					pool_config.pool_best_blocks_only,
 				);
 
 				// Enable for all full nodes by default to store ISMP request/responses
@@ -313,7 +314,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v8::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::v9::AccountId>::into_account_truncating(&id);
 
 				let state_version = Cli::runtime_version().state_version();
 

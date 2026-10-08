@@ -3,7 +3,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::Get;
-use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
 
 pub type Balance = u128;
@@ -17,7 +16,7 @@ pub enum Action {
 }
 
 /// Staking position, represents user's state in staking, e.g. staked amount, slashed points,...
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct Position<BlockNumber> {
 	/// Staked amount.
 	pub(crate) stake: Balance,
@@ -61,7 +60,7 @@ impl<BlockNumber> Position<BlockNumber> {
 	}
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo, Default)]
 pub struct StakingData {
 	/// Total amount of tokens staked in staking.
 	pub(crate) total_stake: Balance,
@@ -78,7 +77,7 @@ impl StakingData {
 	}
 }
 
-#[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+#[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo, Default)]
 pub enum Conviction {
 	#[default]
 	None = 0,
@@ -109,7 +108,7 @@ impl Conviction {
 	}
 }
 
-#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 pub struct Vote {
 	pub(crate) amount: Balance,
 	pub(crate) conviction: Conviction,
@@ -141,7 +140,7 @@ impl ActionData for &Vote {
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
 #[codec(mel_bound(skip_type_params(MaxVotes)))]
 #[scale_info(skip_type_params(MaxVotes))]
 pub struct Voting<MaxVotes: Get<u32>> {

@@ -6,13 +6,12 @@ use serde::{Deserialize, Serialize};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use hydra_dx_math::hsm::CoefficientRatio;
 use scale_info::TypeInfo;
-use sp_core::RuntimeDebug;
 use sp_runtime::{Perbill, Permill};
 
 pub type Balance = u128;
 
 /// Information about a collateral asset
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CollateralInfo<AssetId> {
 	/// Pool ID - asset ID where the stable asset belongs
@@ -29,7 +28,7 @@ pub struct CollateralInfo<AssetId> {
 	pub max_in_holding: Option<Balance>,
 }
 
-#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, Copy, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, Copy, Debug, TypeInfo)]
 #[repr(u8)]
 pub enum Arbitrage {
 	/// Sell HOLLAR to a pool, buy HOLLAR fro HSM
