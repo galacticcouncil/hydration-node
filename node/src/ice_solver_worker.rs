@@ -15,11 +15,12 @@ use cumulus_primitives_core::BlockT;
 use frame_support::__private::sp_tracing::tracing;
 use futures::StreamExt;
 use hydradx_runtime::{
-	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder,
+	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder, LRNA,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use ice_solver::{passthrough, v4, IceSolver, SolverOptions, SplitConfig};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
+use pallet_omnipool::types::Tradability;
 use primitives::{AssetId, Balance};
 use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_network_sync::SyncingService;
@@ -59,7 +60,10 @@ impl IceSolverWorkerConfig {
 		} else {
 			SplitConfig::disabled()
 		};
-		SolverOptions { split }
+		SolverOptions {
+			split,
+			..SolverOptions::default()
+		}
 	}
 }
 
@@ -141,6 +145,7 @@ pub(crate) fn build_extrinsic(
 	input: SolverInput,
 	built_at: u32,
 	options: &SolverOptions,
+	hub_sells_allowed: bool,
 ) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
 	let mode = input.mode;
 	// Before the decode: nothing this block produces can be accepted, so the
@@ -151,7 +156,7 @@ pub(crate) fn build_extrinsic(
 	}
 
 	let t_decode = Instant::now();
-	let state: <HydrationSimulators as SimulatorSet>::State = match Decode::decode(&mut &input.state[..]) {
+	let mut state: <HydrationSimulators as SimulatorSet>::State = match Decode::decode(&mut &input.state[..]) {
 		Ok(state) => state,
 		Err(e) => {
 			// Distinct from a clean empty solution: a decode failure means the node's
@@ -160,6 +165,7 @@ pub(crate) fn build_extrinsic(
 			return None;
 		}
 	};
+	state.0.hub_sells_disabled = !hub_sells_allowed;
 	// Reseed every solve — blocking-pool threads are reused.
 	ED_TL.with(|m| {
 		let mut m = m.borrow_mut();
@@ -213,6 +219,36 @@ where
 		Some((id, data))
 	});
 	ice_support::readmit::readmit_withheld_dcas(&mut input.intents, &input.existential_deposits, stored, block_no)
+}
+
+/// Unset reads as the pallet's default, `SELL`.
+fn hub_sells_allowed(hub_asset_tradability: Option<&[u8]>) -> bool {
+	hub_asset_tradability
+		.is_none_or(|mut raw| Tradability::decode(&mut raw).is_ok_and(|t| t.contains(Tradability::SELL)))
+}
+
+/// The shipped snapshot does not carry `Omnipool::HubAssetTradability`, so while it
+/// disallows selling H2O one H2O leg, even mid-route, would make the whole solution revert.
+fn read_hub_sells_allowed<B, BE, C>(client: &C, hash: B::Hash, block_no: u32) -> bool
+where
+	B: BlockT,
+	BE: Backend<B>,
+	C: StorageProvider<B, BE>,
+{
+	let key = StorageKey(
+		[
+			sp_core::twox_128(b"Omnipool"),
+			sp_core::twox_128(b"HubAssetTradability"),
+		]
+		.concat(),
+	);
+	match client.storage(hash, &key) {
+		Ok(value) => hub_sells_allowed(value.as_ref().map(|v| &v.0[..])),
+		Err(e) => {
+			tracing::error!(target: LOG_TARGET, "reading Omnipool::HubAssetTradability failed at block {block_no}: {e:?}");
+			false
+		}
+	}
 }
 
 pub struct IceSolverTask<B, C, P, BE>(PhantomData<(B, C, P, BE)>);
@@ -280,7 +316,7 @@ where
 				let total = Instant::now();
 
 				let t_state = Instant::now();
-				let input = {
+				let (input, hub_sells_allowed) = {
 					// Drop the ApiRef before the submit await (it is not Send).
 					let api = client.runtime_api();
 					// Skip blocks whose runtime predates IceSolverApi (e.g. before the
@@ -296,7 +332,16 @@ where
 							if readmitted > 0 {
 								tracing::info!(target: LOG_TARGET, "re-admitted {readmitted} withheld DCA intent(s) at block {block_no}");
 							}
-							input
+							let hub_sells_allowed = read_hub_sells_allowed(&*client, hash, block_no);
+							if !hub_sells_allowed {
+								let before = input.intents.len();
+								input.intents.retain(|intent| intent.data.asset_in() != LRNA::get());
+								let dropped = before - input.intents.len();
+								if dropped > 0 {
+									tracing::info!(target: LOG_TARGET, "held back {dropped} intent(s) selling H2O at block {block_no}: hub asset selling is off");
+								}
+							}
+							(input, hub_sells_allowed)
 						}
 						Ok(None) => return, // idle block, no valid intents
 						Err(e) => {
@@ -308,7 +353,7 @@ where
 				let state_query_ms = t_state.elapsed().as_millis();
 				let intents = input.intents.len() as u32;
 
-				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no, &options) else {
+				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no, &options, hub_sells_allowed) else {
 					tracing::debug!(target: LOG_TARGET, "no solution for block {block_no}");
 					return;
 				};
@@ -414,7 +459,7 @@ mod tests {
 	#[test]
 	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
 		let input = input_with(SolverMode::V4, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1, &SolverOptions::default()).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true).is_none());
 	}
 
 	#[test]
@@ -422,7 +467,7 @@ mod tests {
 		// Same undecodable state as the test above: reaching the decode at all
 		// would have to log an error, so `None` here proves the mode check runs first.
 		let input = input_with(SolverMode::Disabled, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1, &SolverOptions::default()).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true).is_none());
 	}
 
 	#[test]
@@ -436,6 +481,21 @@ mod tests {
 		let config =
 			IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-split=false"]).expect("flags should parse");
 		assert_eq!(config.solver_options().split, SplitConfig::disabled());
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_true_when_hub_asset_tradability_is_unset() {
+		assert!(hub_sells_allowed(None));
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_true_when_hub_asset_tradability_allows_sell() {
+		assert!(hub_sells_allowed(Some(&Tradability::SELL.encode())));
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_false_when_hub_asset_tradability_lacks_sell() {
+		assert!(!hub_sells_allowed(Some(&Tradability::BUY.encode())));
 	}
 
 	#[test]
