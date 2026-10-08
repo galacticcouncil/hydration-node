@@ -141,6 +141,7 @@ pub mod pallet {
 		CollateralCannotCoverNewBorrow,
 		/// Aave - the reserve is paused and no operations are allowed
 		AaveReservePaused,
+		UniswapV3InsufficientLiquidity,
 	}
 
 	#[pallet::event]
