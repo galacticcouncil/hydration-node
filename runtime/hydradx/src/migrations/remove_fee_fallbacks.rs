@@ -89,6 +89,43 @@ impl SteppedMigration for PurgeUnsupportedFeeCurrencies {
 
 		Ok(cursor)
 	}
+
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
+		use codec::Encode;
+		let (total, unsupported) = count_fee_currencies();
+		log::info!(
+			target: "runtime::migration",
+			"PurgeUnsupportedFeeCurrencies: {unsupported} of {total} AccountCurrencyMap entries to purge",
+		);
+		Ok((total, unsupported).encode())
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(state: sp_std::vec::Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
+		use codec::Decode;
+		let (total_before, unsupported_before) = <(u32, u32)>::decode(&mut &state[..])
+			.map_err(|_| "PurgeUnsupportedFeeCurrencies: bad pre_upgrade state")?;
+		let (total, unsupported) = count_fee_currencies();
+		frame_support::ensure!(
+			unsupported == 0,
+			"unsupported fee currencies remain in AccountCurrencyMap"
+		);
+		frame_support::ensure!(
+			total == total_before - unsupported_before,
+			"PurgeUnsupportedFeeCurrencies removed a supported entry"
+		);
+		Ok(())
+	}
+}
+
+#[cfg(feature = "try-runtime")]
+fn count_fee_currencies() -> (u32, u32) {
+	let native = NativeAssetId::get();
+	AccountCurrencyMap::<Runtime>::iter_values().fold((0, 0), |(total, unsupported), currency| {
+		let bad = currency != native && !AcceptedCurrencies::<Runtime>::contains_key(currency);
+		(total + 1, unsupported + u32::from(bad))
+	})
 }
 
 /// Retires the treasury-side accounting of the old insufficient-asset ED: the pooled HDX lock and
