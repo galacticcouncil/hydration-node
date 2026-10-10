@@ -3,6 +3,7 @@
 pub mod flow_graph;
 pub mod ring_detection;
 pub mod route_cache;
+pub mod split;
 
 pub use route_cache::RouteCache;
 

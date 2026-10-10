@@ -114,16 +114,6 @@ fn solution(resolved_intents: Vec<ResolvedIntent>, trades: Vec<PoolTrade>, score
 	)
 }
 
-fn ice_events() -> Vec<Event<Test>> {
-	frame_system::Pallet::<Test>::events()
-		.into_iter()
-		.filter_map(|record| match record.event {
-			RuntimeEvent::ICE(e) => Some(e),
-			_ => None,
-		})
-		.collect()
-}
-
 fn intent_events() -> Vec<pallet_intent::Event<Test>> {
 	frame_system::Pallet::<Test>::events()
 		.into_iter()
@@ -132,10 +122,6 @@ fn intent_events() -> Vec<pallet_intent::Event<Test>> {
 			_ => None,
 		})
 		.collect()
-}
-
-fn last_ice_event() -> Event<Test> {
-	ice_events().pop().expect("ICE event to be emitted")
 }
 
 /// Recreates the state a v4-era partial fill leaves behind: the intent tracks
@@ -988,7 +974,8 @@ fn submit_solution_should_skip_dca_intent_when_oracle_floor_rises_above_quote() 
 				panic!("expected a DCA intent");
 			};
 			assert_eq!(dca.remaining_budget, 2_000 * ONE_HDX);
-			assert_eq!(dca.last_execution_block, 1);
+			// Created at block 1 with period 5: the creation back-date saturates at 0.
+			assert_eq!(dca.last_execution_block, 0);
 
 			assert_eq!(Currencies::free_balance(DOT, &DAVE), 6 * ONE_DOT);
 

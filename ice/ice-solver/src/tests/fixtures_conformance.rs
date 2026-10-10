@@ -19,6 +19,7 @@
 
 use crate::replay_format::{Response, Trace};
 use crate::v4::Solver;
+use crate::{IceSolver, MinOuts, SolverOptions, SplitConfig};
 use codec::{Decode, Encode};
 use frame_support::sp_runtime::Permill;
 use hydra_dx_math::types::Ratio;
@@ -317,21 +318,37 @@ fn assert_chain_invariants(intents: &[Intent], solution: &Solution) {
 	}
 }
 
-/// Solve a fixture twice against the replayed market and return the solution.
+/// Solve a fixture against the replayed market, check the chain invariants and
+/// determinism with and without route splitting, and return the solution
+/// without it. The replay is stateless and prices every route of a pair on one
+/// curve, so a split's legs would each start from its origin — only the
+/// single-route solve is meaningful to pin.
 fn solve_fixture(raw: &str) -> (Vec<Intent>, Solution) {
 	let (intents_bytes, _recorded_solution, trace) = Trace::decode_fixture(raw);
 	let intents = Vec::<Intent>::decode(&mut &intents_bytes[..]).expect("decode intents");
 	MARKET.with(|m| *m.borrow_mut() = Market::from_trace(trace));
 
-	let solution = Solver::<MarketAmm>::solve(intents.clone(), (), Permill::zero()).expect("solver should succeed");
-	let again = Solver::<MarketAmm>::solve(intents.clone(), (), Permill::zero()).expect("solver should succeed");
-	assert_eq!(
-		solution.encode(),
-		again.encode(),
-		"solver is not deterministic on this fixture",
-	);
-
-	assert_chain_invariants(&intents, &solution);
+	let solve = |split: SplitConfig| {
+		let options = SolverOptions {
+			split,
+			..SolverOptions::default()
+		};
+		let solution =
+			Solver::<MarketAmm>::solve_with_options(intents.clone(), MinOuts::new(), (), Permill::zero(), &options)
+				.expect("solver should succeed");
+		let again =
+			Solver::<MarketAmm>::solve_with_options(intents.clone(), MinOuts::new(), (), Permill::zero(), &options)
+				.expect("solver should succeed");
+		assert_eq!(
+			solution.encode(),
+			again.encode(),
+			"solver is not deterministic on this fixture",
+		);
+		assert_chain_invariants(&intents, &solution);
+		solution
+	};
+	solve(SplitConfig::default());
+	let solution = solve(SplitConfig::disabled());
 	(intents, solution)
 }
 

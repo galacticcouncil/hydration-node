@@ -648,3 +648,17 @@ impl ExtBuilder {
 		r
 	}
 }
+
+pub(crate) fn ice_events() -> Vec<crate::Event<Test>> {
+	frame_system::Pallet::<Test>::events()
+		.into_iter()
+		.filter_map(|record| match record.event {
+			RuntimeEvent::ICE(e) => Some(e),
+			_ => None,
+		})
+		.collect()
+}
+
+pub(crate) fn last_ice_event() -> crate::Event<Test> {
+	ice_events().pop().expect("ICE event to be emitted")
+}

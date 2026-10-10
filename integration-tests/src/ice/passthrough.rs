@@ -444,7 +444,7 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 		&pt,
 		2,
 		2,
-		13731994797173544,
+		13731994797207844,
 		13731994797207844,
 		&[14731783072285759, 221724922085],
 	);
@@ -453,8 +453,9 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 	assert!(v4.surplus >= pt.surplus, "matching must not pay worse than the AMM");
 
 	// Strict routes value through the pot and sweeps the matched fee; pass-through
-	// touches neither account.
-	assert_eq!(v4.pot_delta, vec![0, 22161927, 1]);
+	// touches neither account. The sub-ED HDX residual stays in the pot because the pot is a
+	// seeded, live account - as on mainnet; it used to be dust-reaped down to nothing.
+	assert_eq!(v4.pot_delta, vec![78130359444, 22161927, 1]);
 	assert_eq!(v4.fee_delta, vec![2800000000000, 0, 0]);
 	assert_eq!(pt.pot_delta, vec![0, 0, 0]);
 	assert_eq!(pt.fee_delta, vec![0, 0, 0]);
@@ -503,7 +504,7 @@ fn three_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pas
 		&pt,
 		3,
 		3,
-		5846120277400754,
+		5846120266188516,
 		5846120266188516,
 		&[67436998989586, 1170670963, 6279183096527967],
 	);
@@ -552,7 +553,7 @@ fn partial_coincidence_should_settle_every_intent_through_the_amm_when_mode_is_p
 		&pt,
 		2,
 		2,
-		13731852260978758,
+		13731852260991009,
 		13731852260991009,
 		&[14731783072285759, 79188705250],
 	);
@@ -603,15 +604,15 @@ fn four_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pass
 		&v4,
 		4,
 		3,
-		43712571451562280,
-		43712571451562280,
-		&[676286517104114, 159538036540, 8919692554988036, 35217442841433590],
+		43712571438721010,
+		43712571438721010,
+		&[676286517104114, 159538036540, 8919692554988036, 35217442828592320],
 	);
 	assert_outcome(
 		&pt,
 		4,
 		4,
-		43648282646246644,
+		43648281302335702,
 		43648281302325024,
 		&[674159536400221, 159228461232, 8883625605429048, 35191346932034523],
 	);
@@ -669,21 +670,21 @@ fn five_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pass
 		&v4,
 		5,
 		4,
-		76040401743062421,
-		76040401743062421,
+		76040401730210000,
+		76040401730210000,
 		&[
 			676286517104114,
-			159538039639,
+			159538039638,
 			8919692554988035,
 			33305976737841383,
-			35239296395089250,
+			35239296382236830,
 		],
 	);
 	assert_outcome(
 		&pt,
 		5,
 		5,
-		75982782668032656,
+		75982781323288935,
 		75982781323278257,
 		&[
 			674159536400221,
@@ -737,15 +738,15 @@ fn same_pair_direct_match_should_settle_both_sides_through_the_amm_when_mode_is_
 		&v4,
 		3,
 		2,
-		14456573836907606,
-		14456573836907606,
-		&[14780718153014936, 676286517104114, 79166788556],
+		14456573836907570,
+		14456573836907570,
+		&[14780718153014936, 676286517104114, 79166788520],
 	);
 	assert_outcome(
 		&pt,
 		3,
 		3,
-		14405918509662016,
+		14405918614029946,
 		14405918614028742,
 		&[14731783072285759, 674566355699449, 79186043534],
 	);
@@ -804,7 +805,7 @@ fn tight_limit_edge_intent_should_skip_without_failing_the_batch_when_mode_is_pa
 		&pt,
 		3,
 		3,
-		5786561706387558,
+		5786561709861513,
 		5786561709861513,
 		&[0, 1170651988, 6279122529632992, 67439009576533],
 	);
@@ -857,15 +858,15 @@ fn tight_limit_cycle_intent_should_skip_without_failing_the_batch_when_mode_is_p
 		&v4,
 		3,
 		3,
-		8559350182822069,
-		8559350182822069,
-		&[676286517104114, 159538642564, 8883914127075391, 0],
+		8559350190542233,
+		8559350190542233,
+		&[676286517104114, 159538642564, 8883914134795555, 0],
 	);
 	assert_outcome(
 		&pt,
 		3,
 		3,
-		8556934370234291,
+		8556934370290505,
 		8556934370290501,
 		&[674159536400221, 159228461232, 8883625605429048, 0],
 	);
@@ -1727,7 +1728,7 @@ fn solver_mode_lifecycle_should_disable_then_drain_then_resume_matching() {
 		let drained = run_and_submit_as::<PassthroughSolver>(SolverMode::Passthrough, "lifecycle/passthrough");
 		assert_eq!(drained.resolved_intents.len(), 3, "the mixed swap/DCA set drains");
 		assert_eq!(drained.trades.len(), 3, "one AMM trade per intent");
-		assert_eq!(drained.score, 1441381957091516u128);
+		assert_eq!(drained.score, 1441381958048367u128);
 		assert_eq!(Currencies::total_balance(BNC, &holding_pot()), pot_before);
 		// The two swaps are gone; the DCA keeps its second tranche.
 		assert_eq!(pallet_intent::Intents::<Runtime>::iter().count(), 1);

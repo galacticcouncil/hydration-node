@@ -971,6 +971,45 @@ pub fn rococo_run_to_block(to: BlockNumber) {
 	}
 }
 
+/// Opt every Aave reserve on the snapshot into the solver's routing.
+///
+/// Aave is opt-in like XYK and Uniswap, so without this the solver sees no wrap and
+/// every route needing one disappears — including assets that reach the graph only
+/// through their aToken. On chain this is a governance op; a snapshot predates it.
+fn register_aave_wraps() {
+	use frame_support::assert_ok;
+	use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
+	use hydradx_runtime::evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	use hydradx_traits::evm::Erc20Mapping;
+	use ice_support::{RoutingState, RoutingTarget};
+
+	let pool = pallet_liquidation::BorrowingContract::<hydradx_runtime::Runtime>::get();
+	let Ok(reserves) = AaveTradeExecutor::<hydradx_runtime::Runtime>::get_reserves_list(pool) else {
+		return;
+	};
+
+	let wraps: Vec<(AssetId, AssetId)> = reserves
+		.into_iter()
+		.filter_map(|reserve| {
+			let data = AaveTradeExecutor::<hydradx_runtime::Runtime>::get_reserve_data(pool, reserve).ok()?;
+			Some((
+				HydraErc20Mapping::address_to_asset(reserve)?,
+				HydraErc20Mapping::address_to_asset(data.atoken_address)?,
+			))
+		})
+		.collect();
+
+	// More reserves than one key holds is the normal case, not an error — the solver
+	// reads the union of every batch.
+	for chunk in wraps.chunks(ice_support::MAX_ROUTING_BATCH as usize) {
+		assert_ok!(hydradx_runtime::ICE::update_routing(
+			hydradx_runtime::RuntimeOrigin::root(),
+			RoutingTarget::AaveWraps(chunk.to_vec().try_into().unwrap()),
+			Some(RoutingState::Included),
+		));
+	}
+}
+
 pub fn hydra_live_ext(
 	path_to_snapshot: &str,
 ) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
@@ -994,6 +1033,7 @@ pub fn hydra_live_ext(
 				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 				pallet_stableswap::migrations::v2::MigrateV1ToV2::<hydradx_runtime::Runtime>::on_runtime_upgrade();
+				register_aave_wraps();
 			});
 			p
 		});

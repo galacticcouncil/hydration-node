@@ -1283,7 +1283,7 @@ mod omnipool_router_tests {
 	}
 
 	#[test]
-	fn sell_should_fail_when_all_asset_in_spent_for_altcoin() {
+	fn sell_should_work_when_all_asset_in_spent_for_altcoin() {
 		TestNet::reset();
 
 		Hydra::execute_with(|| {
@@ -1325,16 +1325,20 @@ mod omnipool_router_tests {
 
 				//Act
 				let amount_to_sell = ALICE_INITIAL_NATIVE_BALANCE;
-				assert_noop!(
-					Router::sell(
-						hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-						HDX,
-						altcoin,
-						amount_to_sell,
-						0,
-						trades.try_into().unwrap()
-					),
-					orml_tokens::Error::<Runtime>::ExistentialDeposit
+				assert_ok!(Router::sell(
+					hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+					HDX,
+					altcoin,
+					amount_to_sell,
+					0,
+					trades.try_into().unwrap()
+				));
+
+				//Assert
+				assert_eq!(Currencies::free_balance(HDX, &AccountId::from(ALICE)), 0);
+				assert_eq!(
+					Currencies::free_balance(altcoin, &AccountId::from(ALICE)),
+					987_128_712_871_290
 				);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))

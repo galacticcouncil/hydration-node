@@ -1064,6 +1064,86 @@ fn inbound_xcm_net_egress_is_accounted() {
 }
 
 #[test]
+fn inbound_xcm_should_decrement_accumulator_when_deposited_exceeds_withdrawn() {
+	// An inbound reserve transfer deposits an External asset without any local withdraw
+	// (withdrawn == 0, deposited > 0 in the XCM egress buffer). Settling the buffer must
+	// treat that as ingress and decrement the accumulator, not silently drop it.
+	TestNet::reset();
+
+	let primed = 50 * UNITS;
+	let inbound = 30 * UNITS;
+
+	Hydra::execute_with(|| {
+		init_global_withdraw_limit_params();
+
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			ACA,
+			hydradx_runtime::AssetLocation(Location {
+				parents: 1,
+				interior: [
+					cumulus_primitives_core::Junction::Parachain(ACALA_PARA_ID),
+					cumulus_primitives_core::Junction::GeneralIndex(0)
+				]
+				.into()
+			})
+		));
+		assert_ok!(CircuitBreaker::set_asset_category(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			Some(GlobalAssetCategory::External)
+		));
+
+		// Prime the accumulator with `primed` worth of egress (ACA is priced 1:1 with HDX).
+		let who: AccountId = ALICE.into();
+		assert_ok!(Currencies::deposit(ACA, &who, primed));
+		assert_ok!(Currencies::withdraw(
+			ACA,
+			&who,
+			primed,
+			frame_support::traits::ExistenceRequirement::AllowDeath
+		));
+		assert_eq!(CircuitBreaker::withdraw_limit_accumulator().0, primed);
+	});
+
+	Acala::execute_with(|| {
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			inbound,
+			Box::new(
+				Location {
+					parents: 1,
+					interior: [
+						cumulus_primitives_core::Junction::Parachain(HYDRA_PARA_ID),
+						cumulus_primitives_core::Junction::AccountId32 { id: BOB, network: None }
+					]
+					.into()
+				}
+				.into_versioned()
+			),
+			WeightLimit::Limited(Weight::from_parts(399_600_000_000, 0))
+		));
+	});
+
+	Hydra::execute_with(|| {
+		assert_xcm_message_processing_passed();
+		assert!(
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)) > 0,
+			"BOB should have received the inbound ACA"
+		);
+
+		// The whole inbound amount (beneficiary + fee to treasury) is ingress.
+		// Allow for the small linear decay between the two Hydra blocks.
+		let acc = CircuitBreaker::withdraw_limit_accumulator().0;
+		let expected = primed - inbound;
+		assert!(
+			acc <= expected && acc > expected - UNITS,
+			"Inbound reserve deposit should decrement the accumulator by the deposited amount. Got: {acc}, expected ~{expected}"
+		);
+	});
+}
+
+#[test]
 fn inbound_xcm_over_limit_should_not_withdraw_from_hydra() {
 	TestNet::reset();
 

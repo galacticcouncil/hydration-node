@@ -58,6 +58,7 @@ mod xcm;
 mod xcm_aliasers;
 mod xyk;
 mod xyk_liquidity_mining;
+mod xyk_simulator;
 
 #[macro_export]
 macro_rules! assert_balance {

@@ -20,6 +20,9 @@ services:
       TOTAL_ALERT_DAYS: '7'
       CHECK_INTERVAL_SECONDS: '3600'
       STATE_FILE: /app/state/.state.json
+      # Mention posted as message content above the embed, so alerts actually
+      # ping (mentions inside an embed never notify). Not a secret.
+      ALERT_MENTION: '<@771806977235091526>'
     volumes:
       - state:/app/state
     networks:

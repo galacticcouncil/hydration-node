@@ -69,7 +69,7 @@ fn should_add_dca_intent_with_fixed_budget() {
 				match stored.data {
 					IntentData::Dca(dca) => {
 						assert_eq!(dca.remaining_budget, budget);
-						assert_eq!(dca.last_execution_block, 100);
+						assert_eq!(dca.last_execution_block, 90);
 						assert_eq!(dca.period, 10);
 					}
 					_ => panic!("expected DCA intent"),
@@ -101,7 +101,7 @@ fn should_add_dca_intent_with_rolling_budget() {
 				match stored.data {
 					IntentData::Dca(dca) => {
 						assert_eq!(dca.remaining_budget, 2 * amount_in);
-						assert_eq!(dca.last_execution_block, 50);
+						assert_eq!(dca.last_execution_block, 40);
 					}
 					_ => panic!("expected DCA intent"),
 				}
@@ -207,28 +207,7 @@ fn should_cancel_dca_unreserve_remaining_budget() {
 // ---- get_valid_intents tests ----
 
 #[test]
-fn should_not_include_dca_before_period_elapsed() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
-		.build()
-		.execute_with(|| {
-			let _ = with_transaction(|| {
-				set_block_number(100);
-				let _id = crate::Pallet::<Test>::add_intent(ALICE, dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX)))
-					.expect("should work");
-
-				// Block 105 < 100 + 10
-				set_block_number(105);
-				let valid = crate::Pallet::<Test>::get_valid_intents();
-				assert!(valid.is_empty());
-
-				TransactionOutcome::Commit(DispatchResult::Ok(()))
-			});
-		});
-}
-
-#[test]
-fn should_include_dca_after_period_elapsed() {
+fn dca_should_be_eligible_immediately_when_created() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
 		.build()
@@ -238,8 +217,71 @@ fn should_include_dca_after_period_elapsed() {
 				let id = crate::Pallet::<Test>::add_intent(ALICE, dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX)))
 					.expect("should work");
 
-				// Block 110 = 100 + 10
+				assert_eq!(stored_dca(id).last_execution_block, 90);
+				let valid = crate::Pallet::<Test>::get_valid_intents();
+				assert_eq!(valid.len(), 1);
+				assert_eq!(valid[0].0, id);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn dca_should_keep_period_cadence_after_first_fill() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				set_block_number(100);
+				let id = crate::Pallet::<Test>::add_intent(ALICE, dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX)))
+					.expect("should work");
+
+				assert_ok!(crate::Pallet::<Test>::unlock_funds(&ALICE, HDX, ONE_HDX));
+				let resolve = ice_support::ResolvedIntent {
+					id,
+					data: IntentData::Swap(SwapData {
+						asset_in: HDX,
+						asset_out: DOT,
+						amount_in: ONE_HDX,
+						amount_out: 2 * ONE_DOT,
+						partial: Partial::No,
+					}),
+				};
+				assert_ok!(crate::Pallet::<Test>::intent_resolved(&ALICE, &resolve));
+				assert_eq!(stored_dca(id).last_execution_block, 100);
+
+				set_block_number(109);
+				assert!(crate::Pallet::<Test>::get_valid_intents().is_empty());
+
 				set_block_number(110);
+				let valid = crate::Pallet::<Test>::get_valid_intents();
+				assert_eq!(valid.len(), 1);
+				assert_eq!(valid[0].0, id);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn dca_should_be_eligible_at_period_when_chain_is_younger_than_period() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			let _ = with_transaction(|| {
+				// The back-date saturates at 0 below one period of chain height, so the first
+				// trade is due at `period` rather than immediately.
+				set_block_number(5);
+				let id = crate::Pallet::<Test>::add_intent(ALICE, dca_intent(ONE_HDX, ONE_DOT, Some(5 * ONE_HDX)))
+					.expect("should work");
+
+				assert_eq!(stored_dca(id).last_execution_block, 0);
+				assert!(crate::Pallet::<Test>::get_valid_intents().is_empty());
+
+				set_block_number(10);
 				let valid = crate::Pallet::<Test>::get_valid_intents();
 				assert_eq!(valid.len(), 1);
 				assert_eq!(valid[0].0, id);

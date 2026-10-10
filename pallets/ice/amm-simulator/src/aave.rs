@@ -22,8 +22,8 @@ use precompile_utils::evm::writer::EvmDataWriter;
 use primitive_types::U256;
 use primitives::EvmAddress;
 use sp_arithmetic::traits::SaturatedConversion;
-use sp_std::boxed::Box;
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::btree_map::Entry;
 use sp_std::vec;
 use sp_std::vec::Vec;
 
@@ -33,6 +33,8 @@ pub trait DataProvider {
 	fn borrowing_contract() -> EvmAddress;
 
 	fn address_to_asset(address: EvmAddress) -> Option<AssetId>;
+
+	fn asset_address(asset: AssetId) -> EvmAddress;
 
 	fn pairs() -> Vec<(AssetId, AssetId)>;
 }
@@ -49,7 +51,6 @@ pub enum Function {
 	Withdraw = "withdraw(address,uint256,address)",
 	GetReserveData = "getReserveData(address)",
 	GetConfiguration = "getConfiguration(address)",
-	GetReservesList = "getReservesList()",
 	// AToken
 	UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
 	ScaledTotalSupply = "scaledTotalSupply()",
@@ -228,36 +229,6 @@ impl Snapshot {
 pub struct Simulator<DataProvider>(PhantomData<DataProvider>);
 
 impl<DP: DataProvider> Simulator<DP> {
-	fn get_reserves_list(aave: EvmAddress) -> Result<Vec<EvmAddress>, SimulatorError> {
-		let ctx = CallContext::new_view(aave);
-		let data = EvmDataWriter::new_with_selector(Function::GetReservesList).build();
-
-		let (exit_reason, value) = DP::view(ctx, data, GAS_LIMIT);
-		if exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
-			log::error!(target: LOG_TARGET, "to get reserves list reason: {exit_reason:?}, value: {value:?}");
-			return Err(SimulatorError::Other);
-		}
-
-		let param_types = vec![ParamType::Array(Box::new(ParamType::Address))];
-
-		let decoded = decode(&param_types, value.as_ref()).map_err(|_| {
-			log::error!(target: LOG_TARGET, "to decore reserves list");
-			SimulatorError::Other
-		})?;
-
-		// Convert decoded addresses to EvmAddress format
-		let addresses = decoded[0]
-			.clone()
-			.into_array()
-			.ok_or(SimulatorError::Other)?
-			.into_iter()
-			.filter_map(|addr| addr.into_address())
-			.map(|addr| EvmAddress::from_slice(addr.as_bytes()))
-			.collect();
-
-		Ok(addresses)
-	}
-
 	fn get_reserve_data(aave: EvmAddress, reserve: EvmAddress) -> Result<ReserveData, SimulatorError> {
 		let ctc = CallContext::new_view(aave);
 		let data = EvmDataWriter::new_with_selector(Function::GetReserveData)
@@ -364,34 +335,40 @@ impl<DP: DataProvider> Simulator<DP> {
 impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 	type Snapshot = Snapshot;
 
+	/// Only the registered wraps are loaded. A pair the pool contract disagrees with
+	/// is dropped rather than advertised: the contract is the source of truth for
+	/// which aToken a reserve mints, and an edge built on a mis-registration would
+	/// revert at settlement.
 	fn snapshot() -> Self::Snapshot {
-		let mut snapshot = Snapshot {
-			reserves: BTreeMap::new(),
-			contract: DP::borrowing_contract(),
-			pairs: DP::pairs(),
-		};
+		let contract = DP::borrowing_contract();
+		let mut reserves = BTreeMap::new();
+		let mut pairs = Vec::new();
 
-		let Ok(reserves) = Self::get_reserves_list(snapshot.contract) else {
-			return snapshot;
-		};
+		for (reserve, atoken) in DP::pairs() {
+			if let Entry::Vacant(slot) = reserves.entry(reserve) {
+				let Ok(data) = Self::get_reserve_data(contract, DP::asset_address(reserve)) else {
+					log::error!(target: LOG_TARGET, "to load registered reserve {reserve:?}");
+					continue;
+				};
+				slot.insert(data);
+			}
 
-		for addr in reserves {
-			let Ok(reserve) = Self::get_reserve_data(snapshot.contract, addr) else {
-				snapshot.reserves.clear();
-				break;
+			let Some(data) = reserves.get(&reserve) else {
+				continue;
 			};
+			if data.atoken_address != DP::asset_address(atoken) {
+				log::error!(target: LOG_TARGET, "registered wrap {reserve:?}/{atoken:?} is not the reserve's aToken");
+				continue;
+			}
 
-			let Some(asset_id) = DP::address_to_asset(addr) else {
-				debug_assert!(false, "Failed to map reserve address to asset, reserve: {addr:?}");
-				log::error!(target: LOG_TARGET, "to map reserve address to asset, reserve: {addr:?}");
-				snapshot.reserves.clear();
-				break;
-			};
-
-			snapshot.reserves.insert(asset_id, reserve);
+			pairs.push((reserve, atoken));
 		}
 
-		snapshot
+		Snapshot {
+			reserves,
+			contract,
+			pairs,
+		}
 	}
 
 	fn pool_type() -> PoolType<AssetId> {
@@ -496,6 +473,9 @@ mod tests {
 		}
 		fn address_to_asset(_: EvmAddress) -> Option<AssetId> {
 			None
+		}
+		fn asset_address(_: AssetId) -> EvmAddress {
+			EvmAddress::default()
 		}
 		fn pairs() -> Vec<(AssetId, AssetId)> {
 			Vec::new()

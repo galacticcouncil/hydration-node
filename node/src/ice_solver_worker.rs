@@ -15,13 +15,14 @@ use cumulus_primitives_core::BlockT;
 use frame_support::__private::sp_tracing::tracing;
 use futures::StreamExt;
 use hydradx_runtime::{
-	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder,
+	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder, LRNA,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
-use ice_solver::{passthrough, v4, IceSolver};
+use ice_solver::{passthrough, v4, IceSolver, SolverOptions, SplitConfig};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
+use pallet_omnipool::types::Tradability;
 use primitives::{AssetId, Balance};
-use sc_client_api::BlockchainEvents;
+use sc_client_api::{Backend, BlockchainEvents, StorageKey, StorageProvider};
 use sc_network_sync::SyncingService;
 use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::TransactionPool;
@@ -45,6 +46,25 @@ pub struct IceSolverWorkerConfig {
 	/// Enable/disable the ICE solver worker. Defaults to enabled on validators.
 	#[clap(long)]
 	pub ice_solver_worker: Option<bool>,
+
+	/// Allow one AMM transfer to be split across several routes. Default on;
+	/// `--ice-solver-split=false` falls back to single-route trades.
+	#[clap(long, default_value_t = true, action = clap::ArgAction::Set)]
+	pub ice_solver_split: bool,
+}
+
+impl IceSolverWorkerConfig {
+	pub fn solver_options(&self) -> SolverOptions {
+		let split = if self.ice_solver_split {
+			SplitConfig::default()
+		} else {
+			SplitConfig::disabled()
+		};
+		SolverOptions {
+			split,
+			..SolverOptions::default()
+		}
+	}
 }
 
 thread_local! {
@@ -107,9 +127,10 @@ impl Drop for BusyGuard {
 fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
 	input: SolverInput,
 	state: <HydrationSimulators as SimulatorSet>::State,
+	options: &SolverOptions,
 ) -> Option<Solution> {
 	let min_outs = input.min_amount_out.into_iter().collect();
-	S::solve_with_limits(input.intents, min_outs, state, input.fee).ok()
+	S::solve_with_options(input.intents, min_outs, state, input.fee, options).ok()
 }
 
 /// Pure transform: `SolverInput` → bare `submit_solution` extrinsic. No client,
@@ -120,7 +141,12 @@ fn solve<S: IceSolver<HydrationSimulator<NodeSimulatorConfig>>>(
 ///
 /// `built_at` is the block the input state was read at; it is stamped into the
 /// solution so consecutive solutions never share an extrinsic hash.
-pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
+pub(crate) fn build_extrinsic(
+	input: SolverInput,
+	built_at: u32,
+	options: &SolverOptions,
+	hub_sells_allowed: bool,
+) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
 	let mode = input.mode;
 	// Before the decode: nothing this block produces can be accepted, so the
 	// snapshot decode and the solve are both pure waste.
@@ -130,7 +156,7 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 	}
 
 	let t_decode = Instant::now();
-	let state: <HydrationSimulators as SimulatorSet>::State = match Decode::decode(&mut &input.state[..]) {
+	let mut state: <HydrationSimulators as SimulatorSet>::State = match Decode::decode(&mut &input.state[..]) {
 		Ok(state) => state,
 		Err(e) => {
 			// Distinct from a clean empty solution: a decode failure means the node's
@@ -139,6 +165,7 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 			return None;
 		}
 	};
+	state.0.hub_sells_disabled = !hub_sells_allowed;
 	// Reseed every solve — blocking-pool threads are reused.
 	ED_TL.with(|m| {
 		let mut m = m.borrow_mut();
@@ -149,8 +176,10 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 
 	let t_solve = Instant::now();
 	let mut solution = match mode {
-		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
-		SolverMode::Passthrough => solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state),
+		SolverMode::V4 => solve::<v4::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state, options),
+		SolverMode::Passthrough => {
+			solve::<passthrough::Solver<HydrationSimulator<NodeSimulatorConfig>>>(input, state, options)
+		}
 		// Returned above, before the decode.
 		SolverMode::Disabled => None,
 	}?;
@@ -168,12 +197,67 @@ pub(crate) fn build_extrinsic(input: SolverInput, built_at: u32) -> Option<(sp_r
 	Some((opaque, decode_ms, solve_ms))
 }
 
-pub struct IceSolverTask<B, C, P>(PhantomData<(B, C, P)>);
-
-impl<B, C, P> IceSolverTask<B, C, P>
+// TEMPORARY — delete with `ice_support::readmit` once the runtime pre-filter fix is live.
+fn readmit_withheld_dcas<B, BE, C>(client: &C, hash: B::Hash, block_no: u32, input: &mut SolverInput) -> usize
 where
 	B: BlockT,
-	C: ProvideRuntimeApi<B> + BlockchainEvents<B> + HeaderBackend<B> + Send + Sync + 'static,
+	BE: Backend<B>,
+	C: StorageProvider<B, BE>,
+{
+	let prefix = StorageKey([sp_core::twox_128(b"Intent"), sp_core::twox_128(b"Intents")].concat());
+	let pairs = match client.storage_pairs(hash, Some(&prefix), None) {
+		Ok(pairs) => pairs,
+		Err(e) => {
+			tracing::error!(target: LOG_TARGET, "reading Intent::Intents failed at block {block_no}: {e:?}");
+			return 0;
+		}
+	};
+	// The key ends in the `Blake2_128Concat` id; `data` is the stored `Intent`'s first field.
+	let stored = pairs.filter_map(|(key, value)| {
+		let id = ice_support::IntentId::decode(&mut &key.0[key.0.len().checked_sub(16)?..]).ok()?;
+		let data = ice_support::IntentData::decode(&mut &value.0[..]).ok()?;
+		Some((id, data))
+	});
+	ice_support::readmit::readmit_withheld_dcas(&mut input.intents, &input.existential_deposits, stored, block_no)
+}
+
+/// Unset reads as the pallet's default, `SELL`.
+fn hub_sells_allowed(hub_asset_tradability: Option<&[u8]>) -> bool {
+	hub_asset_tradability
+		.is_none_or(|mut raw| Tradability::decode(&mut raw).is_ok_and(|t| t.contains(Tradability::SELL)))
+}
+
+/// The shipped snapshot does not carry `Omnipool::HubAssetTradability`, so while it
+/// disallows selling H2O one H2O leg, even mid-route, would make the whole solution revert.
+fn read_hub_sells_allowed<B, BE, C>(client: &C, hash: B::Hash, block_no: u32) -> bool
+where
+	B: BlockT,
+	BE: Backend<B>,
+	C: StorageProvider<B, BE>,
+{
+	let key = StorageKey(
+		[
+			sp_core::twox_128(b"Omnipool"),
+			sp_core::twox_128(b"HubAssetTradability"),
+		]
+		.concat(),
+	);
+	match client.storage(hash, &key) {
+		Ok(value) => hub_sells_allowed(value.as_ref().map(|v| &v.0[..])),
+		Err(e) => {
+			tracing::error!(target: LOG_TARGET, "reading Omnipool::HubAssetTradability failed at block {block_no}: {e:?}");
+			false
+		}
+	}
+}
+
+pub struct IceSolverTask<B, C, P, BE>(PhantomData<(B, C, P, BE)>);
+
+impl<B, C, P, BE> IceSolverTask<B, C, P, BE>
+where
+	B: BlockT,
+	C: ProvideRuntimeApi<B> + BlockchainEvents<B> + HeaderBackend<B> + StorageProvider<B, BE> + Send + Sync + 'static,
+	BE: Backend<B> + 'static,
 	C::Api: IceSolverApi<B>,
 	P: TransactionPool<Block = B> + 'static,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
@@ -183,13 +267,18 @@ where
 	/// still-running one.
 	pub async fn run(
 		client: Arc<C>,
-		_config: IceSolverWorkerConfig,
+		config: IceSolverWorkerConfig,
 		transaction_pool: Arc<P>,
 		sync_service: Arc<SyncingService<B>>,
 		spawner: SpawnTaskHandle,
 		task_data: Arc<IceSolverTaskData>,
 	) {
-		tracing::info!(target: LOG_TARGET, "starting");
+		let options = config.solver_options();
+		tracing::info!(
+			target: LOG_TARGET,
+			"starting, route splitting enabled={}",
+			options.split.max_legs > 1
+		);
 
 		let mut block_stream = client.import_notification_stream();
 		while let Some(notification) = block_stream.next().await {
@@ -227,7 +316,7 @@ where
 				let total = Instant::now();
 
 				let t_state = Instant::now();
-				let input = {
+				let (input, hub_sells_allowed) = {
 					// Drop the ApiRef before the submit await (it is not Send).
 					let api = client.runtime_api();
 					// Skip blocks whose runtime predates IceSolverApi (e.g. before the
@@ -238,7 +327,22 @@ where
 						return;
 					}
 					match api.solver_input(hash) {
-						Ok(Some(input)) => input,
+						Ok(Some(mut input)) => {
+							let readmitted = readmit_withheld_dcas(&*client, hash, block_no, &mut input);
+							if readmitted > 0 {
+								tracing::info!(target: LOG_TARGET, "re-admitted {readmitted} withheld DCA intent(s) at block {block_no}");
+							}
+							let hub_sells_allowed = read_hub_sells_allowed(&*client, hash, block_no);
+							if !hub_sells_allowed {
+								let before = input.intents.len();
+								input.intents.retain(|intent| intent.data.asset_in() != LRNA::get());
+								let dropped = before - input.intents.len();
+								if dropped > 0 {
+									tracing::info!(target: LOG_TARGET, "held back {dropped} intent(s) selling H2O at block {block_no}: hub asset selling is off");
+								}
+							}
+							(input, hub_sells_allowed)
+						}
 						Ok(None) => return, // idle block, no valid intents
 						Err(e) => {
 							tracing::error!(target: LOG_TARGET, "solver_input failed at block {block_no}: {e:?}");
@@ -249,7 +353,7 @@ where
 				let state_query_ms = t_state.elapsed().as_millis();
 				let intents = input.intents.len() as u32;
 
-				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no) else {
+				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no, &options, hub_sells_allowed) else {
 					tracing::debug!(target: LOG_TARGET, "no solution for block {block_no}");
 					return;
 				};
@@ -338,6 +442,7 @@ pub mod rpc {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use clap::Parser;
 	use sp_runtime::Permill;
 
 	fn input_with(mode: SolverMode, state: Vec<u8>) -> SolverInput {
@@ -354,7 +459,7 @@ mod tests {
 	#[test]
 	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
 		let input = input_with(SolverMode::V4, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true).is_none());
 	}
 
 	#[test]
@@ -362,7 +467,35 @@ mod tests {
 		// Same undecodable state as the test above: reaching the decode at all
 		// would have to log an error, so `None` here proves the mode check runs first.
 		let input = input_with(SolverMode::Disabled, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true).is_none());
+	}
+
+	#[test]
+	fn solver_options_should_split_when_the_flag_is_absent() {
+		let config = IceSolverWorkerConfig::try_parse_from(["hydradx"]).expect("flags should parse");
+		assert_eq!(config.solver_options().split, SplitConfig::default());
+	}
+
+	#[test]
+	fn solver_options_should_not_split_when_the_flag_is_false() {
+		let config =
+			IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-split=false"]).expect("flags should parse");
+		assert_eq!(config.solver_options().split, SplitConfig::disabled());
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_true_when_hub_asset_tradability_is_unset() {
+		assert!(hub_sells_allowed(None));
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_true_when_hub_asset_tradability_allows_sell() {
+		assert!(hub_sells_allowed(Some(&Tradability::SELL.encode())));
+	}
+
+	#[test]
+	fn hub_sells_allowed_should_be_false_when_hub_asset_tradability_lacks_sell() {
+		assert!(!hub_sells_allowed(Some(&Tradability::BUY.encode())));
 	}
 
 	#[test]

@@ -66,6 +66,7 @@ pub use ice_support::Partial;
 use ice_support::ResolvedIntent;
 pub use ice_support::SwapData;
 pub use ice_support::SwapParams;
+use orml_traits::BalanceStatus;
 use orml_traits::NamedMultiReservableCurrency;
 pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
@@ -569,7 +570,13 @@ impl<T: Config> Pallet<T> {
 					.try_into()
 					.unwrap_or(u32::MAX);
 
-				IntentData::Dca(data.clone().into_data(reserve_amount, current_block))
+				// Back-dated by one period so the first trade is due immediately: `period` is the gap
+				// between trades, not a delay before the first one. `resolve_dca_intent` stamps the
+				// real block, so the cadence is exact from the second trade on.
+				IntentData::Dca(
+					data.clone()
+						.into_data(reserve_amount, current_block.saturating_sub(data.period)),
+				)
 			}
 		};
 
@@ -602,8 +609,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Function returns valid intents.
 	///
-	/// DCA intents are included only when their period has elapsed, budget is sufficient,
-	/// and oracle price indicates the trade is feasible (pre-filter).
+	/// DCA intents are included only when their period has elapsed and budget is sufficient.
 	/// They are transformed into `IntentData::Swap` with the hard limit as `amount_out`,
 	/// so the solver treats them as regular one-shot swaps.
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
@@ -655,20 +661,9 @@ impl<T: Config> Pallet<T> {
 								LOG_PREFIX, id, dca.remaining_budget, dca.amount_in);
 							return None;
 						}
-						// Oracle pre-filter. The floor computed here is exactly what
-						// `validate_dca_intent_resolve` enforces, so it is handed to the
-						// solver rather than discarded — otherwise the solver optimises
-						// against the hard limit and the chain rejects the whole solution.
-						let mut floor = None;
-						if let Some(oracle_min) = Self::compute_dca_oracle_limit(dca) {
-							if oracle_min > 0 && dca.amount_out > oracle_min {
-								log::debug!(target: OCW_LOG_TARGET, "{:?}: solver_intents(), DCA intent {:?} skipped: oracle pre-filter (hard_limit: {} > oracle_min: {} for {} -> {})",
-									LOG_PREFIX, id, dca.amount_out, oracle_min, dca.asset_in, dca.asset_out);
-								return None;
-							}
-							// Mirrors `compute_dca_effective_limit` without a second oracle read.
-							floor = Some(cmp::max(oracle_min, dca.amount_out));
-						}
+						// Handed to the solver as an admission floor, not used to filter here: a hard
+						// limit above `oracle_min` is still settleable when the market clears it.
+						let floor = Self::compute_dca_oracle_limit(dca).map(|oracle_min| cmp::max(oracle_min, dca.amount_out));
 						// Transform to Swap with hard limit for solver
 						let swap = dca.to_swap_data(dca.amount_out);
 						let transformed = Intent {
@@ -807,8 +802,8 @@ impl<T: Config> Pallet<T> {
 
 			if fully_resolved {
 				// Unreserve any remaining reserved funds.
-				// For swaps: submit_solution already unlocked and transferred the fill
-				// amount before calling intent_resolved, so nothing remains to unreserve.
+				// For swaps: submit_solution already moved the fill amount out of the reserve
+				// before calling intent_resolved, so nothing remains to unreserve.
 				// For DCA: remaining_budget tracks unspent reserved funds.
 				let unreserve_amount = match intent.data {
 					IntentData::Swap(_) => 0,
@@ -1018,6 +1013,33 @@ impl<T: Config> Pallet<T> {
 	#[inline(always)]
 	pub fn unlock_funds(who: &T::AccountId, asset_id: AssetId, amount: Balance) -> DispatchResult {
 		if !T::Currency::unreserve_named(&NAMED_RESERVE_ID, asset_id, who, amount).is_zero() {
+			return Err(Error::<T>::InsufficientReservedBalance.into());
+		}
+
+		Ok(())
+	}
+
+	/// Function moves reserved `amount` of `asset_id` from `who` straight to `dest` as free balance.
+	///
+	/// Never routes the funds through `who`: for a bound erc20 the reserve account is the token
+	/// sender, and an aave aToken prices its solvency walk on the sender. Unreserving to `who`
+	/// first would make that walk the owner's - unbounded in their own aave footprint.
+	#[inline(always)]
+	pub fn move_locked_funds(
+		who: &T::AccountId,
+		dest: &T::AccountId,
+		asset_id: AssetId,
+		amount: Balance,
+	) -> DispatchResult {
+		let remaining = T::Currency::repatriate_reserved_named(
+			&NAMED_RESERVE_ID,
+			asset_id,
+			who,
+			dest,
+			amount,
+			BalanceStatus::Free,
+		)?;
+		if !remaining.is_zero() {
 			return Err(Error::<T>::InsufficientReservedBalance.into());
 		}
 

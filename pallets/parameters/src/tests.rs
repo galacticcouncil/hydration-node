@@ -26,7 +26,15 @@
 //                  $$$
 
 use crate::mock::*;
-use crate::{IsTestnet, Pallet as Parameters, RelayParentOffsetOverride};
+use crate::{AaveGasLimits, IsTestnet, Pallet as Parameters, RelayParentOffsetOverride};
+use frame_support::{assert_noop, assert_ok};
+use sp_runtime::DispatchError::BadOrigin;
+
+const LIMITS: AaveGasLimits = AaveGasLimits {
+	trade: 600_000,
+	view: 200_000,
+	reserves_list: 2_000_000,
+};
 
 #[test]
 fn is_testnet_false_by_default() {
@@ -55,5 +63,50 @@ fn relay_parent_offset_override_true_when_set() {
 	ExtBuilder.build().execute_with(|| {
 		RelayParentOffsetOverride::<Test>::put(true);
 		assert!(Parameters::<Test>::relay_parent_offset_override());
+	});
+}
+
+#[test]
+fn aave_gas_limits_should_be_none_by_default() {
+	ExtBuilder.build().execute_with(|| {
+		assert_eq!(Parameters::<Test>::aave_gas_limits(), None);
+	});
+}
+
+#[test]
+fn set_aave_gas_limits_should_store_limits_when_origin_is_authority() {
+	ExtBuilder.build().execute_with(|| {
+		assert_ok!(Parameters::<Test>::set_aave_gas_limits(
+			RuntimeOrigin::root(),
+			Some(LIMITS)
+		));
+
+		assert_eq!(Parameters::<Test>::aave_gas_limits(), Some(LIMITS));
+	});
+}
+
+#[test]
+fn set_aave_gas_limits_should_clear_limits_when_none_is_given() {
+	ExtBuilder.build().execute_with(|| {
+		assert_ok!(Parameters::<Test>::set_aave_gas_limits(
+			RuntimeOrigin::root(),
+			Some(LIMITS)
+		));
+
+		assert_ok!(Parameters::<Test>::set_aave_gas_limits(RuntimeOrigin::root(), None));
+
+		assert_eq!(Parameters::<Test>::aave_gas_limits(), None);
+	});
+}
+
+#[test]
+fn set_aave_gas_limits_should_fail_when_origin_is_not_authority() {
+	ExtBuilder.build().execute_with(|| {
+		assert_noop!(
+			Parameters::<Test>::set_aave_gas_limits(RuntimeOrigin::signed(ALICE), Some(LIMITS)),
+			BadOrigin
+		);
+
+		assert_eq!(Parameters::<Test>::aave_gas_limits(), None);
 	});
 }
