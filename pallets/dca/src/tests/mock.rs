@@ -61,7 +61,6 @@ pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
-pub const DOT: AssetId = 5;
 pub const RETRY_ON_ERROR_ASSET: AssetId = 6;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
@@ -658,7 +657,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub PolkadotNativeCurrencyId: AssetId = DOT;
 	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
@@ -744,9 +742,8 @@ impl Config for Test {
 	type AmmTradeWeights = ();
 	type MinimumTradingLimit = MinTradeAmount;
 	type NativePriceOracle = NativePriceOracleMock;
+	type AccountFeeCurrency = AccountFeeCurrencyMock;
 	type RetryOnError = RetryOnErrorMock;
-	type PolkadotNativeAssetId = PolkadotNativeCurrencyId;
-	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
 	type ExtraGasSupport = ExtraGasSetterMock;
 	type GasWeightMapping = MockGasWeightMapping;
 }
@@ -783,48 +780,31 @@ impl pallet_evm::GasWeightMapping for MockGasWeightMapping {
 	}
 }
 
-pub struct MockedInsufficientAssetSupport;
-
-impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
-	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
-		true
-	}
+thread_local! {
+	/// Assets that can pay fees. Empty means "everything", which is what most DCA tests assume.
+	pub static NON_FEE_ASSETS: RefCell<Vec<AssetId>> = const { RefCell::new(Vec::new()) };
+	/// Fee currency reported for every account.
+	pub static ACCOUNT_FEE_CURRENCY: RefCell<AssetId> = const { RefCell::new(HDX) };
 }
 
-impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
-	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
-		unimplemented!()
+pub struct AccountFeeCurrencyMock;
+
+impl AccountFeeCurrency<AccountId> for AccountFeeCurrencyMock {
+	type AssetId = AssetId;
+
+	fn get(_who: &AccountId) -> Self::AssetId {
+		ACCOUNT_FEE_CURRENCY.with(|v| *v.borrow())
 	}
 
-	fn buy(
-		_origin: &AccountId,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_amount: Balance,
-		_max_limit: Balance,
-		_dest: &AccountId,
-	) -> DispatchResult {
-		unimplemented!()
+	fn set(_who: &AccountId, _asset_id: Self::AssetId) -> DispatchResult {
+		Ok(())
 	}
 
-	fn calculate_fee_amount(_swap_amount: Balance) -> Result<Balance, DispatchError> {
-		unimplemented!()
-	}
-
-	fn calculate_in_given_out(
-		_insuff_asset_id: AssetId,
-		_asset_out: AssetId,
-		_asset_out_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		unimplemented!()
-	}
-
-	fn calculate_out_given_in(
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_asset_in_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		unimplemented!()
+	fn is_payment_currency(asset_id: Self::AssetId) -> DispatchResult {
+		if NON_FEE_ASSETS.with(|v| v.borrow().contains(&asset_id)) {
+			return Err(DispatchError::Other("NotAFeeCurrency"));
+		}
+		Ok(())
 	}
 }
 
@@ -855,8 +835,9 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::evm::ExtraGasSupport;
-use hydradx_traits::fee::{GetDynamicFee, InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
+use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::router::{ExecutorError, PoolType, RouteProvider, Trade, TradeExecution};
+use hydradx_traits::AccountFeeCurrency;
 use pallet_currencies::fungibles::FungibleCurrencies;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use rand::prelude::StdRng;

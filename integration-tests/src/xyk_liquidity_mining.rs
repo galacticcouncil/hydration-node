@@ -633,7 +633,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_004_254_545_454_436_u128
+			1_005_454_545_454_436_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -673,7 +673,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_021_616_083_915_974_u128
+			1_023_916_083_915_974_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
@@ -772,7 +772,7 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			994_400_000_000_000_u128
+			1_000_000_000_000_000_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -804,10 +804,9 @@ fn liquidity_mining_should_work_when_distributes_insufficient_asset() {
 
 		//Assert
 		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
-		//This is lower than before because dave received insufficient asset and he had to paid ED.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			993_300_000_000_000_u128
+			1_000_000_000_000_000_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
@@ -907,7 +906,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			999_854_545_454_436_u128
+			1_005_454_545_454_436_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -941,7 +940,7 @@ fn liquidity_mining_should_work_when_xyk_assets_are_insufficient() {
 		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_017_216_083_915_974_u128
+			1_023_916_083_915_974_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's
@@ -1445,7 +1444,19 @@ fn register_external_asset(general_index: u128) -> AssetId {
 	));
 
 	let next_asset_id = AssetRegistry::next_asset_id().unwrap();
-	AssetRegistry::register_external(hydra_origin::signed(BOB.into()), location).unwrap();
+	AssetRegistry::register(
+		hydra_origin::root(),
+		None,
+		None,
+		hydradx_runtime::AssetType::External,
+		Some(1_000),
+		None,
+		None,
+		Some(location),
+		None,
+		false,
+	)
+	.unwrap();
 
 	next_asset_id
 }

@@ -5770,7 +5770,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.15.0"
+version = "2.0.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5828,7 +5828,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "448.0.0"
+version = "449.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -6003,7 +6003,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.14.0"
+version = "5.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8777,7 +8777,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.5.0"
+version = "4.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9260,7 +9260,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.21.1"
+version = "2.0.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -11056,7 +11056,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.8.0"
+version = "11.0.0"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -14190,7 +14190,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.121.0"
+version = "1.122.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",

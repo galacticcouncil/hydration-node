@@ -41,7 +41,6 @@ pub type AssetId = u32;
 
 pub const UNIT: Balance = 1_000_000_000_000;
 pub const ALICE: u64 = 1_000;
-pub const TREASURY: u64 = 2_222;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -117,7 +116,6 @@ impl pallet_asset_registry::Config for Test {
 	type StringLimit = RegistryStringLimit;
 	type MinStringLimit = RegistryMinStringLimit;
 	type SequentialIdStartAt = SequentialIdStart;
-	type RegExternalWeightMultiplier = frame_support::traits::ConstU64<1>;
 	type RegisterAssetHook = ();
 	type WeightInfo = ();
 }

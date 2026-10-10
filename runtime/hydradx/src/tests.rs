@@ -193,15 +193,23 @@ mod xcm_fee_payment_api_tests {
 	fn query_acceptable_payment_assets_should_return_native_and_registered_locations() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
 			// register new asset in the asset registry
-			assert_ok!(AssetRegistry::register_external(
-				RuntimeOrigin::signed([0u8; 32].into()),
-				crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
+			assert_ok!(AssetRegistry::register(
+				RuntimeOrigin::root(),
+				None,
+				None,
+				AssetType::External,
+				Some(1_000u128),
+				None,
+				None,
+				Some(crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
 					1,
 					[
 						polkadot_xcm::v5::Junction::Parachain(123),
 						polkadot_xcm::v5::Junction::GeneralIndex(123)
 					]
-				))
+				))),
+				None,
+				true
 			));
 
 			assert_eq!(
@@ -231,26 +239,42 @@ mod xcm_fee_payment_api_tests {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
 			// register new assets in the asset registry
 			let registered_asset_with_price = AssetRegistry::next_asset_id().unwrap();
-			assert_ok!(AssetRegistry::register_external(
-				RuntimeOrigin::signed([0u8; 32].into()),
-				crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
+			assert_ok!(AssetRegistry::register(
+				RuntimeOrigin::root(),
+				None,
+				None,
+				AssetType::External,
+				Some(1_000u128),
+				None,
+				None,
+				Some(crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
 					1,
 					[
 						polkadot_xcm::v5::Junction::Parachain(123),
 						polkadot_xcm::v5::Junction::GeneralIndex(123)
 					]
-				))
+				))),
+				None,
+				true
 			));
 
-			assert_ok!(AssetRegistry::register_external(
-				RuntimeOrigin::signed([0u8; 32].into()),
-				crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
+			assert_ok!(AssetRegistry::register(
+				RuntimeOrigin::root(),
+				None,
+				None,
+				AssetType::External,
+				Some(1_000u128),
+				None,
+				None,
+				Some(crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
 					1,
 					[
 						polkadot_xcm::v5::Junction::Parachain(123),
 						polkadot_xcm::v5::Junction::GeneralIndex(456)
 					]
-				))
+				))),
+				None,
+				true
 			));
 
 			// set the price of registered asset

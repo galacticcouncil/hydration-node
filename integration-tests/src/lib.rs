@@ -27,7 +27,7 @@ mod gigahdx_rewards;
 mod global_withdraw_limit;
 mod hsm;
 mod ice;
-mod insufficient_assets_ed;
+mod insufficient_assets;
 mod liquidation;
 mod multi_payment;
 mod non_native_fee;

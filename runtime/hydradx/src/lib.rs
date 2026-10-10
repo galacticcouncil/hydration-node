@@ -133,10 +133,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 448,
+	spec_version: 449,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	// Bumped when `AssetRegistry::register_external` (call index 4) was removed.
+	transaction_version: 2,
 	system_version: 1,
 };
 
