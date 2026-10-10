@@ -87,7 +87,7 @@ impl OraclePeriod {
 	pub const fn as_period(&self) -> u64 {
 		match self {
 			OraclePeriod::LastBlock => 1,
-			OraclePeriod::Short => 20,
+			OraclePeriod::Short => 60,
 			OraclePeriod::TenMinutes => 10 * MINUTES as u64,
 			OraclePeriod::Hour => HOURS as u64,
 			OraclePeriod::Day => DAYS as u64,

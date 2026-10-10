@@ -20,6 +20,7 @@ use crate::evm::precompiles::erc20_mapping::SetCodeForErc20Precompile;
 use crate::evm::Erc20Currency;
 use crate::origins::{EconomicParameters, GeneralAdmin, OmnipoolAdmin, Treasurer};
 use crate::system::NativeAssetId;
+use crate::types::ShortOraclePrice;
 use crate::Stableswap;
 use core::ops::RangeInclusive;
 use frame_support::{
@@ -31,8 +32,8 @@ use frame_support::{
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, Contains, Currency, EitherOf, EnsureOrigin, Get, Imbalance, NeverEnsureOrigin,
-		OnUnbalanced,
+		AsEnsureOriginWithArg, ConstU32, ConstU64, Contains, Currency, EitherOf, EnsureOrigin, Get, Imbalance,
+		NeverEnsureOrigin, OnUnbalanced,
 	},
 	BoundedVec, PalletId,
 };
@@ -45,13 +46,17 @@ use hydradx_adapters::{
 };
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::evm::CallContext;
-use hydradx_traits::router::MAX_NUMBER_OF_TRADES;
+use hydradx_traits::router::{Route, MAX_NUMBER_OF_TRADES};
 pub use hydradx_traits::{
 	registry::Inspect,
 	router::{inverse_route, PoolType, Trade},
 	AccountIdFor, AssetKind, AssetPairAccountIdFor, Liquidity, NativePriceOracle, OnTradeHandler, OraclePeriod, Source,
 	AMM,
 };
+
+use amm_simulator::aave::Simulator as AaveSimulator;
+use amm_simulator::omnipool::Simulator as OmnipoolSimulator;
+use amm_simulator::stableswap::Simulator as StableSwapSimulator;
 
 use orml_traits::{
 	currency::{MultiCurrency, MutationHooks, OnDeposit, OnTransfer},
@@ -76,9 +81,9 @@ use pallet_staking::{
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, AssetIdOf, RemoveTxAssetOnKilled};
 use pallet_xyk::weights::WeightInfo as XykWeights;
 use primitives::constants::{
-	chain::{OMNIPOOL_SOURCE, STABLESWAP_SOURCE, XYK_SOURCE},
+	chain::{CORE_ASSET_ID, OMNIPOOL_SOURCE, STABLESWAP_SOURCE, UNISWAPV3_SOURCE, XYK_SOURCE},
 	currency::{NATIVE_EXISTENTIAL_DEPOSIT, UNITS},
-	time::DAYS,
+	time::{DAYS, MILLISECS_PER_BLOCK},
 };
 use sp_std::num::NonZeroU16;
 
@@ -430,8 +435,8 @@ impl Get<bool> for InTradeContext {
 }
 
 parameter_types! {
-	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
-	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (1_670, 10_000);	// 17%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((167, 10_000));	// 1.7%
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
@@ -464,7 +469,10 @@ parameter_types! {
 pub struct InternalOracleSources;
 impl Contains<Source> for InternalOracleSources {
 	fn contains(s: &Source) -> bool {
-		matches!(s, &OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE)
+		matches!(
+			s,
+			&OMNIPOOL_SOURCE | &STABLESWAP_SOURCE | &XYK_SOURCE | &UNISWAPV3_SOURCE
+		)
 	}
 }
 
@@ -482,7 +490,7 @@ where
 
 impl pallet_ema_oracle::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, EconomicParameters>;
-	/// The definition of the oracle time periods currently assumes a 6 second block time.
+	/// The definition of the oracle time periods currently assumes a 2 second block time.
 	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
 	/// to which smoothing factor.
 	type BlockNumberProvider = System;
@@ -510,6 +518,7 @@ impl Get<Vec<AccountId>> for ExtendedDustRemovalWhitelist {
 			BondsPalletId::get().into_account_truncating(),
 			pallet_route_executor::Pallet::<Runtime>::router_account(),
 			EVMAccounts::account_id(crate::evm::HOLDING_ADDRESS),
+			IcePalletId::get().into_account_truncating(),
 			GigaHdxPalletId::get().into_account_truncating(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::reward_accumulator_pot(),
 			pallet_gigahdx_rewards::Pallet::<Runtime>::allocated_rewards_pot(),
@@ -722,7 +731,7 @@ parameter_types! {
 	pub MaxSchedulesPerBlock: u32 = 6;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(5);
-	pub MinimalPeriod: u32 = 5;
+	pub MinimalPeriod: u32 = 15;
 	pub BumpChance: Percent = Percent::from_percent(17);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u8 = 3;
@@ -766,6 +775,7 @@ impl pallet_dca::Config for Runtime {
 	type Currencies = Currencies;
 	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 	type RandomnessProvider = DCA;
+	type IntentMigrator = Intent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -889,6 +899,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell().saturating_mul(c as u64);
@@ -924,6 +935,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
@@ -956,6 +968,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Weight::zero(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
@@ -986,6 +999,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell().saturating_mul(c as u64);
@@ -1019,6 +1033,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_buy(c, e)
 					.saturating_add(<Runtime as pallet_xyk::Config>::AMMHandler::on_trade_weight()),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => {
 					let mut hsm_weight =
 						weights::pallet_hsm::HydraWeight::<Runtime>::calculate_buy().saturating_mul(c as u64);
@@ -1057,6 +1072,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
 			};
 			weight.saturating_accrue(amm_weight);
@@ -1070,6 +1086,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				PoolType::Stableswap(_) => weights::pallet_stableswap::HydraWeight::<Runtime>::router_execution_sell(0),
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::router_execution_sell(1, 0),
 				PoolType::Aave => Aave::trade_weight(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_sell(),
 			};
 			weight.saturating_accrue(amm_weight);
@@ -1104,6 +1121,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 				}
 				PoolType::XYK => weights::pallet_xyk::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 				PoolType::Aave => Weight::zero(),
+				PoolType::UniswapV3(_) => UniswapV3::trade_weight(),
 				PoolType::HSM => weights::pallet_hsm::HydraWeight::<Runtime>::calculate_spot_price_with_fee(),
 			};
 			weight.saturating_accrue(amm_weight);
@@ -1127,7 +1145,7 @@ impl pallet_route_executor::Config for Runtime {
 	type Balance = Balance;
 	type Currency = FungibleCurrencies<Runtime>;
 	type WeightInfo = RouterWeightInfo;
-	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave, HSM);
+	type AMM = (Omnipool, Stableswap, XYK, LBP, Aave, HSM, UniswapV3);
 	type DefaultRoutePoolType = DefaultRoutePoolType;
 	type NativeAssetId = NativeAssetId;
 	type ForceInsertOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
@@ -1173,14 +1191,14 @@ parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(25u32,10000u32), // 0.25%
 		max_fee: Permill::from_rational(5u32,100u32),    // 5%
-		decay: FixedU128::from_rational(1,20000),        // 0.005%
+		decay: FixedU128::from_rational(1,60000),        // 0.00167%
 		amplification: FixedU128::from(2),               // 2
 	};
 
 	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(5u32,10000u32),  // 0.05%
 		max_fee: Permill::from_rational(25u32,10000u32), // 0.25%
-		decay: FixedU128::from_rational(5,200000),       // 0.0025%
+		decay: FixedU128::from_rational(5,600000),       // 0.00083%
 		amplification: FixedU128::one(),                 // 1
 	};
 
@@ -1232,6 +1250,7 @@ use crate::evm::evm_error_decoder::EvmErrorDecoder;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_support::storage::with_transaction;
 use frame_support::traits::IsSubType;
+use hydradx_traits::amm::{SimulatorError, SimulatorSet};
 use hydradx_traits::evm::{Erc20Inspect, Erc20OnDust};
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::price::PriceProvider;
@@ -1418,7 +1437,7 @@ impl pallet_bonds::Config for Runtime {
 parameter_types! {
 	pub const StakingPalletId: PalletId = PalletId(*b"staking#");
 	pub const MinStake: Balance = 1_000 * UNITS;
-	pub const PeriodLength: BlockNumber = 7_200; // 1d based on 12s blocks, pallet accounts for migration to 6s blocks
+	pub const PeriodLength: BlockNumber = 7_200; // 1d based on 12s blocks, pallet accounts for migrations to 6s / 2s blocks
 	pub const TimePointsW:Permill =  Permill::from_percent(100);
 	pub const ActionPointsW: Perbill = Perbill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 1;
@@ -1428,6 +1447,14 @@ parameter_types! {
 }
 
 pub struct PointsPerAction;
+
+pub struct TwoSecBlocksSinceProvider;
+
+impl Get<BlockNumber> for TwoSecBlocksSinceProvider {
+	fn get() -> BlockNumber {
+		pallet_parameters::TwoSecBlocksSince::<Runtime>::get()
+	}
+}
 
 impl GetByKey<Action, u32> for PointsPerAction {
 	fn get(k: &Action) -> u32 {
@@ -1450,6 +1477,7 @@ impl pallet_staking::Config for Runtime {
 	type AssetId = AssetId;
 	type Currency = Currencies;
 	type PeriodLength = PeriodLength;
+	type TwoSecBlocksSince = TwoSecBlocksSinceProvider;
 	type PalletId = StakingPalletId;
 	type NativeAssetId = NativeAssetId;
 	type MinStake = MinStake;
@@ -1657,6 +1685,128 @@ impl pallet_hsm::Config for Runtime {
 }
 
 parameter_types! {
+	pub const IntentForwardGasLimit: u64 = 2_000_000;
+}
+
+impl pallet_lazy_executor::Config for Runtime {
+	type RuntimeCall = RuntimeCall;
+	type Currency = Currencies;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Evm = evm::Executor<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Evm = DummyEvm;
+	type EvmAccounts = EVMAccounts;
+	type Erc20Mapping = evm::precompiles::erc20_mapping::HydraErc20Mapping;
+	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
+	type GasLimit = IntentForwardGasLimit;
+	type EvmErrorDecoder = EvmErrorDecoder;
+	type UnsignedLongevity = ConstU64<2>;
+	type UnsignedPriority = ConstU64<100>;
+	type WeightInfo = weights::pallet_lazy_executor::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	//24 hours
+	pub const MaxIntentDuration: u64  = 24 * 3_600 * 1_000;
+	// A solution is built against block N and executed in N+1, and `validate_unsigned`
+	// gives it `longevity(1)`, so it can never land later than that. One block of
+	// headroom therefore matches the real gap exactly.
+	pub const SolverDeadlineMargin: u64 = MILLISECS_PER_BLOCK;
+	// Bounds how far below the oracle a DCA intent may settle. The failure this
+	// prevents is the floor collapsing to zero at 100% slippage, leaving the intent
+	// bound only by its own limit; it is deliberately loose enough not to reject
+	// ordinary configurations on volatile pairs.
+	pub MaxDcaSlippage: Permill = Permill::from_percent(50);
+}
+
+/// Intents may only be created while something can actually settle them.
+pub struct IceSettlementEnabled;
+impl Get<bool> for IceSettlementEnabled {
+	fn get() -> bool {
+		pallet_ice::Pallet::<Runtime>::settlement_enabled()
+	}
+}
+
+impl pallet_intent::Config for Runtime {
+	type LazyExecutorHandler = LazyExecutor;
+	type RegistryHandler = AssetRegistry;
+	type Currency = Currencies;
+	type MaxAllowedIntentDuration = MaxIntentDuration;
+	type SolverDeadlineMargin = SolverDeadlineMargin;
+	type TimestampProvider = Timestamp;
+	type HubAssetId = LRNA;
+	type OraclePriceProvider = ShortOraclePrice;
+	type BlockNumberProvider = System;
+	type MinDcaPeriod = MinimalPeriod;
+	type MaxDcaSlippage = MaxDcaSlippage;
+	type SettlementEnabled = IceSettlementEnabled;
+	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
+	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const IcePalletId: PalletId = PalletId(*b"ice_ice#");
+	pub const IceFeeReceiverPalletId: PalletId = PalletId(*b"ice_fee#");
+	pub const IceFee: Permill = Permill::from_parts(200); // 0.02%
+	pub const SimulatorPriceDenom: AssetId = CORE_ASSET_ID;
+	pub IceFeeReceiver: AccountId = IceFeeReceiverPalletId::get().into_account_truncating();
+}
+
+/// Simulator configuration for the ICE pallet
+/// Bundles simulators and route discovery strategy for the solver
+pub struct HydrationSimulatorConfig;
+
+pub type HydrationSimulators = (
+	OmnipoolSimulator<ice_simulator_provider::Omnipool<Runtime>>,
+	StableSwapSimulator<ice_simulator_provider::Stableswap<Runtime>>,
+	AaveSimulator<ice_simulator_provider::Aave<Runtime>>,
+);
+
+pub struct SmartRouteFinder<S: SimulatorSet>(sp_std::marker::PhantomData<S>);
+
+impl<S: SimulatorSet> hydradx_traits::amm::RouteDiscovery<S::State> for SmartRouteFinder<S> {
+	fn discover_routes(
+		asset_in: AssetId,
+		asset_out: AssetId,
+		state: &S::State,
+	) -> Result<Vec<Route<AssetId>>, SimulatorError> {
+		let pool_edges = S::pool_edges(state);
+		let routes = route_findr::get_routes(asset_in, asset_out, pool_edges);
+
+		if routes.is_empty() {
+			log::debug!(target: "solver", "no routes found for {asset_in} -> {asset_out}");
+			return Err(SimulatorError::NotSupported);
+		}
+
+		log::debug!(target: "solver", "found {} route(s) for {asset_in} -> {asset_out}", routes.len());
+		Ok(routes)
+	}
+}
+
+impl hydradx_traits::amm::SimulatorConfig for HydrationSimulatorConfig {
+	type Simulators = HydrationSimulators;
+	//type RouteDiscovery = amm_simulator::OnChainRouteDiscovery<Router, HydrationSimulators>;
+	type RouteDiscovery = SmartRouteFinder<HydrationSimulators>;
+	type PriceDenominator = SimulatorPriceDenom;
+
+	fn existential_deposit(asset_id: AssetId) -> Balance {
+		<AssetRegistry as hydradx_traits::registry::Inspect>::existential_deposit(asset_id).unwrap_or(0)
+	}
+}
+
+impl pallet_ice::Config for Runtime {
+	type Currency = Currencies;
+	type PalletId = IcePalletId;
+	type MatchedFee = IceFee;
+	type FeeReceiver = IceFeeReceiver;
+	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, TechCommitteeMajority>;
+	type RegistryHandler = AssetRegistry;
+	type Simulator = HydrationSimulatorConfig;
+	type ExtraGasSupport = Dispatcher;
+	type WeightInfo = weights::pallet_ice::HydraWeight<Runtime>;
+}
+
+parameter_types! {
 	pub const SignetPalletId: PalletId = PalletId(*b"py/signt");
 }
 
@@ -1722,6 +1872,7 @@ impl pallet_gigahdx::Config for Runtime {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type TwoSecBlocksSince = TwoSecBlocksSinceProvider;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = crate::gigahdx::HdxExternalClaims;
 	type LegacyStaking = crate::gigahdx::LegacyStakingMigrator;
@@ -1903,6 +2054,7 @@ impl GetByKey<Level, (Balance, FeeDistribution)> for ReferralsLevelVolumeAndRewa
 }
 
 use crate::evm::aave_trade_executor::Aave;
+use crate::evm::uniswap_v3_trade_executor::UniswapV3;
 #[cfg(feature = "runtime-benchmarks")]
 use crate::helpers::benchmark_helpers::CircuitBreakerBenchmarkHelper;
 

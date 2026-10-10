@@ -1,8 +1,8 @@
 # Removal of the DOT/XYK fee fallbacks and redesign of the insufficient-asset ED
 
 **Worktree:** `/Volumes/T9/workspace/gc/remove-fee-fallbacks`
-**Branch:** `feat/remove-fee-fallbacks` (off `master` @ `94b5af674`, merged up to `cc1bc978b` on 2026-08-20)
-**Status:** implemented, uncommitted.
+**Branch:** `feat/remove-fee-fallbacks` (off `master` @ `94b5af674`, merged up to `d93ca14ac` on 2026-09-11)
+**Status:** implemented; merge with master resolved, re-verified — see §9.
 
 ---
 
@@ -246,7 +246,7 @@ unifies features. Worth a separate one-line PR.
       multi-block migration); DCA schedules with a non-accepted `asset_in`.
 - [ ] Regenerate `pallet_dca`, `pallet_transaction_multi_payment` **and `pallet_asset_registry`**
       weights (registry lost an extrinsic; its weights file was hand-trimmed to compile).
-- [ ] `make build-benchmarks`.
+- [ ] `make build-benchmarks` — `cargo check -p hydradx-runtime --features runtime-benchmarks` is clean (§9), the full wasm benchmark build is still unrun.
 - [ ] Full `cargo test --locked` in CI.
 - [ ] Flag to the apps/wallet team: the selectable fee-asset list shrinks to `AcceptedCurrencies`,
       **and the permissionless "import external asset" flow is gone** (`register_external` deleted).
@@ -256,9 +256,122 @@ unifies features. Worth a separate one-line PR.
 
 Version bumps applied: `hydradx-traits` 5.0.0, `pallet-transaction-multi-payment` 11.0.0,
 `pallet-dca` 2.0.0, `pallet-asset-registry` 4.0.0, `hydradx-adapters` 2.0.0, `hydradx-runtime`
-440.0.0, runtime `spec_version` 440, and `transaction_version` 1 → 2 (extrinsic removed).
-The runtime was re-bumped 439 → 440 at the master merge: master shipped its own 439 (pepl-v2 +
-NTT mint lockdown), and both sides had written the same number, so the collision was silent.
+445.0.0, `runtime-integration-tests` 1.112.0, runtime `spec_version` 445, and
+`transaction_version` 1 → 2 (extrinsic removed).
+The runtime number has now collided with master twice (439 at the August merge, 444 at the
+September one) because both sides bump the same line — re-check it on every merge.
+
+---
+
+## 9. Master merge, 2026-09-11 (`cc1bc978b` → `d93ca14ac`, 360 commits)
+
+Master landed the **ICE pallet** (`pallet-ice`, `pallet-intent`, `ice-solver`, the DCA→intent
+migration), the **uniswap-v3 router**, a batch of **EVM fixes** (create-whitelist and
+precompile-guard bypasses, permit error granularity, the withdraw-fuse guard), stable synth-log tx
+hashes, and the **2-second-block** migration set. 18 files conflicted, 27 hunks.
+
+### How the conflicts were resolved
+
+| Conflict | Resolution |
+|---|---|
+| 6 × crate version | our majors kept; runtime **445.0.0**, integration-tests **1.112.0** (master had shipped 444 / 1.111) |
+| `runtime/hydradx/src/lib.rs` | `spec_version` **445**; our `transaction_version: 2` untouched |
+| `migrations/mod.rs` | master's eight 2s-block migrations **+** our `RetireInsufficientEdPool`; `PurgeUnsupportedFeeCurrencies` stays the only multi-block entry (master's list was still empty). Master had already released and dropped `pallet_stableswap::migrations::v2::MigrateV1ToV2` |
+| `evm/evm_fee.rs` | master's new `WithdrawFuseGuard` / `with_inactive_withdraw_fuse` **+** our 6-param `TransferEvmFees` (the two dropped type params stay dropped) |
+| `transaction-multi-payment/src/lib.rs` | master's `fp_evm::ExitReason` import (its new `EvmPermitCallFailed { reason }` event) **+** our `permit_fee_currency` helper — master's two inline permit-decode sites are now calls to it |
+| `dca/src/lib.rs` | union of imports: our `AccountFeeCurrency` **+** master's `ice_support::{DcaParams, IntentId, IntentMigrator}` |
+| `assets.rs` | master's import set minus what our deletions orphaned (`Defensive`, `ExistenceRequirement`, `LockIdentifier`); master's `CORE_ASSET_ID` / `UNISWAPV3_SOURCE` constants kept |
+| `benchmarking/dca.rs`, `weights/pallet_dca.rs`, `weights/pallet_asset_registry.rs` | our deletions win (`*_with_insufficient_fee_asset`, `register_external`); master's regenerated numbers for the surviving fns kept |
+| `integration-tests/src/lib.rs` | `mod ice;` **+** our `mod insufficient_assets;` |
+| `Cargo.lock` | master's, then refreshed offline for our seven version bumps |
+
+### Fixed beyond the conflict markers
+
+- `integration-tests/src/account_nonce.rs` — a **new** master file (split out of `evm_permit.rs`)
+  that imported `DotAssetId`, `XykPaymentAssetSupport` and `ConvertBalance`. Import-only, trimmed.
+- `integration-tests/src/evm_permit.rs` — same orphaned imports on master's side of the conflict.
+- One unused `use codec::DecodeLimit;` left inside the pallet module once our outer import merged in.
+
+No live reference to any deleted item survives anywhere in the tree (`register_external`,
+`SwappablePaymentAssetSupport`, `XykPaymentAssetSupport`, `InspectTransactionFeeCurrency`,
+`SufficiencyCheck`, `PolkadotNativeAssetId`, `convert_to_polkadot_native_asset`) — only two
+explanatory comments, in `pallets/asset-registry/src/lib.rs` (retired call index 4) and
+`runtime/hydradx/src/lib.rs` (why `transaction_version` moved).
+
+### What master brought that this branch has to answer for
+
+- **`integration-tests/src/global_withdraw_limit.rs` is new**, and
+  `withdraw_succeeds_for_asset_in_overrides_but_not_in_accepted_currencies` is exactly §5's case:
+  DOT categorised `External`, deliberately *not* an accepted fee currency, withdraw must still be
+  priced. It passes on the route + EMA-oracle valuation that replaced the XYK/DOT quote, which is
+  the strongest evidence so far that D did not regress.
+- **ICE is completely decoupled from the fee tier.** `pallet-ice` and `pallet-intent` contain no
+  reference to `AcceptedCurrencies`, `AccountFeeCurrency`, `is_payment_currency`, the insufficient
+  flag or the ED — the merge is additive for them.
+- Master's `evm.rs` ERC20 fee-currency tests call `add_currency` before `set_currency`, so they
+  keep working under the stricter whitelist gate.
+- Master's DCA "correct ed handling" work is about the **asset ED of `amount_out`** in a migrated
+  intent, unrelated to the insufficient-asset toll this branch removed. Our `budget_transaction_fee`
+  / `take_transaction_fee_from_user` split survived the auto-merge intact.
+
+### Re-verified after the merge (2026-09-11)
+
+Built with `cargo check --all-targets`: `hydradx-runtime` and `runtime-integration-tests` both clean,
+no warnings.
+
+| Suite | Result |
+|---|---|
+| `pallet-asset-registry` | 53 passed |
+| `pallet-transaction-multi-payment` | 48 passed (44 before the merge — master added 4) |
+| `pallet-dca` | 129 passed |
+| `hydradx-runtime` unit tests | 83 passed, 6 ignored |
+| integration `insufficient_assets::` | 7 passed |
+| integration `insufficient` (every module) | 25 passed |
+| integration `shitcoin` | 1 passed |
+| integration `bonds::` | 3 passed |
+| integration `multi_payment::` | 5 passed |
+| integration `non_native_fee::` | 14 passed |
+| integration `circuit_breaker::` | 19 passed |
+| integration **`global_withdraw_limit::`** | 26 passed — master's new suite, covers §5 |
+| integration `create_schedule_should*` | 5 passed |
+| integration `xyk::` | 8 passed |
+| integration `xyk_liquidity_mining::` | 13 passed (**2 pins re-pinned, see below**) |
+| integration `oracle::` | 11 passed, 1 ignored |
+| integration `otc::` | 5 passed |
+| integration `evm_permit::` | 43 passed |
+| integration **`ice::dca_migration::`** | 32 passed — master's DCA→intent migration over our DCA fee split |
+
+**Two more exact-balance pins re-pinned**, both in
+`withdraw_shares_should_work_when_deposit_exists` (`integration-tests/src/xyk_liquidity_mining.rs`):
+1_004_254_545_454_436 → **1_005_454_545_454_436** (+1.2 HDX = 2 × 1.1 ED charges − 1 × 1.0 refund)
+and 1_021_616_083_915_974 → **1_023_916_083_915_974** (+2.3 HDX = 3 × 1.1 − 1.0). The reward digits
+are unchanged in both — only the toll component moved, the same arithmetic as the pins already
+adjusted in that file. This test was not part of the pre-merge run (§7 filtered to "insufficient +
+bonds", 3 tests), so it is a gap in the earlier verification rather than merge fallout: xyk share
+tokens are insufficient assets, so every deposit/withdraw used to pay the toll.
+
+### CI gates
+
+| Gate | Result |
+|---|---|
+| `cargo fmt --all -- --check` | clean |
+| clippy `-D warnings --all-targets`: `hydradx-traits`, `pallet-asset-registry`, `pallet-transaction-multi-payment`, `pallet-dca`, `hydradx-runtime` | clean |
+| clippy `-D warnings --all-targets`: `runtime-integration-tests` | **clean** — the 28 pre-existing clippy-1.88 lints recorded in §7 are gone; master fixed them |
+| clippy `-D warnings --all-targets`: `hydradx-adapters` | cannot build its own tests: `unresolved import pallet_currencies::MockErc20Currency`. **Pre-existing and byte-identical on master** — `runtime/adapters/Cargo.toml` never forwards `pallet-currencies/std`, and `MockErc20Currency` is `#[cfg(any(test, feature = "std"))]`. Invisible to CI, which unifies features across the workspace. Still the one-line PR §7 already suggested |
+| `cargo check -p hydradx-runtime --features runtime-benchmarks` (`RUSTFLAGS=-D warnings`) | clean, after the three fixes below |
+
+**Three benchmarks-only leftovers**, all from this branch's deletions and all invisible without the
+feature flag (so they predate the merge and would have failed CI's benchmark job either way):
+
+- `pallets/asset-registry/src/benchmarking.rs` — unused `account` import; the deleted
+  `register_external` benchmark was its only user.
+- `runtime/hydradx/src/benchmarking/mod.rs` — unused `DOT_ASSET_LOCATION` import and the dead
+  `set_location` helper, both of which served the deleted `*_with_insufficient_fee_asset` DCA
+  benchmarks.
+- same file — `hydradx_traits::Mutate`, unused once `set_location` went.
+
+Not run here, unchanged from §7: the full `dca::` and `ice::` suites (multi-hour) and
+`make build-benchmarks`.
 
 Suggested PR title:
 `feat(multi-payment)!: remove non-whitelisted fee assets and DOT/XYK fee fallbacks`

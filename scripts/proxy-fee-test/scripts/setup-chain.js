@@ -3,6 +3,7 @@ const { Keyring } = require("@polkadot/keyring");
 const { blake2AsHex } = require("@polkadot/util-crypto");
 
 const WS_URL = process.env.WS_URL || "ws://127.0.0.1:9999";
+const BLOCK_TIME_MS = 2000;
 
 function sendAndWait(tx, signer, api, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
@@ -90,7 +91,7 @@ async function main() {
     await setupViaTcProposal(api, keyring);
   }
 
-  await sleep(6000);
+  await sleep(BLOCK_TIME_MS);
 
   const finalWeth = await api.query.assetRegistry.locationAssets(wethLoc);
   const finalId = finalWeth.isSome ? finalWeth.toJSON() : null;
@@ -157,7 +158,7 @@ async function setupViaGovernance(api, alice) {
 
   console.log("  [4/4] Waiting for referendum...");
   for (let i = 0; i < 30; i++) {
-    await sleep(6000);
+    await sleep(BLOCK_TIME_MS);
     const info = await api.query.referenda.referendumInfoFor(refIndex);
     const json = info.toJSON();
     if (json.approved) { console.log(`    Referendum #${refIndex} approved!`); return; }

@@ -663,9 +663,9 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 		go_to_block(init_block);
 
 		let mut positions = vec![];
-		let amount = 2000000000 * UNITS;
+		let amount = 800000000 * UNITS;
 
-		for i in 0..100u32 {
+		for i in 0..250u32 {
 			let position_id = Omnipool::next_position_id();
 
 			assert_ok!(Omnipool::add_liquidity(
@@ -677,18 +677,18 @@ fn remove_liquidity_cannot_burn_more_lrna_when_asset_locked_down() {
 			go_to_block(init_block + (i + 1u32));
 		}
 
-		for (i, &position_id) in positions.iter().enumerate().take(37) {
+		for (i, &position_id) in positions.iter().enumerate().take(93) {
 			assert_ok!(Omnipool::remove_liquidity(
 				RuntimeOrigin::signed(ALICE.into()),
 				position_id,
 				amount
 			));
 
-			go_to_block(init_block + (i as u32) + 100);
+			go_to_block(init_block + (i as u32) + 250);
 		}
 
 		assert_noop!(
-			Omnipool::remove_liquidity(RuntimeOrigin::signed(ALICE.into()), positions[37], amount),
+			Omnipool::remove_liquidity(RuntimeOrigin::signed(ALICE.into()), positions[93], amount),
 			orml_tokens::Error::<hydradx_runtime::Runtime>::BalanceTooLow
 		);
 	});

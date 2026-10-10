@@ -1,0 +1,15 @@
+{
+  "name": "opengov-force-remove-votes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Force-remove finished conviction-voting votes from live chain state",
+  "main": "index.js",
+  "scripts": {
+    "dry-run": "node index.js",
+    "submit": "node index.js submit"
+  },
+  "dependencies": {
+    "@polkadot/api": "latest",
+    "@polkadot/util-crypto": "latest"
+  }
+}

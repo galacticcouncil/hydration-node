@@ -125,4 +125,6 @@ std = [
     "pallet-bonds/std",
     "pallet-timestamp/std",
     "pallet-fee-processor/std",
+    "pallet-staking/std",
+    "orml-vesting/std",
 ]

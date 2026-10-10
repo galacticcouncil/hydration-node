@@ -12,15 +12,16 @@ pub mod omnipool;
 pub mod omnipool_liquidity_mining;
 pub mod route_executor;
 //pub mod token_gateway_ismp;
+pub mod ice;
+pub mod intent;
+pub mod lazy_executor;
 pub mod tokens;
 pub mod vesting;
 pub mod xyk;
 pub mod xyk_liquidity_mining;
 
 use crate::evm::Erc20Currency;
-use crate::{
-	AssetLocation, AssetRegistry, EVMAccounts, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION,
-};
+use crate::{AssetLocation, AssetRegistry, EVMAccounts, EmaOracle, MultiTransactionPayment, Runtime, System};
 use evm::ExitReason;
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_benchmarking::BenchmarkError;
@@ -47,7 +48,6 @@ use primitive_types::U256;
 use primitives::EvmAddress;
 
 use frame_support::storage::with_transaction;
-use hydradx_traits::Mutate;
 use sp_runtime::{FixedU128, TransactionOutcome};
 
 pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
@@ -133,10 +133,6 @@ pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {
 		))
 	})
 	.map_err(|_| ())
-}
-
-pub fn set_location(asset_id: AssetId, location: AssetLocation) -> Result<(), ()> {
-	AssetRegistry::set_location(asset_id, location).map_err(|_| ())
 }
 
 pub fn add_as_accepted_currency(asset_id: AssetId, price: Price) -> Result<(), ()> {

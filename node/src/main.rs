@@ -25,6 +25,7 @@ mod service;
 
 mod cli;
 mod command;
+mod ice_solver_worker;
 mod liquidation_worker;
 mod rpc;
 mod synthetic_logs;

@@ -226,6 +226,7 @@ parameter_types! {
 	pub const GigaHdxLockId: LockIdentifier = GIGAHDX_LOCK_ID;
 	pub const GigaHdxMinStake: Balance = ONE; // 1 HDX
 	pub const GigaHdxCooldownPeriod: u64 = 100;
+	pub const TwoSecBlocksSince: u64 = u32::MAX as u64;
 	pub const GigaHdxMaxPendingUnstakes: u32 = 10;
 }
 
@@ -239,6 +240,7 @@ impl pallet_gigahdx::Config for Test {
 	type LockId = GigaHdxLockId;
 	type MinStake = GigaHdxMinStake;
 	type CooldownPeriod = GigaHdxCooldownPeriod;
+	type TwoSecBlocksSince = TwoSecBlocksSince;
 	type MaxPendingUnstakes = GigaHdxMaxPendingUnstakes;
 	type ExternalClaims = TestExternalClaims;
 	type LegacyStaking = ();

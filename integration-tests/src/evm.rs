@@ -3379,6 +3379,466 @@ mod contract_deployment {
 			));
 		});
 	}
+
+	use crate::erc20::deployer;
+	use crate::utils::accounts::{alith_evm_address, alith_secret_key};
+	use crate::utils::contracts::{deploy_contract, get_contract_bytecode};
+	use ethereum::{
+		eip2930::TransactionSignature, EIP1559Transaction, EIP1559TransactionMessage, TransactionAction, TransactionV2,
+	};
+
+	fn fund_alith() {
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			RuntimeOrigin::root(),
+			crate::utils::accounts::alith_evm_account(),
+			WETH,
+			to_ether(100) as i128,
+		));
+	}
+
+	fn submit_raw_eth_tx(
+		action: TransactionAction,
+		input: Vec<u8>,
+		gas_limit: u64,
+	) -> sp_runtime::ApplyExtrinsicResult {
+		let nonce = hydradx_runtime::evm::EvmNonceProvider::get_nonce(alith_evm_address());
+		let (base_gas_price, _) = hydradx_runtime::DynamicEvmFee::min_gas_price();
+		let chain_id = <hydradx_runtime::Runtime as pallet_evm::Config>::ChainId::get();
+
+		let tx_msg = EIP1559TransactionMessage {
+			chain_id,
+			nonce,
+			max_priority_fee_per_gas: base_gas_price,
+			max_fee_per_gas: base_gas_price * 10,
+			gas_limit: gas_limit.into(),
+			action,
+			value: U256::zero(),
+			input: input.clone(),
+			access_list: vec![],
+		};
+
+		let secret_key = SecretKey::parse(&alith_secret_key()).expect("valid secret key");
+		let mut hash_bytes = [0u8; 32];
+		hash_bytes.copy_from_slice(&tx_msg.hash().0);
+		let (rs, v) = sign(&Message::parse(&hash_bytes), &secret_key);
+		let signature = TransactionSignature::new(v.serialize() != 0, H256::from(rs.r.b32()), H256::from(rs.s.b32()))
+			.expect("valid signature");
+
+		let transaction = TransactionV2::EIP1559(EIP1559Transaction {
+			chain_id,
+			nonce,
+			max_priority_fee_per_gas: base_gas_price,
+			max_fee_per_gas: base_gas_price * 10,
+			gas_limit: gas_limit.into(),
+			action,
+			value: U256::zero(),
+			input,
+			access_list: vec![],
+			signature,
+		});
+
+		let call = RuntimeCall::Ethereum(pallet_ethereum::Call::transact {
+			transaction: transaction.into(),
+		});
+		hydradx_runtime::Executive::apply_extrinsic(hydradx_runtime::HydraUncheckedExtrinsic::new_bare(call))
+	}
+
+	/// address emitted by the last `Deployed(address)` log of the given contract
+	fn last_deployed_log(from: EvmAddress) -> Option<EvmAddress> {
+		System::events().iter().rev().find_map(|r| match &r.event {
+			hydradx_runtime::RuntimeEvent::EVM(pallet_evm::Event::Log { log })
+				if log.address == from && log.data.len() == 32 =>
+			{
+				Some(EvmAddress::from_slice(&log.data[12..32]))
+			}
+			_ => None,
+		})
+	}
+
+	fn executed_ok() -> bool {
+		System::events().iter().rev().any(|r| {
+			matches!(
+				&r.event,
+				hydradx_runtime::RuntimeEvent::Ethereum(pallet_ethereum::Event::Executed {
+					exit_reason: pallet_evm::ExitReason::Succeed(_),
+					..
+				})
+			)
+		})
+	}
+
+	// the whitelist must hold on the path a real wallet uses
+	#[test]
+	fn create_contract_from_ethereum_transact_should_be_rejected_if_address_is_not_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			fund_alith();
+			assert!(!EVMAccounts::can_deploy_contracts(alith_evm_address()));
+
+			let res = submit_raw_eth_tx(
+				TransactionAction::Create,
+				get_contract_bytecode("ContractFactory"),
+				5_000_000,
+			);
+
+			assert_eq!(
+				res.unwrap().unwrap_err(),
+				DispatchError::from(pallet_evm::Error::<hydradx_runtime::Runtime>::CreateOriginNotAllowed)
+			);
+			assert!(!executed_ok());
+		});
+	}
+
+	#[test]
+	fn create_contract_from_ethereum_transact_should_be_accepted_if_address_is_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			fund_alith();
+			assert_ok!(EVMAccounts::add_contract_deployer(
+				RuntimeOrigin::root(),
+				alith_evm_address()
+			));
+
+			let res = submit_raw_eth_tx(
+				TransactionAction::Create,
+				get_contract_bytecode("ContractFactory"),
+				5_000_000,
+			);
+
+			assert_ok!(res.unwrap());
+			assert!(executed_ok());
+		});
+	}
+
+	// only top-level creates are gated; inner CREATE/CREATE2 stays open
+	#[test]
+	fn factory_should_still_deploy_contracts_when_caller_is_not_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			fund_alith();
+
+			let factory = deploy_contract("ContractFactory", deployer());
+			// neither the factory nor the caller may deploy at the top level
+			assert!(!EVMAccounts::can_deploy_contracts(factory));
+			assert!(!EVMAccounts::can_deploy_contracts(alith_evm_address()));
+
+			let mut input = ethabi::short_signature("create", &[ethabi::ParamType::Uint(256)]).to_vec();
+			input.extend(ethabi::encode(&[ethabi::Token::Uint(42u64.into())]));
+
+			assert_ok!(submit_raw_eth_tx(TransactionAction::Call(factory), input, 3_000_000).unwrap());
+			assert!(executed_ok());
+
+			let child = last_deployed_log(factory).expect("factory should have emitted Deployed");
+			assert!(!hydradx_runtime::Runtime::account_code_at(child).is_empty());
+		});
+	}
+
+	#[test]
+	fn factory_should_still_deploy_contracts_via_create2_when_caller_is_not_whitelisted() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			fund_alith();
+
+			let factory = deploy_contract("ContractFactory", deployer());
+			assert!(!EVMAccounts::can_deploy_contracts(factory));
+			assert!(!EVMAccounts::can_deploy_contracts(alith_evm_address()));
+
+			let mut input = ethabi::short_signature(
+				"create2",
+				&[ethabi::ParamType::Uint(256), ethabi::ParamType::FixedBytes(32)],
+			)
+			.to_vec();
+			input.extend(ethabi::encode(&[
+				ethabi::Token::Uint(42u64.into()),
+				ethabi::Token::FixedBytes([7u8; 32].to_vec()),
+			]));
+
+			assert_ok!(submit_raw_eth_tx(TransactionAction::Call(factory), input, 3_000_000).unwrap());
+			assert!(executed_ok());
+
+			let child = last_deployed_log(factory).expect("factory should have emitted Deployed");
+			assert!(!hydradx_runtime::Runtime::account_code_at(child).is_empty());
+		});
+	}
+}
+
+// real EVM call, not MockHandle: only that path unwinds storage on revert
+mod currency_precompile_overdraw {
+	use super::*;
+	use pretty_assertions::assert_eq;
+
+	fn call_precompile(from: EvmAddress, data: Vec<u8>) -> pallet_evm::ExitReason {
+		hydradx_runtime::Runtime::call(
+			from,
+			native_asset_ethereum_address(),
+			data,
+			U256::zero(),
+			U256::from(500_000u64),
+			None,
+			None,
+			None,
+			false,
+			None,
+			None,
+		)
+		.unwrap()
+		.exit_reason
+	}
+
+	fn allowance_of(owner: EvmAddress, spender: EvmAddress) -> Balance {
+		pallet_evm_accounts::Pallet::<hydradx_runtime::Runtime>::get_allowance(HDX, owner, spender)
+	}
+
+	fn fund(who: AccountId, amount: Balance) {
+		assert_ok!(Currencies::update_balance(
+			RuntimeOrigin::root(),
+			who,
+			HDX,
+			amount as i128,
+		));
+	}
+
+	#[test]
+	fn transfer_should_not_overdraw() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			fund(evm_account(), 100 * UNITS);
+			let before = Currencies::free_balance(HDX, &evm_account());
+			let recipient_before = Currencies::free_balance(HDX, &evm_account2());
+
+			let data = EvmDataWriter::new_with_selector(Function::Transfer)
+				.write(Address::from(evm_address2()))
+				.write(U256::from(1_000u128 * UNITS))
+				.build();
+
+			assert!(matches!(
+				call_precompile(evm_address(), data),
+				pallet_evm::ExitReason::Revert(_)
+			));
+
+			assert_eq!(Currencies::free_balance(HDX, &evm_account()), before);
+			assert_eq!(Currencies::free_balance(HDX, &evm_account2()), recipient_before);
+		});
+	}
+
+	// allowance is decremented before the transfer, so a revert must give it back
+	#[test]
+	fn failed_transfer_from_should_not_consume_allowance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+			fund(evm_account(), 100 * UNITS);
+
+			let approve = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(1_000u128 * UNITS))
+				.build();
+			assert!(matches!(
+				call_precompile(owner, approve),
+				pallet_evm::ExitReason::Succeed(_)
+			));
+			assert_eq!(allowance_of(owner, spender), 1_000 * UNITS);
+
+			let owner_before = Currencies::free_balance(HDX, &evm_account());
+
+			// allowance is sufficient, the balance is not
+			let data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.write(U256::from(1_000u128 * UNITS))
+				.build();
+
+			assert!(matches!(
+				call_precompile(spender, data),
+				pallet_evm::ExitReason::Revert(_)
+			));
+
+			assert_eq!(Currencies::free_balance(HDX, &evm_account()), owner_before);
+			assert_eq!(
+				allowance_of(owner, spender),
+				1_000 * UNITS,
+				"allowance must survive a reverted transferFrom"
+			);
+		});
+	}
+
+	#[test]
+	fn transfer_from_should_reject_amount_above_allowance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+			fund(evm_account(), 100 * UNITS);
+
+			let approve = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(10u128 * UNITS))
+				.build();
+			assert!(matches!(
+				call_precompile(owner, approve),
+				pallet_evm::ExitReason::Succeed(_)
+			));
+
+			let data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.write(U256::from(50u128 * UNITS))
+				.build();
+
+			assert!(matches!(
+				call_precompile(spender, data),
+				pallet_evm::ExitReason::Revert(_)
+			));
+			assert_eq!(allowance_of(owner, spender), 10 * UNITS);
+		});
+	}
+
+	// control: proves the test above isn't passing vacuously
+	#[test]
+	fn successful_transfer_from_should_consume_allowance() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let owner = evm_address();
+			let spender = evm_address2();
+			fund(evm_account(), 100 * UNITS);
+
+			let approve = EvmDataWriter::new_with_selector(Function::Approve)
+				.write(Address::from(spender))
+				.write(U256::from(50u128 * UNITS))
+				.build();
+			assert!(matches!(
+				call_precompile(owner, approve),
+				pallet_evm::ExitReason::Succeed(_)
+			));
+
+			let data = EvmDataWriter::new_with_selector(Function::TransferFrom)
+				.write(Address::from(owner))
+				.write(Address::from(spender))
+				.write(U256::from(20u128 * UNITS))
+				.build();
+
+			assert!(matches!(
+				call_precompile(spender, data),
+				pallet_evm::ExitReason::Succeed(_)
+			));
+			assert_eq!(allowance_of(owner, spender), 30 * UNITS);
+		});
+	}
+}
+
+// `is_precompile` must agree with `execute`, or the guard skips what it omits
+mod precompile_delegatecall {
+	use super::*;
+	use crate::erc20::deployer;
+	use crate::utils::contracts::deploy_contract;
+	use hydradx_runtime::evm::precompiles::FLASH_LOAN_RECEIVER;
+
+	// chainlink oracle range
+	fn oracle_address() -> EvmAddress {
+		EvmAddress::from(hex!("0000010000000000000000000000000000000001"))
+	}
+
+	fn probe(probe_contract: EvmAddress, method: &str, target: EvmAddress) -> (bool, Vec<u8>) {
+		let mut data =
+			ethabi::short_signature(method, &[ethabi::ParamType::Address, ethabi::ParamType::Bytes]).to_vec();
+		data.extend(ethabi::encode(&[
+			ethabi::Token::Address(target),
+			ethabi::Token::Bytes(vec![0u8; 4]),
+		]));
+
+		let info = hydradx_runtime::Runtime::call(
+			deployer(),
+			probe_contract,
+			data,
+			U256::zero(),
+			U256::from(1_000_000u64),
+			None,
+			None,
+			None,
+			false,
+			None,
+			None,
+		)
+		.unwrap();
+
+		let decoded = ethabi::decode(&[ethabi::ParamType::Bool, ethabi::ParamType::Bytes], &info.value)
+			.expect("probe should return (bool,bytes)");
+		let ok = decoded[0].clone().into_bool().unwrap();
+		let ret = decoded[1].clone().into_bytes().unwrap();
+		(ok, ret)
+	}
+
+	fn assert_delegatecall_blocked(target: EvmAddress, label: &str) {
+		Hydra::execute_with(|| {
+			let probe_contract = deploy_contract("DelegateProbe", deployer());
+			let (ok, ret) = probe(probe_contract, "probeDelegate", target);
+
+			assert!(!ok, "{label}: delegatecall should have reverted");
+			assert!(
+				String::from_utf8_lossy(&ret).contains("DELEGATECALL"),
+				"{label}: expected the delegatecall guard, got {:?}",
+				String::from_utf8_lossy(&ret)
+			);
+		});
+	}
+
+	#[test]
+	fn dispatch_precompile_should_reject_delegatecall() {
+		TestNet::reset();
+		assert_delegatecall_blocked(DISPATCH_ADDR, "dispatch");
+	}
+
+	#[test]
+	fn call_permit_precompile_should_reject_delegatecall() {
+		TestNet::reset();
+		assert_delegatecall_blocked(CALLPERMIT, "call-permit");
+	}
+
+	#[test]
+	fn flash_loan_precompile_should_reject_delegatecall() {
+		TestNet::reset();
+		assert_delegatecall_blocked(FLASH_LOAN_RECEIVER, "flash-loan");
+	}
+
+	#[test]
+	fn oracle_precompile_should_reject_delegatecall() {
+		TestNet::reset();
+		assert_delegatecall_blocked(oracle_address(), "oracle");
+	}
+
+	// ordinary CALLs must stay unaffected
+	#[test]
+	fn plain_call_to_precompile_should_not_hit_the_delegatecall_guard() {
+		TestNet::reset();
+
+		Hydra::execute_with(|| {
+			let probe_contract = deploy_contract("DelegateProbe", deployer());
+			for (target, label) in [
+				(CALLPERMIT, "call-permit"),
+				(FLASH_LOAN_RECEIVER, "flash-loan"),
+				(oracle_address(), "oracle"),
+			] {
+				let (_, ret) = probe(probe_contract, "probeCall", target);
+				assert!(
+					!String::from_utf8_lossy(&ret).contains("DELEGATECALL"),
+					"{label}: plain CALL must not be blocked by the delegatecall guard"
+				);
+			}
+		});
+	}
 }
 
 mod account_marking {

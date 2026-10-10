@@ -44,6 +44,6 @@ mcp__swarmpit-lark__create_stack(name="circuit-breaker", compose="<stack.yml con
 
 ## Notes
 
-- Auto-refreshes every 6s (one block)
+- Auto-refreshes every 2s (one block)
 - Deposit limit values are set via runtime trait, not storage — dashboard shows issuance increase since window start, not % of limit (limit not exposed on-chain)
 - Global withdraw limit uses linear decay over the window

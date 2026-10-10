@@ -925,6 +925,7 @@ fn curve_comparison_withdraw_imbalanced_no_fee() {
 
 // --- Withdrawal with fees ---
 
+#[allow(clippy::too_many_arguments)]
 fn run_withdraw_with_fee_comparison(
 	label: &str,
 	contract: EvmAddress,
@@ -1122,12 +1123,10 @@ fn curve_comparison_balanced_add_remove_cycle_no_value_extraction() {
 			share_issuance += shares_received;
 
 			// Step 2: Proportional withdrawal of all shares received
-			let mut withdrawn: Vec<u128> = Vec::new();
-			for i in 0..n_assets {
-				let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
-					.expect("liquidity out failed");
-				withdrawn.push(amount);
-			}
+			let withdrawn: Vec<u128> = reserves
+				.iter()
+				.map(|r| calculate_liquidity_out(*r, shares_received, share_issuance).expect("liquidity out failed"))
+				.collect();
 
 			// Update pool state after withdrawal
 			for i in 0..n_assets {
@@ -1195,12 +1194,10 @@ fn curve_comparison_balanced_add_remove_cycle_3pool() {
 			reserves = new_reserves;
 			share_issuance += shares_received;
 
-			let mut withdrawn: Vec<u128> = Vec::new();
-			for i in 0..n_assets {
-				let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
-					.expect("liquidity out failed");
-				withdrawn.push(amount);
-			}
+			let withdrawn: Vec<u128> = reserves
+				.iter()
+				.map(|r| calculate_liquidity_out(*r, shares_received, share_issuance).expect("liquidity out failed"))
+				.collect();
 
 			for i in 0..n_assets {
 				reserves[i] -= withdrawn[i];
@@ -1265,12 +1262,10 @@ fn curve_comparison_balanced_add_remove_cycle_zero_fee() {
 			reserves = new_reserves;
 			share_issuance += shares_received;
 
-			let mut withdrawn: Vec<u128> = Vec::new();
-			for i in 0..n_assets {
-				let amount = calculate_liquidity_out(reserves[i], shares_received, share_issuance)
-					.expect("liquidity out failed");
-				withdrawn.push(amount);
-			}
+			let withdrawn: Vec<u128> = reserves
+				.iter()
+				.map(|r| calculate_liquidity_out(*r, shares_received, share_issuance).expect("liquidity out failed"))
+				.collect();
 
 			for i in 0..n_assets {
 				reserves[i] -= withdrawn[i];
@@ -1342,12 +1337,10 @@ fn run_add_remove_cycle(
 		reserves = new_reserves;
 		share_issuance += shares_received;
 
-		let mut withdrawn: Vec<u128> = Vec::new();
-		for i in 0..n_assets {
-			let amount =
-				calculate_liquidity_out(reserves[i], shares_received, share_issuance).expect("liquidity out failed");
-			withdrawn.push(amount);
-		}
+		let withdrawn: Vec<u128> = reserves
+			.iter()
+			.map(|r| calculate_liquidity_out(*r, shares_received, share_issuance).expect("liquidity out failed"))
+			.collect();
 
 		for i in 0..n_assets {
 			reserves[i] -= withdrawn[i];

@@ -261,7 +261,7 @@ mod omnipool {
 				]
 			);
 
-			run_to_block(13, 17);
+			run_to_block(13, 12 + hydradx_runtime::MinimalPeriod::get());
 
 			let swapped_events = get_last_swapped_events();
 			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
@@ -273,17 +273,17 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(HDX, 140421107721220)],
-						outputs: vec![Asset::new(LRNA, 70210548452699)],
+						inputs: vec![Asset::new(HDX, 140421134429889)],
+						outputs: vec![Asset::new(LRNA, 70210554484824)],
 						fees: vec![Fee::new(
 							LRNA,
-							35105274226,
+							35105277242,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
-							ExecutionType::DCA(schedule_id, 3),
-							ExecutionType::Router(4),
-							ExecutionType::Omnipool(5)
+							ExecutionType::DCA(schedule_id, 9),
+							ExecutionType::Router(10),
+							ExecutionType::Omnipool(11)
 						],
 					},
 					pallet_broadcast::Event::Swapped3 {
@@ -291,16 +291,16 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactOut,
-						inputs: vec![Asset::new(LRNA, 70175443178473)],
+						inputs: vec![Asset::new(LRNA, 70175449207582)],
 						outputs: vec![Asset::new(DAI, amount_out)],
 						fees: vec![
 							Fee::new(DAI, 137844611530, Destination::Account(Omnipool::protocol_account())),
 							Fee::new(DAI, 112781954887, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
-							ExecutionType::DCA(schedule_id, 3),
-							ExecutionType::Router(4),
-							ExecutionType::Omnipool(5)
+							ExecutionType::DCA(schedule_id, 9),
+							ExecutionType::Router(10),
+							ExecutionType::Omnipool(11)
 						],
 					}
 				]
@@ -357,7 +357,7 @@ mod omnipool {
 			let amount_out = 100 * UNITS;
 			let schedule1 = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 5u32,
+				period: hydradx_runtime::MinimalPeriod::get(),
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -382,6 +382,9 @@ mod omnipool {
 
 			//Act and assert
 			let schedule_id = 0;
+			let retry_1 = retry_block(12, 0);
+			let retry_2 = retry_block(retry_1, 1);
+			let retry_3 = retry_block(retry_2, 2);
 			go_to_block(12);
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
@@ -390,20 +393,20 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			go_to_block(32);
+			go_to_block(retry_1);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			go_to_block(72);
+			go_to_block(retry_2);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//After this retry we terminate
-			go_to_block(152);
+			go_to_block(retry_3);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -636,7 +639,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			run_to_block(11, 50);
+			run_to_block(11, 12 + 7 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 700 * UNITS);
@@ -675,7 +678,7 @@ mod omnipool {
 			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
 
 			//Act
-			run_to_block(11, 150);
+			run_to_block(11, 12 + 32 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			assert!(Balances::free_balance(&ALICE.into()) > reserved);
@@ -736,7 +739,7 @@ mod omnipool {
 			let dai_balance = Currencies::free_balance(DAI, &ALICE.into());
 
 			//Act - run until user runs out of funds
-			run_to_block(11, 100);
+			run_to_block(11, 12 + 12 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			assert!(DCA::schedules(0).is_none());
@@ -856,7 +859,7 @@ mod omnipool {
 				]
 			);
 
-			run_to_block(13, 17);
+			run_to_block(13, 12 + hydradx_runtime::MinimalPeriod::get());
 
 			let swapped_events = get_last_swapped_events();
 			let last_two_swapped_events = &swapped_events[swapped_events.len() - 2..];
@@ -869,10 +872,10 @@ mod omnipool {
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
 						inputs: vec![Asset::new(HDX, amount_to_sell)],
-						outputs: vec![Asset::new(LRNA, 49999997360994)],
+						outputs: vec![Asset::new(LRNA, 49999997760919)],
 						fees: vec![Fee::new(
 							LRNA,
-							24999998680,
+							24999998880,
 							Destination::Account(Omnipool::protocol_account())
 						)],
 						operation_stack: vec![
@@ -886,11 +889,11 @@ mod omnipool {
 						filler: Omnipool::protocol_account(),
 						filler_type: pallet_broadcast::types::Filler::Omnipool,
 						operation: pallet_broadcast::types::TradeOperation::ExactIn,
-						inputs: vec![Asset::new(LRNA, 49974997362314)],
-						outputs: vec![Asset::new(DAI, 71214367824533)],
+						inputs: vec![Asset::new(LRNA, 49974997762039)],
+						outputs: vec![Asset::new(DAI, 71214367987201)],
 						fees: vec![
-							Fee::new(DAI, 98165168682, Destination::Account(Omnipool::protocol_account())),
-							Fee::new(DAI, 80316956192, Destination::Account(FeeProcessor::pot_account_id())),
+							Fee::new(DAI, 98165168906, Destination::Account(Omnipool::protocol_account())),
+							Fee::new(DAI, 80316956376, Destination::Account(FeeProcessor::pot_account_id())),
 						],
 						operation_stack: vec![
 							ExecutionType::DCA(schedule_id, 3),
@@ -1094,7 +1097,7 @@ mod omnipool {
 			let amount_to_sell = 100 * UNITS;
 			let schedule1 = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 5u32,
+				period: hydradx_runtime::MinimalPeriod::get(),
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -1119,6 +1122,9 @@ mod omnipool {
 
 			//Act and Assert
 			let schedule_id = 0;
+			let retry_1 = retry_block(12, 0);
+			let retry_2 = retry_block(retry_1, 1);
+			let retry_3 = retry_block(retry_2, 2);
 
 			go_to_block(12);
 			let fee = Currencies::free_balance(HDX, &Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
@@ -1129,20 +1135,20 @@ mod omnipool {
 
 			assert_eq!(DCA::retries_on_error(schedule_id), 1);
 
-			go_to_block(32);
+			go_to_block(retry_1);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
 
-			go_to_block(72);
+			go_to_block(retry_2);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 			assert_eq!(DCA::retries_on_error(schedule_id), 3);
 
 			//At this point, the schedule will be terminated as retries max number of times
-			go_to_block(152);
+			go_to_block(retry_3);
 			assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 			assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * fee);
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -1392,7 +1398,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 			//Act
-			run_to_block(11, 100);
+			run_to_block(11, 12 + 16 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			let new_dai_balance = Currencies::free_balance(DAI, &ALICE.into());
@@ -1448,7 +1454,7 @@ mod omnipool {
 			assert_reserved_balance!(&BOB.into(), HDX, dca_budget_for_bob);
 
 			//Act
-			run_to_block(11, 100);
+			run_to_block(11, 12 + 16 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			check_if_no_failed_events();
@@ -1509,7 +1515,7 @@ mod omnipool {
 			assert_reserved_balance!(&ALICE.into(), HDX, budget_for_all_trades);
 
 			//Act
-			run_to_block(11, 100);
+			run_to_block(11, 12 + 16 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -1620,7 +1626,7 @@ mod omnipool {
 			assert_balance!(&Treasury::account_id(), HDX, TREASURY_ACCOUNT_INIT_BALANCE);
 
 			//Act
-			run_to_block(11, 17);
+			run_to_block(11, 12 + hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			check_if_no_failed_events();
@@ -1649,7 +1655,7 @@ mod omnipool {
 			// This means last_block_slippage_min_limit will be used as the effective limit
 			let schedule = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 5u32,
+				period: hydradx_runtime::MinimalPeriod::get(),
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -1900,7 +1906,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2177,7 +2183,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2484,7 +2490,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2665,7 +2671,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2781,7 +2787,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -2903,7 +2909,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3034,7 +3040,7 @@ mod stableswap {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3221,8 +3227,7 @@ mod stableswap {
 				));
 				crate::deposit_limiter::update_deposit_limit(pool_id, 1_000_000 * UNITS).unwrap();
 
-				// Act - retry is scheduled at block 12 + 20 = 32
-				go_to_block(32);
+				go_to_block(retry_block(12, 0));
 
 				// Assert
 				assert_eq!(
@@ -3458,7 +3463,7 @@ mod all_pools {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3601,7 +3606,7 @@ mod with_onchain_route {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3715,7 +3720,7 @@ mod with_onchain_route {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -3799,7 +3804,7 @@ mod with_onchain_route {
 
 			let schedule = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 5u32,
+				period: hydradx_runtime::MinimalPeriod::get(),
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -3946,7 +3951,7 @@ mod with_onchain_route {
 
 				let schedule = Schedule {
 					owner: AccountId::from(ALICE),
-					period: 5u32,
+					period: hydradx_runtime::MinimalPeriod::get(),
 					total_amount: dca_budget,
 					max_retries: None,
 					stability_threshold: None,
@@ -4066,7 +4071,7 @@ mod with_onchain_route {
 
 			let schedule = Schedule {
 				owner: AccountId::from(ALICE),
-				period: 5u32,
+				period: hydradx_runtime::MinimalPeriod::get(),
 				total_amount: dca_budget,
 				max_retries: None,
 				stability_threshold: None,
@@ -4109,7 +4114,7 @@ mod with_onchain_route {
 			let fee = Currencies::free_balance(DOT, &Treasury::account_id());
 			assert!(fee > 0, "The treasury did not receive the fee");
 
-			assert_balance!(ALICE.into(), HDX, 5268049466638368);
+			assert_balance!(ALICE.into(), HDX, 5264995050009313);
 			assert_reserved_balance!(&ALICE.into(), DOT, dca_budget - amount_to_sell - fee);
 		});
 	}
@@ -4668,7 +4673,7 @@ fn schedule_fake_with_buy_order_with_route(
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(ALICE),
-		period: 5u32,
+		period: hydradx_runtime::MinimalPeriod::get(),
 		total_amount: budget,
 		max_retries: None,
 		stability_threshold: None,
@@ -4715,7 +4720,7 @@ fn schedule_fake_with_sell_order_with_route(
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
 		owner: AccountId::from(owner),
-		period: 5u32,
+		period: hydradx_runtime::MinimalPeriod::get(),
 		total_amount,
 		max_retries: None,
 		stability_threshold: None,
@@ -4833,6 +4838,10 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 		go_to_block(b);
 	}
+}
+
+fn retry_block(current_block: BlockNumber, retries_before: u32) -> BlockNumber {
+	current_block + hydradx_traits::oracle::OraclePeriod::Short.as_period() as BlockNumber * 2u32.pow(retries_before)
 }
 
 pub fn check_if_no_failed_events() {
@@ -5067,7 +5076,7 @@ fn add_dot_as_payment_currency_with_details(amount: Balance, price: FixedU128) {
 	//crate::dca::do_trade_to_populate_oracle(DOT, HDX, UNITS);
 }
 
-mod extra_gas_erc20 {
+pub(crate) mod extra_gas_erc20 {
 	use super::*;
 
 	use hydradx_runtime::{FixedU128, MultiTransactionPayment, Router};
@@ -5132,7 +5141,8 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
 
-			hydradx_run_to_block(33);
+			let retry_1 = retry_block(13, 0);
+			hydradx_run_to_block(retry_1);
 			assert_eq!(Dispatcher::extra_gas(), 0);
 
 			//Assert that trade finally succeeded
@@ -5144,7 +5154,7 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
 			assert!(alice_hdx_balance_after_retry > alice_hdx_balance);
 
-			hydradx_run_to_block(38);
+			hydradx_run_to_block(retry_1 + hydradx_runtime::MinimalPeriod::get());
 			assert_eq!(Dispatcher::extra_gas(), 0);
 
 			//Assert that trade succeeded in the next run too
@@ -5226,7 +5236,7 @@ mod extra_gas_erc20 {
 
 			let alice_balance_before_retry = Currencies::free_balance(erc20, &ALICE.into());
 
-			hydradx_run_to_block(33);
+			hydradx_run_to_block(retry_block(13, 0));
 
 			let fee_with_extra = DCA::get_transaction_fee(&schedule.order, Some(schedule_id)).unwrap();
 
@@ -5295,7 +5305,8 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
 
-			hydradx_run_to_block(33);
+			let retry_1 = retry_block(13, 0);
+			hydradx_run_to_block(retry_1);
 
 			//It fails again as the gas increased was still not enough
 			assert_eq!(DCA::retries_on_error(schedule_id), 2);
@@ -5305,7 +5316,7 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
 			assert_eq!(alice_hdx_balance_after_retry, alice_init_hdx_balance);
 
-			hydradx_run_to_block(73);
+			hydradx_run_to_block(retry_block(retry_1, 1));
 
 			//Assert that trade succeeded in the next run
 			assert_eq!(DCA::retries_on_error(schedule_id), 0);
@@ -5371,7 +5382,8 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
 			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
 
-			hydradx_run_to_block(33);
+			let retry_1 = retry_block(13, 0);
+			hydradx_run_to_block(retry_1);
 
 			//Assert that trade finally succeeded
 			assert_eq!(DCA::retries_on_error(schedule_id), 0);
@@ -5382,7 +5394,7 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance_after_retry = Currencies::free_balance(HDX, &ALICE.into());
 			assert!(alice_hdx_balance_after_retry > alice_hdx_balance);
 
-			hydradx_run_to_block(38);
+			hydradx_run_to_block(retry_1 + hydradx_runtime::MinimalPeriod::get());
 
 			//Assert that trade succeeded in the next run too
 			assert_eq!(DCA::retries_on_error(schedule_id), 0);
@@ -5392,7 +5404,7 @@ mod extra_gas_erc20 {
 			let alice_hdx_balance_after_2nd_run = Currencies::free_balance(HDX, &ALICE.into());
 			assert!(alice_hdx_balance_after_2nd_run > alice_hdx_balance_after_retry);
 
-			hydradx_run_to_block(43);
+			hydradx_run_to_block(retry_1 + 2 * hydradx_runtime::MinimalPeriod::get());
 
 			//Assert that trade succeeded in the next run too
 			assert_eq!(DCA::retries_on_error(schedule_id), 0);
@@ -5487,7 +5499,8 @@ mod extra_gas_erc20 {
 			assert_eq!(count_trade_executed_events(), 0);
 
 			// Retry with extra gas - should succeed
-			hydradx_run_to_block(33);
+			let retry_1 = retry_block(13, 0);
+			hydradx_run_to_block(retry_1);
 
 			//Assert
 			assert_eq!(
@@ -5514,7 +5527,7 @@ mod extra_gas_erc20 {
 			);
 
 			// Act - Next scheduled trade - should execute successfully without retries
-			hydradx_run_to_block(38);
+			hydradx_run_to_block(retry_1 + hydradx_runtime::MinimalPeriod::get());
 
 			//Assert
 			assert_eq!(
@@ -5586,7 +5599,7 @@ mod extra_gas_erc20 {
 			assert_eq!(alice_init_hdx_balance, alice_hdx_balance);
 
 			// Retry with extra gas - should succeed
-			hydradx_run_to_block(33);
+			hydradx_run_to_block(retry_block(13, 0));
 
 			// Assert: trade finally succeeded
 			assert_eq!(DCA::retries_on_error(schedule_id), 0);
@@ -5613,7 +5626,7 @@ mod extra_gas_erc20 {
 
 		let schedule = Schedule {
 			owner: ALICE.into(),
-			period: 5u32,
+			period: hydradx_runtime::MinimalPeriod::get(),
 			total_amount,
 			max_retries,
 			stability_threshold: None,
@@ -5640,7 +5653,11 @@ mod extra_gas_erc20 {
 	///
 	/// # Returns
 	/// The deployed contract's EVM address
-	fn deploy_conditional_gas_eater(router_address: EvmAddress, gas_to_waste: u64, deployer: EvmAddress) -> EvmAddress {
+	pub(crate) fn deploy_conditional_gas_eater(
+		router_address: EvmAddress,
+		gas_to_waste: u64,
+		deployer: EvmAddress,
+	) -> EvmAddress {
 		use ethabi::{encode, Token};
 
 		// Get base bytecode from compiled artifact
@@ -5737,7 +5754,7 @@ fn rolling_buy_dca_completes_prematurely_when_price_increases() {
 		// Use high max_retries so DCA survives oracle instability after the price move
 		let rolling_buy_schedule = Schedule {
 			owner: AccountId::from(ALICE),
-			period: 5u32,
+			period: hydradx_runtime::MinimalPeriod::get(),
 			total_amount: 0, // rolling
 			max_retries: Some(100),
 			stability_threshold: Some(Permill::from_percent(5)),
@@ -5758,6 +5775,17 @@ fn rolling_buy_dca_completes_prematurely_when_price_increases() {
 		insert_schedule_into_storage(ALICE, rolling_buy_schedule, None);
 
 		let schedule_id = 0;
+		assert_ok!(hydradx_runtime::CircuitBreaker::set_trade_volume_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			(10_000, 10_000),
+		));
+		assert_ok!(hydradx_runtime::CircuitBreaker::set_trade_volume_limit(
+			RuntimeOrigin::root(),
+			DAI,
+			(10_000, 10_000),
+		));
+		go_to_block(11);
 
 		// Now move the price AFTER DCA creation: BOB sells a massive amount of HDX for DAI,
 		// making DAI much more expensive in HDX terms (~3x price increase).
@@ -5778,8 +5806,8 @@ fn rolling_buy_dca_completes_prematurely_when_price_increases() {
 		));
 
 		//Act - run enough blocks for oracle to stabilize and DCA to execute
-		// Retry delays grow exponentially (20, 40, 80, 160 blocks), so we need many blocks
-		run_to_block(11, 200);
+		// Retry delays grow exponentially, so we need many blocks
+		run_to_block(12, 600);
 
 		//Assert
 		// Rolling DCA should NOT be terminated just because the price moved
@@ -5990,7 +6018,7 @@ mod gigahdx_lock_reserve {
 					RuntimeOrigin::signed(alice.clone()),
 					HDX,
 					DAI,
-					1 * UNITS,
+					UNITS,
 					0,
 					omnipool_route(),
 				),

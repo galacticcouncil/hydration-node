@@ -2,7 +2,7 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use hydradx_traits::router::{AssetPair, Route, RouteProvider, Trade};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::{BoundedVec, Permill};
+use sp_runtime::{BoundedVec, DispatchError, Permill};
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
@@ -88,5 +88,26 @@ where
 		} else {
 			route.clone()
 		}
+	}
+}
+
+/// Why the migration cancelled a schedule instead of converting it into a DCA intent.
+#[derive(Encode, Decode, DecodeWithMemTracking, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
+pub enum CancelReason {
+	/// Buy orders have no intent equivalent — intents are sell-only.
+	BuyOrder,
+	/// The remaining budget no longer covers a single trade.
+	BudgetBelowTrade,
+	/// Releasing the schedule's reserve left a remainder, so the reserve was inconsistent.
+	UnreserveRemainder,
+	/// The intent pallet rejected the converted schedule.
+	IntentCreationFailed(DispatchError),
+	/// Cancelled by governance through `force_cancel_schedules`.
+	ForceCancelled,
+}
+
+impl From<DispatchError> for CancelReason {
+	fn from(error: DispatchError) -> Self {
+		CancelReason::IntentCreationFailed(error)
 	}
 }

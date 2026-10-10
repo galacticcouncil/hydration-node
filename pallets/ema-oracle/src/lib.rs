@@ -42,7 +42,7 @@
 //! - *Smoothing Factor*: A factor applied to each value aggregated into the averaging oracle.
 //!   Implicitly determines the oracle period.
 //! - *Period*: The window over which an oracle is averaged. Certain smoothing factors correspond to
-//!   an oracle period. E.g. ten minutes oracle period ≈ 0.0198
+//!   an oracle period. E.g. ten minutes oracle period ≈ 0.0066
 //! - *Source*: The source of the data. E.g. xyk pallet.
 //!
 //! ### Implementation

@@ -230,8 +230,15 @@ where
 	}
 }
 
+// must list every address `execute` serves
 pub fn is_precompile(address: H160) -> bool {
-	address == DISPATCH_ADDR || address == LOCK_MANAGER || is_asset_address(address) || is_standard_precompile(address)
+	address == DISPATCH_ADDR
+		|| address == CALLPERMIT
+		|| address == FLASH_LOAN_RECEIVER
+		|| address == LOCK_MANAGER
+		|| is_asset_address(address)
+		|| is_oracle_address(address)
+		|| is_standard_precompile(address)
 }
 
 /// emits ERC-20 `Approval(owner, spender, value)` inline at the precompile's address.

@@ -633,7 +633,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: withdraw is claiming rewards automatically
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_004_254_545_454_436_u128
+			1_005_454_545_454_436_u128
 		);
 
 		//NOTE:	shares should not be unlocked because deposit wasn't destroyed(it has 1
@@ -673,7 +673,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//NOTE: claim happened before withdraw in this period so no rewards should be claimed.
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &DAVE.into()),
-			1_021_616_083_915_974_u128
+			1_023_916_083_915_974_u128
 		);
 
 		//NOTE: last shares were unlockend and deposit's nft should be destroyed and omnipool's

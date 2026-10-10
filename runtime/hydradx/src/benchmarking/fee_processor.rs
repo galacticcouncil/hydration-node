@@ -78,9 +78,10 @@ runtime_benchmarks! {
 		// fee-processor pot (the non-HDX path), which is what `convert` consumes.
 		let trader: AccountId = account("trader", 0, 0);
 		fund(trader.clone(), HDX, 100_000 * ONE)?;
-		Omnipool::sell(RawOrigin::Signed(trader.clone()).into(), HDX, DAI, 100 * ONE, 0)?;
+		let oracle_trade_amount = 100 * ONE / 3;
+		Omnipool::sell(RawOrigin::Signed(trader.clone()).into(), HDX, DAI, oracle_trade_amount, 0)?;
 		set_period(24);
-		Omnipool::sell(RawOrigin::Signed(trader.clone()).into(), HDX, DAI, 100 * ONE, 0)?;
+		Omnipool::sell(RawOrigin::Signed(trader.clone()).into(), HDX, DAI, oracle_trade_amount, 0)?;
 
 		let caller: AccountId = account("caller", 1, 0);
 		fund(caller.clone(), HDX, seed)?;
