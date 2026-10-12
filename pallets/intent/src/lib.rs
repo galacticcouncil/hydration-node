@@ -72,6 +72,7 @@ pub use pallet::*;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Zero;
 use sp_runtime::{FixedPointNumber, FixedU128, Permill};
+use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
@@ -81,6 +82,25 @@ pub const NAMED_RESERVE_ID: [u8; 8] = *b"ICE_int#";
 /// Solver-facing intent set: the eligible intents, plus the admission floor for
 /// each intent whose enforced minimum output differs from its own `amount_out`.
 pub type SolverIntents = (Vec<(IntentId, Intent)>, Vec<(IntentId, Balance)>);
+
+type SolverEntry = (IntentId, Intent, Option<Balance>);
+
+#[derive(Clone, Copy)]
+enum Conditional {
+	WholeAmount,
+	CappedPartial,
+}
+
+/// One waiting intent as the conditional-offer pass sees it, resolved once per list build.
+struct ConditionalOffer {
+	kind: Conditional,
+	/// From storage — the view's `remaining()` is already a cap from the second round on.
+	stored_remaining: Balance,
+	/// Reference rate of the reverse pair: `asset_in` units per unit of counter-flow.
+	reverse_rate: FixedU128,
+	/// `ED(asset_in)`, at least 1 so a zero ED still withholds an uncovered intent.
+	ed_in: Balance,
+}
 
 pub const UNSIGNED_TXS_PRIORITY: u64 = 1000;
 const OCW_LOG_TARGET: &str = "intent::offchain_worker";
@@ -256,6 +276,8 @@ pub mod pallet {
 		SettlementDisabled,
 		/// Account has reached the maximum number of allowed intents.
 		MaxIntentsReached,
+		/// Match window is zero or does not end before the deadline, when one is set.
+		InvalidMatchWindow,
 	}
 
 	#[pallet::storage]
@@ -283,16 +305,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Submit intent by user.
-		///
-		/// This extrinsics reserves fund for intents' execution.
-		/// WARN: partial intents are not supported at the moment and its' creation is not allowed.
+		/// Submit an intent and reserve the funds for its execution.
 		///
 		/// Parameters:
-		///	- `intent`: intent's data
+		/// - `intent`: the intent's data, deadline and optional `on_resolved` forward. A
+		///   `MatchFirstSwap` is offered to the solver only against opposite flow until its
+		///   `match_window` (ms) has elapsed, then behaves like a plain `Swap`.
 		///
-		/// Emits:
-		/// - `IntentSubmitted` when successful
+		/// Emits `IntentSubmitted` event when successful.
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
@@ -352,7 +372,7 @@ pub mod pallet {
 					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
 
 					let unlock_amount = match intent.data {
-						IntentData::Swap(ref s) => s.remaining(),
+						IntentData::Swap(ref s) | IntentData::MatchFirstSwap { swap: ref s, .. } => s.remaining(),
 						IntentData::Dca(ref dca) => dca.remaining_budget,
 					};
 					Self::unlock_funds(owner, intent.data.asset_in(), unlock_amount)?;
@@ -445,7 +465,7 @@ impl<T: Config> Pallet<T> {
 				ensure!(owner == who, Error::<T>::InvalidOwner);
 
 				let unlock_amount = match intent.data {
-					IntentData::Swap(ref s) => s.remaining(),
+					IntentData::Swap(ref s) | IntentData::MatchFirstSwap { swap: ref s, .. } => s.remaining(),
 					IntentData::Dca(ref dca) => dca.remaining_budget,
 				};
 				Self::unlock_funds(&who, intent.data.asset_in(), unlock_amount)?;
@@ -467,7 +487,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function validates and reserves funds for intent's execution and adds intent to storage
-	/// WARN: partial intents are not supported at the moment, look at `submit_intent()`
 	#[require_transactional]
 	pub fn add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
 		ensure!(
@@ -507,6 +526,14 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
+	fn validate_swap_params(data: &SwapParams, ed_in: Balance, ed_out: Balance) -> DispatchResult {
+		ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
+		ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
+		ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
+		ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
+		Ok(())
+	}
+
 	#[require_transactional]
 	fn do_add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
@@ -534,10 +561,7 @@ impl<T: Config> Pallet<T> {
 				log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), asset_in: {:?}, ed_in: {:?}, amount_in: {:?}, aseet_out: {:?}, ed_out: {:?}, amount_out: {:?}",
 					LOG_PREFIX, data.asset_in, ed_in, data.amount_in, data.asset_out, ed_out, data.amount_out);
 
-				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
-				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
-				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
-				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
+				Self::validate_swap_params(data, ed_in, ed_out)?;
 
 				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, data.amount_in)?;
 
@@ -577,6 +601,21 @@ impl<T: Config> Pallet<T> {
 					data.clone()
 						.into_data(reserve_amount, current_block.saturating_sub(data.period)),
 				)
+			}
+			IntentDataInput::MatchFirstSwap { ref swap, match_window } => {
+				Self::validate_swap_params(swap, ed_in, ed_out)?;
+				ensure!(match_window > 0, Error::<T>::InvalidMatchWindow);
+				let until = now.saturating_add(match_window);
+				if let Some(deadline) = input.deadline {
+					ensure!(until < deadline, Error::<T>::InvalidMatchWindow);
+				}
+
+				T::Currency::reserve_named(&NAMED_RESERVE_ID, swap.asset_in, &owner, swap.amount_in)?;
+
+				IntentData::MatchFirstSwap {
+					swap: ice_support::SwapData::from(swap),
+					match_until: until,
+				}
 			}
 		};
 
@@ -627,26 +666,60 @@ impl<T: Config> Pallet<T> {
 	/// every read and must never reach the score.
 	///
 	/// An intent absent from the second vector is bound by its own `amount_out`.
+	///
+	/// A match-first swap whose window is still open is offered only when fillable
+	/// reverse-pair flow in the same list covers it (`apply_conditional_offers`).
 	pub fn solver_intents() -> SolverIntents {
 		let current_block: u32 = T::BlockNumberProvider::current_block_number()
 			.try_into()
 			.unwrap_or(u32::MAX);
+		let now = T::TimestampProvider::now();
 
 		// Settlement rejects `deadline <= now`, and one rejected intent fails the whole
 		// strict solution. The solver cannot see this itself — the solver-facing intent
 		// carries no deadline — so anything that will not survive until the next block
 		// is withheld here rather than allowed to poison the batch.
-		let deadline_cutoff = T::TimestampProvider::now().saturating_add(T::SolverDeadlineMargin::get());
+		let deadline_cutoff = now.saturating_add(T::SolverDeadlineMargin::get());
 
-		let mut intents: Vec<(IntentId, Intent, Option<Balance>)> = Intents::<T>::iter()
+		let mut conditional: BTreeMap<IntentId, ConditionalOffer> = BTreeMap::new();
+		let mut intents: Vec<SolverEntry> = Intents::<T>::iter()
 			.filter_map(|(id, intent)| {
 				match &intent.data {
-					IntentData::Swap(_) => {
+					IntentData::Swap(swap) | IntentData::MatchFirstSwap { swap, .. } => {
 						if intent.deadline.is_some_and(|deadline| deadline <= deadline_cutoff) {
 							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), swap intent {id:?} skipped: expires within the solver margin (deadline: {:?}, cutoff: {deadline_cutoff:?})", intent.deadline);
 							return None;
 						}
-						Some((id, intent, None))
+						let window_open =
+							matches!(intent.data, IntentData::MatchFirstSwap { match_until, .. } if now < match_until);
+						if window_open {
+							// Fail-closed: without a reference price no counter-flow can be
+							// recognised, so the intent waits out its window.
+							let Some((reverse_rate, ed_in)) = Self::oracle_rate(swap.asset_out, swap.asset_in)
+								.zip(T::RegistryHandler::existential_deposit(swap.asset_in))
+							else {
+								log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), match-first intent {id:?} withheld: no oracle rate or ED");
+								return None;
+							};
+							let ed_in = ed_in.max(1);
+							let kind = if swap.partial.is_partial() {
+								Conditional::CappedPartial
+							} else {
+								Conditional::WholeAmount
+							};
+							conditional.insert(
+								id,
+								ConditionalOffer {
+									kind,
+									stored_remaining: swap.remaining(),
+									reverse_rate,
+									ed_in,
+								},
+							);
+						}
+						// The solver only knows plain swaps.
+						let data = IntentData::Swap(swap.clone());
+						Some((id, Intent { data, ..intent }, None))
 					}
 					IntentData::Dca(dca) => {
 						// Period eligibility
@@ -676,6 +749,9 @@ impl<T: Config> Pallet<T> {
 				}
 			})
 			.collect();
+		if !conditional.is_empty() {
+			Self::apply_conditional_offers(&mut intents, &conditional);
+		}
 		intents.sort_by_key(|(id, _, _)| Reverse(*id));
 
 		let limits = intents
@@ -684,6 +760,107 @@ impl<T: Config> Pallet<T> {
 			.collect();
 		let intents = intents.into_iter().map(|(id, intent, _)| (id, intent)).collect();
 		(intents, limits)
+	}
+
+	/// Withholds (or, for `CappedPartial`, caps the offered remaining of) every conditional
+	/// intent that its share of fillable reverse-pair flow does not cover. Iterates to a fixpoint;
+	/// if none is reached, every conditional intent is withheld.
+	///
+	/// Shortfalls below `ed_in` are ignored on both sides: the solver direct-matches a sub-ED
+	/// excess without an AMM leg, so it is not a shortfall, and ignoring it is what makes the
+	/// fixpoint reachable under integer rounding.
+	fn apply_conditional_offers(intents: &mut Vec<SolverEntry>, conditional: &BTreeMap<IntentId, ConditionalOffer>) {
+		let mut withheld: BTreeSet<IntentId> = BTreeSet::new();
+		let mut converged = false;
+		// Each changed round withholds an intent or shrinks an offer by at least ED; the bound
+		// is a safety net. Offers only ever shrink, so a late change can under-offer for this
+		// block but never over-offer.
+		for _ in 0..=conditional.len() {
+			let mut changed = false;
+			for (&id, offer) in conditional {
+				if withheld.contains(&id) {
+					continue;
+				}
+				let Some(i) = intents.iter().position(|(other, _, _)| *other == id) else {
+					continue;
+				};
+				let IntentData::Swap(w) = &intents[i].1.data else {
+					continue;
+				};
+				let (amount_in, offered_now) = (w.amount_in, w.remaining());
+				let coverage = Self::available_reverse_flow(id, w, offer.reverse_rate, intents, conditional, &withheld);
+				match offer.kind {
+					Conditional::WholeAmount => {
+						// ponytail: tolerance is ED(asset_in); tighten to ceil-rounded demand if an asset's ED is ever material
+						if amount_in.saturating_sub(coverage) >= offer.ed_in {
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), match-first intent {id:?} withheld: counter-flow {coverage} does not cover {amount_in}");
+							withheld.insert(id);
+							changed = true;
+						}
+					}
+					Conditional::CappedPartial => {
+						let cap = coverage.min(offer.stored_remaining);
+						if cap < offer.ed_in {
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), match-first intent {id:?} withheld: counter-flow {coverage} below ED");
+							withheld.insert(id);
+							changed = true;
+						} else if offered_now.saturating_sub(cap) >= offer.ed_in {
+							// Solver-facing budget for this block; storage is untouched and
+							// `resolve_swap_intent` recomputes `filled` from storage.
+							if let IntentData::Swap(w) = &mut intents[i].1.data {
+								w.partial = Partial::Yes(amount_in.saturating_sub(cap));
+							}
+							changed = true;
+						}
+					}
+				}
+			}
+			if !changed {
+				converged = true;
+				break;
+			}
+		}
+		if !converged {
+			log::warn!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional offers did not converge, withholding all {} match-first intents", conditional.len());
+			withheld.extend(conditional.keys().copied());
+		}
+		intents.retain(|(id, _, _)| !withheld.contains(id));
+	}
+
+	/// Fillable reverse-pair flow at `rate`, in `w.asset_in` units, less the same-side flow queued
+	/// ahead of `id`: every plain swap, and every conditional one with a lower (older) id. Only
+	/// intents whose limit clears the reference price count on either side.
+	fn available_reverse_flow(
+		id: IntentId,
+		w: &SwapData,
+		rate: FixedU128,
+		intents: &[SolverEntry],
+		conditional: &BTreeMap<IntentId, ConditionalOffer>,
+		withheld: &BTreeSet<IntentId>,
+	) -> Balance {
+		let mut reverse: Balance = 0;
+		let mut ahead: Balance = 0;
+		for (other, intent, _) in intents {
+			if *other == id || withheld.contains(other) {
+				continue;
+			}
+			let IntentData::Swap(o) = &intent.data else { continue };
+			if o.asset_in == w.asset_out && o.asset_out == w.asset_in {
+				if rate.checked_mul_int(o.amount_in).is_some_and(|out| out >= o.amount_out) {
+					reverse = reverse.saturating_add(rate.checked_mul_int(o.remaining()).unwrap_or(0));
+				}
+			} else if o.asset_in == w.asset_in && o.asset_out == w.asset_out {
+				let queued_ahead = *other < id || !conditional.contains_key(other);
+				if queued_ahead
+					&& rate
+						.checked_mul_int(o.amount_out)
+						.is_some_and(|cost| cost <= o.amount_in)
+				{
+					ahead = ahead.saturating_add(o.remaining());
+				}
+			}
+		}
+		reverse.saturating_sub(ahead)
 	}
 
 	/// Function validates if intent was resolved correctly
@@ -710,7 +887,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		match intent.data {
-			IntentData::Swap(_) => {
+			IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => {
 				Self::validate_swap_intent_resolve(intent, resolve)?;
 			}
 			IntentData::Dca(ref dca) => {
@@ -722,7 +899,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_swap_intent_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
-		let IntentData::Swap(ref swap) = intent.data else {
+		let Some(swap) = intent.data.swap() else {
 			return Err(Error::<T>::ResolveMismatch.into());
 		};
 		let IntentData::Swap(ref resolve_swap) = resolve else {
@@ -791,7 +968,7 @@ impl<T: Config> Pallet<T> {
 			Self::validate_resolve(intent, resolve)?;
 
 			let (fully_resolved, is_dca) = match intent.data {
-				IntentData::Swap(ref mut s) => {
+				IntentData::Swap(ref mut s) | IntentData::MatchFirstSwap { swap: ref mut s, .. } => {
 					let IntentData::Swap(ref r) = resolve else {
 						return Err(Error::<T>::ResolveMismatch.into());
 					};
@@ -806,7 +983,7 @@ impl<T: Config> Pallet<T> {
 				// before calling intent_resolved, so nothing remains to unreserve.
 				// For DCA: remaining_budget tracks unspent reserved funds.
 				let unreserve_amount = match intent.data {
-					IntentData::Swap(_) => 0,
+					IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => 0,
 					IntentData::Dca(ref dca) => dca.remaining_budget,
 				};
 				if !unreserve_amount.is_zero() {
@@ -841,7 +1018,7 @@ impl<T: Config> Pallet<T> {
 			// Not fully resolved
 			let asset_in = intent.data.asset_in();
 			match intent.data {
-				IntentData::Swap(_) => {
+				IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => {
 					ensure!(intent.data.is_partial(), Error::<T>::LimitViolation);
 					Self::deposit_event(Event::IntentResovedPartially {
 						id: *id,
@@ -996,17 +1173,19 @@ impl<T: Config> Pallet<T> {
 	/// Computes the oracle-based minimum output for a DCA trade.
 	/// Returns None if oracle data is unavailable.
 	fn compute_dca_oracle_limit(dca: &DcaData) -> Option<Balance> {
-		let oracle_price = T::OraclePriceProvider::get_price(dca.asset_in, dca.asset_out)?;
-		// Oracle price for route A→B returns n/d representing asset_in per asset_out
-		// (i.e., how much A costs per unit of B).
-		// For sell: estimated_out = amount_in / price = amount_in * d / n
-		let estimated_out =
-			FixedU128::checked_from_rational(oracle_price.d, oracle_price.n)?.checked_mul_int(dca.amount_in)?;
+		let estimated_out = Self::oracle_rate(dca.asset_in, dca.asset_out)?.checked_mul_int(dca.amount_in)?;
 		if estimated_out == 0 {
 			return None;
 		}
 		let slippage_amount = dca.slippage.mul_floor(estimated_out);
 		estimated_out.checked_sub(slippage_amount)
+	}
+
+	/// Reference `asset_out` per unit of `asset_in`. The oracle reports `n/d` = asset_in per
+	/// asset_out, so the sell rate is `d/n`.
+	fn oracle_rate(asset_in: AssetId, asset_out: AssetId) -> Option<FixedU128> {
+		let price = T::OraclePriceProvider::get_price(asset_in, asset_out)?;
+		FixedU128::checked_from_rational(price.d, price.n)
 	}
 
 	/// Function unlocks reserved `amount` of `asset_id` for `who`.

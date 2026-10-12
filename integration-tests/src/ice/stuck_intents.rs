@@ -226,7 +226,7 @@ fn diagnose(solution: &Solution) -> Vec<String> {
 					resolve.amount_in(),
 					dca.amount_in
 				),
-				IntentData::Swap(ref swap) => format!(
+				IntentData::Swap(ref swap) | IntentData::MatchFirstSwap { ref swap, .. } => format!(
 					" — Swap: resolved {} -> {} vs intent {} -> {} (partial: {:?})",
 					resolve.amount_in(),
 					resolve.amount_out(),
@@ -305,7 +305,7 @@ fn dca_floors() -> Vec<(IntentId, Balance)> {
 	let mut floors: Vec<(IntentId, Balance)> = pallet_intent::Intents::<Runtime>::iter()
 		.filter_map(|(id, intent)| match intent.data {
 			IntentData::Dca(ref dca) => Some((id, pallet_intent::Pallet::<Runtime>::compute_dca_effective_limit(dca))),
-			IntentData::Swap(_) => None,
+			IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => None,
 		})
 		.collect();
 	floors.sort_by_key(|(id, _)| *id);
@@ -392,7 +392,7 @@ fn score_composition_should_be_measured_against_stored_and_oracle_limits() {
 					let floor = pallet_intent::Pallet::<Runtime>::compute_dca_effective_limit(dca);
 					("DCA ", ri.data.amount_out().saturating_sub(floor))
 				}
-				IntentData::Swap(_) => ("swap", surplus),
+				IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => ("swap", surplus),
 			};
 			on_floor = on_floor.saturating_add(floor_surplus);
 

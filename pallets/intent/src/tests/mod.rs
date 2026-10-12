@@ -3,6 +3,7 @@ mod cancel_intent;
 mod cleanup_intent;
 mod dca_intent;
 mod intent_resolved;
+mod match_first;
 mod mock;
 mod ocw;
 mod remove_intent;

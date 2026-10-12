@@ -46,13 +46,16 @@ runtime_benchmarks! {
 		fund(caller.clone(), DAI, 10_000 * QUINTIL)?;
 
 		let intent = IntentInput {
-			data: IntentDataInput::Swap(SwapParams {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: 3000 * TRIL,
-				amount_out: 10 * QUINTIL,
-				partial: false,
-			}),
+			data: IntentDataInput::MatchFirstSwap {
+				swap: SwapParams {
+					asset_in: HDX,
+					asset_out: DAI,
+					amount_in: 3000 * TRIL,
+					amount_out: 10 * QUINTIL,
+					partial: false,
+				},
+				match_window: DEADLINE / 2,
+			},
 			deadline: Some(DEADLINE),
 			on_resolved: Some(worst_case_forward()),
 		};
@@ -63,6 +66,11 @@ runtime_benchmarks! {
 	verify {
 		let intents: Vec<(IntentId, IntentT)> = pallet_intent::Intents::<Runtime>::iter().collect();
 		assert_eq!(intents.len() , 1);
+		let (id, _) = intents[0];
+		assert!(matches!(
+			pallet_intent::Pallet::<Runtime>::get_intent(id).map(|i| i.data),
+			Some(ice_support::IntentData::MatchFirstSwap { .. })
+		));
 	}
 
 	remove_intent {
