@@ -29,7 +29,7 @@ const MIN_OUT_BNC: Balance = 68_795_189_840;
 const PERIOD: u32 = 15;
 const WINDOW: u32 = 7;
 const COUNTER_BNC: Balance = 10 * BNC_UNIT;
-/// BOB's 10 BNC → HDX AMM output on this snapshot (`match_first` headline).
+/// BOB's 10 BNC → HDX AMM output on this snapshot.
 const BOB_MARKET_OUT: Balance = 147_407_011_313_812;
 const BOB_DCA_TRADE: Balance = 400_000_000_000;
 
@@ -121,7 +121,6 @@ fn dca(
 	})
 }
 
-/// Submits a fresh BOB swap and returns its id.
 fn bob_swap(bob: &AccountId, amount_out: Balance) -> IntentId {
 	submit(bob, plain(BNC, HDX, COUNTER_BNC, amount_out));
 	intent_of(bob)
@@ -141,7 +140,6 @@ fn fill_at_t0(alice: &AccountId, trades: u128) -> (IntentId, u32) {
 	let sol = run_and_submit_as::<V4Solver>(SolverMode::V4, "dca_early_first_fill");
 	assert_eq!(amm_in_for(&sol, HDX, BNC), TRADE);
 	let first_out = swap(resolved(&sol, id)).amount_out;
-	println!("PIN first_out={first_out}");
 	assert_eq!(first_out, PIN_FIRST_OUT);
 	let t0 = stored_dca(id).last_execution_block;
 	assert_eq!(t0, block());
@@ -179,11 +177,6 @@ fn dca_should_execute_early_when_opposite_flow_arrives_within_the_window() {
 		let bnc_before = bnc_of(&alice);
 		let sol = run_and_submit_as::<V4Solver>(SolverMode::V4, "dca_early_headline");
 		let early_out = bnc_of(&alice) - bnc_before;
-		println!(
-			"PIN early_out={early_out} bob_amm_in={} gain_over_first={}",
-			amm_in_for(&sol, BNC, HDX),
-			early_out as i128 - PIN_FIRST_OUT as i128
-		);
 
 		assert_eq!(sol.resolved_intents.len(), 2);
 		assert!(is_resolved(&sol, id));
@@ -253,7 +246,6 @@ fn dca_should_execute_at_its_slot_without_a_counterparty() {
 		let bnc_before = bnc_of(&alice);
 		let sol = run_and_submit_as::<V4Solver>(SolverMode::V4, "dca_early_at_slot");
 		let slot_out = bnc_of(&alice) - bnc_before;
-		println!("PIN slot_out={slot_out}");
 
 		assert_eq!(amm_in_for(&sol, HDX, BNC), TRADE);
 		assert_eq!(stored_dca(id).last_execution_block, t0 + PERIOD);
@@ -314,7 +306,6 @@ fn opposite_dcas_should_execute_together_when_one_is_within_its_window() {
 		assert!(in_list(alice_id));
 		assert!(in_list(bob_id));
 		let sol = run_and_submit_as::<V4Solver>(SolverMode::V4, "dca_early_together");
-		println!("PIN together_alice_amm_in={}", amm_in_for(&sol, HDX, BNC));
 
 		assert_eq!(sol.resolved_intents.len(), 2);
 		assert_eq!(amm_in_for(&sol, BNC, HDX), 0, "BOB's BNC never touches a pool");

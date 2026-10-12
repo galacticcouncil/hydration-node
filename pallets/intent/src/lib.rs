@@ -768,7 +768,7 @@ impl<T: Config> Pallet<T> {
 				let coverage = Self::available_reverse_flow(id, w, offer.reverse_rate, intents, conditional, &withheld);
 				match offer.kind {
 					Conditional::WholeAmount => {
-						// ponytail: tolerance is ED(asset_in); tighten to ceil-rounded demand if an asset's ED is ever material
+						// Tolerance is ED(asset_in); tighten to ceil-rounded demand if an asset's ED is ever material.
 						if amount_in.saturating_sub(coverage) >= offer.ed_in {
 							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional intent {id:?} withheld: counter-flow {coverage} does not cover {amount_in}");
 							withheld.insert(id);
