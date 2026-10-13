@@ -136,8 +136,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 449,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	// Bumped when `AssetRegistry::register_external` (call index 4) was removed.
-	transaction_version: 2,
+	transaction_version: 1,
 	system_version: 1,
 };
 
