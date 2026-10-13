@@ -47,6 +47,7 @@ pub enum Function {
 	ExactInputSingle = "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))",
 	ExactOutputSingle = "exactOutputSingle((address,address,uint24,address,uint256,uint256,uint160))",
 	Approve = "approve(address,uint256)",
+	Allowance = "allowance(address,address)",
 }
 
 // Per-call gas ceilings. These are CEILINGS, not consumption — the chain charges
@@ -351,6 +352,27 @@ where
 		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
 	}
 
+	fn token_allowance(
+		token: EvmAddress,
+		owner: EvmAddress,
+		spender: EvmAddress,
+	) -> Result<Balance, ExecutorError<DispatchError>> {
+		let data = EvmDataWriter::new_with_selector(Function::Allowance)
+			.write(owner)
+			.write(spender)
+			.build();
+		let result = Executor::<T>::view(CallContext::new_view(token), data, ERC20_VIEW_GAS_LIMIT);
+		ensure!(
+			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
+			ExecutorError::Error("uniswapv3: allowance failed".into())
+		);
+		ensure!(
+			result.value.len() >= 32,
+			ExecutorError::Error("uniswapv3: allowance returned no data".into())
+		);
+		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
+	}
+
 	/// Report an executed swap to the EMA oracle under `UNISWAPV3_SOURCE`.
 	///
 	/// Without this a v3 pool has no oracle history at all, and every consumer of
@@ -441,7 +463,8 @@ where
 	///            slot0               POOL_VIEW
 	/// ```
 	///
-	/// The sell path is the same minus one APPROVE, so this bounds both.
+	/// The sell path swaps the second APPROVE for one ERC20_VIEW allowance read, which is
+	/// no larger, so this bounds both.
 	const fn worst_case_gas() -> u64 {
 		POOL_VIEW_GAS_LIMIT
 			+ QUOTE_GAS_LIMIT
@@ -543,6 +566,12 @@ where
 		ensure!(
 			matches!(swap_result.exit_reason, Succeed(_)),
 			ExecutorError::Error("uniswapv3: swap failed".into())
+		);
+
+		let unspent = Self::token_allowance(token_in, trader, router)?;
+		ensure!(
+			unspent.is_zero(),
+			ExecutorError::Error(pallet_dispatcher::Error::<T>::UniswapV3InsufficientLiquidity.into())
 		);
 
 		Self::decode_swap_amount(&swap_result)
