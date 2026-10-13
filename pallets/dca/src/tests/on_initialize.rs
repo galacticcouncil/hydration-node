@@ -2901,3 +2901,58 @@ fn fee_should_be_charged_in_account_fee_currency_when_asset_in_is_not_a_fee_curr
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
 		});
 }
+
+#[test]
+fn schedule_should_be_terminated_when_fee_currency_is_drained_and_asset_in_is_not_a_fee_currency() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			NON_FEE_ASSETS.with(|v| v.borrow_mut().push(DAI));
+			proceed_to_blocknumber(1, 500);
+
+			let budget = 1000 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(budget)
+				.with_order(Order::Sell {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_amount_out: Balance::MIN,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: DAI,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), budget);
+
+			let alice_hdx = Currencies::free_balance(HDX, &ALICE);
+			assert_ok!(Currencies::transfer(
+				RuntimeOrigin::signed(ALICE),
+				BOB,
+				HDX,
+				alice_hdx - 1000
+			));
+			let treasury_hdx_before = Currencies::free_balance(HDX, &TreasuryAccount::get());
+
+			//Act
+			set_to_blocknumber(502);
+
+			//Assert
+			assert_number_of_executed_sell_trades!(0);
+			assert_that_dca_is_terminated(ALICE, 0, sp_runtime::TokenError::FundsUnavailable.into());
+			assert_eq!(Currencies::free_balance(HDX, &ALICE), 1000);
+			assert_eq!(
+				Currencies::free_balance(HDX, &TreasuryAccount::get()),
+				treasury_hdx_before
+			);
+			assert_eq!(Currencies::reserved_balance(DAI, &ALICE), 0);
+			assert_eq!(Currencies::free_balance(DAI, &ALICE), 10000 * ONE);
+		});
+}

@@ -1090,7 +1090,10 @@ impl_runtime_apis! {
 				.into(),
 			})];
 
-			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
+			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter()
+				.filter(|(_, asset_id)| pallet_transaction_multi_payment::AcceptedCurrencies::<Runtime>::contains_key(asset_id))
+				.map(|(location, _)| location)
+				.collect();
 			asset_locations.append(&mut asset_registry_locations);
 
 			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId(loc.0.clone())));

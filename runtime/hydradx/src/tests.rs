@@ -190,9 +190,9 @@ mod xcm_fee_payment_api_tests {
 	use xcm_runtime_apis::fees::{runtime_decl_for_xcm_payment_api::XcmPaymentApiV1, Error as XcmPaymentApiError};
 
 	#[test]
-	fn query_acceptable_payment_assets_should_return_native_and_registered_locations() {
+	fn query_acceptable_payment_assets_should_return_native_and_accepted_locations() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
-			// register new asset in the asset registry
+			let accepted_asset = AssetRegistry::next_asset_id().unwrap();
 			assert_ok!(AssetRegistry::register(
 				RuntimeOrigin::root(),
 				None,
@@ -212,6 +212,31 @@ mod xcm_fee_payment_api_tests {
 				true
 			));
 
+			assert_ok!(AssetRegistry::register(
+				RuntimeOrigin::root(),
+				None,
+				None,
+				AssetType::External,
+				Some(1_000u128),
+				None,
+				None,
+				Some(crate::xcm::AssetLocation(polkadot_xcm::v5::Location::new(
+					1,
+					[
+						polkadot_xcm::v5::Junction::Parachain(123),
+						polkadot_xcm::v5::Junction::GeneralIndex(456)
+					]
+				))),
+				None,
+				true
+			));
+
+			assert_ok!(MultiTransactionPayment::add_currency(
+				RuntimeOrigin::root(),
+				accepted_asset,
+				FixedU128::from_float(2.0)
+			));
+
 			assert_eq!(
 				Runtime::query_acceptable_payment_assets(5u32),
 				Ok(vec![
@@ -224,7 +249,7 @@ mod xcm_fee_payment_api_tests {
 						parents: 0,
 						interior: [GeneralIndex(0)].into()
 					})),
-					// asset from the asset registry
+					// accepted asset from the asset registry
 					V5(AssetId(Location {
 						parents: 1,
 						interior: [Parachain(123), GeneralIndex(123)].into()
