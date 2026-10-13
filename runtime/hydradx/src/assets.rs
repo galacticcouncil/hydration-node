@@ -967,6 +967,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			// can undershoot the dry-run output passed as router min limit
 			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
+			pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
 		errors.contains(t)
