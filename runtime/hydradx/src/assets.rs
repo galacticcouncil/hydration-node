@@ -764,6 +764,7 @@ impl Contains<DispatchError> for RetryOnErrorForDca {
 			// can undershoot the dry-run output passed as router min limit
 			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
 			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
+			pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity.into(),
 			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
 		];
 		errors.contains(t)
@@ -1718,6 +1719,8 @@ parameter_types! {
 	// bound only by its own limit; it is deliberately loose enough not to reject
 	// ordinary configurations on volatile pairs.
 	pub MaxDcaSlippage: Permill = Permill::from_percent(50);
+	// ≈ 5 min of blocks; the pallet caps it at period / 2.
+	pub const DcaEarlyWindow: u32 = 150;
 }
 
 /// Intents may only be created while something can actually settle them.
@@ -1740,6 +1743,7 @@ impl pallet_intent::Config for Runtime {
 	type BlockNumberProvider = System;
 	type MinDcaPeriod = MinimalPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
+	type DcaEarlyWindow = DcaEarlyWindow;
 	type SettlementEnabled = IceSettlementEnabled;
 	type MaxIntentsPerAccount = sp_core::ConstU32<100>;
 	type WeightInfo = weights::pallet_intent::HydraWeight<Runtime>;
