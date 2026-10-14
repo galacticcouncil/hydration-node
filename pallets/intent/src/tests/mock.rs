@@ -314,6 +314,7 @@ impl pallet_intent::Config for Test {
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
+	type DcaEarlyWindow = ConstU32<4>;
 	type SettlementEnabled = SettlementEnabledMock;
 	type MaxIntentsPerAccount = ConstU32<5>;
 	type WeightInfo = ();

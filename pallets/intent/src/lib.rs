@@ -182,6 +182,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxDcaSlippage: Get<Permill>;
 
+		/// Blocks before its slot within which a DCA trade may execute early against opposite flow.
+		/// Capped at half the DCA's period.
+		#[pallet::constant]
+		type DcaEarlyWindow: Get<u32>;
+
 		/// Maximum number of intents a single account can have at the same time.
 		#[pallet::constant]
 		type MaxIntentsPerAccount: Get<u32>;
@@ -595,8 +600,8 @@ impl<T: Config> Pallet<T> {
 					.unwrap_or(u32::MAX);
 
 				// Back-dated by one period so the first trade is due immediately: `period` is the gap
-				// between trades, not a delay before the first one. `resolve_dca_intent` stamps the
-				// real block, so the cadence is exact from the second trade on.
+				// between trades, not a delay before the first one. `resolve_dca_intent` stamps
+				// `max(last + period, current)`, so an early fill consumes its slot and the cadence stays exact.
 				IntentData::Dca(
 					data.clone()
 						.into_data(reserve_amount, current_block.saturating_sub(data.period)),
@@ -648,7 +653,9 @@ impl<T: Config> Pallet<T> {
 
 	/// Function returns valid intents.
 	///
-	/// DCA intents are included only when their period has elapsed and budget is sufficient.
+	/// DCA intents are included once their period has elapsed and budget is sufficient; within `DcaEarlyWindow`
+	/// blocks of the slot (capped at half the period) they are included only when fillable reverse-pair flow
+	/// covers the trade.
 	/// They are transformed into `IntentData::Swap` with the hard limit as `amount_out`,
 	/// so the solver treats them as regular one-shot swaps.
 	pub fn get_valid_intents() -> Vec<(IntentId, Intent)> {
@@ -669,6 +676,8 @@ impl<T: Config> Pallet<T> {
 	///
 	/// A match-first swap whose window is still open is offered only when fillable
 	/// reverse-pair flow in the same list covers it (`apply_conditional_offers`).
+	/// A DCA within `dca_early_window` blocks of its slot is offered only when fillable reverse-pair flow
+	/// covers its trade.
 	pub fn solver_intents() -> SolverIntents {
 		let current_block: u32 = T::BlockNumberProvider::current_block_number()
 			.try_into()
@@ -724,7 +733,8 @@ impl<T: Config> Pallet<T> {
 					IntentData::Dca(dca) => {
 						// Period eligibility
 						let next_eligible = dca.last_execution_block.saturating_add(dca.period);
-						if current_block < next_eligible {
+						let early = current_block < next_eligible;
+						if early && current_block.saturating_add(Self::dca_early_window(dca)) < next_eligible {
 							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), DCA intent {id:?} skipped: period not elapsed (current_block: {current_block}, next_eligible: {next_eligible})");
 							return None;
 						}
@@ -744,6 +754,23 @@ impl<T: Config> Pallet<T> {
 							deadline: intent.deadline,
 							on_resolved: intent.on_resolved.clone(),
 						};
+						if early {
+							// Fail-closed: no reference price, no early execution; it still fires at its slot.
+							let Some(reverse_rate) = Self::oracle_rate(dca.asset_out, dca.asset_in) else {
+								log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), DCA intent {id:?} not offered early: no oracle price");
+								return None;
+							};
+							let ed_in = T::RegistryHandler::existential_deposit(dca.asset_in)?.max(1);
+							conditional.insert(
+								id,
+								ConditionalOffer {
+									kind: Conditional::WholeAmount,
+									stored_remaining: dca.amount_in,
+									reverse_rate,
+									ed_in,
+								},
+							);
+						}
 						Some((id, transformed, floor))
 					}
 				}
@@ -775,7 +802,7 @@ impl<T: Config> Pallet<T> {
 		// Each changed round withholds an intent or shrinks an offer by at least ED; the bound
 		// is a safety net. Offers only ever shrink, so a late change can under-offer for this
 		// block but never over-offer.
-		for _ in 0..=conditional.len() {
+		for _ in 0..(2 * conditional.len() + 2) {
 			let mut changed = false;
 			for (&id, offer) in conditional {
 				if withheld.contains(&id) {
@@ -791,9 +818,9 @@ impl<T: Config> Pallet<T> {
 				let coverage = Self::available_reverse_flow(id, w, offer.reverse_rate, intents, conditional, &withheld);
 				match offer.kind {
 					Conditional::WholeAmount => {
-						// ponytail: tolerance is ED(asset_in); tighten to ceil-rounded demand if an asset's ED is ever material
+						// Tolerance is ED(asset_in); tighten to ceil-rounded demand if an asset's ED is ever material.
 						if amount_in.saturating_sub(coverage) >= offer.ed_in {
-							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), match-first intent {id:?} withheld: counter-flow {coverage} does not cover {amount_in}");
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional intent {id:?} withheld: counter-flow {coverage} does not cover {amount_in}");
 							withheld.insert(id);
 							changed = true;
 						}
@@ -801,7 +828,7 @@ impl<T: Config> Pallet<T> {
 					Conditional::CappedPartial => {
 						let cap = coverage.min(offer.stored_remaining);
 						if cap < offer.ed_in {
-							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), match-first intent {id:?} withheld: counter-flow {coverage} below ED");
+							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional intent {id:?} withheld: counter-flow {coverage} below ED");
 							withheld.insert(id);
 							changed = true;
 						} else if offered_now.saturating_sub(cap) >= offer.ed_in {
@@ -821,7 +848,7 @@ impl<T: Config> Pallet<T> {
 			}
 		}
 		if !converged {
-			log::warn!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional offers did not converge, withholding all {} match-first intents", conditional.len());
+			log::warn!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional offers did not converge, withholding all {} conditional intents", conditional.len());
 			withheld.extend(conditional.keys().copied());
 		}
 		intents.retain(|(id, _, _)| !withheld.contains(id));
@@ -1104,8 +1131,8 @@ impl<T: Config> Pallet<T> {
 			.checked_sub(dca.amount_in)
 			.ok_or(Error::<T>::ArithmeticOverflow)?;
 
-		// Update last execution block
-		dca.last_execution_block = current_block;
+		// An early fill consumes the slot it ran ahead of; `max` keeps late fills from building a backlog.
+		dca.last_execution_block = dca.last_execution_block.saturating_add(dca.period).max(current_block);
 
 		// Rolling DCA: try to re-reserve one unit from free balance
 		if dca.budget.is_none() {
@@ -1142,7 +1169,10 @@ impl<T: Config> Pallet<T> {
 			.try_into()
 			.unwrap_or(u32::MAX);
 		let next_eligible = dca.last_execution_block.saturating_add(dca.period);
-		ensure!(current_block >= next_eligible, Error::<T>::IntentActive);
+		ensure!(
+			current_block.saturating_add(Self::dca_early_window(dca)) >= next_eligible,
+			Error::<T>::IntentActive
+		);
 		// Resolve must spend exactly per-trade amount
 		ensure!(resolve.amount_in() == dca.amount_in, Error::<T>::LimitViolation);
 		// Hard limit check (always enforced regardless of oracle)
@@ -1186,6 +1216,10 @@ impl<T: Config> Pallet<T> {
 	fn oracle_rate(asset_in: AssetId, asset_out: AssetId) -> Option<FixedU128> {
 		let price = T::OraclePriceProvider::get_price(asset_in, asset_out)?;
 		FixedU128::checked_from_rational(price.d, price.n)
+	}
+
+	fn dca_early_window(dca: &DcaData) -> u32 {
+		T::DcaEarlyWindow::get().min(dca.period / 2)
 	}
 
 	/// Function unlocks reserved `amount` of `asset_id` for `who`.
