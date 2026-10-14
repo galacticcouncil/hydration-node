@@ -702,7 +702,7 @@ impl<T: Config> Pallet<T> {
 		let asset_out = intent.data.asset_out();
 
 		let (amount_in, min_limit, partial) = match intent.data {
-			IntentData::Swap(ref swap) => {
+			IntentData::Swap(ref swap) | IntentData::MatchFirstSwap { ref swap, .. } => {
 				let amount_in = swap.remaining();
 				let limit = if swap.partial.is_partial() {
 					// Reuse `pro_rata` so the limit matches `validate_resolve`'s to the last unit.

@@ -88,7 +88,6 @@ type SolverEntry = (IntentId, Intent, Option<Balance>);
 #[derive(Clone, Copy)]
 enum Conditional {
 	WholeAmount,
-	#[allow(dead_code)]
 	CappedPartial,
 }
 
@@ -282,6 +281,8 @@ pub mod pallet {
 		SettlementDisabled,
 		/// Account has reached the maximum number of allowed intents.
 		MaxIntentsReached,
+		/// Match window is zero or does not end before the deadline, when one is set.
+		InvalidMatchWindow,
 	}
 
 	#[pallet::storage]
@@ -309,16 +310,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Submit intent by user.
-		///
-		/// This extrinsics reserves fund for intents' execution.
-		/// WARN: partial intents are not supported at the moment and its' creation is not allowed.
+		/// Submit an intent and reserve the funds for its execution.
 		///
 		/// Parameters:
-		///	- `intent`: intent's data
+		/// - `intent`: the intent's data, deadline and optional `on_resolved` forward. A
+		///   `MatchFirstSwap` is offered to the solver only against opposite flow until its
+		///   `match_window` (ms) has elapsed, then behaves like a plain `Swap`.
 		///
-		/// Emits:
-		/// - `IntentSubmitted` when successful
+		/// Emits `IntentSubmitted` event when successful.
 		///
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::submit_intent())] //TODO: should probably include length of on_success/on_failure calls too
@@ -378,7 +377,7 @@ pub mod pallet {
 					let owner = maybe_owner.as_ref().ok_or(Error::<T>::IntentOwnerNotFound)?;
 
 					let unlock_amount = match intent.data {
-						IntentData::Swap(ref s) => s.remaining(),
+						IntentData::Swap(ref s) | IntentData::MatchFirstSwap { swap: ref s, .. } => s.remaining(),
 						IntentData::Dca(ref dca) => dca.remaining_budget,
 					};
 					Self::unlock_funds(owner, intent.data.asset_in(), unlock_amount)?;
@@ -471,7 +470,7 @@ impl<T: Config> Pallet<T> {
 				ensure!(owner == who, Error::<T>::InvalidOwner);
 
 				let unlock_amount = match intent.data {
-					IntentData::Swap(ref s) => s.remaining(),
+					IntentData::Swap(ref s) | IntentData::MatchFirstSwap { swap: ref s, .. } => s.remaining(),
 					IntentData::Dca(ref dca) => dca.remaining_budget,
 				};
 				Self::unlock_funds(&who, intent.data.asset_in(), unlock_amount)?;
@@ -493,7 +492,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Function validates and reserves funds for intent's execution and adds intent to storage
-	/// WARN: partial intents are not supported at the moment, look at `submit_intent()`
 	#[require_transactional]
 	pub fn add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
 		ensure!(
@@ -533,6 +531,14 @@ impl<T: Config> Pallet<T> {
 		)
 	}
 
+	fn validate_swap_params(data: &SwapParams, ed_in: Balance, ed_out: Balance) -> DispatchResult {
+		ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
+		ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
+		ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
+		ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
+		Ok(())
+	}
+
 	#[require_transactional]
 	fn do_add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
@@ -560,10 +566,7 @@ impl<T: Config> Pallet<T> {
 				log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), asset_in: {:?}, ed_in: {:?}, amount_in: {:?}, aseet_out: {:?}, ed_out: {:?}, amount_out: {:?}",
 					LOG_PREFIX, data.asset_in, ed_in, data.amount_in, data.asset_out, ed_out, data.amount_out);
 
-				ensure!(data.amount_in >= ed_in, Error::<T>::InvalidIntent);
-				ensure!(data.amount_out >= ed_out, Error::<T>::InvalidIntent);
-				ensure!(data.asset_in != data.asset_out, Error::<T>::InvalidIntent);
-				ensure!(data.asset_out != T::HubAssetId::get(), Error::<T>::InvalidIntent);
+				Self::validate_swap_params(data, ed_in, ed_out)?;
 
 				T::Currency::reserve_named(&NAMED_RESERVE_ID, data.asset_in, &owner, data.amount_in)?;
 
@@ -603,6 +606,21 @@ impl<T: Config> Pallet<T> {
 					data.clone()
 						.into_data(reserve_amount, current_block.saturating_sub(data.period)),
 				)
+			}
+			IntentDataInput::MatchFirstSwap { ref swap, match_window } => {
+				Self::validate_swap_params(swap, ed_in, ed_out)?;
+				ensure!(match_window > 0, Error::<T>::InvalidMatchWindow);
+				let until = now.saturating_add(match_window);
+				if let Some(deadline) = input.deadline {
+					ensure!(until < deadline, Error::<T>::InvalidMatchWindow);
+				}
+
+				T::Currency::reserve_named(&NAMED_RESERVE_ID, swap.asset_in, &owner, swap.amount_in)?;
+
+				IntentData::MatchFirstSwap {
+					swap: ice_support::SwapData::from(swap),
+					match_until: until,
+				}
 			}
 		};
 
@@ -656,29 +674,61 @@ impl<T: Config> Pallet<T> {
 	///
 	/// An intent absent from the second vector is bound by its own `amount_out`.
 	///
+	/// A match-first swap whose window is still open is offered only when fillable
+	/// reverse-pair flow in the same list covers it (`apply_conditional_offers`).
 	/// A DCA within `dca_early_window` blocks of its slot is offered only when fillable reverse-pair flow
 	/// covers its trade.
 	pub fn solver_intents() -> SolverIntents {
 		let current_block: u32 = T::BlockNumberProvider::current_block_number()
 			.try_into()
 			.unwrap_or(u32::MAX);
+		let now = T::TimestampProvider::now();
 
 		// Settlement rejects `deadline <= now`, and one rejected intent fails the whole
 		// strict solution. The solver cannot see this itself — the solver-facing intent
 		// carries no deadline — so anything that will not survive until the next block
 		// is withheld here rather than allowed to poison the batch.
-		let deadline_cutoff = T::TimestampProvider::now().saturating_add(T::SolverDeadlineMargin::get());
+		let deadline_cutoff = now.saturating_add(T::SolverDeadlineMargin::get());
 
 		let mut conditional: BTreeMap<IntentId, ConditionalOffer> = BTreeMap::new();
 		let mut intents: Vec<SolverEntry> = Intents::<T>::iter()
 			.filter_map(|(id, intent)| {
 				match &intent.data {
-					IntentData::Swap(_) => {
+					IntentData::Swap(swap) | IntentData::MatchFirstSwap { swap, .. } => {
 						if intent.deadline.is_some_and(|deadline| deadline <= deadline_cutoff) {
 							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), swap intent {id:?} skipped: expires within the solver margin (deadline: {:?}, cutoff: {deadline_cutoff:?})", intent.deadline);
 							return None;
 						}
-						Some((id, intent, None))
+						let window_open =
+							matches!(intent.data, IntentData::MatchFirstSwap { match_until, .. } if now < match_until);
+						if window_open {
+							// Fail-closed: without a reference price no counter-flow can be
+							// recognised, so the intent waits out its window.
+							let Some((reverse_rate, ed_in)) = Self::oracle_rate(swap.asset_out, swap.asset_in)
+								.zip(T::RegistryHandler::existential_deposit(swap.asset_in))
+							else {
+								log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), match-first intent {id:?} withheld: no oracle rate or ED");
+								return None;
+							};
+							let ed_in = ed_in.max(1);
+							let kind = if swap.partial.is_partial() {
+								Conditional::CappedPartial
+							} else {
+								Conditional::WholeAmount
+							};
+							conditional.insert(
+								id,
+								ConditionalOffer {
+									kind,
+									stored_remaining: swap.remaining(),
+									reverse_rate,
+									ed_in,
+								},
+							);
+						}
+						// The solver only knows plain swaps.
+						let data = IntentData::Swap(swap.clone());
+						Some((id, Intent { data, ..intent }, None))
 					}
 					IntentData::Dca(dca) => {
 						// Period eligibility
@@ -864,7 +914,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		match intent.data {
-			IntentData::Swap(_) => {
+			IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => {
 				Self::validate_swap_intent_resolve(intent, resolve)?;
 			}
 			IntentData::Dca(ref dca) => {
@@ -876,7 +926,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn validate_swap_intent_resolve(intent: &Intent, resolve: &IntentData) -> Result<(), DispatchError> {
-		let IntentData::Swap(ref swap) = intent.data else {
+		let Some(swap) = intent.data.swap() else {
 			return Err(Error::<T>::ResolveMismatch.into());
 		};
 		let IntentData::Swap(ref resolve_swap) = resolve else {
@@ -945,7 +995,7 @@ impl<T: Config> Pallet<T> {
 			Self::validate_resolve(intent, resolve)?;
 
 			let (fully_resolved, is_dca) = match intent.data {
-				IntentData::Swap(ref mut s) => {
+				IntentData::Swap(ref mut s) | IntentData::MatchFirstSwap { swap: ref mut s, .. } => {
 					let IntentData::Swap(ref r) = resolve else {
 						return Err(Error::<T>::ResolveMismatch.into());
 					};
@@ -960,7 +1010,7 @@ impl<T: Config> Pallet<T> {
 				// before calling intent_resolved, so nothing remains to unreserve.
 				// For DCA: remaining_budget tracks unspent reserved funds.
 				let unreserve_amount = match intent.data {
-					IntentData::Swap(_) => 0,
+					IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => 0,
 					IntentData::Dca(ref dca) => dca.remaining_budget,
 				};
 				if !unreserve_amount.is_zero() {
@@ -995,7 +1045,7 @@ impl<T: Config> Pallet<T> {
 			// Not fully resolved
 			let asset_in = intent.data.asset_in();
 			match intent.data {
-				IntentData::Swap(_) => {
+				IntentData::Swap(_) | IntentData::MatchFirstSwap { .. } => {
 					ensure!(intent.data.is_partial(), Error::<T>::LimitViolation);
 					Self::deposit_event(Event::IntentResovedPartially {
 						id: *id,
