@@ -154,6 +154,12 @@ pub enum RoutingState {
 pub enum IntentData {
 	Swap(SwapData),
 	Dca(DcaData),
+	/// Storage-only: offered to the solver as a plain `Swap`, and only against opposite flow
+	/// until `match_until` (ms).
+	MatchFirstSwap {
+		swap: SwapData,
+		match_until: u64,
+	},
 }
 
 /// User-facing intent data for extrinsic submission.
@@ -162,6 +168,11 @@ pub enum IntentData {
 pub enum IntentDataInput {
 	Swap(SwapParams),
 	Dca(DcaParams),
+	/// A swap offered to the solver only against opposite flow until `match_window` ms have elapsed.
+	MatchFirstSwap {
+		swap: SwapParams,
+		match_window: u64,
+	},
 }
 
 impl IntentDataInput {
@@ -169,6 +180,7 @@ impl IntentDataInput {
 		match self {
 			IntentDataInput::Swap(s) => s.asset_in,
 			IntentDataInput::Dca(d) => d.asset_in,
+			IntentDataInput::MatchFirstSwap { swap, .. } => swap.asset_in,
 		}
 	}
 
@@ -176,42 +188,51 @@ impl IntentDataInput {
 		match self {
 			IntentDataInput::Swap(s) => s.asset_out,
 			IntentDataInput::Dca(d) => d.asset_out,
+			IntentDataInput::MatchFirstSwap { swap, .. } => swap.asset_out,
 		}
 	}
 }
 
 impl IntentData {
+	/// The swap behind `Swap` and `MatchFirstSwap`.
+	pub fn swap(&self) -> Option<&SwapData> {
+		match self {
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => Some(s),
+			IntentData::Dca(_) => None,
+		}
+	}
+
 	pub fn is_partial(&self) -> bool {
 		match self {
-			IntentData::Swap(s) => s.partial.is_partial(),
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => s.partial.is_partial(),
 			IntentData::Dca(_) => false,
 		}
 	}
 
 	pub fn asset_in(&self) -> AssetId {
 		match self {
-			IntentData::Swap(s) => s.asset_in,
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => s.asset_in,
 			IntentData::Dca(d) => d.asset_in,
 		}
 	}
 
 	pub fn asset_out(&self) -> AssetId {
 		match self {
-			IntentData::Swap(s) => s.asset_out,
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => s.asset_out,
 			IntentData::Dca(d) => d.asset_out,
 		}
 	}
 
 	pub fn amount_in(&self) -> Balance {
 		match self {
-			IntentData::Swap(s) => s.amount_in,
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => s.amount_in,
 			IntentData::Dca(d) => d.amount_in,
 		}
 	}
 
 	pub fn amount_out(&self) -> Balance {
 		match self {
-			IntentData::Swap(s) => s.amount_out,
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => s.amount_out,
 			IntentData::Dca(d) => d.amount_out,
 		}
 	}
@@ -221,7 +242,7 @@ impl IntentData {
 	/// Surplus must be >= zero
 	pub fn surplus(&self, resolve: &IntentData) -> Option<Balance> {
 		match self {
-			IntentData::Swap(s) => {
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => {
 				let amt = if s.partial.is_partial() {
 					self.pro_rata(resolve)?
 				} else {
@@ -236,7 +257,7 @@ impl IntentData {
 	// Function calculates pro rata amount based on `resolved` intent.
 	pub fn pro_rata(&self, resolve: &IntentData) -> Option<Balance> {
 		match self {
-			IntentData::Swap(s) => U256::from(resolve.amount_in())
+			IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => U256::from(resolve.amount_in())
 				.checked_mul(U256::from(s.amount_out))?
 				.checked_div(U256::from(s.amount_in))?
 				.checked_into(),

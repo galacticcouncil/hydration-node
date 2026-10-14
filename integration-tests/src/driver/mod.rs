@@ -475,6 +475,42 @@ impl HydrationTestDriver {
 	}
 
 	#[allow(clippy::too_many_arguments)]
+	pub fn submit_match_first_swap_intent(
+		&self,
+		who: AccountId,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		amount_out: Balance,
+		partial: bool,
+		window_blocks: u32,
+		deadline_in_blocks: Option<u32>,
+	) -> &Self {
+		self.execute(|| {
+			let ts = Timestamp::now();
+			let deadline = deadline_in_blocks.map(|d| MILLISECS_PER_BLOCK * d as u64 + ts);
+			assert_ok!(Intent::submit_intent(
+				RuntimeOrigin::signed(who),
+				pallet_intent::types::IntentInput {
+					data: IntentDataInput::MatchFirstSwap {
+						swap: SwapParams {
+							asset_in,
+							asset_out,
+							amount_in,
+							amount_out,
+							partial,
+						},
+						match_window: MILLISECS_PER_BLOCK * window_blocks as u64,
+					},
+					deadline,
+					on_resolved: None,
+				}
+			));
+		});
+		self
+	}
+
+	#[allow(clippy::too_many_arguments)]
 	pub fn submit_dca_intent(
 		&self,
 		who: AccountId,

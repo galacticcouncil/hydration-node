@@ -5828,7 +5828,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "449.0.0"
+version = "450.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -6186,7 +6186,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9945,7 +9945,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.12.0"
+version = "1.12.1"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -10040,7 +10040,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

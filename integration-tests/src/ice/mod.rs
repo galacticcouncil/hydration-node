@@ -6,6 +6,7 @@ mod dca;
 mod dca_migration;
 mod forward;
 pub(crate) mod harness;
+mod match_first;
 mod netting;
 mod node_solver;
 mod oracle_routes;
