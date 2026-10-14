@@ -9617,7 +9617,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10122,7 +10122,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.6.0"
+version = "2.6.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10450,7 +10450,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.5.0"
+version = "2.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10473,7 +10473,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11280,7 +11280,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "8.2.0"
+version = "8.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
