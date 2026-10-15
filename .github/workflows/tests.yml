@@ -59,16 +59,6 @@ jobs:
       - name: Clippy
         run: make clippy-all
 
-      - name: Build benchmarks CLI
-        id: build-benchmarks
-        run: make build-benchmarks
-
-      - name: Upload benchmarks CLI
-        uses: actions/upload-artifact@v4
-        with:
-          name: hydradx-bencher
-          path: target/release/hydradx
-
   benchmark-check:
     runs-on: toad
     concurrency: benchmark-execution
@@ -133,16 +123,13 @@ jobs:
         with:
           rustflags: '-D warnings'
 
-      - name: Download benchmarks CLI
-        uses: actions/download-artifact@v4
-        with:
-          name: hydradx-bencher
-          path: ./bin
-      - run: chmod +x ./bin/hydradx
+      # Built here, not on lark: the binary must link against toad's glibc.
+      - name: Build benchmarks CLI
+        run: make build-benchmarks
 
       - name: Run ${{ steps.prepare.outputs.benchmark_type }} benchmarks
         run: |
-          BENCHMARK_FLAGS="--bin ./bin/hydradx"
+          BENCHMARK_FLAGS="--bin ./target/release/hydradx"
           if [[ "${{ steps.prepare.outputs.benchmark_type }}" == "quick" ]]; then
             BENCHMARK_FLAGS="$BENCHMARK_FLAGS --check"
           fi
