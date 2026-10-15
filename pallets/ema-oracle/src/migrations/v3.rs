@@ -13,8 +13,10 @@ mod unversioned {
 	pub struct InnerMigrateV2ToV3<T: crate::Config>(core::marker::PhantomData<T>);
 }
 
-fn parent_block<T: crate::Config>() -> BlockNumberFor<T> {
-	T::BlockNumberProvider::current_block_number().saturating_sub(One::one())
+fn settlement_block<T: crate::Config>() -> BlockNumberFor<T> {
+	// Runtime migrations execute before `frame_system::Pallet::initialize`, so the
+	// stored block number is already the last completed block.
+	T::BlockNumberProvider::current_block_number()
 }
 
 fn settle_oracles<T: crate::Config>(
@@ -68,7 +70,7 @@ fn settle_oracles<T: crate::Config>(
 
 impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV2ToV3<T> {
 	fn on_runtime_upgrade() -> Weight {
-		let parent = parent_block::<T>();
+		let parent = settlement_block::<T>();
 		let previous: Vec<_> = Oracles::<T>::iter().collect();
 		let reads = previous.len() as u64;
 		let settled = settle_oracles::<T>(parent, previous.clone());
@@ -95,7 +97,7 @@ impl<T: crate::Config> UncheckedOnRuntimeUpgrade for unversioned::InnerMigrateV2
 			StorageVersion::get::<Pallet<T>>() == 2,
 			"can only upgrade from version 2"
 		);
-		let expected = settle_oracles::<T>(parent_block::<T>(), Oracles::<T>::iter().collect());
+		let expected = settle_oracles::<T>(settlement_block::<T>(), Oracles::<T>::iter().collect());
 		Ok((expected.len() as u64, sp_core::hashing::blake2_256(&expected.encode())).encode())
 	}
 
@@ -125,53 +127,64 @@ mod tests {
 	use super::*;
 	use crate::tests::{new_test_ext, EmaOracle, System, Test, SOURCE};
 	use frame_support::traits::{OnRuntimeUpgrade, StorageVersion};
-	use hydra_dx_math::ema::{arithmetic_price_weighted_average, price_weighted_average};
+	use hydra_dx_math::ema::arithmetic_price_weighted_average;
 
 	#[test]
-	fn migration_should_preserve_legacy_projection_when_oracle_is_stale() {
-		new_test_ext().execute_with(|| {
-			System::set_block_number(11);
-			let previous = OracleEntry::new(
-				Price::one(),
-				Volume::from_a_in_b_out(10, 20),
-				Liquidity::new(100, 200),
-				Some(300),
-				9,
-			);
-			let last_block = OracleEntry::new(
-				Price::new(2, 1),
-				Volume::from_a_in_b_out(30, 40),
-				Liquidity::new(150, 250),
-				Some(350),
-				9,
-			);
-			let smoothing = into_smoothing(OraclePeriod::TenMinutes);
-			let legacy_price = arithmetic_price_weighted_average(previous.price, last_block.price, smoothing);
-			let symmetric_price = price_weighted_average(previous.price, last_block.price, smoothing);
-			assert_ne!(legacy_price, symmetric_price);
+	fn migration_should_settle_idle_history_through_last_completed_block() {
+		for period in [OraclePeriod::Short, OraclePeriod::TenMinutes, OraclePeriod::Day] {
+			for latest_price in [Price::new(1, 2), Price::one(), Price::new(2, 1)] {
+				new_test_ext().execute_with(|| {
+					// Runtime upgrade hooks for block 101 execute while System still
+					// stores the last completed block, 100.
+					System::set_block_number(100);
+					let previous = OracleEntry::new(
+						Price::one(),
+						Volume::from_a_in_b_out(10, 20),
+						Liquidity::new(100, 200),
+						Some(300),
+						98,
+					);
+					let last_block = OracleEntry::new(
+						latest_price,
+						Volume::from_a_in_b_out(30, 40),
+						Liquidity::new(150, 250),
+						Some(350),
+						98,
+					);
+					let smoothing = exp_smoothing(into_smoothing(period), 2);
+					let legacy_price = arithmetic_price_weighted_average(previous.price, last_block.price, smoothing);
 
-			Oracles::<Test>::insert((SOURCE, (1, 2), OraclePeriod::LastBlock), (last_block.clone(), 3));
-			Oracles::<Test>::insert((SOURCE, (1, 2), OraclePeriod::TenMinutes), (previous, 3));
-			StorageVersion::new(2).put::<Pallet<Test>>();
+					Oracles::<Test>::insert((SOURCE, (1, 2), OraclePeriod::LastBlock), (last_block.clone(), 3));
+					Oracles::<Test>::insert((SOURCE, (1, 2), period), (previous, 3));
+					StorageVersion::new(2).put::<Pallet<Test>>();
 
-			MigrateV2ToV3::<Test>::on_runtime_upgrade();
+					MigrateV2ToV3::<Test>::on_runtime_upgrade();
 
-			let (migrated, initialized) = EmaOracle::oracle((SOURCE, (1, 2), OraclePeriod::TenMinutes)).unwrap();
-			assert_eq!(migrated.price, legacy_price);
-			assert_eq!(migrated.updated_at, 10);
-			assert_eq!(initialized, 3);
+					let (migrated, initialized) = EmaOracle::oracle((SOURCE, (1, 2), period)).unwrap();
+					assert_eq!(migrated.price, legacy_price);
+					assert_eq!(migrated.updated_at, 100);
+					assert_eq!(initialized, 3);
 
-			let (migrated_last_block, _) = EmaOracle::oracle((SOURCE, (1, 2), OraclePeriod::LastBlock)).unwrap();
-			assert_eq!(migrated_last_block.updated_at, 10);
-			assert_eq!(migrated_last_block.volume, Volume::default());
-			assert_eq!(StorageVersion::get::<Pallet<Test>>(), 3);
-		});
+					let (migrated_last_block, _) =
+						EmaOracle::oracle((SOURCE, (1, 2), OraclePeriod::LastBlock)).unwrap();
+					assert_eq!(migrated_last_block.updated_at, 100);
+					assert_eq!(migrated_last_block.volume, Volume::default());
+					assert_eq!(StorageVersion::get::<Pallet<Test>>(), 3);
+
+					// Follow the real lifecycle: System initializes the upgrade block
+					// only after migrations have completed. Its parent price must not
+					// acquire one symmetric update from pre-upgrade history.
+					System::initialize(&101, &Default::default(), &Default::default());
+					assert_eq!(EmaOracle::get_price(1, 2, period, SOURCE).unwrap().0, legacy_price);
+				});
+			}
+		}
 	}
 
 	#[test]
 	fn migration_should_preserve_last_block_volume_when_entry_is_current() {
 		new_test_ext().execute_with(|| {
-			System::set_block_number(11);
+			System::set_block_number(10);
 			let last_block = OracleEntry::new(
 				Price::new(2, 1),
 				Volume::from_a_in_b_out(30, 40),
