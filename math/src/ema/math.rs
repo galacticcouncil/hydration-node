@@ -139,7 +139,8 @@ pub fn price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fracti
 	arithmetic_price_weighted_average(prev.inverted(), incoming.inverted(), weight).inverted()
 }
 
-fn arithmetic_price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fraction) -> EmaPrice {
+/// Calculate the historical arithmetic weighted average used for prices.
+pub fn arithmetic_price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fraction) -> EmaPrice {
 	if incoming >= prev {
 		rounding_add(prev, multiply(weight, saturating_sub(incoming, prev)), Rounding::Down)
 	} else {
