@@ -238,6 +238,7 @@ jobs:
   version-check:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
     if: github.event_name == 'pull_request'
     outputs:
