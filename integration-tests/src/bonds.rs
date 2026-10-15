@@ -75,14 +75,6 @@ fn issue_bonds_should_work_when_issued_for_share_asset() {
 			// Fund treasury with `amount + ed` — treasury can't be reaped (has consumers from
 			// holding HDX), so the transfer must leave at least ED behind.
 			assert_ok!(Currencies::deposit(share_asset_id, &treasury, amount + ed));
-			// Treasury is in DustRemovalWhitelist, so `SufficiencyCheck` charges the destination
-			// (bonds pallet account) an HDX-denominated ED when receiving an insufficient asset.
-			// Fund it so the hook succeeds.
-			assert_ok!(Balances::force_set_balance(
-				RuntimeOrigin::root(),
-				Bonds::pallet_account_id(),
-				10 * UNITS,
-			));
 
 			// Act
 			let bond_id = AssetRegistry::next_asset_id().unwrap();

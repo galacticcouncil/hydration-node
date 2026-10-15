@@ -15,10 +15,10 @@ use sp_runtime::traits::Convert;
 use hydradx_runtime::evm::evm_error_decoder::EvmErrorDecoder;
 use hydradx_runtime::evm::precompiles::HydraDXPrecompiles;
 use hydradx_runtime::evm::{Erc20Currency, EvmNonceProvider as AccountNonce, Executor, Function};
+use hydradx_runtime::AssetRegistry;
 use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::{AssetLocation, Currencies};
-use hydradx_runtime::{AssetRegistry, DOT_ASSET_LOCATION};
 use hydradx_runtime::{EVMAccounts, Runtime};
 use hydradx_traits::evm::CallContext;
 use hydradx_traits::evm::ERC20;
@@ -29,6 +29,7 @@ use orml_traits::MultiCurrency;
 use pallet_evm::ExitSucceed::Returned;
 use primitives::EvmAddress;
 use sp_core::bounded_vec::BoundedVec;
+use sp_runtime::FixedU128;
 
 use pallet_evm_accounts::EvmNonceProvider;
 use polkadot_xcm::v5::Junction::AccountKey20;
@@ -445,13 +446,10 @@ fn withdraw() {
 		let asset = bind_erc20(contract);
 
 		init_omnipool_with_oracle_for_block_10();
-		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
-		assert_ok!(hydradx_runtime::XYK::create_pool(
-			RuntimeOrigin::signed(ALICE.into()),
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
 			asset,
-			100 * UNITS,
-			DOT,
-			100 * UNITS,
+			FixedU128::from(1),
 		));
 		hydradx_run_to_next_block();
 
@@ -474,13 +472,10 @@ fn deposit() {
 		let asset = bind_erc20(contract);
 
 		init_omnipool_with_oracle_for_block_10();
-		assert_ok!(AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION));
-		assert_ok!(hydradx_runtime::XYK::create_pool(
-			RuntimeOrigin::signed(ALICE.into()),
+		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
+			RuntimeOrigin::root(),
 			asset,
-			100 * UNITS,
-			DOT,
-			100 * UNITS,
+			FixedU128::from(1),
 		));
 		hydradx_run_to_next_block();
 

@@ -94,9 +94,8 @@ use sp_std::cmp::min;
 use sp_std::vec::Vec;
 
 use hydradx_adapters::RelayChainBlockHashProvider;
-use hydradx_traits::fee::{InspectTransactionFeeCurrency, SwappablePaymentAssetTrader};
 use hydradx_traits::router::{inverse_route, AmmTradeWeights, AmountInAndOut, RouteProvider, RouterT, Trade};
-use hydradx_traits::{NativePriceOracle, OraclePeriod, PriceOracle};
+use hydradx_traits::{AccountFeeCurrency, NativePriceOracle, OraclePeriod, PriceOracle};
 use ice_support::{DcaParams, IntentId, IntentMigrator};
 use pallet_broadcast::types::ExecutionType;
 use pallet_evm::GasWeightMapping;
@@ -127,7 +126,6 @@ pub mod pallet {
 	use sp_runtime::Percent;
 
 	use hydra_dx_math::ema::EmaPrice;
-	use hydradx_traits::fee::SwappablePaymentAssetTrader;
 	use hydradx_traits::{NativePriceOracle, PriceOracle};
 
 	use super::*;
@@ -262,9 +260,6 @@ pub mod pallet {
 		///Relay chain block hash provider for randomness
 		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
 
-		/// Supporting swappable assets as fee currencies
-		type SwappablePaymentAssetSupport: SwappablePaymentAssetTrader<Self::AccountId, Self::AssetId, Balance>;
-
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
 
@@ -273,6 +268,10 @@ pub mod pallet {
 
 		///Native price provider to get the price of assets that are accepted as fees
 		type NativePriceOracle: NativePriceOracle<Self::AssetId, EmaPrice>;
+
+		///Resolves an account's configured fee currency, and whether an asset can pay fees at all.
+		///Used when the sold asset is not itself a fee currency.
+		type AccountFeeCurrency: AccountFeeCurrency<Self::AccountId, AssetId = Self::AssetId>;
 
 		///Router implementation
 		type RouteExecutor: RouterT<
@@ -324,10 +323,6 @@ pub mod pallet {
 		/// Native Asset Id
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
-
-		/// Polkadot Native Asset Id (DOT)
-		#[pallet::constant]
-		type PolkadotNativeAssetId: Get<Self::AssetId>;
 
 		///Minimum budget to be able to schedule a DCA, specified in native currency
 		#[pallet::constant]
@@ -565,10 +560,17 @@ pub mod pallet {
 				Error::<T>::NoLongerSupported
 			);
 
-			let min_budget = Self::convert_native_amount_to_currency(
-				schedule.order.get_asset_in(),
-				T::MinBudgetInNativeCurrency::get(),
-			)?;
+			// The minimum budget is native-denominated, so it can only be expressed in the sold
+			// asset when that asset has a price. A schedule selling an unpriceable asset still pays
+			// a real fee in the owner's fee currency on every execution, which is what bounds spam.
+			let min_budget = if T::AccountFeeCurrency::is_payment_currency(schedule.order.get_asset_in()).is_ok() {
+				Some(Self::convert_native_amount_to_currency(
+					schedule.order.get_asset_in(),
+					T::MinBudgetInNativeCurrency::get(),
+				)?)
+			} else {
+				None
+			};
 			ensure!(
 				schedule.period >= BlockNumberFor::<T>::from(T::MinimalPeriod::get()),
 				Error::<T>::PeriodTooShort
@@ -581,7 +583,7 @@ pub mod pallet {
 				Error::<T>::StabilityThresholdTooHigh
 			);
 
-			let transaction_fee = Self::get_transaction_fee(&schedule.order, None)?;
+			let transaction_fee = Self::budget_transaction_fee(&schedule.order, None)?;
 
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
@@ -602,16 +604,20 @@ pub mod pallet {
 
 			let amount_in_with_transaction_fee = amount_in.saturating_add(transaction_fee).saturating_mul(2);
 			let reserve_amount = if schedule.is_rolling() {
-				ensure!(
-					amount_in_with_transaction_fee >= min_budget,
-					Error::<T>::MinTradeAmountNotReached
-				);
+				if let Some(min_budget) = min_budget {
+					ensure!(
+						amount_in_with_transaction_fee >= min_budget,
+						Error::<T>::MinTradeAmountNotReached
+					);
+				}
 				amount_in_with_transaction_fee
 			} else {
-				ensure!(
-					schedule.total_amount >= min_budget,
-					Error::<T>::TotalAmountIsSmallerThanMinBudget
-				);
+				if let Some(min_budget) = min_budget {
+					ensure!(
+						schedule.total_amount >= min_budget,
+						Error::<T>::TotalAmountIsSmallerThanMinBudget
+					);
+				}
 				ensure!(
 					amount_in_with_transaction_fee <= schedule.total_amount,
 					Error::<T>::BudgetTooLow
@@ -1025,7 +1031,7 @@ impl<T: Config> Pallet<T> {
 
 		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
-		let transaction_fee = Self::get_transaction_fee(&schedule.order, Some(schedule_id))?;
+		let transaction_fee = Self::budget_transaction_fee(&schedule.order, Some(schedule_id))?;
 		let min_amount_for_replanning = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
 		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
 			Self::complete_schedule(schedule_id, schedule);
@@ -1144,6 +1150,22 @@ impl<T: Config> Pallet<T> {
 		Self::convert_weight_to_fee(Self::get_trade_weight(order, schedule_id), order.get_asset_in())
 	}
 
+	/// Execution fee taken out of the schedule's reserved budget, denominated in the sold asset.
+	///
+	/// Zero when the sold asset is not a fee currency: the fee is then charged in the owner's own
+	/// fee currency and never touches the budget, so every budget-sizing calculation must treat it
+	/// as costing the budget nothing.
+	fn budget_transaction_fee(
+		order: &Order<T::AssetId>,
+		schedule_id: Option<ScheduleId>,
+	) -> Result<Balance, DispatchError> {
+		if T::AccountFeeCurrency::is_payment_currency(order.get_asset_in()).is_err() {
+			return Ok(Balance::zero());
+		}
+
+		Self::get_transaction_fee(order, schedule_id)
+	}
+
 	fn unallocate_amount(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, BlockNumberFor<T>>,
@@ -1190,38 +1212,36 @@ impl<T: Config> Pallet<T> {
 		let extra_gas = ScheduleExtraGas::<T>::get(schedule_id);
 		T::ExtraGasSupport::set_extra_gas(extra_gas);
 
-		let fee_currency = schedule.order.get_asset_in();
-		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
+		let asset_in = schedule.order.get_asset_in();
 
-		if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(fee_currency) {
-			Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
+		if T::AccountFeeCurrency::is_payment_currency(asset_in).is_ok() {
+			// The sold asset pays for itself, straight out of the reserved budget.
+			let fee = Self::convert_weight_to_fee(weight_to_charge, asset_in)?;
 
+			Self::unallocate_amount(schedule_id, schedule, fee)?;
+
+			T::Currencies::transfer(
+				asset_in,
+				&schedule.owner,
+				&T::FeeReceiver::get(),
+				fee,
+				ExistenceRequirement::AllowDeath,
+			)?;
+		} else {
+			// The sold asset is not a fee currency, so the protocol will not price it. Charge the
+			// owner's own fee currency from their free balance instead and leave the budget whole -
+			// it is denominated in the asset we are refusing to price.
+			let fee_currency = T::AccountFeeCurrency::get(&schedule.owner);
+			let fee = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
+
+			// `KeepAlive`: failing to pay terminates the schedule and returns the budget, which is
+			// a better outcome for the owner than being reaped to cover an execution fee.
 			T::Currencies::transfer(
 				fee_currency,
 				&schedule.owner,
 				&T::FeeReceiver::get(),
-				fee_amount_in_sold_asset,
-				ExistenceRequirement::AllowDeath,
-			)?;
-		} else {
-			//We buy DOT with insufficient asset, for the treasury
-			//The DOT we need to buy is calculated the same way how we convert weight to insufficient fee
-			let pool_trade_fee = T::SwappablePaymentAssetSupport::calculate_fee_amount(fee_amount_in_sold_asset)?;
-
-			//Since there is a trade fee involved in xyk buy swap, we need to unallocate that, together with amount_in
-			let effective_amount_in = fee_amount_in_sold_asset
-				.checked_add(pool_trade_fee)
-				.ok_or(ArithmeticError::Overflow)?;
-			Self::unallocate_amount(schedule_id, schedule, effective_amount_in)?;
-
-			let fee_in_dot = Self::convert_to_polkadot_native_asset(Self::weight_to_fee(weight_to_charge))?;
-			T::SwappablePaymentAssetSupport::buy(
-				&schedule.owner.clone(),
-				fee_currency,
-				T::PolkadotNativeAssetId::get(),
-				fee_in_dot,
-				effective_amount_in,
-				&T::FeeReceiver::get(),
+				fee,
+				ExistenceRequirement::KeepAlive,
 			)?;
 		}
 
@@ -1355,28 +1375,10 @@ impl<T: Config> Pallet<T> {
 	fn get_trade_weight(order: &Order<T::AssetId>, schedule_id: Option<ScheduleId>) -> Weight {
 		let route = &order.get_route_or_default::<T::RouteProvider>();
 		let base_weight = match order {
-			Order::Sell { .. } => {
-				let on_initialize_weight =
-					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
-						<T as Config>::WeightInfo::on_initialize_with_sell_trade()
-					} else {
-						<T as Config>::WeightInfo::on_initialize_with_sell_trade_with_insufficient_fee_asset()
-					};
-
-				on_initialize_weight
-					.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route))
-			}
-			Order::Buy { .. } => {
-				let on_initialize_weight =
-					if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(order.get_asset_in()) {
-						<T as Config>::WeightInfo::on_initialize_with_buy_trade()
-					} else {
-						<T as Config>::WeightInfo::on_initialize_with_buy_trade_with_insufficient_fee_asset()
-					};
-
-				on_initialize_weight
-					.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route))
-			}
+			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade()
+				.saturating_add(T::AmmTradeWeights::sell_and_calculate_sell_trade_amounts_weight(route)),
+			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade()
+				.saturating_add(T::AmmTradeWeights::buy_and_calculate_buy_trade_amounts_weight(route)),
 		};
 
 		if let Some(id) = schedule_id {
@@ -1397,34 +1399,14 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			native_asset_amount
-		} else if T::SwappablePaymentAssetSupport::is_transaction_fee_currency(asset_id) {
+		} else {
 			let price = T::NativePriceOracle::price(asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 
 			multiply_by_rational_with_rounding(native_asset_amount, price.n, price.d, Rounding::Up)
 				.ok_or(ArithmeticError::Overflow)?
-		} else {
-			let fee_amount_in_dot = Self::convert_to_polkadot_native_asset(native_asset_amount)?;
-			T::SwappablePaymentAssetSupport::calculate_in_given_out(
-				asset_id,
-				T::PolkadotNativeAssetId::get(),
-				fee_amount_in_dot,
-			)?
 		};
 
 		Ok(amount)
-	}
-
-	fn convert_to_polkadot_native_asset(fee_amount_in_native: Balance) -> Result<Balance, DispatchError> {
-		let dot_per_hdx_price =
-			T::NativePriceOracle::price(T::PolkadotNativeAssetId::get()).ok_or(Error::<T>::CalculatingPriceError)?;
-
-		Ok(multiply_by_rational_with_rounding(
-			fee_amount_in_native,
-			dot_per_hdx_price.n,
-			dot_per_hdx_price.d,
-			Rounding::Up,
-		)
-		.ok_or(ArithmeticError::Overflow)?)
 	}
 
 	fn get_price_from_last_block_oracle(route: &[Trade<T::AssetId>]) -> Result<FixedU128, DispatchError> {

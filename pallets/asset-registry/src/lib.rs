@@ -110,10 +110,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinStringLimit: Get<u32> + Debug + PartialEq;
 
-		/// Weight multiplier for `register_external` extrinsic
-		#[pallet::constant]
-		type RegExternalWeightMultiplier: Get<u64>;
-
 		/// Hook executed after new asset is registered
 		type RegisterAssetHook: RegisterAssetHook<Self::AssetId>;
 
@@ -124,16 +120,6 @@ pub mod pallet {
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn integrity_test() {
-			assert!(
-				T::RegExternalWeightMultiplier::get().ge(&1_u64),
-				"`T::RegExternalWeightMultiplier` must be greater than zero."
-			);
-		}
-	}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -222,11 +208,6 @@ pub mod pallet {
 	pub type LocationAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetNativeLocation, T::AssetId, OptionQuery>;
 
-	#[pallet::storage]
-	/// Number of accounts that paid existential deposits for insufficient assets.
-	/// This storage is used by `SufficiencyCheck`.
-	pub type ExistentialDepositCounter<T: Config> = StorageValue<_, u128, ValueQuery>;
-
 	#[allow(clippy::type_complexity)]
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -301,14 +282,6 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Existential deposit for insufficinet asset was paid.
-		/// `SufficiencyCheck` triggers this event.
-		ExistentialDepositPaid {
-			who: T::AccountId,
-			fee_asset: T::AssetId,
-			amount: Balance,
-		},
-
 		/// Asset was registered.
 		Registered {
 			asset_id: T::AssetId,
@@ -491,20 +464,8 @@ pub mod pallet {
 		}
 
 		//NOTE: call indices 2 and 3 were used by removed extrinsics.
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::register_external().saturating_mul(<T as Config>::RegExternalWeightMultiplier::get()))]
-		pub fn register_external(origin: OriginFor<T>, location: T::AssetNativeLocation) -> DispatchResult {
-			let _ = ensure_signed(origin)?;
-
-			Self::do_register_asset(
-				None,
-				&AssetDetails::new(None, AssetType::External, DEFAULT_ED, None, None, None, false),
-				Some(location),
-			)?;
-
-			Ok(())
-		}
-
+		//NOTE: call index 4 was used by the removed `register_external` extrinsic — external assets
+		//are now registered exclusively through `register` by governance.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::ban_asset())]
 		pub fn ban_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {

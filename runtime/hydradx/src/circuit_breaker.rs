@@ -1,14 +1,12 @@
 use super::*;
-use crate::assets::XykPaymentAssetSupport;
 use crate::types::TenMinutesOraclePrice;
-use hydradx_adapters::price::ConvertBalance;
 use hydradx_traits::circuit_breaker::{AssetWithdrawHandler, WithdrawFuseControl};
+use hydradx_traits::price::PriceProvider;
 use pallet_asset_registry::AssetType;
 use pallet_circuit_breaker::types::EgressOperationKind;
 use pallet_circuit_breaker::GlobalAssetCategory;
 use primitives::Balance;
 use sp_runtime::helpers_128bit::multiply_by_rational_with_rounding;
-use sp_runtime::traits::Convert;
 use sp_runtime::{DispatchResult, FixedPointNumber, FixedU128, Rounding};
 use sp_std::marker::PhantomData;
 
@@ -32,12 +30,10 @@ impl WithdrawCircuitBreaker {
 				multiply_by_rational_with_rounding(amount, FixedU128::DIV, price.into_inner(), Rounding::Up)
 			})
 			.or_else(|| {
-				ConvertBalance::<TenMinutesOraclePrice, XykPaymentAssetSupport, DotAssetId>::convert((
-					asset_id,
-					ref_currency,
-					amount,
-				))
-				.map(|(converted, _)| converted)
+				// Assets outside `AcceptedCurrencies` are valued over their on-chain route, so an asset
+				// with no route and no oracle data has no valuation and the operation is rejected.
+				let price = TenMinutesOraclePrice::get_price(ref_currency, asset_id)?;
+				multiply_by_rational_with_rounding(amount, price.n, price.d, Rounding::Up)
 			})
 			.ok_or_else(|| pallet_circuit_breaker::Error::<Runtime>::FailedToConvertAsset.into())
 	}

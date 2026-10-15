@@ -14,17 +14,11 @@ use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Contains;
 use frame_support::{assert_noop, assert_ok, sp_runtime::codec::Encode};
 use frame_system::RawOrigin;
-use hydradx_adapters::price::ConvertBalance;
 use hydradx_runtime::evm::precompiles::{CALLPERMIT, DISPATCH_ADDR};
 use hydradx_runtime::types::ShortOraclePrice;
-use hydradx_runtime::DOT_ASSET_LOCATION;
-use hydradx_runtime::XYK;
 use hydradx_runtime::{AssetLocation, EVMAccounts, System};
 use hydradx_runtime::{AssetRegistry, TreasuryAccount};
-use hydradx_runtime::{
-	Balances, Currencies, DotAssetId, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens,
-	XykPaymentAssetSupport,
-};
+use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, Omnipool, RuntimeCall, RuntimeOrigin, Tokens};
 use hydradx_runtime::{FixedU128, Runtime};
 use hydradx_traits::evm::ERC20;
 use hydradx_traits::evm::{CallContext, EVM};

@@ -21,9 +21,7 @@ pub mod xyk;
 pub mod xyk_liquidity_mining;
 
 use crate::evm::Erc20Currency;
-use crate::{
-	AssetLocation, AssetRegistry, EVMAccounts, EmaOracle, MultiTransactionPayment, Runtime, System, DOT_ASSET_LOCATION,
-};
+use crate::{AssetLocation, AssetRegistry, EVMAccounts, EmaOracle, MultiTransactionPayment, Runtime, System};
 use evm::ExitReason;
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
 use frame_benchmarking::BenchmarkError;
@@ -50,7 +48,6 @@ use primitive_types::U256;
 use primitives::EvmAddress;
 
 use frame_support::storage::with_transaction;
-use hydradx_traits::Mutate;
 use sp_runtime::{FixedU128, TransactionOutcome};
 
 pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
@@ -138,10 +135,6 @@ pub fn register_external_asset(name: Vec<u8>) -> Result<AssetId, ()> {
 	.map_err(|_| ())
 }
 
-pub fn set_location(asset_id: AssetId, location: AssetLocation) -> Result<(), ()> {
-	AssetRegistry::set_location(asset_id, location).map_err(|_| ())
-}
-
 pub fn add_as_accepted_currency(asset_id: AssetId, price: Price) -> Result<(), ()> {
 	MultiTransactionPayment::add_currency(RawOrigin::Root.into(), asset_id, price).map_err(|_| ())
 }
@@ -187,20 +180,17 @@ pub fn set_period(to: u32) {
 	}
 }
 
-fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
-	let dot = register_asset(b"DOT".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	set_location(dot, DOT_ASSET_LOCATION).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
+fn setup_accepted_external_asset() -> Result<AssetId, BenchmarkError> {
+	let asset =
+		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 	crate::benchmarking::dca::MultiPaymentPallet::<Runtime>::add_currency(
 		RawOrigin::Root.into(),
-		dot,
+		asset,
 		FixedU128::from(1),
 	)
 	.map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-	let insufficient_asset =
-		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	crate::benchmarking::dca::create_xyk_pool(insufficient_asset, dot);
 
-	Ok(insufficient_asset)
+	Ok(asset)
 }
 
 pub fn update_deposit_limit(asset_id: AssetId, limit: Balance) -> Result<(), ()> {
