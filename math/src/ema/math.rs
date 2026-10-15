@@ -122,13 +122,24 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
 	fraction::frac(2, u128::from(period.max(1)).saturating_add(1))
 }
 
-/// Calculate a weighted average for the given prices.
+/// Calculate a direction-independent weighted average for positive prices.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
 ///
-/// Note: Rounding is biased towards `prev`.
+/// Falling prices use the arithmetic average. Rising prices use the reciprocal of the arithmetic
+/// average of both reciprocals. This applies the slower arithmetic response in either price
+/// direction and makes averaging commute with inversion.
+///
+/// Zero prices retain the historical arithmetic behavior. Runtime oracle inputs reject zero.
 pub fn price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fraction) -> EmaPrice {
 	debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
+	if prev.is_zero() || incoming.is_zero() || incoming <= prev {
+		return arithmetic_price_weighted_average(prev, incoming, weight);
+	}
+	arithmetic_price_weighted_average(prev.inverted(), incoming.inverted(), weight).inverted()
+}
+
+fn arithmetic_price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fraction) -> EmaPrice {
 	if incoming >= prev {
 		rounding_add(prev, multiply(weight, saturating_sub(incoming, prev)), Rounding::Down)
 	} else {
