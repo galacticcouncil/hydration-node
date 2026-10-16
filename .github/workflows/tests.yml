@@ -68,6 +68,11 @@ jobs:
       actions: read
       contents: write
     steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Check ignore benchmarks
         id: check-ignore
         run: |
@@ -81,11 +86,6 @@ jobs:
         run: |
           echo "Skipping benchmark-check job due to ignore tag"
           exit 0
-
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Prepare benchmark execution
         if: steps.check-ignore.outputs.ignore == 'false'
@@ -117,17 +117,21 @@ jobs:
           fi
 
       - name: Setup cmake
+        if: steps.check-ignore.outputs.ignore == 'false'
         uses: jwlawson/actions-setup-cmake@v1.12
       - name: Install Rust
+        if: steps.check-ignore.outputs.ignore == 'false'
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           rustflags: '-D warnings'
 
       # Built here, not on lark: the binary must link against toad's glibc.
       - name: Build benchmarks CLI
+        if: steps.check-ignore.outputs.ignore == 'false'
         run: make build-benchmarks
 
       - name: Run ${{ steps.prepare.outputs.benchmark_type }} benchmarks
+        if: steps.check-ignore.outputs.ignore == 'false'
         run: |
           BENCHMARK_FLAGS="--bin ./target/release/hydradx"
           if [[ "${{ steps.prepare.outputs.benchmark_type }}" == "quick" ]]; then
@@ -140,6 +144,7 @@ jobs:
           fi
 
       - name: Upload weights directory
+        if: steps.check-ignore.outputs.ignore == 'false'
         id: bencher-weights
         uses: actions/upload-artifact@v4
         with:
@@ -148,6 +153,7 @@ jobs:
           retention-days: 3
 
       - name: Check with new weights
+        if: steps.check-ignore.outputs.ignore == 'false'
         run: make check
 
       - name: Commit full benchmark results to a pull request
@@ -225,7 +231,7 @@ jobs:
           number: ${{ steps.prepare.outputs.pr_number }}
 
       - name: Comment benchmark results to the pull request
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.check-ignore.outputs.ignore == 'false'
         uses: marocchino/sticky-pull-request-comment@v2.1.0
         with:
           header: 'benchmark'
