@@ -184,7 +184,7 @@ jobs:
       - name: Materialize master weights for weight-diff
         if: steps.prepare.outputs.benchmark_type == 'full'
         run: |
-          git fetch --no-tags --depth=1 origin master:refs/remotes/origin/master
+          git fetch --no-tags --depth=1 origin +master:refs/remotes/origin/master
           mkdir -p /tmp/weights-master/runtime/hydradx/src/weights
           git archive origin/master runtime/hydradx/src/weights 2>/dev/null \
             | tar -x -C /tmp/weights-master || true
