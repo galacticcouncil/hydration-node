@@ -287,6 +287,18 @@ jobs:
           repository: galacticcouncil/polkadot-ecosystem-tests
           ref: hydration-ci-tests
 
+      - name: Use Hydration archive RPC
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("packages/networks/src/pet-chain-endpoints.json")
+          endpoints = json.loads(path.read_text())
+          endpoints["hydration"] = ["wss://hdx.tarn.hydration.cloud"]
+          path.write_text(json.dumps(endpoints, indent=2) + "\n")
+          PY
+
       - name: Download WASM artifact
         uses: actions/download-artifact@v4
         with:
