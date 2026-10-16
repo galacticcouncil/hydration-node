@@ -66,8 +66,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1872`
 		//  Estimated: `2126`
-		// Minimum execution time: 30_775_000 picoseconds.
-		Weight::from_parts(31_172_000, 2126)
+		// Minimum execution time: 29_096_000 picoseconds.
+		Weight::from_parts(29_772_000, 2126)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -79,8 +79,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1888`
 		//  Estimated: `2126`
-		// Minimum execution time: 53_117_000 picoseconds.
-		Weight::from_parts(53_703_000, 2126)
+		// Minimum execution time: 51_365_000 picoseconds.
+		Weight::from_parts(52_253_000, 2126)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(5_u64))
 	}
@@ -88,8 +88,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `742`
 		//  Estimated: `0`
-		// Minimum execution time: 4_598_000 picoseconds.
-		Weight::from_parts(4_752_000, 0)
+		// Minimum execution time: 4_526_000 picoseconds.
+		Weight::from_parts(4_605_000, 0)
 	}
 	/// Storage: `EmaOracle::Oracles` (r:40 w:40)
 	/// Proof: `EmaOracle::Oracles` (`max_values`: None, `max_size`: Some(194), added: 2669, mode: `MaxEncodedLen`)
@@ -98,10 +98,10 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1206 + b * (1095 ±0)`
 		//  Estimated: `990 + b * (10676 ±0)`
-		// Minimum execution time: 90_382_000 picoseconds.
-		Weight::from_parts(35_559_189, 990)
-			// Standard Error: 23_332
-			.saturating_add(Weight::from_parts(57_540_970, 0).saturating_mul(b.into()))
+		// Minimum execution time: 102_568_000 picoseconds.
+		Weight::from_parts(36_614_834, 990)
+			// Standard Error: 19_463
+			.saturating_add(Weight::from_parts(68_345_923, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads((4_u64).saturating_mul(b.into())))
 			.saturating_add(T::DbWeight::get().writes((4_u64).saturating_mul(b.into())))
 			.saturating_add(Weight::from_parts(0, 10676).saturating_mul(b.into()))
@@ -113,10 +113,10 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `3719 + b * (172 ±0)`
 		//  Estimated: `6190`
-		// Minimum execution time: 44_017_000 picoseconds.
-		Weight::from_parts(44_661_427, 6190)
-			// Standard Error: 4_168
-			.saturating_add(Weight::from_parts(552_621, 0).saturating_mul(b.into()))
+		// Minimum execution time: 43_539_000 picoseconds.
+		Weight::from_parts(44_211_168, 6190)
+			// Standard Error: 4_214
+			.saturating_add(Weight::from_parts(549_945, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 	}
 	/// Storage: `AssetRegistry::Assets` (r:2 w:0)
@@ -126,10 +126,10 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `3719 + b * (172 ±0)`
 		//  Estimated: `6190`
-		// Minimum execution time: 43_956_000 picoseconds.
-		Weight::from_parts(44_798_285, 6190)
-			// Standard Error: 4_277
-			.saturating_add(Weight::from_parts(550_994, 0).saturating_mul(b.into()))
+		// Minimum execution time: 43_637_000 picoseconds.
+		Weight::from_parts(44_359_461, 6190)
+			// Standard Error: 4_085
+			.saturating_add(Weight::from_parts(540_728, 0).saturating_mul(b.into()))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 	}
 	/// Storage: `EmaOracle::Oracles` (r:2 w:0)
@@ -138,8 +138,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1583`
 		//  Estimated: `6328`
-		// Minimum execution time: 34_837_000 picoseconds.
-		Weight::from_parts(35_116_000, 6328)
+		// Minimum execution time: 38_807_000 picoseconds.
+		Weight::from_parts(39_327_000, 6328)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 	}
 	/// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
@@ -156,8 +156,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `2055`
 		//  Estimated: `6190`
-		// Minimum execution time: 61_495_000 picoseconds.
-		Weight::from_parts(62_364_000, 6190)
+		// Minimum execution time: 60_380_000 picoseconds.
+		Weight::from_parts(61_279_000, 6190)
 			.saturating_add(T::DbWeight::get().reads(6_u64))
 	}
 	/// Storage: `ParachainInfo::ParachainId` (r:1 w:0)
@@ -174,8 +174,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `2055`
 		//  Estimated: `6190`
-		// Minimum execution time: 61_192_000 picoseconds.
-		Weight::from_parts(62_259_000, 6190)
+		// Minimum execution time: 60_176_000 picoseconds.
+		Weight::from_parts(60_964_000, 6190)
 			.saturating_add(T::DbWeight::get().reads(6_u64))
 	}
 	/// Storage: `EmaOracle::ExternalSources` (r:1 w:0)
@@ -190,8 +190,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `2351`
 		//  Estimated: `3590`
-		// Minimum execution time: 43_161_000 picoseconds.
-		Weight::from_parts(44_412_000, 3590)
+		// Minimum execution time: 42_483_000 picoseconds.
+		Weight::from_parts(43_459_000, 3590)
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 	}
 	/// Storage: `EmaOracle::ExternalSources` (r:1 w:1)
@@ -200,8 +200,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1220`
 		//  Estimated: `3481`
-		// Minimum execution time: 26_861_000 picoseconds.
-		Weight::from_parts(27_220_000, 3481)
+		// Minimum execution time: 26_386_000 picoseconds.
+		Weight::from_parts(26_793_000, 3481)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -216,10 +216,10 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1331 + n * (263 ±0)`
 		//  Estimated: `3481 + n * (10676 ±0)`
-		// Minimum execution time: 38_970_000 picoseconds.
-		Weight::from_parts(46_625_484, 3481)
-			// Standard Error: 9_325
-			.saturating_add(Weight::from_parts(6_198_864, 0).saturating_mul(n.into()))
+		// Minimum execution time: 38_172_000 picoseconds.
+		Weight::from_parts(46_289_904, 3481)
+			// Standard Error: 9_943
+			.saturating_add(Weight::from_parts(6_316_876, 0).saturating_mul(n.into()))
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().reads((5_u64).saturating_mul(n.into())))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
@@ -234,8 +234,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1261`
 		//  Estimated: `3481`
-		// Minimum execution time: 31_227_000 picoseconds.
-		Weight::from_parts(31_625_000, 3481)
+		// Minimum execution time: 30_558_000 picoseconds.
+		Weight::from_parts(31_130_000, 3481)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -247,8 +247,8 @@ impl<T: frame_system::Config> pallet_ema_oracle::WeightInfo for HydraWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `1295`
 		//  Estimated: `3481`
-		// Minimum execution time: 31_350_000 picoseconds.
-		Weight::from_parts(31_835_000, 3481)
+		// Minimum execution time: 30_626_000 picoseconds.
+		Weight::from_parts(31_131_000, 3481)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
