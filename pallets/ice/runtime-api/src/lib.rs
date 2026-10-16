@@ -31,9 +31,24 @@ pub struct SolverInput {
 	pub mode: SolverMode,
 }
 
+/// Snapshot of all tradable liquidity (Omnipool, Stableswap, XYK, Aave, Uniswap v3) for node-side
+/// consumers that route or price trades off-chain.
+#[derive(Clone, Encode, Decode, TypeInfo)]
+pub struct LiquidityState {
+	/// SCALE-encoded liquidity snapshot (the `SimulatorSet::State` tuple).
+	pub state: Vec<u8>,
+	/// ED for every asset in the snapshot.
+	pub existential_deposits: Vec<(AssetId, Balance)>,
+}
+
 sp_api::decl_runtime_apis! {
 	/// Inputs for the node-side ICE solver. Side-effect-free; called once per block.
 	pub trait IceSolverApi {
 		fn solver_input() -> Option<SolverInput>;
+	}
+
+	/// Side-effect-free liquidity snapshot; unlike `IceSolverApi` it does not depend on pending intents.
+	pub trait LiquidityStateApi {
+		fn liquidity_state() -> LiquidityState;
 	}
 }

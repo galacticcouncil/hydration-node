@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 453,
+	spec_version: 454,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1234,6 +1234,13 @@ impl_runtime_apis! {
 					mode,
 				}
 			})
+		}
+	}
+
+	impl pallet_ice_runtime_api::LiquidityStateApi<Block> for Runtime {
+		fn liquidity_state() -> pallet_ice_runtime_api::LiquidityState {
+			let (state, existential_deposits) = pallet_ice::Pallet::<Runtime>::liquidity_state();
+			pallet_ice_runtime_api::LiquidityState { state, existential_deposits }
 		}
 	}
 

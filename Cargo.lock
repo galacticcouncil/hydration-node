@@ -5828,7 +5828,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "453.0.0"
+version = "454.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9945,7 +9945,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.12.2"
+version = "1.13.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -9978,7 +9978,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice-runtime-api"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "ice-support",
  "parity-scale-codec",
@@ -14190,7 +14190,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.125.1"
+version = "1.126.1"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
@@ -14262,6 +14262,7 @@ dependencies = [
  "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-ice",
+ "pallet-ice-runtime-api",
  "pallet-im-online",
  "pallet-intent",
  "pallet-lazy-executor",

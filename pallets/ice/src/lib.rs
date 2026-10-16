@@ -982,6 +982,36 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// SCALE-encoded liquidity snapshot and the ED of every asset in it,
+	/// regardless of whether any intent is pending.
+	pub fn liquidity_state() -> (Vec<u8>, Vec<(AssetId, Balance)>) {
+		Self::liquidity_state_with(core::iter::empty())
+	}
+
+	/// The ED universe is the snapshot assets plus `extra_assets` — exactly
+	/// the set a node-side consumer can query.
+	fn liquidity_state_with(extra_assets: impl IntoIterator<Item = AssetId>) -> (Vec<u8>, Vec<(AssetId, Balance)>) {
+		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
+
+		let mut assets = BTreeSet::<AssetId>::new();
+		for edge in <<T as Config>::Simulator as SimulatorConfig>::Simulators::pool_edges(&state) {
+			assets.extend(edge.assets);
+		}
+		assets.extend(extra_assets);
+
+		let existential_deposits = assets
+			.into_iter()
+			.map(|asset| {
+				(
+					asset,
+					<<T as Config>::Simulator as SimulatorConfig>::existential_deposit(asset),
+				)
+			})
+			.collect();
+
+		(state.encode(), existential_deposits)
+	}
+
 	/// Build the side-effect-free inputs for the node-side solver: the valid
 	/// intents, the SCALE-encoded simulator snapshot, the ED map for every asset
 	/// the solver may query, the per-intent admission floors, the matched-volume
@@ -1001,32 +1031,15 @@ impl<T: Config> Pallet<T> {
 			return None;
 		}
 
-		let state = <<T as Config>::Simulator as SimulatorConfig>::Simulators::initial_state();
-
-		// ED universe = snapshot pool assets ∪ intent assets — exactly the set the
-		// solver can query. Source EDs via the simulator config (the same source
-		// the wasm solve uses) so the node's native solve is byte-identical.
-		let mut assets = BTreeSet::<AssetId>::new();
-		for edge in <<T as Config>::Simulator as SimulatorConfig>::Simulators::pool_edges(&state) {
-			assets.extend(edge.assets);
-		}
-		for intent in &intents {
-			assets.insert(intent.data.asset_in());
-			assets.insert(intent.data.asset_out());
-		}
-		let existential_deposits = assets
-			.into_iter()
-			.map(|asset| {
-				(
-					asset,
-					<<T as Config>::Simulator as SimulatorConfig>::existential_deposit(asset),
-				)
-			})
-			.collect();
+		let (state, existential_deposits) = Self::liquidity_state_with(
+			intents
+				.iter()
+				.flat_map(|intent| [intent.data.asset_in(), intent.data.asset_out()]),
+		);
 
 		Some((
 			intents,
-			state.encode(),
+			state,
 			existential_deposits,
 			min_amounts_out,
 			Self::protocol_fee(),
