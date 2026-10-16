@@ -21,7 +21,6 @@
 use super::*;
 use crate::assets::BifrostAccount;
 use hydradx_traits::oracle::OraclePeriod;
-use hydradx_traits::AggregatedEntry;
 use pallet_ema_oracle::ordered_pair;
 use pallet_ema_oracle::OnActivityHandler;
 use scale_info::prelude::string::ToString;
@@ -194,6 +193,9 @@ runtime_benchmarks! {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		// A rising price exercises the reciprocal averaging branch, which is the costly direction.
+		let initial_price = EmaPrice::new(liquidity_asset_in, liquidity_asset_out);
+		let incoming_price = EmaPrice::new(liquidity_asset_out, liquidity_asset_in);
 		let shares_issuance = 1_000_000_000_000;
 		for i in 0 .. b {
 			let asset_a = (i + 1) * 1_000;
@@ -203,7 +205,7 @@ runtime_benchmarks! {
 
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				external_source, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
+				initial_price, Some(shares_issuance)));
 		}
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
 
@@ -214,12 +216,12 @@ runtime_benchmarks! {
 			let asset_b = asset_a + 500;
 			assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 				external_source, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-				EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
+				incoming_price, Some(shares_issuance)));
 		}
 	}: { <pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(block_num); }
 	verify {
 		let entry = OracleEntry {
-			price: EmaPrice::new(liquidity_asset_in, liquidity_asset_out),
+			price: incoming_price,
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
 			updated_at: block_num,
@@ -442,6 +444,9 @@ runtime_benchmarks! {
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(initial_data_block);
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
+		// Keep the stored EMA below LastBlock so projection-on-read takes the costly branch.
+		let initial_price = EmaPrice::new(liquidity_asset_in, liquidity_asset_out);
+		let incoming_price = EmaPrice::new(liquidity_asset_out, liquidity_asset_in);
 		let asset_a = 1_000;
 		let asset_b = asset_a + 500;
 		let shares_issuance = 1_000_000_000_000;
@@ -451,8 +456,16 @@ runtime_benchmarks! {
 
 		assert_ok!(OnActivityHandler::<Runtime>::on_trade(
 			SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
-			EmaPrice::new(liquidity_asset_in, liquidity_asset_out), Some(shares_issuance)));
+			initial_price, Some(shares_issuance)));
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(initial_data_block);
+
+		let update_data_block = initial_data_block.saturating_add(One::one());
+		frame_system::Pallet::<Runtime>::set_block_number(update_data_block);
+		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(update_data_block);
+		assert_ok!(OnActivityHandler::<Runtime>::on_trade(
+			SOURCE, asset_a, asset_b, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out,
+			incoming_price, Some(shares_issuance)));
+		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnFinalize<BlockNumberFor<Runtime>>>::on_finalize(update_data_block);
 
 		frame_system::Pallet::<Runtime>::set_block_number(block_num);
 		<pallet_ema_oracle::Pallet<Runtime> as frame_support::traits::OnInitialize<BlockNumberFor<Runtime>>>::on_initialize(block_num);
@@ -468,13 +481,11 @@ runtime_benchmarks! {
 		let _ = res.replace(entry);
 	}
 	verify {
-		assert_eq!(*res.borrow(), Ok(AggregatedEntry {
-			price: EmaPrice::from((liquidity_asset_in, liquidity_asset_out)),
-			volume: Volume::default(),
-			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			oracle_age,
-			shares_issuance: Some(shares_issuance),
-		}));
+		let result = res.borrow();
+		let entry = result.as_ref().expect("oracle entry should be available");
+		assert!(entry.price > initial_price);
+		assert!(entry.price <= incoming_price);
+		assert_eq!(entry.oracle_age, oracle_age);
 	}
 
 	update_bifrost_oracle {
