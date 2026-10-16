@@ -54,7 +54,7 @@ runtime_benchmarks! {
 		let amount_a : Balance = INITIAL_BALANCE;
 		let amount_b : Balance = INITIAL_BALANCE;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 0);
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, amount_a, asset_b, amount_b)
 	verify {
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
@@ -63,8 +63,7 @@ runtime_benchmarks! {
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(caller.clone(), asset_a));
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(caller.clone(), asset_b));
 
-		//NOTE: xyk shares are insufficinet so that's why not 0.
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 	}
 
 
@@ -91,7 +90,7 @@ runtime_benchmarks! {
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount, ExistenceRequirement::AllowDeath)?;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 0);
 		let asset_pair = AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
@@ -105,8 +104,7 @@ runtime_benchmarks! {
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 		assert_eq!(Currencies::free_balance(asset_b, &caller), 499_999_999_999_999_u128);// Due to rounding in favor of pool
 
-		//NOTE: xyk shares are insufficinet.
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 	}
 
 	remove_liquidity {
@@ -122,14 +120,13 @@ runtime_benchmarks! {
 
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
-		//Only for XYK shares
-		assert_eq!(frame_system::Pallet::<Runtime>::account(maker.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(maker.clone()).sufficients, 0);
 	}: _(RawOrigin::Signed(maker.clone()), asset_a, asset_b, INITIAL_BALANCE)
 	verify {
 		assert_eq!(Currencies::free_balance(asset_a, &maker), INITIAL_BALANCE);
 		assert_eq!(Currencies::free_balance(asset_b, &maker), INITIAL_BALANCE);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(maker).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(maker).sufficients, 0);
 	}
 
 	sell {
@@ -153,14 +150,13 @@ runtime_benchmarks! {
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount, ExistenceRequirement::AllowDeath)?;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 0);
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, min_bought, discount)
 	verify{
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 		assert_eq!(Currencies::free_balance(asset_b, &caller), 199400000000000);
 
-		//NOTE: `asset_a`'s ED was released `asset_b`'s ED was collected.
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 	}
 
 	buy {
@@ -184,13 +180,13 @@ runtime_benchmarks! {
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128, ExistenceRequirement::AllowDeath)?;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 0);
 	}: _(RawOrigin::Signed(caller.clone()), asset_b, asset_a, amount, max_sold, discount)
 	verify{
 		assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 		assert_eq!(Currencies::free_balance(asset_b, &caller), amount);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 	}
 
 	router_execution_sell {
@@ -215,7 +211,7 @@ runtime_benchmarks! {
 		XYK::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, INITIAL_BALANCE, asset_b, INITIAL_BALANCE)?;
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, INITIAL_BALANCE - amount, ExistenceRequirement::AllowDeath)?;
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 0);
 	}: {
 		for _ in 1..c {
 			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_out_given_in(PoolType::XYK, asset_a, asset_b, amount).is_ok());
@@ -229,7 +225,7 @@ runtime_benchmarks! {
 			assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 			assert_eq!(Currencies::free_balance(asset_b, &caller), 199400000000000);
 
-			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
+			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 		}
 	}
 
@@ -256,7 +252,7 @@ runtime_benchmarks! {
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128, ExistenceRequirement::AllowDeath)?;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller.clone()).sufficients, 0);
 	}: {
 		for _ in 1..c {
 			assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_in_given_out(PoolType::XYK, asset_a, asset_b, amount).is_ok());
@@ -270,7 +266,7 @@ runtime_benchmarks! {
 			assert_eq!(Currencies::free_balance(asset_a, &caller), 0);
 			assert_eq!(Currencies::free_balance(asset_b, &caller), amount);
 
-			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
+			assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 		}
 	}
 
@@ -294,7 +290,7 @@ runtime_benchmarks! {
 
 		<Currencies as MultiCurrency<AccountId>>::transfer(asset_a, &caller, &maker, 749_249_999_999_999_u128, ExistenceRequirement::AllowDeath)?;
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(caller).sufficients, 0);
 	}: {
 		assert!(<XYK as TradeExecution<RuntimeOrigin, AccountId, AssetId, Balance>>::calculate_spot_price_with_fee(PoolType::XYK, asset_a, asset_b).is_ok());
 	}
