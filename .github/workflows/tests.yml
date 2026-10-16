@@ -103,7 +103,7 @@ jobs:
           if [[ -z "$pr_number" ]]; then
             pr_number=$(curl -s \
               -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.head_ref }}&state=open" | \
+                "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.head_ref || github.ref_name }}&state=open" | \
               grep '"number":' | \
               sed 's/[^0-9]*//g' | \
               head -n 1
@@ -238,6 +238,7 @@ jobs:
   version-check:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
     if: github.event_name == 'pull_request'
     outputs:
@@ -286,6 +287,80 @@ jobs:
           repository: galacticcouncil/polkadot-ecosystem-tests
           ref: hydration-ci-tests
 
+      - name: Prepare Hydration ecosystem forks
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          endpoints_path = Path("packages/networks/src/pet-chain-endpoints.json")
+          endpoints = json.loads(endpoints_path.read_text())
+          endpoints["hydration"] = ["wss://hdx.tarn.hydration.cloud"]
+          endpoints["acala"] = ["wss://acala-rpc.aca-api.network"]
+          endpoints["assetHubPolkadot"] = ["wss://polkadot-asset-hub-rpc.polkadot.io"]
+          endpoints_path.write_text(json.dumps(endpoints, indent=2) + "\n")
+
+          utils_path = Path("packages/hydration/tests/utils.ts")
+          source = utils_path.read_text()
+          old = '''  // Step 5: Enact the authorized upgrade
+            console.log('Enacting authorized upgrade...')
+            const enact = hydraDXClient.api.tx.system.applyAuthorizedUpgrade(`0x${code}`)
+            await sendTransaction(enact.signAsync(alice))
+            // First post-upgrade block applies the new code; metadata is then refreshed.
+            await hydraDXClient.chain.newBlock()
+
+            // Disable the parachain-system relay-parent descendants check so chopsticks
+            // can keep producing blocks against runtimes that enabled slot-based
+            // collators / strict async-backing descendants (added in the gigahdx PR).
+            // We write the raw storage key directly because, right after the upgrade
+            // block, chopsticks/PJS metadata may still reflect the old runtime — looking
+            // up `Parameters.RelayParentOffsetOverride` via metadata would error.
+            // For runtimes without this storage (live mainnet) the write is harmless.
+            const relayParentOffsetOverrideKey =
+              xxhashAsHex('Parameters', 128) + xxhashAsHex('RelayParentOffsetOverride', 128).slice(2)
+            await hydraDXClient.dev.setStorage([[relayParentOffsetOverrideKey, '0x01']])
+
+            await hydraDXClient.chain.newBlock()
+            await hydraDXClient.chain.newBlock()
+
+            const newSpecVersion = hydraDXClient.api.runtimeVersion.specVersion.toNumber()
+            console.log('Spec version after upgrade: ', newSpecVersion)
+          '''
+          new = '''  // Step 5: Enact the authorized upgrade
+            console.log('Enacting authorized upgrade...')
+            // Install the Wasm on the fork head and invalidate Chopsticks' runtime caches.
+            // This avoids submitting the current Wasm as an extrinsic against the much
+            // older fork runtime while preserving the first-block migration behavior.
+            const auraCurrentSlotKey = xxhashAsHex('Aura', 128) + xxhashAsHex('CurrentSlot', 128).slice(2)
+            const relayParentOffsetOverrideKey =
+              xxhashAsHex('Parameters', 128) + xxhashAsHex('RelayParentOffsetOverride', 128).slice(2)
+            hydraDXClient.chain.head.setWasm(`0x${code}`)
+            await hydraDXClient.dev.setStorage([
+              [auraCurrentSlotKey, '0x0000000000000000'],
+              [relayParentOffsetOverrideKey, '0x01'],
+            ])
+            // The first post-upgrade block runs on_runtime_upgrade and refreshes metadata.
+            await hydraDXClient.chain.newBlock()
+
+            await hydraDXClient.chain.newBlock()
+            await hydraDXClient.chain.newBlock()
+
+            // The fork runtime changes below Polkadot.js, so reconnect to load
+            // the upgraded spec version, signed extensions, and metadata.
+            const { ApiPromise, WsProvider } = await import('@polkadot/api')
+            hydraDXClient.api = await ApiPromise.create({
+              provider: new WsProvider(hydraDXClient.url),
+              noInitWarn: true,
+            })
+
+            const newSpecVersion = hydraDXClient.api.runtimeVersion.specVersion.toNumber()
+            console.log('Spec version after upgrade: ', newSpecVersion)
+          '''
+          if source.count(old) != 1:
+              raise SystemExit("unexpected Hydration runtime-upgrade helper")
+          utils_path.write_text(source.replace(old, new, 1))
+          PY
+
       - name: Download WASM artifact
         uses: actions/download-artifact@v4
         with:
@@ -298,6 +373,6 @@ jobs:
 
           # Run specific tests doing XCM between hydradx and other parachains
           yarn install
-          yarn test packages/hydration/tests/xcm.test.ts packages/hydration/tests/dca.test.ts
+          yarn test --no-file-parallelism packages/hydration/tests/xcm.test.ts packages/hydration/tests/dca.test.ts
         env:
           HYDRADX_RUNTIME_WASM_PATH: ${{ env.HYDRADX_RUNTIME_WASM_PATH }}

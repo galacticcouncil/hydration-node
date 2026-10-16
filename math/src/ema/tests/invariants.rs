@@ -387,10 +387,22 @@ proptest! {
 		(prev_price, incoming_price) in (realistic_price(), realistic_price())
 	) {
 		let price = price_weighted_average(prev_price, incoming_price, smoothing);
-		let rug_price = high_precision::precise_weighted_average(Rational::from(prev_price), Rational::from(incoming_price), fraction_to_high_precision(smoothing));
+		let rug_price = high_precision::precise_price_weighted_average(Rational::from(prev_price), Rational::from(incoming_price), fraction_to_high_precision(smoothing));
 		let tolerance = Rational::from((1, 1e30 as u128));
 		let price = Rational::from(price);
 		prop_assert_rational_relative_approx_eq!(price, rug_price, tolerance);
+	}
+}
+
+proptest! {
+	#[test]
+	fn price_weighted_average_should_commute_with_inversion(
+		smoothing in fraction_above_zero_and_less_or_equal_one(),
+		(prev, incoming) in (realistic_price(), realistic_price()),
+	) {
+		let forward = price_weighted_average(prev, incoming, smoothing);
+		let reverse = price_weighted_average(prev.inverted(), incoming.inverted(), smoothing);
+		prop_assert_eq!(forward.inverted(), reverse);
 	}
 }
 
@@ -450,7 +462,7 @@ proptest! {
 
 		let res = iterated_price_ema(iterations, prev, incoming, smoothing);
 		let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-		let expected = high_precision::precise_weighted_average(Rational::from(prev), Rational::from(incoming), smoothing_adj);
+		let expected = high_precision::precise_price_weighted_average(Rational::from(prev), Rational::from(incoming), smoothing_adj);
 
 		let res = Rational::from(res);
 		let tolerance = Rational::from((1, 1e30 as u128));
