@@ -53,18 +53,18 @@ runtime_benchmarks! {
 		let to: AccountId = account("to", 1, SEED);
 		let to_lookup = lookup_of_account(to.clone());
 		set_period(10);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
 
 	}: {
 		Tokens::transfer(RawOrigin::Signed(from.clone()).into(), to_lookup, asset_id, amount).unwrap();
 	}
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), amount);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(to).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(to).sufficients, 1);
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
 	}
 
 	transfer_all {
@@ -87,7 +87,7 @@ runtime_benchmarks! {
 		let to_lookup = lookup_of_account(to);
 		set_period(10);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
 
 	}: _(RawOrigin::Signed(from.clone()), to_lookup, asset_id, false)
 	verify {
@@ -95,7 +95,7 @@ runtime_benchmarks! {
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
 	}
 
 
@@ -117,7 +117,7 @@ runtime_benchmarks! {
 		let to_lookup = lookup_of_account(to.clone());
 		set_period(10);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
 	}: _(RawOrigin::Signed(from), to_lookup, asset_id, UNIT)
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), UNIT);
@@ -146,7 +146,7 @@ runtime_benchmarks! {
 		let to_lookup = lookup_of_account(to.clone());
 		set_period(10);
 
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
 
 	}: _(RawOrigin::Root, from_lookup, to_lookup, asset_id, amount)
 	verify {
@@ -154,7 +154,7 @@ runtime_benchmarks! {
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
 	}
 
 	//NOTE: set balance bypass MutationHooks so sufficiency check is never triggered.
