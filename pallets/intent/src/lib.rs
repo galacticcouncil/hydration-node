@@ -678,6 +678,11 @@ impl<T: Config> Pallet<T> {
 	/// reverse-pair flow in the same list covers it (`apply_conditional_offers`).
 	/// A DCA within `dca_early_window` blocks of its slot is offered only when fillable reverse-pair flow
 	/// covers its trade.
+	///
+	/// Known limitation: the counter-flow condition gates admission only and is not rechecked against
+	/// the settled solution, so a solution can still route such an intent through an AMM. This holds
+	/// because only the block author's own solver can submit (`pallet_ice::validate_unsigned` accepts
+	/// local and in-block sources and does not propagate); a malicious collator could bypass it.
 	pub fn solver_intents() -> SolverIntents {
 		let current_block: u32 = T::BlockNumberProvider::current_block_number()
 			.try_into()
@@ -793,10 +798,77 @@ impl<T: Config> Pallet<T> {
 	/// intent that its share of fillable reverse-pair flow does not cover. Iterates to a fixpoint;
 	/// if none is reached, every conditional intent is withheld.
 	///
+	/// A waiting intent's share is the fillable reverse-pair flow at its rate, less the same-side
+	/// flow queued ahead of it: every plain swap, and every conditional one with a lower (older)
+	/// id. Only intents whose limit clears the reference price count on either side.
+	///
 	/// Shortfalls below `ed_in` are ignored on both sides: the solver direct-matches a sub-ED
 	/// excess without an AMM leg, so it is not a shortfall, and ignoring it is what makes the
 	/// fixpoint reachable under integer rounding.
 	fn apply_conditional_offers(intents: &mut Vec<SolverEntry>, conditional: &BTreeMap<IntentId, ConditionalOffer>) {
+		type FlowKey = (AssetId, AssetId, FixedU128);
+
+		let swap_of = |entry: &SolverEntry| match &entry.1.data {
+			IntentData::Swap(s) => Some(s.clone()),
+			_ => None,
+		};
+		let index: BTreeMap<IntentId, usize> = intents
+			.iter()
+			.enumerate()
+			.filter(|(_, (id, _, _))| conditional.contains_key(id))
+			.map(|(i, (id, _, _))| (*id, i))
+			.collect();
+
+		// Rates the waiting side is priced at, per directed pair.
+		let mut rates: BTreeMap<(AssetId, AssetId), Vec<FixedU128>> = BTreeMap::new();
+		for (id, offer) in conditional {
+			if let Some(w) = index.get(id).and_then(|&i| swap_of(&intents[i])) {
+				let pair_rates = rates.entry((w.asset_in, w.asset_out)).or_default();
+				if !pair_rates.contains(&offer.reverse_rate) {
+					pair_rates.push(offer.reverse_rate);
+				}
+			}
+		}
+		let rates_for = |asset_in: AssetId, asset_out: AssetId| -> Vec<FixedU128> {
+			rates.get(&(asset_in, asset_out)).cloned().unwrap_or_default()
+		};
+		let reverse_flow = |o: &SwapData, rate: FixedU128| -> Balance {
+			if rate.checked_mul_int(o.amount_in).is_some_and(|out| out >= o.amount_out) {
+				rate.checked_mul_int(o.remaining()).unwrap_or(0)
+			} else {
+				0
+			}
+		};
+		let queued_flow = |o: &SwapData, rate: FixedU128| -> Balance {
+			if rate
+				.checked_mul_int(o.amount_out)
+				.is_some_and(|cost| cost <= o.amount_in)
+			{
+				o.remaining()
+			} else {
+				0
+			}
+		};
+
+		// Plain swaps never change, so their queued flow is summed once. Reverse flow is kept
+		// current as conditional intents are withheld or capped; balances are bounded by issuance,
+		// so the saturating running sums never actually saturate.
+		let mut plain_ahead: BTreeMap<FlowKey, Balance> = BTreeMap::new();
+		let mut reverse: BTreeMap<FlowKey, Balance> = BTreeMap::new();
+		for (id, intent, _) in intents.iter() {
+			let IntentData::Swap(o) = &intent.data else { continue };
+			for rate in rates_for(o.asset_out, o.asset_in) {
+				let sum = reverse.entry((o.asset_out, o.asset_in, rate)).or_default();
+				*sum = sum.saturating_add(reverse_flow(o, rate));
+			}
+			if !conditional.contains_key(id) {
+				for rate in rates_for(o.asset_in, o.asset_out) {
+					let sum = plain_ahead.entry((o.asset_in, o.asset_out, rate)).or_default();
+					*sum = sum.saturating_add(queued_flow(o, rate));
+				}
+			}
+		}
+
 		let mut withheld: BTreeSet<IntentId> = BTreeSet::new();
 		let mut converged = false;
 		// Each changed round withholds an intent or shrinks an offer by at least ED; the bound
@@ -804,41 +876,66 @@ impl<T: Config> Pallet<T> {
 		// block but never over-offer.
 		for _ in 0..(2 * conditional.len() + 2) {
 			let mut changed = false;
+			// Conditional flow queued ahead, built in id order as the round reaches each intent.
+			let mut conditional_ahead: BTreeMap<FlowKey, Balance> = BTreeMap::new();
 			for (&id, offer) in conditional {
 				if withheld.contains(&id) {
 					continue;
 				}
-				let Some(i) = intents.iter().position(|(other, _, _)| *other == id) else {
-					continue;
-				};
-				let IntentData::Swap(w) = &intents[i].1.data else {
-					continue;
-				};
+				let Some(&i) = index.get(&id) else { continue };
+				let Some(w) = swap_of(&intents[i]) else { continue };
+				let key = (w.asset_in, w.asset_out, offer.reverse_rate);
 				let (amount_in, offered_now) = (w.amount_in, w.remaining());
-				let coverage = Self::available_reverse_flow(id, w, offer.reverse_rate, intents, conditional, &withheld);
+				let ahead = plain_ahead
+					.get(&key)
+					.copied()
+					.unwrap_or(0)
+					.saturating_add(conditional_ahead.get(&key).copied().unwrap_or(0));
+				let coverage = reverse.get(&key).copied().unwrap_or(0).saturating_sub(ahead);
+
+				let mut after = Some(w.clone());
 				match offer.kind {
 					Conditional::WholeAmount => {
 						// Tolerance is ED(asset_in); tighten to ceil-rounded demand if an asset's ED is ever material.
 						if amount_in.saturating_sub(coverage) >= offer.ed_in {
 							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional intent {id:?} withheld: counter-flow {coverage} does not cover {amount_in}");
-							withheld.insert(id);
-							changed = true;
+							after = None;
 						}
 					}
 					Conditional::CappedPartial => {
 						let cap = coverage.min(offer.stored_remaining);
 						if cap < offer.ed_in {
 							log::debug!(target: OCW_LOG_TARGET, "{LOG_PREFIX:?}: solver_intents(), conditional intent {id:?} withheld: counter-flow {coverage} below ED");
-							withheld.insert(id);
-							changed = true;
+							after = None;
 						} else if offered_now.saturating_sub(cap) >= offer.ed_in {
 							// Solver-facing budget for this block; storage is untouched and
 							// `resolve_swap_intent` recomputes `filled` from storage.
-							if let IntentData::Swap(w) = &mut intents[i].1.data {
-								w.partial = Partial::Yes(amount_in.saturating_sub(cap));
+							let partial = Partial::Yes(amount_in.saturating_sub(cap));
+							if let IntentData::Swap(view) = &mut intents[i].1.data {
+								view.partial = partial;
 							}
+							after = after.map(|a| SwapData { partial, ..a });
 							changed = true;
 						}
+					}
+				}
+
+				if after.is_none() {
+					withheld.insert(id);
+					changed = true;
+				}
+				if after.as_ref() != Some(&w) {
+					for rate in rates_for(w.asset_out, w.asset_in) {
+						if let Some(sum) = reverse.get_mut(&(w.asset_out, w.asset_in, rate)) {
+							let now = after.as_ref().map_or(0, |a| reverse_flow(a, rate));
+							*sum = sum.saturating_sub(reverse_flow(&w, rate)).saturating_add(now);
+						}
+					}
+				}
+				if let Some(a) = &after {
+					for rate in rates_for(a.asset_in, a.asset_out) {
+						let sum = conditional_ahead.entry((a.asset_in, a.asset_out, rate)).or_default();
+						*sum = sum.saturating_add(queued_flow(a, rate));
 					}
 				}
 			}
@@ -852,42 +949,6 @@ impl<T: Config> Pallet<T> {
 			withheld.extend(conditional.keys().copied());
 		}
 		intents.retain(|(id, _, _)| !withheld.contains(id));
-	}
-
-	/// Fillable reverse-pair flow at `rate`, in `w.asset_in` units, less the same-side flow queued
-	/// ahead of `id`: every plain swap, and every conditional one with a lower (older) id. Only
-	/// intents whose limit clears the reference price count on either side.
-	fn available_reverse_flow(
-		id: IntentId,
-		w: &SwapData,
-		rate: FixedU128,
-		intents: &[SolverEntry],
-		conditional: &BTreeMap<IntentId, ConditionalOffer>,
-		withheld: &BTreeSet<IntentId>,
-	) -> Balance {
-		let mut reverse: Balance = 0;
-		let mut ahead: Balance = 0;
-		for (other, intent, _) in intents {
-			if *other == id || withheld.contains(other) {
-				continue;
-			}
-			let IntentData::Swap(o) = &intent.data else { continue };
-			if o.asset_in == w.asset_out && o.asset_out == w.asset_in {
-				if rate.checked_mul_int(o.amount_in).is_some_and(|out| out >= o.amount_out) {
-					reverse = reverse.saturating_add(rate.checked_mul_int(o.remaining()).unwrap_or(0));
-				}
-			} else if o.asset_in == w.asset_in && o.asset_out == w.asset_out {
-				let queued_ahead = *other < id || !conditional.contains_key(other);
-				if queued_ahead
-					&& rate
-						.checked_mul_int(o.amount_out)
-						.is_some_and(|cost| cost <= o.amount_in)
-				{
-					ahead = ahead.saturating_add(o.remaining());
-				}
-			}
-		}
-		reverse.saturating_sub(ahead)
 	}
 
 	/// Function validates if intent was resolved correctly
