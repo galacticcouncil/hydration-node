@@ -18,7 +18,6 @@ use crate::Runtime;
 pub mod circuit_breaker;
 pub mod conviction_voting;
 pub mod dynamic_fees;
-pub mod parameters;
 pub mod referenda;
 pub mod remove_fee_fallbacks;
 pub mod scheduler;
