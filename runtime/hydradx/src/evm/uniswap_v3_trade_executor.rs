@@ -6,7 +6,6 @@ use ethabi::{decode, ParamType};
 use evm::ExitReason::Succeed;
 use evm::ExitSucceed;
 use frame_support::ensure;
-use frame_support::pallet_prelude::RuntimeDebug;
 use frame_support::traits::Contains;
 use frame_support::weights::Weight;
 use frame_system::ensure_signed;
@@ -35,7 +34,7 @@ pub struct UniswapV3TradeExecutor<T>(PhantomData<T>);
 pub type UniswapV3 = UniswapV3TradeExecutor<crate::Runtime>;
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	GetPool = "getPool(address,address,uint24)",

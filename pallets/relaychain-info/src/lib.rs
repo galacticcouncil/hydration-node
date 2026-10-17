@@ -71,4 +71,10 @@ impl<T: Config> cumulus_pallet_parachain_system::OnSystemEvent for OnValidationD
 	}
 
 	fn on_validation_code_applied() {}
+
+	fn on_relay_state_proof(
+		_relay_state_proof: &cumulus_pallet_parachain_system::relay_state_snapshot::RelayChainStateProof,
+	) -> frame_support::weights::Weight {
+		frame_support::weights::Weight::zero()
+	}
 }

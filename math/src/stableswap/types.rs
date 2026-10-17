@@ -3,9 +3,8 @@ use crate::types::Balance;
 use codec::{Decode, Encode, MaxEncodedLen};
 use num_traits::Zero;
 use scale_info::TypeInfo;
-use sp_core::RuntimeDebug;
 
-#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, Copy, Debug, TypeInfo, MaxEncodedLen)]
 pub struct AssetReserve {
 	pub amount: Balance,
 	pub decimals: u8,
