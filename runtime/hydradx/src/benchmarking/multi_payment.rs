@@ -18,7 +18,7 @@
 
 use super::*;
 use crate::{
-	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Runtime, RuntimeCall, System,
+	AccountId, AssetId, Balance, Currencies, EmaOracle, NativeExistentialDeposit, Runtime, RuntimeCall, System,
 	TreasuryAccount,
 };
 use frame_benchmarking::account;
@@ -84,9 +84,7 @@ runtime_benchmarks! {
 		let caller: AccountId = account("caller", 0, SEED);
 		let fallback_account: AccountId = account("fallback_account", 1, SEED);
 
-		let asset_id = setup_insufficient_asset_with_dot().unwrap();
-
-		MultiPaymentPallet::<Runtime>::add_currency(RawOrigin::Root.into(), asset_id, Price::from(1)).map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
+		let asset_id = setup_accepted_external_asset()?;
 
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &caller, 100_000_000_000_000_i128)?;//Needed to prevent ED error
 		update_balance(asset_id, &caller,100_000_000_000_000);
@@ -211,7 +209,7 @@ runtime_benchmarks! {
 
 	//Used for calculating multi payment overhead for BaseExtrinsicWeight
 	withdraw_fee {
-		let fee_asset = setup_insufficient_asset_with_dot()?;
+		let fee_asset = setup_accepted_external_asset()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(0, &from, (10_000 * UNITS) as i128)?;
@@ -245,7 +243,7 @@ where
 		RawOrigin::Root.into(),
 		maker.clone(),
 		0_u32,
-		InsufficientEDinHDX::get() as i128,
+		(4 * NativeExistentialDeposit::get()) as i128,
 	));
 
 	assert_ok!(Currencies::update_balance(

@@ -1,4 +1,4 @@
-use crate::{AccountId, AssetId, Balance, Currencies, MultiTransactionPayment, Runtime, Tokens, DOT_ASSET_LOCATION};
+use crate::{AccountId, AssetId, Balance, Currencies, MultiTransactionPayment, Runtime, Tokens};
 
 use sp_std::prelude::*;
 
@@ -10,7 +10,6 @@ use frame_support::assert_ok;
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
-use sp_runtime::FixedU128;
 
 use super::*;
 
@@ -39,7 +38,7 @@ runtime_benchmarks! {
 		let amount: Balance = 2 * UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = setup_insufficient_asset_with_dot()?;
+		let fee_asset = setup_accepted_external_asset()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &from, (10_000 * UNIT) as i128)?;
@@ -54,27 +53,25 @@ runtime_benchmarks! {
 		let to: AccountId = account("to", 1, SEED);
 		let to_lookup = lookup_of_account(to.clone());
 		set_period(10);
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
 
 	}: {
 		Tokens::transfer(RawOrigin::Signed(from.clone()).into(), to_lookup, asset_id, amount).unwrap();
 	}
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), amount);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(to).sufficients, 1);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(to).sufficients, 0);
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5); //Counter remains the same as first increased by on_funds, but then decreased on kill
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
 	}
 
 	transfer_all {
 		let amount: Balance = UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = setup_insufficient_asset_with_dot()?;
+		let fee_asset = setup_accepted_external_asset()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &from, (10_000 * UNIT) as i128)?;
@@ -90,8 +87,7 @@ runtime_benchmarks! {
 		let to_lookup = lookup_of_account(to);
 		set_period(10);
 
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
 
 	}: _(RawOrigin::Signed(from.clone()), to_lookup, asset_id, false)
 	verify {
@@ -99,14 +95,13 @@ runtime_benchmarks! {
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5); //Counter remains the same as first increased by on_funds, but then decreased on kill
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
 	}
 
 
 	transfer_keep_alive {
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = setup_insufficient_asset_with_dot()?;
+		let fee_asset = setup_accepted_external_asset()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		<Currencies as MultiCurrencyExtended<AccountId>>::update_balance(HDX, &from, (10_000 * UNIT) as i128)?;
@@ -122,21 +117,19 @@ runtime_benchmarks! {
 		let to_lookup = lookup_of_account(to.clone());
 		set_period(10);
 
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
 	}: _(RawOrigin::Signed(from), to_lookup, asset_id, UNIT)
 	verify {
 		assert_eq!(<Tokens as MultiCurrency<_>>::total_balance(asset_id, &to), UNIT);
 
 		//NOTE: make sure none was killed
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 6); //Counter is increased in on_funds but not decreased on kill
 	}
 
 	force_transfer {
 		let amount = 2 * UNIT;
 
 		let asset_id = register_external_asset(b"TST".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-		let fee_asset = setup_insufficient_asset_with_dot()?;
+		let fee_asset = setup_accepted_external_asset()?;
 
 		let from: AccountId = account("from", 0, SEED);
 		let from_lookup = lookup_of_account(from.clone());
@@ -153,8 +146,7 @@ runtime_benchmarks! {
 		let to_lookup = lookup_of_account(to.clone());
 		set_period(10);
 
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5);
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 2);
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from.clone()).sufficients, 0);
 
 	}: _(RawOrigin::Root, from_lookup, to_lookup, asset_id, amount)
 	verify {
@@ -162,8 +154,7 @@ runtime_benchmarks! {
 
 		//NOTE: make sure from was killed
 		assert!(!orml_tokens::Accounts::<Runtime>::contains_key(from.clone(), asset_id));
-		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 1);
-		assert_eq!(pallet_asset_registry::ExistentialDepositCounter::<Runtime>::get(), 5); //Counter remains the same as first increased by on_funds, but then decreased on kill
+		assert_eq!(frame_system::Pallet::<Runtime>::account(from).sufficients, 0);
 	}
 
 	//NOTE: set balance bypass MutationHooks so sufficiency check is never triggered.
@@ -205,21 +196,4 @@ mod tests {
 	}
 
 	impl_benchmark_test_suite!(new_test_ext(),);
-}
-
-//TODO: make it  global func
-fn setup_insufficient_asset_with_dot() -> Result<AssetId, BenchmarkError> {
-	let dot = register_asset(b"DOT".to_vec(), 1u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	set_location(dot, DOT_ASSET_LOCATION).map_err(|_| BenchmarkError::Stop("Failed to set location for weth"))?;
-	crate::benchmarking::dca::MultiPaymentPallet::<Runtime>::add_currency(
-		RawOrigin::Root.into(),
-		dot,
-		FixedU128::from(1),
-	)
-	.map_err(|_| BenchmarkError::Stop("Failed to add supported currency"))?;
-	let insufficient_asset =
-		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	crate::benchmarking::dca::create_xyk_pool(insufficient_asset, dot);
-
-	Ok(insufficient_asset)
 }

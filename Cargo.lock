@@ -5682,7 +5682,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "13.2.3"
+version = "13.2.4"
 dependencies = [
  "approx",
  "criterion",
@@ -5808,7 +5808,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "1.15.0"
+version = "2.0.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5866,7 +5866,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "448.0.0"
+version = "455.0.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -6041,7 +6041,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "4.14.0"
+version = "5.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6224,7 +6224,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -8856,7 +8856,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.5.0"
+version = "4.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9352,7 +9352,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.21.1"
+version = "2.0.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9447,7 +9447,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.7.4"
+version = "1.8.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9633,7 +9633,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.13.0"
+version = "1.13.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9709,7 +9709,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-evm-accounts"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10037,7 +10037,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.12.0"
+version = "1.13.0"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -10070,7 +10070,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice-runtime-api"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "ice-support",
  "parity-scale-codec",
@@ -10132,7 +10132,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.11.0"
+version = "1.13.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10214,7 +10214,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.6.0"
+version = "2.6.1"
 dependencies = [
  "ethabi",
  "ethereum",
@@ -10542,7 +10542,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "2.5.0"
+version = "2.5.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10565,7 +10565,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc-settlements"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11087,7 +11087,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "10.8.0"
+version = "11.0.0"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -11295,7 +11295,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "8.2.0"
+version = "8.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14236,7 +14236,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.121.0"
+version = "1.126.1"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",
@@ -14308,6 +14308,7 @@ dependencies = [
  "pallet-gigahdx-rewards",
  "pallet-hsm",
  "pallet-ice",
+ "pallet-ice-runtime-api",
  "pallet-im-online",
  "pallet-intent",
  "pallet-lazy-executor",

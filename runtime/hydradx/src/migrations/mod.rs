@@ -18,21 +18,15 @@ use crate::Runtime;
 pub mod circuit_breaker;
 pub mod conviction_voting;
 pub mod dynamic_fees;
-pub mod parameters;
 pub mod referenda;
+pub mod remove_fee_fallbacks;
 pub mod scheduler;
 pub mod stableswap;
 
 // New migrations which need to be cleaned up after every Runtime upgrade
 pub type UnreleasedSingleBlockMigrations = (
-	parameters::SetTwoSecBlocksSince<Runtime>,
-	pallet_dca::migrations::MultiplySchedulesPeriodBy3<Runtime>,
-	circuit_breaker::MigrateCircuitBreakerTo2sBlocks<Runtime>,
-	dynamic_fees::MigrateDynamicFeeDecayTo2sBlocks<Runtime>,
-	stableswap::MigrateStableswapMaxPegUpdateTo2sBlocks<Runtime>,
-	scheduler::MigrateSchedulerTo2sBlocks<Runtime>,
-	referenda::MigrateReferendaTo2sBlocks<Runtime>,
-	conviction_voting::MigrateConvictionVotingTo2sBlocks<Runtime>,
+	pallet_ema_oracle::migrations::v3::MigrateV2ToV3<Runtime>,
+	remove_fee_fallbacks::RetireInsufficientEdPool,
 );
 
 // These migrations can run on every runtime upgrade
@@ -40,6 +34,8 @@ pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatest
 
 pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, UnreleasedSingleBlockMigrations);
 
-// Multi-block migrations executed by pallet-migrations
+// Multi-block migrations executed by pallet-migrations.
+// One-shot entries stay listed until the next release: `pallet-migrations` records completed ids,
+// so a finished migration is skipped rather than re-run.
 #[cfg(not(feature = "runtime-benchmarks"))]
 pub type MultiBlockMigrationsList = ();

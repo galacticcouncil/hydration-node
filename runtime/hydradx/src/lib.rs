@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 448,
+	spec_version: 455,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1066,7 +1066,10 @@ impl_runtime_apis! {
 				.into(),
 			})];
 
-			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter_keys().collect();
+			let mut asset_registry_locations: Vec<AssetLocation> = pallet_asset_registry::LocationAssets::<Runtime>::iter()
+				.filter(|(_, asset_id)| pallet_transaction_multi_payment::AcceptedCurrencies::<Runtime>::contains_key(asset_id))
+				.map(|(location, _)| location)
+				.collect();
 			asset_locations.append(&mut asset_registry_locations);
 
 			let versioned_locations = asset_locations.iter().map(|loc| VersionedAssetId::V5(polkadot_xcm::v5::AssetId(loc.0.clone())));
@@ -1208,6 +1211,13 @@ impl_runtime_apis! {
 					mode,
 				}
 			})
+		}
+	}
+
+	impl pallet_ice_runtime_api::LiquidityStateApi<Block> for Runtime {
+		fn liquidity_state() -> pallet_ice_runtime_api::LiquidityState {
+			let (state, existential_deposits) = pallet_ice::Pallet::<Runtime>::liquidity_state();
+			pallet_ice_runtime_api::LiquidityState { state, existential_deposits }
 		}
 	}
 

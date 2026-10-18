@@ -63,7 +63,7 @@ fn dump_solution(label: &str, solution: &ice_support::Solution) {
 	);
 	for (i, ri) in solution.resolved_intents.iter().enumerate() {
 		match &ri.data {
-			ice_support::IntentData::Swap(sw) => {
+			ice_support::IntentData::Swap(sw) | ice_support::IntentData::MatchFirstSwap { swap: sw, .. } => {
 				let partial_str = match sw.partial {
 					ice_support::Partial::No => "ice_support::Partial::No".to_string(),
 					ice_support::Partial::Yes(b) => format!("ice_support::Partial::Yes({b}u128)"),

@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.121.0"
+version = "1.126.1"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -68,6 +68,7 @@ pallet-proxy = { workspace = true }
 pallet-hsm = { workspace = true }
 pallet-intent = { workspace = true }
 pallet-ice = { workspace = true }
+pallet-ice-runtime-api = { workspace = true }
 pallet-lazy-executor = { workspace = true }
 amm-simulator = { workspace = true }
 

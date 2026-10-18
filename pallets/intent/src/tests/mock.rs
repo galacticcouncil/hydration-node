@@ -35,6 +35,7 @@ use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::IdentityLookup;
 use sp_runtime::{BuildStorage, DispatchError, DispatchResult, Permill, TransactionOutcome};
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::vec;
 
 pub(crate) const ONE_DOT: u128 = 10_000_000_000;
@@ -162,6 +163,8 @@ pub(crate) const MIN_DCA_PERIOD: u32 = 5;
 thread_local! {
 	pub static QUEUD_TASKS: RefCell<Vec<(Source, AccountId, ForwardAction)>> = RefCell::new(Vec::default());
 	pub static ORACLE_PRICE: RefCell<Option<EmaPrice>> = const { RefCell::new(None) };
+	/// Per directed pair override; falls back to `ORACLE_PRICE`.
+	pub static PAIR_ORACLE_PRICES: RefCell<BTreeMap<(AssetId, AssetId), EmaPrice>> = const { RefCell::new(BTreeMap::new()) };
 	pub static BLOCK_NUMBER: RefCell<u64> = const { RefCell::new(1) };
 }
 
@@ -184,6 +187,13 @@ pub fn set_oracle_price(price: Option<EmaPrice>) {
 	ORACLE_PRICE.with(|v| *v.borrow_mut() = price);
 }
 
+/// `n/d` = `asset_in` per `asset_out`, so `{ n: 3, d: 7 }` sells 1 `asset_in` for 7/3 `asset_out`.
+pub fn set_pair_oracle_price(asset_in: AssetId, asset_out: AssetId, price: EmaPrice) {
+	PAIR_ORACLE_PRICES.with(|v| {
+		v.borrow_mut().insert((asset_in, asset_out), price);
+	});
+}
+
 pub fn set_block_number(n: u64) {
 	BLOCK_NUMBER.with(|v| *v.borrow_mut() = n);
 }
@@ -192,8 +202,10 @@ pub struct MockOracleProvider;
 impl PriceProvider<AssetId> for MockOracleProvider {
 	type Price = EmaPrice;
 
-	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		ORACLE_PRICE.with(|v| *v.borrow())
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		PAIR_ORACLE_PRICES
+			.with(|v| v.borrow().get(&(asset_a, asset_b)).copied())
+			.or_else(|| ORACLE_PRICE.with(|v| *v.borrow()))
 	}
 }
 
@@ -302,6 +314,7 @@ impl pallet_intent::Config for Test {
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type MinDcaPeriod = MinDcaPeriod;
 	type MaxDcaSlippage = MaxDcaSlippage;
+	type DcaEarlyWindow = ConstU32<4>;
 	type SettlementEnabled = SettlementEnabledMock;
 	type MaxIntentsPerAccount = ConstU32<5>;
 	type WeightInfo = ();
@@ -318,6 +331,7 @@ impl Default for ExtBuilder {
 			v.borrow_mut().clear();
 		});
 		ORACLE_PRICE.with(|v| *v.borrow_mut() = None);
+		PAIR_ORACLE_PRICES.with(|v| v.borrow_mut().clear());
 		BLOCK_NUMBER.with(|v| *v.borrow_mut() = 1);
 
 		Self {
