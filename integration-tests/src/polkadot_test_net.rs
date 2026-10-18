@@ -21,7 +21,7 @@ pub use hydradx_traits::{evm::InspectEvmAccounts, registry::Mutate};
 pub use num_traits::Zero;
 use pallet_referrals::{FeeDistribution, Level};
 use polkadot_primitives::runtime_api::runtime_decl_for_parachain_host::ParachainHostV13;
-pub use polkadot_primitives::v8::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+pub use polkadot_primitives::v9::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::storage::Storage;
@@ -35,7 +35,7 @@ use xcm_emulator::{decl_test_networks, decl_test_parachains, decl_test_relay_cha
 pub struct XcmpQueueWithPrices;
 
 impl polkadot_parachain::primitives::XcmpMessageHandler for XcmpQueueWithPrices {
-	fn handle_xcmp_messages<'a, I: Iterator<Item = (ParaId, polkadot_primitives::v8::BlockNumber, &'a [u8])>>(
+	fn handle_xcmp_messages<'a, I: Iterator<Item = (ParaId, polkadot_primitives::v9::BlockNumber, &'a [u8])>>(
 		iter: I,
 		max_weight: frame_support::weights::Weight,
 	) -> frame_support::weights::Weight {
