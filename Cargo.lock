@@ -11535,8 +11535,9 @@ dependencies = [
 
 [[package]]
 name = "pepl-worker"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "amm-simulator",
  "clap",
  "cumulus-primitives-core",
  "ethabi",
@@ -11550,12 +11551,14 @@ dependencies = [
  "hex",
  "hex-literal",
  "hydradx-runtime",
+ "hydradx-traits",
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
  "log",
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
  "pallet-evm",
+ "pallet-ice-runtime-api",
  "pallet-liquidation",
  "parity-scale-codec",
  "pepl-worker-support",
@@ -11576,7 +11579,7 @@ dependencies = [
 
 [[package]]
 name = "pepl-worker-support"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ethabi",
  "evm",

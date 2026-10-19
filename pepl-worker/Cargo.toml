@@ -1,6 +1,6 @@
 [package]
 name = "pepl-worker"
-version = "0.1.0"
+version = "0.2.0"
 description = "PEPL Liquidation Worker"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -39,6 +39,9 @@ fp-rpc = { workspace = true }
 sp-arithmetic = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
 xcm-runtime-apis = { workspace = true }
+amm-simulator = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true, features = ["std"] }
+pallet-ice-runtime-api = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

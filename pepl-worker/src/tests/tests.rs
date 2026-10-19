@@ -137,6 +137,8 @@ fn map_decision_collateral_should_pass_through_when_market_is_generic() {
 		user: H160::repeat_byte(0xAB),
 		debt_to_cover: 1_000,
 		priority: 7,
+		collateral_amount: 2_000,
+		route: Route::new(),
 	};
 
 	let mapped = map_decision_collateral(&decision, InstanceKind::Generic, &HashMap::new(), "test")
@@ -154,6 +156,8 @@ fn map_decision_collateral_should_replace_underlying_with_atoken_when_market_is_
 		user: H160::repeat_byte(0xAB),
 		debt_to_cover: 1_000,
 		priority: 7,
+		collateral_amount: 2_000,
+		route: Route::new(),
 	};
 	let atoken_map = HashMap::from([(670u32, 67u32)]); // stHDX -> GIGAHDX aToken
 
@@ -177,6 +181,8 @@ fn map_decision_collateral_should_return_none_when_atoken_mapping_is_missing() {
 		user: H160::repeat_byte(0xAB),
 		debt_to_cover: 1_000,
 		priority: 7,
+		collateral_amount: 2_000,
+		route: Route::new(),
 	};
 
 	assert_eq!(
@@ -197,6 +203,19 @@ fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_give
 		user: H160::repeat_byte(0xAB),
 		debt_to_cover: 123_456,
 		priority: 42,
+		collateral_amount: 200_000,
+		route: Route::truncate_from(vec![
+			hydradx_traits::router::Trade {
+				pool: hydradx_traits::router::PoolType::Stableswap(100),
+				asset_in: 5,
+				asset_out: 2,
+			},
+			hydradx_traits::router::Trade {
+				pool: hydradx_traits::router::PoolType::Omnipool,
+				asset_in: 2,
+				asset_out: 10,
+			},
+		]),
 	};
 	let market_pool = H160::repeat_byte(0x77);
 
@@ -212,7 +231,7 @@ fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_give
 			user,
 			debt_to_cover,
 			unsigned_priority,
-			..
+			route,
 		}) => {
 			assert_eq!(pool, market_pool);
 			assert_eq!(collateral_asset, 5);
@@ -220,6 +239,7 @@ fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_give
 			assert_eq!(user, H160::repeat_byte(0xAB));
 			assert_eq!(debt_to_cover, 123_456);
 			assert_eq!(unsigned_priority, Some(42));
+			assert_eq!(route, decision.route);
 		}
 		other => panic!("unexpected call encoded: {other:?}"),
 	}
@@ -891,4 +911,66 @@ fn apply_oracle_updates_should_leave_derived_reserve_when_base_price_is_unknown(
 	assert!(decisions.is_empty());
 
 	assert_eq!(price_of(&mm, "stHDX"), U256::from(250u32));
+}
+
+fn routable_decision(collateral_asset: AssetId, debt_asset: AssetId) -> LiquidationDecision {
+	LiquidationDecision {
+		collateral_asset,
+		debt_asset,
+		user: sp_core::H160::repeat_byte(0xAB),
+		debt_to_cover: 1_000,
+		priority: 7,
+		collateral_amount: 2_000,
+		route: Route::new(),
+	}
+}
+
+// Pre-upgrade runtime or undecodable snapshot: keep the empty route so the router falls back to
+// its stored routes, exactly as before routing existed.
+#[test]
+fn route_decision_should_keep_empty_route_when_liquidity_state_is_unavailable() {
+	let decision = routable_decision(690, 44);
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, None, decision.clone(), "test"),
+		Some(decision)
+	);
+}
+
+#[test]
+fn decode_liquidity_state_should_return_none_when_snapshot_is_malformed() {
+	assert!(routing::decode_liquidity_state(&[0xFF, 0x01], "test").is_none());
+}
+
+#[test]
+fn first_viable_liquidation_should_return_next_option_when_first_dry_run_fails() {
+	let pool = EvmAddress::repeat_byte(0x11);
+	let failing = routable_decision(690, 44);
+	let viable = routable_decision(5, 10);
+	let dry_runs = AtomicUsize::new(0);
+	let mut verdicts = vec![
+		DryRun::WouldSucceed,
+		DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
+	];
+	let mut dry_run_calls = Vec::new();
+
+	let call = first_viable_liquidation(
+		pool,
+		InstanceKind::Generic,
+		vec![failing.clone(), viable.clone()],
+		None,
+		&dry_runs,
+		|call| {
+			dry_run_calls.push(call);
+			verdicts.pop().expect("one verdict per dry run")
+		},
+		"test",
+	);
+
+	assert_eq!(call, Some(liquidation_call(&viable, pool)));
+	assert_eq!(
+		dry_run_calls,
+		vec![liquidation_call(&failing, pool), liquidation_call(&viable, pool)]
+	);
+	assert_eq!(dry_runs.load(Ordering::Relaxed), 2);
 }
