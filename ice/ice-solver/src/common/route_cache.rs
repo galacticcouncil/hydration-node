@@ -5,6 +5,7 @@
 //! route set) and existential deposits are memoized because on chain they are a
 //! registry read the resolution stages ask for over and over.
 
+use crate::common::split::Tolerance;
 use hydradx_traits::amm::AMMInterface;
 use hydradx_traits::router::Route;
 use ice_support::{AssetId, Balance};
@@ -20,6 +21,7 @@ pub struct RouteCache<A: AMMInterface> {
 	existential_deposits: BTreeMap<AssetId, Balance>,
 	/// Directed pairs with no route at all — reported in the solve summary.
 	unroutable: BTreeSet<(AssetId, AssetId)>,
+	pub tolerance: Tolerance,
 	_phantom: PhantomData<A>,
 }
 
@@ -35,6 +37,7 @@ impl<A: AMMInterface> RouteCache<A> {
 			routes: BTreeMap::new(),
 			existential_deposits: BTreeMap::new(),
 			unroutable: BTreeSet::new(),
+			tolerance: Tolerance::default(),
 			_phantom: PhantomData,
 		}
 	}
@@ -87,9 +90,15 @@ impl<A: AMMInterface> RouteCache<A> {
 			let Ok((new_state, exec)) = A::sell(asset_in, asset_out, amount_in, route.clone(), state) else {
 				continue;
 			};
-			// `>=` keeps the last maximum on ties; the route list is
-			// deterministic, so the choice is stable across collators.
-			if best.as_ref().map(|(_, out, _)| exec.amount_out >= *out).unwrap_or(true) {
+			// Ranked on the claim: venues are haircut differently. `>=` keeps the
+			// last maximum on ties; the route list is deterministic, so the choice
+			// is stable across collators.
+			let rank = |r: &Route<AssetId>, out: Balance| (self.tolerance.adjust(r, out), out);
+			if best
+				.as_ref()
+				.map(|(r, out, _)| rank(&route, exec.amount_out) >= rank(r, *out))
+				.unwrap_or(true)
+			{
 				best = Some((route, exec.amount_out, new_state));
 			}
 		}

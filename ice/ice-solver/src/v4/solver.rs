@@ -35,7 +35,7 @@ use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
 use crate::common::split::{
-	self, adjust_amm_output, adjust_amm_output_strict, Leg, Routed, SellBudget, LIGHT_SPLIT_GRID, SPLIT_GRID,
+	self, Leg, Routed, SellBudget, Tolerance, LIGHT_SPLIT_GRID, SPLIT_GRID,
 };
 use crate::common::FlowDirection;
 use crate::common::RouteCache;
@@ -199,9 +199,11 @@ struct SolveCache<A: AMMInterface> {
 }
 
 impl<A: AMMInterface> SolveCache<A> {
-	fn new(split: SplitConfig, min_partial_fill: Permill) -> Self {
+	fn new(split: SplitConfig, min_partial_fill: Permill, tolerance: Tolerance) -> Self {
+		let mut route_cache = RouteCache::new();
+		route_cache.tolerance = tolerance;
 		Self {
-			route_cache: RouteCache::new(),
+			route_cache,
 			quotes: BTreeMap::new(),
 			split,
 			fitting_budget: SellBudget::new(split.sell_budget),
@@ -213,6 +215,10 @@ impl<A: AMMInterface> SolveCache<A> {
 
 	fn ed(&mut self, asset: AssetId) -> Balance {
 		self.route_cache.ed(asset)
+	}
+
+	fn tolerance(&self) -> Tolerance {
+		self.route_cache.tolerance
 	}
 
 	/// Cached route set for a directed pair; empty when discovery failed.
@@ -357,11 +363,11 @@ fn legs_within(max_legs: u8, spare_legs: usize, trades_left: usize) -> u8 {
 	max_legs.min(u8::try_from(room).unwrap_or(u8::MAX))
 }
 
-fn pool_trade(leg: &Leg) -> PoolTrade {
+fn pool_trade(leg: &Leg, tolerance: &Tolerance) -> PoolTrade {
 	PoolTrade {
 		direction: SwapType::ExactIn,
 		amount_in: leg.amount_in,
-		amount_out: leg.claimed_out(),
+		amount_out: leg.claimed_out(tolerance),
 		route: leg.route.clone(),
 	}
 }
@@ -715,15 +721,16 @@ impl<A: AMMInterface> Solver<A> {
 		state: &A::State,
 		cache: &mut SolveCache<A>,
 	) -> (Option<Balance>, Option<Balance>) {
+		let tol = cache.tolerance();
 		let quote_f = |cache: &mut SolveCache<A>, amount: Balance| {
 			cache
-				.quote_out(ctx.asset_a, ctx.asset_b, amount, state)
-				.map(adjust_amm_output_strict)
+				.quote(ctx.asset_a, ctx.asset_b, amount, state)
+				.map(|legs| split::claimed_out_strict(legs, &tol))
 		};
 		let quote_b = |cache: &mut SolveCache<A>, amount: Balance| {
 			cache
-				.quote_out(ctx.asset_b, ctx.asset_a, amount, state)
-				.map(adjust_amm_output_strict)
+				.quote(ctx.asset_b, ctx.asset_a, amount, state)
+				.map(|legs| split::claimed_out_strict(legs, &tol))
 		};
 
 		if v_f == 0 && v_b == 0 {
@@ -1243,6 +1250,7 @@ impl<A: AMMInterface> Solver<A> {
 		cache: &mut SolveCache<A>,
 		fee_ctx: FeeCtx,
 	) -> (Vec<ResolvedIntent>, Vec<PoolTrade>, Balance) {
+		let tol = cache.tolerance();
 		let fill_of = |intent: &Intent| -> Balance {
 			match &intent.data {
 				IntentData::Swap(s) => fills.get(&intent.id).copied().unwrap_or_else(|| s.remaining()),
@@ -1352,15 +1360,15 @@ impl<A: AMMInterface> Solver<A> {
 				if !routed
 					.legs
 					.iter()
-					.all(|l| Self::trade_is_executable(cache, sx, d.0, l.amount_in, l.claimed_out()))
+					.all(|l| Self::trade_is_executable(cache, sx, d.0, l.amount_in, l.claimed_out(&tol)))
 				{
 					continue;
 				}
 				spare_legs = spare_legs.saturating_sub(routed.legs.len() - 1);
-				executed_trades.extend(routed.legs.iter().map(pool_trade));
+				executed_trades.extend(routed.legs.iter().map(|l| pool_trade(l, &tol)));
 				// A split leaves rounding dust of `amount` in the pot.
 				add(&mut pool_in, sx, split::amount_in(&routed.legs));
-				add(&mut pool_out, d.0, split::claimed_out(&routed.legs));
+				add(&mut pool_out, d.0, split::claimed_out(&routed.legs, &tol));
 				state = routed.state;
 				// Only a trade that was actually emitted consumes the imbalance;
 				// otherwise the surplus stays available for the next deficit asset.
@@ -1441,6 +1449,7 @@ impl<A: AMMInterface> Solver<A> {
 		cache: &mut SolveCache<A>,
 		fee_ctx: FeeCtx,
 	) -> (Vec<ResolvedIntent>, Vec<PoolTrade>, Balance) {
+		let tol = cache.tolerance();
 		// Ring detection, capped at the solver-decided fills.
 		let graph_entries: Vec<(&Intent, Balance)> = included
 			.iter()
@@ -1534,13 +1543,13 @@ impl<A: AMMInterface> Solver<A> {
 				if !routed
 					.legs
 					.iter()
-					.all(|l| Self::trade_is_executable(cache, sell_asset, buy_asset, l.amount_in, l.claimed_out()))
+					.all(|l| Self::trade_is_executable(cache, sell_asset, buy_asset, l.amount_in, l.claimed_out(&tol)))
 				{
 					return None;
 				}
 				spare_legs = spare_legs.saturating_sub(routed.legs.len() - 1);
-				let out = split::claimed_out(&routed.legs);
-				executed_trades.extend(routed.legs.iter().map(pool_trade));
+				let out = split::claimed_out(&routed.legs, &tol);
+				executed_trades.extend(routed.legs.iter().map(|l| pool_trade(l, &tol)));
 				*state = routed.state;
 				Some(out)
 			};
@@ -1833,11 +1842,12 @@ impl<A: AMMInterface> Solver<A> {
 			if amount < ed_in.max(1) {
 				return None;
 			}
-			let simulated = cache.quote_out(swap.asset_in, swap.asset_out, amount, initial_state)?;
-			// `adjust_amm_output >= ed_out` is both the resolved-intent guard and,
-			// for a one-leg quote, the trade guard; split legs clear both EDs already.
-			(rate_meets_limit(adjust_amm_output_strict(simulated), amount, min_n, swap.amount_in)
-				&& adjust_amm_output(simulated) >= ed_out.max(1))
+			let tol = cache.tolerance();
+			let legs = cache.quote(swap.asset_in, swap.asset_out, amount, initial_state)?;
+			// The claim `>= ed_out` is both the resolved-intent guard and, for a
+			// one-leg quote, the trade guard; split legs clear both EDs already.
+			(rate_meets_limit(split::claimed_out_strict(legs, &tol), amount, min_n, swap.amount_in)
+				&& split::claimed_out(legs, &tol) >= ed_out.max(1))
 			.then_some(amount)
 		};
 
@@ -1883,6 +1893,7 @@ impl<A: AMMInterface> Solver<A> {
 		let Some(actual_fill) = result else {
 			return Ok(empty_solution());
 		};
+		let tol = cache.tolerance();
 		let Some(mut legs) = cache
 			.quote(swap.asset_in, swap.asset_out, actual_fill, initial_state)
 			.cloned()
@@ -1894,14 +1905,14 @@ impl<A: AMMInterface> Solver<A> {
 		let max_legs = cache.split.max_legs;
 		if max_legs > 1 {
 			if let Some(full) = cache.transfer(swap.asset_in, swap.asset_out, actual_fill, initial_state, max_legs) {
-				if split::claimed_out(&full.legs) > split::claimed_out(&legs) {
+				if split::claimed_out(&full.legs, &tol) > split::claimed_out(&legs, &tol) {
 					legs = full.legs;
 				}
 			}
 		}
 		// Paid exactly what the legs claim, which is at least the haircut total
 		// the fill was checked against.
-		let net_out = split::claimed_out(&legs);
+		let net_out = split::claimed_out(&legs, &tol);
 
 		let surplus = net_out.saturating_sub(apply_rate(actual_fill, score_n, min_d));
 
@@ -1918,7 +1929,7 @@ impl<A: AMMInterface> Solver<A> {
 
 		Ok(Solution::new(
 			ResolvedIntents::truncate_from(vec![resolved]),
-			SolutionTrades::truncate_from(legs.iter().map(pool_trade).collect()),
+			SolutionTrades::truncate_from(legs.iter().map(|l| pool_trade(l, &tol)).collect()),
 			surplus,
 		))
 	}
@@ -1932,7 +1943,7 @@ impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 		matched_fee: Permill,
 		options: &SolverOptions,
 	) -> Result<Solution, A::Error> {
-		let mut cache = SolveCache::<A>::new(options.split, options.min_partial_fill);
+		let mut cache = SolveCache::<A>::new(options.split, options.min_partial_fill, options.tolerance);
 		let solution = Self::run_solve(&intents, &min_outs, &initial_state, matched_fee, &mut cache)?;
 		if !cache.split_used {
 			return Ok(solution);
@@ -1940,7 +1951,8 @@ impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 		// A split is chosen transfer by transfer, so it can use up a pool a later
 		// transfer, or another pair's fitting quote, counted on. Keep the batch's
 		// split solution only when it does not come out worse on single routes.
-		let mut single_cache = SolveCache::<A>::new(SplitConfig::disabled(), options.min_partial_fill);
+		let mut single_cache =
+			SolveCache::<A>::new(SplitConfig::disabled(), options.min_partial_fill, options.tolerance);
 		let Ok(single) = Self::run_solve(&intents, &min_outs, &initial_state, matched_fee, &mut single_cache) else {
 			return Ok(solution);
 		};

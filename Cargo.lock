@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.7.1"
+version = "15.7.2"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -6141,7 +6141,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",

@@ -24,7 +24,7 @@ use super::harness::{
 };
 use super::PATH_TO_SNAPSHOT;
 use hydradx_traits::amm::SimulatorSet;
-use ice_solver::common::split::{adjust_amm_output, claimed_out, SellBudget, SPLIT_GRID};
+use ice_solver::common::split::{claimed_out, SellBudget, SPLIT_GRID};
 use ice_solver::common::RouteCache;
 use sp_core::U256;
 use std::collections::{BTreeMap, BTreeSet};
@@ -379,7 +379,7 @@ fn probe_split_gains_on_real_state() {
 						continue;
 					}
 					let routes = cache.routes(a, b, &state).len();
-					let Some((_, single_out, _)) = cache.best_sell(a, b, amount, &state) else {
+					let Some((single_route, single_out, _)) = cache.best_sell(a, b, amount, &state) else {
 						continue;
 					};
 					routable += 1;
@@ -395,7 +395,8 @@ fn probe_split_gains_on_real_state() {
 					if routed.legs.len() < 2 {
 						continue;
 					}
-					let gain = claimed_out(&routed.legs).saturating_sub(adjust_amm_output(single_out));
+					let gain = claimed_out(&routed.legs, &cache.tolerance)
+						.saturating_sub(cache.tolerance.adjust(&single_route, single_out));
 					let legs: Vec<(Vec<PoolType<AssetId>>, u128)> = routed
 						.legs
 						.iter()
