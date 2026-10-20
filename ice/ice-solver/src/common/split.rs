@@ -17,10 +17,6 @@ use sp_std::vec::Vec;
 
 const LOG_TARGET: &str = "solver::split";
 
-/// AMM outputs are haircut by 1 bps so the on-chain execution can never
-/// undershoot the solver's claim.
-const AMM_SIMULATION_TOLERANCE_BPS: Balance = 1;
-
 /// Candidate sizes per extra route in trade building (5 % steps).
 pub const SPLIT_GRID: u32 = 20;
 /// Coarser grid for fitting quotes, which the crossing requests up to 128 times
@@ -42,20 +38,114 @@ const MAX_CANDIDATES: usize = 4;
 /// an aToken can overdraw by a wei where one would not.
 const ROUNDING_DUST: Balance = 2;
 
-pub fn adjust_amm_output(simulated_out: Balance) -> Balance {
-	simulated_out.saturating_sub(simulated_out * AMM_SIMULATION_TOLERANCE_BPS / 10_000)
+/// Haircut on one hop of a given venue.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct HopTolerance {
+	pub ppm: u32,
+	/// Flat, for venues whose error is rounding rather than drift.
+	pub units: Balance,
 }
 
-/// [`adjust_amm_output`] with the tolerance rounded up, for deciding whether a
-/// trade clears a limit. Rounded down, the tolerance vanishes on a small enough
-/// trade, and a limit the market misses by less than the tolerance is then filled
-/// in slivers no larger trade at the same rate could clear.
-pub fn adjust_amm_output_strict(simulated_out: Balance) -> Balance {
-	simulated_out.saturating_sub(
-		simulated_out
-			.saturating_mul(AMM_SIMULATION_TOLERANCE_BPS)
-			.div_ceil(10_000),
-	)
+/// How far below the simulation a trade claims, so on-chain execution never
+/// undershoots it: `route_ppm` plus each hop's `ppm` of the output, plus each
+/// hop's `units`. Hops add up because their errors compound.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Tolerance {
+	pub route_ppm: u32,
+	pub omnipool: HopTolerance,
+	pub stableswap: HopTolerance,
+	pub xyk: HopTolerance,
+	pub lbp: HopTolerance,
+	pub aave: HopTolerance,
+	pub hsm: HopTolerance,
+	pub uniswap_v3: HopTolerance,
+}
+
+impl Default for Tolerance {
+	/// A flat 1 bps per route.
+	fn default() -> Self {
+		Self {
+			route_ppm: 100,
+			omnipool: HopTolerance::default(),
+			stableswap: HopTolerance::default(),
+			xyk: HopTolerance::default(),
+			lbp: HopTolerance::default(),
+			aave: HopTolerance::default(),
+			hsm: HopTolerance::default(),
+			uniswap_v3: HopTolerance::default(),
+		}
+	}
+}
+
+impl Tolerance {
+	fn hop(&self, pool: &PoolType<AssetId>) -> HopTolerance {
+		match pool {
+			PoolType::Omnipool => self.omnipool,
+			PoolType::Stableswap(_) => self.stableswap,
+			PoolType::XYK => self.xyk,
+			PoolType::LBP => self.lbp,
+			PoolType::Aave => self.aave,
+			PoolType::HSM => self.hsm,
+			PoolType::UniswapV3(_) => self.uniswap_v3,
+		}
+	}
+
+	fn haircut(&self, route: &Route<AssetId>, out: Balance, round_up: bool) -> Balance {
+		let (ppm, units) = route.iter().fold((self.route_ppm, 0 as Balance), |(p, u), t| {
+			let h = self.hop(&t.pool);
+			(p.saturating_add(h.ppm), u.saturating_add(h.units))
+		});
+		let scaled = U256::from(out) * U256::from(ppm);
+		let share = if round_up {
+			scaled.saturating_add(U256::from(999_999u32)) / 1_000_000u32
+		} else {
+			scaled / 1_000_000u32
+		};
+		Balance::try_from(share).unwrap_or(Balance::MAX).saturating_add(units)
+	}
+
+	/// `key=ppm[+units],...` over the default, keys `route`, `omnipool`,
+	/// `stableswap`, `xyk`, `lbp`, `aave`, `hsm`, `uniswapv3`; `route` takes no units.
+	pub fn parse(spec: &str) -> Result<Self, &'static str> {
+		let mut t = Self::default();
+		for item in spec.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+			let (key, value) = item.split_once('=').ok_or("expected key=ppm[+units]")?;
+			let (ppm, units) = value.split_once('+').unwrap_or((value, "0"));
+			let hop = HopTolerance {
+				ppm: ppm.trim().parse().map_err(|_| "ppm must be a u32")?,
+				units: units.trim().parse().map_err(|_| "units must be a u128")?,
+			};
+			let slot = match key.trim() {
+				"route" if hop.units == 0 => {
+					t.route_ppm = hop.ppm;
+					continue;
+				}
+				"route" => return Err("route takes no units"),
+				"omnipool" => &mut t.omnipool,
+				"stableswap" => &mut t.stableswap,
+				"xyk" => &mut t.xyk,
+				"lbp" => &mut t.lbp,
+				"aave" => &mut t.aave,
+				"hsm" => &mut t.hsm,
+				"uniswapv3" => &mut t.uniswap_v3,
+				_ => return Err("unknown venue"),
+			};
+			*slot = hop;
+		}
+		Ok(t)
+	}
+
+	pub fn adjust(&self, route: &Route<AssetId>, simulated_out: Balance) -> Balance {
+		simulated_out.saturating_sub(self.haircut(route, simulated_out, false))
+	}
+
+	/// [`Self::adjust`] with the tolerance rounded up, for deciding whether a
+	/// trade clears a limit. Rounded down, the tolerance vanishes on a small enough
+	/// trade, and a limit the market misses by less than the tolerance is then filled
+	/// in slivers no larger trade at the same rate could clear.
+	pub fn adjust_strict(&self, route: &Route<AssetId>, simulated_out: Balance) -> Balance {
+		simulated_out.saturating_sub(self.haircut(route, simulated_out, true))
+	}
 }
 
 /// One `ExactIn` trade of a transfer; `amount_out` is the raw simulated output.
@@ -68,8 +158,12 @@ pub struct Leg {
 
 impl Leg {
 	/// The trade's on-chain `min_amount_out`.
-	pub fn claimed_out(&self) -> Balance {
-		adjust_amm_output(self.amount_out)
+	pub fn claimed_out(&self, tolerance: &Tolerance) -> Balance {
+		tolerance.adjust(&self.route, self.amount_out)
+	}
+
+	pub fn claimed_out_strict(&self, tolerance: &Tolerance) -> Balance {
+		tolerance.adjust_strict(&self.route, self.amount_out)
 	}
 }
 
@@ -81,8 +175,14 @@ pub fn raw_out(legs: &[Leg]) -> Balance {
 	legs.iter().fold(0, |acc, l| acc.saturating_add(l.amount_out))
 }
 
-pub fn claimed_out(legs: &[Leg]) -> Balance {
-	legs.iter().fold(0, |acc, l| acc.saturating_add(l.claimed_out()))
+pub fn claimed_out(legs: &[Leg], tolerance: &Tolerance) -> Balance {
+	legs.iter()
+		.fold(0, |acc, l| acc.saturating_add(l.claimed_out(tolerance)))
+}
+
+pub fn claimed_out_strict(legs: &[Leg], tolerance: &Tolerance) -> Balance {
+	legs.iter()
+		.fold(0, |acc, l| acc.saturating_add(l.claimed_out_strict(tolerance)))
 }
 
 /// A transfer's legs in emission order and the state after all of them.
@@ -123,6 +223,7 @@ struct Pair {
 	asset_out: AssetId,
 	ed_in: Balance,
 	ed_out: Balance,
+	tolerance: Tolerance,
 }
 
 /// One budgeted simulation, `None` unless `submit_solution` would execute it:
@@ -142,7 +243,7 @@ fn leg<A: AMMInterface>(
 	let Ok((next, exec)) = A::sell(pair.asset_in, pair.asset_out, amount_in, route.clone(), state) else {
 		return Ok(None);
 	};
-	if adjust_amm_output(exec.amount_out) < pair.ed_out {
+	if pair.tolerance.adjust(route, exec.amount_out) < pair.ed_out {
 		return Ok(None);
 	}
 	Ok(Some((next, exec.amount_out)))
@@ -274,6 +375,7 @@ impl<A: AMMInterface> RouteCache<A> {
 				asset_out,
 				ed_in: self.ed(asset_in).max(1),
 				ed_out: self.ed(asset_out).max(1),
+				tolerance: self.tolerance,
 			};
 			let routes = self.routes(asset_in, asset_out, state).to_vec();
 			let legs = max_legs.min(MAX_SPLIT_LEGS);
@@ -373,7 +475,7 @@ fn split<A: AMMInterface>(
 		}
 	}
 
-	let base = single.claimed_out();
+	let base = single.claimed_out(&pair.tolerance);
 	let mut best: Option<(Balance, Routed<A::State>)> = None;
 	for set in sets {
 		let set_sizes: Vec<Vec<Balance>> = set.iter().map(|&c| sizes[c].clone()).collect();
@@ -404,7 +506,7 @@ fn split<A: AMMInterface>(
 			let Some(routed) = materialise::<A>(pair, routes, &plan, state, budget)? else {
 				continue;
 			};
-			let out = claimed_out(&routed.legs);
+			let out = claimed_out(&routed.legs, &pair.tolerance);
 			if !clears_margin(out, base, &routed.legs, &single.route) {
 				continue;
 			}
