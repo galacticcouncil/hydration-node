@@ -77,8 +77,16 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 
+parameter_types! {
+	pub TechCommitteeMembers: Vec<AccountId> = vec![BOB];
+}
+
 impl parameters::Config for Test {
 	type AuthorityOrigin = frame_system::EnsureRoot<AccountId>;
+	type EmergencyOrigin = frame_support::traits::EitherOfDiverse<
+		frame_system::EnsureRoot<AccountId>,
+		frame_system::EnsureSignedBy<frame_support::traits::IsInVec<TechCommitteeMembers>, AccountId>,
+	>;
 }
 
 parameter_types! {
