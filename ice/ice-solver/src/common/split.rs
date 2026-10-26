@@ -48,7 +48,8 @@ pub struct HopTolerance {
 
 /// How far below the simulation a trade claims, so on-chain execution never
 /// undershoots it: `route_ppm` plus each hop's `ppm` of the output, plus each
-/// hop's `units`. Hops add up because their errors compound.
+/// hop's `units` carried through the hops after it. Hops add up because their
+/// errors compound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Tolerance {
 	pub route_ppm: u32,
@@ -90,18 +91,42 @@ impl Tolerance {
 		}
 	}
 
-	fn haircut(&self, route: &Route<AssetId>, out: Balance, round_up: bool) -> Balance {
-		let (ppm, units) = route.iter().fold((self.route_ppm, 0 as Balance), |(p, u), t| {
-			let h = self.hop(&t.pool);
-			(p.saturating_add(h.ppm), u.saturating_add(h.units))
-		});
-		let scaled = U256::from(out) * U256::from(ppm);
+	fn claim(&self, leg: &Leg, round_up: bool) -> Balance {
+		let ppm = leg
+			.route
+			.iter()
+			.fold(self.route_ppm, |p, t| p.saturating_add(self.hop(&t.pool).ppm));
+		let scaled = U256::from(leg.amount_out) * U256::from(ppm);
 		let share = if round_up {
 			scaled.saturating_add(U256::from(999_999u32)) / 1_000_000u32
 		} else {
 			scaled / 1_000_000u32
 		};
-		Balance::try_from(share).unwrap_or(Balance::MAX).saturating_add(units)
+		let haircut = Balance::try_from(share)
+			.unwrap_or(Balance::MAX)
+			.saturating_add(leg.units);
+		leg.amount_out.saturating_sub(haircut)
+	}
+
+	/// Every hop's `units` in the route's output asset, given each hop's output.
+	/// A hop that delivers `units` less shrinks the hops after it by at most their
+	/// average rate — a marginal rate never beats it — so each is scaled by
+	/// `out / hop_out`, rounded up.
+	pub fn units_out(&self, route: &Route<AssetId>, hop_outs: &[Balance]) -> Balance {
+		let out = hop_outs.last().copied().unwrap_or_default();
+		route.iter().zip(hop_outs).fold(0, |acc: Balance, (t, &hop_out)| {
+			let units = self.hop(&t.pool).units;
+			let scaled = if units == 0 || hop_out == out {
+				units
+			} else if hop_out == 0 {
+				Balance::MAX
+			} else {
+				let n = U256::from(units) * U256::from(out);
+				let d = U256::from(hop_out);
+				Balance::try_from((n + d - 1) / d).unwrap_or(Balance::MAX)
+			};
+			acc.saturating_add(scaled)
+		})
 	}
 
 	/// `key=ppm[+units],...` over the default, keys `route`, `omnipool`,
@@ -134,18 +159,6 @@ impl Tolerance {
 		}
 		Ok(t)
 	}
-
-	pub fn adjust(&self, route: &Route<AssetId>, simulated_out: Balance) -> Balance {
-		simulated_out.saturating_sub(self.haircut(route, simulated_out, false))
-	}
-
-	/// [`Self::adjust`] with the tolerance rounded up, for deciding whether a
-	/// trade clears a limit. Rounded down, the tolerance vanishes on a small enough
-	/// trade, and a limit the market misses by less than the tolerance is then filled
-	/// in slivers no larger trade at the same rate could clear.
-	pub fn adjust_strict(&self, route: &Route<AssetId>, simulated_out: Balance) -> Balance {
-		simulated_out.saturating_sub(self.haircut(route, simulated_out, true))
-	}
 }
 
 /// One `ExactIn` trade of a transfer; `amount_out` is the raw simulated output.
@@ -154,16 +167,77 @@ pub struct Leg {
 	pub route: Route<AssetId>,
 	pub amount_in: Balance,
 	pub amount_out: Balance,
+	/// The hops' fixed tolerance in the output asset, see [`Tolerance::units_out`].
+	pub units: Balance,
 }
 
 impl Leg {
-	/// The trade's on-chain `min_amount_out`.
-	pub fn claimed_out(&self, tolerance: &Tolerance) -> Balance {
-		tolerance.adjust(&self.route, self.amount_out)
+	/// `A::sell` as a leg. Hop by hop — the sequence `A::sell` runs — only when an
+	/// intermediate hop has fixed units, the one case its amount is needed for.
+	pub fn sell<A: AMMInterface>(
+		tolerance: &Tolerance,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		route: Route<AssetId>,
+		state: &A::State,
+	) -> Result<(A::State, Self), A::Error> {
+		let intermediate = route.len().saturating_sub(1);
+		if route
+			.iter()
+			.take(intermediate)
+			.all(|t| tolerance.hop(&t.pool).units == 0)
+		{
+			let (next, exec) = A::sell(asset_in, asset_out, amount_in, route.clone(), state)?;
+			let units = route.last().map_or(0, |t| tolerance.hop(&t.pool).units);
+			return Ok((
+				next,
+				Self {
+					route,
+					amount_in,
+					amount_out: exec.amount_out,
+					units,
+				},
+			));
+		}
+		let mut current = state.clone();
+		let mut amount = amount_in;
+		let mut hop_outs = Vec::with_capacity(route.len());
+		for t in route.iter() {
+			let (next, exec) = A::sell(
+				t.asset_in,
+				t.asset_out,
+				amount,
+				Route::truncate_from(vec![*t]),
+				&current,
+			)?;
+			current = next;
+			amount = exec.amount_out;
+			hop_outs.push(amount);
+		}
+		let units = tolerance.units_out(&route, &hop_outs);
+		Ok((
+			current,
+			Self {
+				route,
+				amount_in,
+				amount_out: amount,
+				units,
+			},
+		))
 	}
 
+	/// The trade's on-chain `min_amount_out`.
+	pub fn claimed_out(&self, tolerance: &Tolerance) -> Balance {
+		tolerance.claim(self, false)
+	}
+
+	/// [`Self::claimed_out`] with the tolerance rounded up, for deciding whether a
+	/// trade clears a limit. Rounded down, the tolerance vanishes on a small enough
+	/// trade, and a limit the market misses by less than the tolerance is then filled
+	/// in slivers no larger trade at the same rate could clear.
 	pub fn claimed_out_strict(&self, tolerance: &Tolerance) -> Balance {
-		tolerance.adjust_strict(&self.route, self.amount_out)
+		tolerance.claim(self, true)
 	}
 }
 
@@ -235,18 +309,25 @@ fn leg<A: AMMInterface>(
 	amount_in: Balance,
 	state: &A::State,
 	budget: &mut SellBudget,
-) -> Result<Option<(A::State, Balance)>, Exhausted> {
+) -> Result<Option<(A::State, Leg)>, Exhausted> {
 	if amount_in < pair.ed_in {
 		return Ok(None);
 	}
 	budget.take()?;
-	let Ok((next, exec)) = A::sell(pair.asset_in, pair.asset_out, amount_in, route.clone(), state) else {
+	let Ok((next, leg)) = Leg::sell::<A>(
+		&pair.tolerance,
+		pair.asset_in,
+		pair.asset_out,
+		amount_in,
+		route.clone(),
+		state,
+	) else {
 		return Ok(None);
 	};
-	if pair.tolerance.adjust(route, exec.amount_out) < pair.ed_out {
+	if leg.claimed_out(&pair.tolerance) < pair.ed_out {
 		return Ok(None);
 	}
-	Ok(Some((next, exec.amount_out)))
+	Ok(Some((next, leg)))
 }
 
 /// Largest input up to `limit` the route still executes, probed upward from a
@@ -300,16 +381,11 @@ fn materialise<A: AMMInterface>(
 	let mut current: Option<A::State> = None;
 	let mut legs = Vec::with_capacity(plan.len());
 	for &(i, amount_in) in plan {
-		let Some((next, amount_out)) =
-			leg::<A>(pair, &routes[i], amount_in, current.as_ref().unwrap_or(state), budget)?
+		let Some((next, leg)) = leg::<A>(pair, &routes[i], amount_in, current.as_ref().unwrap_or(state), budget)?
 		else {
 			return Ok(None);
 		};
-		legs.push(Leg {
-			route: routes[i].clone(),
-			amount_in,
-			amount_out,
-		});
+		legs.push(leg);
 		current = Some(next);
 	}
 	Ok(current.map(|state| Routed { legs, state }))
@@ -342,7 +418,8 @@ struct Satellite {
 	index: usize,
 	/// Largest of one grid step, a half, a quarter, … the route executes.
 	probe: Balance,
-	out: Balance,
+	claimed: Balance,
+	raw: Balance,
 }
 
 impl<A: AMMInterface> RouteCache<A> {
@@ -363,12 +440,7 @@ impl<A: AMMInterface> RouteCache<A> {
 		grid: u32,
 		budget: &mut SellBudget,
 	) -> Option<Routed<A::State>> {
-		let (route, amount_out, after) = self.best_sell(asset_in, asset_out, amount_in, state)?;
-		let single = Leg {
-			route,
-			amount_in,
-			amount_out,
-		};
+		let (single, after) = self.best_sell(asset_in, asset_out, amount_in, state)?;
 		if max_legs >= 2 && self.routes(asset_in, asset_out, state).len() >= 2 {
 			let pair = Pair {
 				asset_in,
@@ -414,21 +486,29 @@ fn split<A: AMMInterface>(
 	}
 	let step = (amount / Balance::from(grid)).max(pair.ed_in);
 
-	// An extra route can only help if its first step pays more than the
+	// An extra route can only help if its first step claims more than the
 	// anchor's last one.
 	let Some((_, below)) = leg::<A>(pair, &routes[anchor], amount - step, state, budget)? else {
 		return Ok(None);
 	};
-	let anchor_last_step = single.amount_out.saturating_sub(below);
+	let anchor_last_step = single
+		.claimed_out(&pair.tolerance)
+		.saturating_sub(below.claimed_out(&pair.tolerance));
 
 	let mut candidates: Vec<Satellite> = Vec::new();
 	for index in others {
 		let route = &routes[index];
 		let mut probe = step;
 		for _ in 0..=MAX_PROBE_HALVINGS {
-			if let Some((_, out)) = leg::<A>(pair, route, probe, state, budget)? {
-				if U256::from(out) * U256::from(step) > U256::from(anchor_last_step) * U256::from(probe) {
-					candidates.push(Satellite { index, probe, out });
+			if let Some((_, l)) = leg::<A>(pair, route, probe, state, budget)? {
+				let claimed = l.claimed_out(&pair.tolerance);
+				if U256::from(claimed) * U256::from(step) > U256::from(anchor_last_step) * U256::from(probe) {
+					candidates.push(Satellite {
+						index,
+						probe,
+						claimed,
+						raw: l.amount_out,
+					});
 				}
 				break;
 			}
@@ -438,11 +518,14 @@ fn split<A: AMMInterface>(
 			}
 		}
 	}
-	// Best rate first, route order on ties. The best rate can come with the
-	// least capacity, so each candidate gets its own search below.
+	// Best claimed rate first, then raw rate, then route order. The best rate
+	// can come with the least capacity, so each candidate gets its own search below.
 	candidates.sort_by(|x, y| {
-		(U256::from(y.out) * U256::from(x.probe))
-			.cmp(&(U256::from(x.out) * U256::from(y.probe)))
+		let by = |xo: Balance, yo: Balance| {
+			(U256::from(yo) * U256::from(x.probe)).cmp(&(U256::from(xo) * U256::from(y.probe)))
+		};
+		by(x.claimed, y.claimed)
+			.then(by(x.raw, y.raw))
 			.then(x.index.cmp(&y.index))
 	});
 	candidates.truncate(MAX_CANDIDATES);

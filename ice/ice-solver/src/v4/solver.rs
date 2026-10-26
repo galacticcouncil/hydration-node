@@ -34,9 +34,7 @@
 use crate::common;
 use crate::common::flow_graph;
 use crate::common::ring_detection;
-use crate::common::split::{
-	self, Leg, Routed, SellBudget, Tolerance, LIGHT_SPLIT_GRID, SPLIT_GRID,
-};
+use crate::common::split::{self, Leg, Routed, SellBudget, Tolerance, LIGHT_SPLIT_GRID, SPLIT_GRID};
 use crate::common::FlowDirection;
 use crate::common::RouteCache;
 use crate::{IceSolver, MinOuts, SolverOptions, SplitConfig};
@@ -1521,38 +1519,37 @@ impl<A: AMMInterface> Solver<A> {
 				continue;
 			}
 
-			let mut sell_via_amm = |sell_asset: AssetId,
-			                        buy_asset: AssetId,
-			                        amount: Balance,
-			                        state: &mut A::State,
-			                        cache: &mut SolveCache<A>|
-			 -> Option<Balance> {
-				if executed_trades.len() >= MAX_NUMBER_OF_SOLUTION_TRADES as usize {
-					if !trade_cap_reported {
-						log::warn!(target: LOG_TARGET, "solution trade cap reached; remaining pairs stay unrouted this round");
-						trade_cap_reported = true;
+			let mut sell_via_amm =
+				|sell_asset: AssetId,
+				 buy_asset: AssetId,
+				 amount: Balance,
+				 state: &mut A::State,
+				 cache: &mut SolveCache<A>|
+				 -> Option<Balance> {
+					if executed_trades.len() >= MAX_NUMBER_OF_SOLUTION_TRADES as usize {
+						if !trade_cap_reported {
+							log::warn!(target: LOG_TARGET, "solution trade cap reached; remaining pairs stay unrouted this round");
+							trade_cap_reported = true;
+						}
+						return None;
 					}
-					return None;
-				}
-				let max_legs = legs_within(
-					cache.split.max_legs,
-					spare_legs,
-					MAX_NUMBER_OF_SOLUTION_TRADES as usize - executed_trades.len(),
-				);
-				let routed = cache.transfer(sell_asset, buy_asset, amount, state, max_legs)?;
-				if !routed
-					.legs
-					.iter()
-					.all(|l| Self::trade_is_executable(cache, sell_asset, buy_asset, l.amount_in, l.claimed_out(&tol)))
-				{
-					return None;
-				}
-				spare_legs = spare_legs.saturating_sub(routed.legs.len() - 1);
-				let out = split::claimed_out(&routed.legs, &tol);
-				executed_trades.extend(routed.legs.iter().map(|l| pool_trade(l, &tol)));
-				*state = routed.state;
-				Some(out)
-			};
+					let max_legs = legs_within(
+						cache.split.max_legs,
+						spare_legs,
+						MAX_NUMBER_OF_SOLUTION_TRADES as usize - executed_trades.len(),
+					);
+					let routed = cache.transfer(sell_asset, buy_asset, amount, state, max_legs)?;
+					if !routed.legs.iter().all(|l| {
+						Self::trade_is_executable(cache, sell_asset, buy_asset, l.amount_in, l.claimed_out(&tol))
+					}) {
+						return None;
+					}
+					spare_legs = spare_legs.saturating_sub(routed.legs.len() - 1);
+					let out = split::claimed_out(&routed.legs, &tol);
+					executed_trades.extend(routed.legs.iter().map(|l| pool_trade(l, &tol)));
+					*state = routed.state;
+					Some(out)
+				};
 
 			let flow = match (spot_prices.get(&asset_a), spot_prices.get(&asset_b)) {
 				(Some(pa), Some(pb)) => common::analyze_pair_flow(total_a_sold, total_b_sold, pa, pb),

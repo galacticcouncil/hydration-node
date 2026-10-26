@@ -807,3 +807,54 @@ fn solve_should_keep_single_routes_when_splitting_leaves_the_batch_worse() {
 		),
 	);
 }
+
+#[test]
+fn split_should_rank_extra_routes_by_claim_when_venue_tolerances_reorder_them() {
+	// Four 1:1 routes whose 5 % haircut claims less than the anchor's last step,
+	// and a zero-tolerance one listed last. Ranked raw, the four fill every
+	// candidate slot and the split is lost.
+	let mut venues = vec![Venue {
+		pool: PoolType::Omnipool,
+		via: None,
+		model: Model::Curve { depth: 65_000 * UNIT },
+	}];
+	venues.extend(
+		[
+			PoolType::XYK,
+			PoolType::LBP,
+			PoolType::HSM,
+			PoolType::Aave,
+			PoolType::Stableswap(1),
+		]
+		.map(|pool| capped(pool, 300 * UNIT)),
+	);
+	let mut cache = crate::common::RouteCache::<SplitMock>::new();
+	cache.tolerance =
+		crate::common::split::Tolerance::parse("route=0,xyk=50000,lbp=50000,hsm=50000,aave=50000").unwrap();
+	let mut budget = crate::common::split::SellBudget::new(10_000);
+
+	let routed = cache
+		.best_split_sell(
+			A,
+			B,
+			1_000 * UNIT,
+			&book(venues),
+			2,
+			crate::common::split::SPLIT_GRID,
+			&mut budget,
+		)
+		.unwrap();
+
+	let legs: Vec<(Balance, Balance, PoolType<AssetId>)> = routed
+		.legs
+		.iter()
+		.map(|l| (l.amount_in, l.amount_out, l.route[0].pool))
+		.collect();
+	assert_eq!(
+		legs,
+		vec![
+			(718_749_999_999_998, 710_889_205_896_336, PoolType::Omnipool),
+			(281_250_000_000_000, 281_250_000_000_000, PoolType::Stableswap(1)),
+		],
+	);
+}

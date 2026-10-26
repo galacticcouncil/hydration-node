@@ -379,7 +379,7 @@ fn probe_split_gains_on_real_state() {
 						continue;
 					}
 					let routes = cache.routes(a, b, &state).len();
-					let Some((single_route, single_out, _)) = cache.best_sell(a, b, amount, &state) else {
+					let Some((single, _)) = cache.best_sell(a, b, amount, &state) else {
 						continue;
 					};
 					routable += 1;
@@ -396,13 +396,13 @@ fn probe_split_gains_on_real_state() {
 						continue;
 					}
 					let gain = claimed_out(&routed.legs, &cache.tolerance)
-						.saturating_sub(cache.tolerance.adjust(&single_route, single_out));
+						.saturating_sub(single.claimed_out(&cache.tolerance));
 					let legs: Vec<(Vec<PoolType<AssetId>>, u128)> = routed
 						.legs
 						.iter()
 						.map(|l| (pools_of(&l.route), l.amount_in * 100 / amount))
 						.collect();
-					splits.push((a, b, amount, single_out, gain, price_b, legs));
+					splits.push((a, b, amount, single.amount_out, gain, price_b, legs));
 				}
 			}
 			// Trades a user would place keep most of their value on the single route;
@@ -491,10 +491,10 @@ fn probe_split_batches_on_real_state() {
 				if a == b || cache.routes(a, b, &state).len() < 2 {
 					continue;
 				}
-				let Some((_, single_out, _)) = cache.best_sell(a, b, amount, &state) else {
+				let Some((single, _)) = cache.best_sell(a, b, amount, &state) else {
 					continue;
 				};
-				if cents(single_out, price_b) < 900_000 {
+				if cents(single.amount_out, price_b) < 900_000 {
 					continue;
 				}
 				if cache
@@ -516,7 +516,7 @@ fn probe_split_batches_on_real_state() {
 		};
 		let mut order = |a: AssetId, b: AssetId, usd: u128, owner: usize| -> Option<Order> {
 			let amount_in = usd_amount(usd, prices[&a])?;
-			let (_, quote, _) = cache.best_sell(a, b, amount_in, &state)?;
+			let quote = cache.best_sell(a, b, amount_in, &state)?.0.amount_out;
 			Some(Order {
 				owner: AccountId::from([100 + owner as u8; 32]),
 				asset_in: a,
@@ -631,9 +631,10 @@ fn probe_split_case_on_chain() {
 				.collect();
 			println!("  {:?}: at 25/50/75/97/100 % -> {outs:?}", pools_of(&route));
 		}
-		let (route, quote, _) = cache
+		let (single, _) = cache
 			.best_sell(asset_in, asset_out, amount, &state)
 			.expect("pair is routable");
+		let (route, quote) = (single.route, single.amount_out);
 		let split = cache
 			.best_split_sell(
 				asset_in,
