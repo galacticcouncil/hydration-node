@@ -104,6 +104,40 @@ proptest! {
 	}
 }
 
+#[test]
+fn oracle_price_should_be_identical_when_asset_id_order_is_reversed() {
+	new_test_ext().execute_with(|| {
+		for (block, price) in [Price::one(), Price::new(1, 5), Price::new(5, 1)]
+			.into_iter()
+			.enumerate()
+		{
+			let block = block as u64 + 1;
+			System::set_block_number(block);
+			for (asset_a, asset_b) in [(10, 20), (60, 50)] {
+				assert_ok!(OnActivityHandler::<Test>::on_trade(
+					SOURCE,
+					asset_a,
+					asset_b,
+					11,
+					13,
+					53,
+					37,
+					price,
+					Some(101),
+				));
+			}
+			EmaOracle::on_finalize(block);
+			System::set_block_number(block + 1);
+			for period in supported_periods() {
+				assert_eq!(
+					EmaOracle::get_price(10, 20, period, SOURCE).unwrap().0,
+					EmaOracle::get_price(60, 50, period, SOURCE).unwrap().0,
+				);
+			}
+		}
+	});
+}
+
 proptest! {
 	#[test]
 	fn on_liquidity_changed_should_not_change_volume(

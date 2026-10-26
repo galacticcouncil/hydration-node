@@ -33,14 +33,13 @@ use frame_support::{
 };
 use frame_system as system;
 use hydradx_traits::{
-	evm::EvmFeePayerSupport,
+	evm::{EvmFeePayerSupport, InspectEvmAccounts},
 	router::{RouteProvider, Trade},
 	AssetKind, OraclePeriod, PriceOracle,
 };
 use orml_traits::{currency::MutationHooks, parameter_type_with_key};
 use pallet_currencies::{fungibles::FungibleCurrencies, BasicCurrencyAdapter, MockBoundErc20, MockErc20Currency};
 use sp_core::{H160, H256, U256};
-use sp_runtime::DispatchError;
 use sp_std::cell::RefCell;
 
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -58,7 +57,6 @@ pub const FEE_RECEIVER: AccountId = AccountId::new([5; 32]);
 
 pub const HDX: AssetId = 0;
 pub const WETH: AssetId = 20;
-pub const DOT: AssetId = 5;
 pub const SUPPORTED_CURRENCY: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_PRICE: AssetId = 3000;
 pub const UNSUPPORTED_CURRENCY: AssetId = 4000;
@@ -106,7 +104,6 @@ parameter_types! {
 
 	pub const HdxAssetId: u32 = HDX;
 	pub const EvmAssetId: u32 = WETH;
-	pub const DotAssetId: u32 = DOT;
 	pub const ExistentialDeposit: u128 = 2;
 	pub const MaxLocks: u32 = 50;
 	pub const RegistryStringLimit: u32 = 100;
@@ -173,12 +170,10 @@ impl Config for Test {
 	type WeightInfo = ();
 	type WeightToFee = IdentityFee<Balance>;
 	type NativeAssetId = HdxAssetId;
-	type PolkadotNativeAssetId = DotAssetId;
 	type EvmAssetId = EvmAssetId;
 	type InspectEvmAccounts = EVMAccounts;
 	type EvmPermit = PermitDispatchHandler;
 	type TryCallCurrency<'a> = TestCallCurrency<Test>;
-	type SwappablePaymentAssetSupport = MockedInsufficientAssetSupport;
 	type EvmFeePayer = MockEvmFeePayer;
 }
 
@@ -201,51 +196,6 @@ impl EvmFeePayerSupport for MockEvmFeePayer {
 
 	fn clear_fee_payer() -> Option<Self::AccountId> {
 		MOCK_EVM_FEE_PAYER.with(|v| v.borrow_mut().take())
-	}
-}
-
-pub struct MockedInsufficientAssetSupport;
-
-impl InspectTransactionFeeCurrency<AssetId> for MockedInsufficientAssetSupport {
-	fn is_transaction_fee_currency(_asset: AssetId) -> bool {
-		true
-	}
-}
-
-impl SwappablePaymentAssetTrader<AccountId, AssetId, Balance> for MockedInsufficientAssetSupport {
-	fn is_trade_supported(_from: AssetId, _into: AssetId) -> bool {
-		unimplemented!()
-	}
-
-	fn buy(
-		_origin: &AccountId,
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_amount: Balance,
-		_max_limit: Balance,
-		_dest: &AccountId,
-	) -> DispatchResult {
-		unimplemented!()
-	}
-
-	fn calculate_fee_amount(_swap_amount: Balance) -> Result<Balance, DispatchError> {
-		unimplemented!()
-	}
-
-	fn calculate_in_given_out(
-		_insuff_asset_id: AssetId,
-		_asset_out: AssetId,
-		_asset_out_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		unimplemented!()
-	}
-
-	fn calculate_out_given_in(
-		_asset_in: AssetId,
-		_asset_out: AssetId,
-		_asset_in_amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		unimplemented!()
 	}
 }
 
@@ -301,6 +251,8 @@ impl PriceOracle<AssetId> for PriceProviderMock {
 		let asset_b = route.first().unwrap().asset_out;
 		match (asset_a, asset_b) {
 			(SUPPORTED_CURRENCY_WITH_PRICE, HDX) => Some(Ratio::new(1, 10)),
+			// Routable but never whitelisted - a route alone must not make an asset payable.
+			(UNSUPPORTED_CURRENCY, HDX) => Some(Ratio::new(1, 10)),
 			_ => None,
 		}
 	}
@@ -553,6 +505,9 @@ pub struct ValidationData {
 thread_local! {
 	static PERMIT_VALIDATION: RefCell<Vec<ValidationData>> = const { RefCell::new(vec![]) };
 	static PERMIT_DISPATCH: RefCell<Vec<PermitDispatchData>> = const { RefCell::new(vec![]) };
+	/// Fee currency override in force at the moment `dispatch_permit` ran. The pallet clears the
+	/// override once the dispatch returns, so it can only be observed from inside.
+	static PERMIT_DISPATCH_FEE_CURRENCY: RefCell<Option<AssetId>> = const { RefCell::new(None) };
 }
 
 pub struct PermitDispatchHandler;
@@ -564,6 +519,10 @@ impl PermitDispatchHandler {
 
 	pub fn last_dispatch_call_data() -> PermitDispatchData {
 		PERMIT_DISPATCH.with(|v| v.borrow().last().unwrap().clone())
+	}
+
+	pub fn last_dispatch_fee_currency() -> Option<AssetId> {
+		PERMIT_DISPATCH_FEE_CURRENCY.with(|v| *v.borrow())
 	}
 }
 
@@ -617,6 +576,10 @@ impl EVMPermit for PermitDispatchHandler {
 			access_list,
 		};
 		PERMIT_DISPATCH.with(|v| v.borrow_mut().push(data));
+
+		let account_id = <EVMAccounts as InspectEvmAccounts<AccountId>>::account_id(source);
+		let currency = crate::Pallet::<Test>::tx_fee_currency_override(account_id);
+		PERMIT_DISPATCH_FEE_CURRENCY.with(|v| *v.borrow_mut() = currency);
 		Ok(PostDispatchInfo::default())
 	}
 

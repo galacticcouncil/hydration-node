@@ -18,8 +18,8 @@
 #![allow(unused_assignments)] //Benchmark test leads to unused assignment, which is not true
 
 use crate::{
-	AccountId, AssetId, Balance, Currencies, EmaOracle, InsufficientEDinHDX, Router, Runtime, RuntimeOrigin, System,
-	LBP, XYK,
+	AccountId, AssetId, Balance, Currencies, EmaOracle, NativeExistentialDeposit, Router, Runtime, RuntimeOrigin,
+	System, LBP, XYK,
 };
 
 use super::*;
@@ -114,7 +114,7 @@ fn create_xyk_pool(asset_a: u32, asset_b: u32) {
 		RawOrigin::Root.into(),
 		caller.clone(),
 		0_u32,
-		InsufficientEDinHDX::get() as i128,
+		(4 * NativeExistentialDeposit::get()) as i128,
 	));
 
 	let amount = 100000 * UNITS;

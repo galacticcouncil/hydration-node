@@ -1281,7 +1281,7 @@ where
 		RawOrigin::Root.into(),
 		maker.clone(),
 		0_u32,
-		InsufficientEDinHDX::get() as i128,
+		(4 * NativeExistentialDeposit::get()) as i128,
 	));
 
 	assert_ok!(Currencies::update_balance(

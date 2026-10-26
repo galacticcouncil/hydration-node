@@ -1544,8 +1544,8 @@ fn evm_permit_set_currency_dispatch_should_pay_evm_fee_in_atoken() {
 		// issuance is asserted unchanged above.
 		let fee_amount = initial_user_fee_currency_balance - user_fee_currency_balance;
 		let treasury_received = final_treasury_fee_balance - initial_treasury_fee_balance;
-		assert_eq!(fee_amount, 69833741);
-		assert_eq!(treasury_received, 69833740);
+		assert_eq!(fee_amount, 69335163);
+		assert_eq!(treasury_received, 69335162);
 	})
 }
 
@@ -1581,8 +1581,8 @@ fn atoken_evm_fee_should_reach_treasury_when_holding_pot_is_short() {
 		// holds, so the fee must reach treasury and the pot must not accumulate
 		// more than rounding dust.
 		assert_eq!(initial_pot_balance, 0);
-		assert_eq!(fee_paid, 69833741);
-		assert_eq!(treasury_received, 69833740);
+		assert_eq!(fee_paid, 69335163);
+		assert_eq!(treasury_received, 69335162);
 		assert_eq!(final_pot_balance, 0);
 		assert_eq!(Currencies::total_issuance(ADOT), initial_issuance);
 	})

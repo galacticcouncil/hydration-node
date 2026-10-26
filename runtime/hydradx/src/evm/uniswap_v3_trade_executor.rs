@@ -48,6 +48,7 @@ pub enum Function {
 	ExactInputSingle = "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))",
 	ExactOutputSingle = "exactOutputSingle((address,address,uint24,address,uint256,uint256,uint160))",
 	Approve = "approve(address,uint256)",
+	Allowance = "allowance(address,address)",
 	UnderlyingAssetAddress = "UNDERLYING_ASSET_ADDRESS()",
 	AavePool = "POOL()",
 	ScaledBalanceOf = "scaledBalanceOf(address)",
@@ -387,6 +388,27 @@ where
 		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
 	}
 
+	fn token_allowance(
+		token: EvmAddress,
+		owner: EvmAddress,
+		spender: EvmAddress,
+	) -> Result<Balance, ExecutorError<DispatchError>> {
+		let data = EvmDataWriter::new_with_selector(Function::Allowance)
+			.write(owner)
+			.write(spender)
+			.build();
+		let result = Executor::<T>::view(CallContext::new_view(token), data, ERC20_VIEW_GAS_LIMIT);
+		ensure!(
+			matches!(result.exit_reason, Succeed(ExitSucceed::Returned)),
+			ExecutorError::Error("uniswapv3: allowance failed".into())
+		);
+		ensure!(
+			result.value.len() >= 32,
+			ExecutorError::Error("uniswapv3: allowance returned no data".into())
+		);
+		Ok(U256::from_big_endian(&result.value[0..32]).saturated_into::<u128>())
+	}
+
 	fn view_word(target: EvmAddress, data: Vec<u8>) -> Option<[u8; 32]> {
 		let result = Executor::<T>::view(CallContext::new_view(target), data, ERC20_VIEW_GAS_LIMIT);
 		if !matches!(result.exit_reason, Succeed(ExitSucceed::Returned)) {
@@ -506,8 +528,8 @@ where
 	///            slot0               POOL_VIEW
 	/// ```
 	///
-	/// The sell path drops the second APPROVE but adds four ERC20_VIEW reads of the
-	/// input token's aToken state, so this returns whichever of the two is larger.
+	/// The sell path drops the second APPROVE but adds five ERC20_VIEW reads, four of the
+	/// input token's aToken state and one allowance, so this returns whichever is larger.
 	const fn worst_case_gas() -> u64 {
 		let shared = POOL_VIEW_GAS_LIMIT
 			+ QUOTE_GAS_LIMIT
@@ -516,7 +538,7 @@ where
 			+ 2 * ERC20_VIEW_GAS_LIMIT
 			+ POOL_VIEW_GAS_LIMIT;
 		let buy = shared + APPROVE_GAS_LIMIT;
-		let sell = shared + 4 * ERC20_VIEW_GAS_LIMIT;
+		let sell = shared + 5 * ERC20_VIEW_GAS_LIMIT;
 		if buy > sell {
 			buy
 		} else {
@@ -615,6 +637,12 @@ where
 		ensure!(
 			matches!(swap_result.exit_reason, Succeed(_)),
 			ExecutorError::Error(pallet_dispatcher::Error::<T>::UniswapV3SwapFailed.into())
+		);
+
+		let unspent = Self::token_allowance(token_in, trader, router)?;
+		ensure!(
+			unspent.is_zero(),
+			ExecutorError::Error(pallet_dispatcher::Error::<T>::UniswapV3InsufficientLiquidity.into())
 		);
 
 		Self::decode_swap_amount(&swap_result)

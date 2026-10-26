@@ -329,7 +329,10 @@ fn solve_fixture(raw: &str) -> (Vec<Intent>, Solution) {
 	MARKET.with(|m| *m.borrow_mut() = Market::from_trace(trace));
 
 	let solve = |split: SplitConfig| {
-		let options = SolverOptions { split };
+		let options = SolverOptions {
+			split,
+			..SolverOptions::default()
+		};
 		let solution =
 			Solver::<MarketAmm>::solve_with_options(intents.clone(), MinOuts::new(), (), Permill::zero(), &options)
 				.expect("solver should succeed");

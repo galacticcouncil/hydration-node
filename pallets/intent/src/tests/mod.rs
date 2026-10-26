@@ -1,8 +1,11 @@
 mod add_intent;
 mod cancel_intent;
 mod cleanup_intent;
+mod conditional_scaling;
+mod dca_early;
 mod dca_intent;
 mod intent_resolved;
+mod match_first;
 mod mock;
 mod ocw;
 mod remove_intent;

@@ -46,6 +46,18 @@ pub fn adjust_amm_output(simulated_out: Balance) -> Balance {
 	simulated_out.saturating_sub(simulated_out * AMM_SIMULATION_TOLERANCE_BPS / 10_000)
 }
 
+/// [`adjust_amm_output`] with the tolerance rounded up, for deciding whether a
+/// trade clears a limit. Rounded down, the tolerance vanishes on a small enough
+/// trade, and a limit the market misses by less than the tolerance is then filled
+/// in slivers no larger trade at the same rate could clear.
+pub fn adjust_amm_output_strict(simulated_out: Balance) -> Balance {
+	simulated_out.saturating_sub(
+		simulated_out
+			.saturating_mul(AMM_SIMULATION_TOLERANCE_BPS)
+			.div_ceil(10_000),
+	)
+}
+
 /// One `ExactIn` trade of a transfer; `amount_out` is the raw simulated output.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Leg {

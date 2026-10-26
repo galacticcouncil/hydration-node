@@ -303,7 +303,10 @@ fn bench_split(c: &mut Criterion) {
 							MinOuts::new(),
 							black_box(state.clone()),
 							black_box(Permill::zero()),
-							&SolverOptions { split },
+							&SolverOptions {
+								split,
+								..SolverOptions::default()
+							},
 						)
 					})
 				})

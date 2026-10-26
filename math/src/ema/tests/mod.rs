@@ -93,7 +93,7 @@ fn weighted_averages_work_on_small_values_with_correct_ratios() {
 	let start_price = EmaPrice::new(4, 1);
 	let incoming_price = EmaPrice::new(8, 1);
 	let next_price = price_weighted_average(start_price, incoming_price, smoothing);
-	let expected = Rational::from((5, 1));
+	let expected = Rational::from((32, 7));
 	// oracle should be biased towards previous value
 	assert!(Rational::from(next_price) < expected);
 	assert_rational_approx_eq!(Rational::from(next_price), expected, tolerance);
@@ -102,7 +102,7 @@ fn weighted_averages_work_on_small_values_with_correct_ratios() {
 	let start_price = EmaPrice::new(4, 100);
 	let incoming_price = EmaPrice::new(8, 100);
 	let next_price = price_weighted_average(start_price, incoming_price, smoothing);
-	let expected = Rational::from((5, 100));
+	let expected = Rational::from((8, 175));
 	// oracle should be biased towards previous value
 	assert!(Rational::from(next_price) < expected);
 	assert_rational_approx_eq!(Rational::from(next_price), expected, tolerance);
@@ -202,9 +202,11 @@ fn price_weighted_average_boundary_values() {
 	let max_price = EmaPrice::new(1_000_000_000_000_000_000_000_001_u128, 1); // 1e24 + 1
 	let half_max_price = EmaPrice::new(1_000_000_000_000_000_000_000_002_u128, 2); // (1e24 + 2) / 2
 
-	// previously one, incoming max
+	// previously one, incoming max: use the reciprocal arithmetic average
 	let next_price = price_weighted_average(EmaPrice::one(), max_price, smoothing);
-	assert_rational_relative_approx_eq!(Rational::from(next_price), Rational::from(half_max_price), tolerance);
+	let max = Rational::from(max_price);
+	let expected: Rational = Rational::from(2) * max.clone() / (max + 1);
+	assert_rational_relative_approx_eq!(Rational::from(next_price), expected, tolerance);
 	// previously max, incoming one
 	let next_price = price_weighted_average(max_price, EmaPrice::one(), smoothing);
 	assert_rational_relative_approx_eq!(Rational::from(next_price), Rational::from(half_max_price), tolerance);
@@ -291,7 +293,7 @@ fn precision_of_ema_over_balancer_three_months_data_scrape_history_should_be_hig
 	for (price, iterations) in history.into_iter().skip(1) {
 		let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
 		precise_ema =
-			high_precision::precise_weighted_average(precise_ema.clone(), Rational::from(price), smoothing_adj);
+			high_precision::precise_price_weighted_average(precise_ema.clone(), Rational::from(price), smoothing_adj);
 		ema = iterated_price_ema(iterations, ema, price, smoothing);
 
 		let tolerance = Rational::from((1, 1e25 as u128));
@@ -316,7 +318,7 @@ fn precision_of_ema_over_balancer_one_year_data_scrape_history_should_be_high_en
 	for (price, iterations) in history.into_iter().skip(1) {
 		let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
 		precise_ema =
-			high_precision::precise_weighted_average(precise_ema.clone(), Rational::from(price), smoothing_adj);
+			high_precision::precise_price_weighted_average(precise_ema.clone(), Rational::from(price), smoothing_adj);
 		ema = iterated_price_ema(iterations, ema, price, smoothing);
 
 		let tolerance = Rational::from((1, 1e20 as u128));
@@ -348,7 +350,7 @@ fn precision_of_ema_over_balancer_expanded_one_year_data_scrape_history_should_b
 	for (price, iterations) in history.into_iter().skip(1) {
 		let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
 		precise_ema =
-			high_precision::precise_weighted_average(precise_ema.clone(), Rational::from(price), smoothing_adj);
+			high_precision::precise_price_weighted_average(precise_ema.clone(), Rational::from(price), smoothing_adj);
 		// reduces precision of the high precision comparison ema but speeds up the test by orders
 		// of magnitude.
 		high_precision::round(&mut precise_ema);

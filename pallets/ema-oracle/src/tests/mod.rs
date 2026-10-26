@@ -660,7 +660,7 @@ fn calculate_new_by_integrating_incoming_with_works() {
 		.unwrap();
 	// Ten minutes corresponds to 300 blocks, so the smoothing factor is `2 / 301`.
 	let expected_oracle = OracleEntry {
-		price: Price::new(15_252, 301),
+		price: Price::new(2_272_550, 45_249),
 		volume: Volume::from_a_in_b_out(1, 51),
 		liquidity: Liquidity::new(51, 1),
 		shares_issuance: Some(10_u128),

@@ -78,6 +78,15 @@ pub fn precise_weighted_average(prev: Rational, incoming: Rational, weight: Rati
 	prev.clone() + weight.mul(incoming - prev)
 }
 
+/// Calculate the direction-independent slow price average using arbitrary precision math.
+pub fn precise_price_weighted_average(prev: Rational, incoming: Rational, weight: Rational) -> Rational {
+	if prev == 0 || incoming == 0 || incoming <= prev {
+		return precise_weighted_average(prev, incoming, weight);
+	}
+	let reciprocal_average = precise_weighted_average(Rational::from(1) / prev, Rational::from(1) / incoming, weight);
+	Rational::from(1) / reciprocal_average
+}
+
 /// Determine the exponential moving average of a history of balance values.
 /// Starts the EMA with the first value.
 /// Keeps track of arbitrary precision values during calculation but returns an `Integer` (rounded down).
@@ -112,7 +121,7 @@ pub fn naive_precise_price_ema(history: Vec<EmaPrice>, smoothing: Rational) -> R
 	assert!(!history.is_empty());
 	let mut current = Rational::from(history[0]);
 	for price in history.into_iter().skip(1) {
-		current = precise_weighted_average(current.clone(), Rational::from(price), smoothing.clone());
+		current = precise_price_weighted_average(current.clone(), Rational::from(price), smoothing.clone());
 	}
 	current
 }
@@ -126,7 +135,7 @@ pub fn precise_price_ema(history: Vec<(EmaPrice, u32)>, smoothing: Rational) -> 
 	let mut current = Rational::from(history[0].0);
 	for (price, iterations) in history.into_iter().skip(1) {
 		let smoothing_adj = precise_exp_smoothing(smoothing.clone(), iterations);
-		current = precise_weighted_average(current.clone(), Rational::from(price), smoothing_adj.clone());
+		current = precise_price_weighted_average(current.clone(), Rational::from(price), smoothing_adj.clone());
 	}
 	current
 }
@@ -158,10 +167,7 @@ fn precise_price_ema_works() {
 		EmaPrice::new(4, 1),
 	];
 	let smoothing = fraction::frac(1, 4);
-	let expected = ((Rational::from(history[0]) * 3 / 4 + Rational::from(history[1]) / 4) * 3 / 4
-		+ Rational::from(history[2]) / 4)
-		* 3 / 4
-		+ Rational::from(history[3]) / 4;
+	let expected = Rational::from((128, 461));
 	let naive_ema = naive_precise_price_ema(history.clone(), fraction_to_high_precision(smoothing));
 	assert_eq!(expected, naive_ema);
 	let history = history.into_iter().map(|p| (p, 1)).collect();

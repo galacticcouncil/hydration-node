@@ -1,6 +1,6 @@
 [package]
 name = "ice-solver-bench"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 publish = false
 
@@ -12,6 +12,7 @@ ice-support = { workspace = true, features = ["std"] }
 amm-simulator = { workspace = true, features = ["std"] }
 pallet-intent = { workspace = true, features = ["std"] }
 pallet-ice = { workspace = true, features = ["std"] }
+pallet-ice-runtime-api = { workspace = true, features = ["std"] }
 pallet-omnipool = { workspace = true, features = ["std"] }
 pallet-ema-oracle = { workspace = true, features = ["std"] }
 pallet-fee-processor = { workspace = true, features = ["std"] }
@@ -39,3 +40,8 @@ harness = false
 [[bin]]
 name = "ice-fuzz"
 path = "src/bin/ice_fuzz.rs"
+
+# Replays captured per-block solver inputs through the node's solve path. Run manually.
+[[bin]]
+name = "ice-replay"
+path = "src/bin/ice_replay.rs"

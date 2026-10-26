@@ -103,3 +103,36 @@ fn node_path_solution_should_equal_runtime_path_solution() {
 			}
 		});
 }
+
+#[test]
+fn liquidity_state_should_ship_snapshot_and_pool_eds_when_no_intents_exist() {
+	use pallet_ice_runtime_api::runtime_decl_for_liquidity_state_api::LiquidityStateApiV1;
+
+	TestNet::reset();
+
+	HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		assert_eq!(pallet_ice::Pallet::<Runtime>::solver_input(), None);
+
+		let shipped = Runtime::liquidity_state();
+
+		let fresh = <hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators::initial_state();
+		assert_eq!(shipped.state, fresh.encode());
+		let decoded: CombinedSimulatorState = Decode::decode(&mut &shipped.state[..]).expect("snapshot should decode");
+
+		let expected_eds: Vec<(u32, u128)> =
+			<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators::pool_edges(&decoded)
+				.into_iter()
+				.flat_map(|edge| edge.assets)
+				.collect::<std::collections::BTreeSet<_>>()
+				.into_iter()
+				.map(|asset| {
+					(
+						asset,
+						<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::existential_deposit(asset),
+					)
+				})
+				.collect();
+		assert_eq!(shipped.existential_deposits, expected_eds);
+		assert_eq!(expected_eds.len(), 72);
+	});
+}

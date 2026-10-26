@@ -346,9 +346,9 @@ fn partial_intent_should_be_excluded_when_its_full_remaining_misses_the_limit() 
 
 	assert_eq!(resolved_ids(&pass), Vec::<IntentId>::new());
 	assert_eq!(pass.trades.len(), 0);
-	// v4 bisects to a smaller feasible fill (49_935 is exactly its pro-rata
-	// minimum) — the policy difference, not an accident of the fixture.
-	assert_eq!(amounts(&matched), vec![(1, 52_564, 49_935)]);
+	// v4 bisects to a smaller feasible fill — the policy difference, not an
+	// accident of the fixture.
+	assert_eq!(amounts(&matched), vec![(1, 52_512, 49_888)]);
 }
 
 #[test]

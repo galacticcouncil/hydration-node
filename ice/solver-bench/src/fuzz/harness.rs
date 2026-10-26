@@ -126,7 +126,10 @@ fn solve_with(intents: &[SolverIntent], state: &State, fee: Permill, split: Spli
 			MinOuts::new(),
 			state.clone(),
 			fee,
-			&SolverOptions { split },
+			&SolverOptions {
+				split,
+				..SolverOptions::default()
+			},
 		)
 		.ok()
 	}));
