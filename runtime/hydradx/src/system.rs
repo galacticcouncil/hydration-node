@@ -620,6 +620,10 @@ impl pallet_multisig::Config for Runtime {
 impl pallet_genesis_history::Config for Runtime {}
 impl pallet_parameters::Config for Runtime {
 	type AuthorityOrigin = EitherOf<EnsureRoot<AccountId>, EitherOf<TechCommitteeSuperMajority, GeneralAdmin>>;
+	type EmergencyOrigin = frame_support::traits::EitherOfDiverse<
+		frame_system::EnsureSignedBy<TechCommAccounts, AccountId>,
+		Self::AuthorityOrigin,
+	>;
 }
 
 /// Parameterized slow adjusting fee updated based on

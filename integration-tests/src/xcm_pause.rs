@@ -25,6 +25,10 @@ fn tech_committee_supermajority() -> RuntimeOrigin {
 	pallet_collective::RawOrigin::<AccountId, TechnicalCollective>::Members(3, 4).into()
 }
 
+fn make_bob_the_only_tech_committee_member() {
+	pallet_collective::Members::<hydradx_runtime::Runtime, TechnicalCollective>::put(vec![AccountId::from(BOB)]);
+}
+
 fn suspend_xcm_send() {
 	assert_ok!(hydradx_runtime::Parameters::suspend_xcm_send(RuntimeOrigin::root()));
 }
@@ -406,7 +410,7 @@ fn inbound_xcmp_transfer_should_stay_queued_when_xcm_execution_is_suspended() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::suspend_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm_execution(RuntimeOrigin::root()));
 	});
 
 	send_sibling_asset_to_bob_on_hydra();
@@ -425,13 +429,13 @@ fn inbound_xcmp_transfer_should_execute_when_xcm_execution_is_resumed() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::suspend_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm_execution(RuntimeOrigin::root()));
 	});
 
 	send_sibling_asset_to_bob_on_hydra();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::resume_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::resume_xcm_execution(RuntimeOrigin::root()));
 		hydradx_runtime::MessageQueue::service_queues(Weight::MAX);
 
 		assert_eq!(sibling_queue_message_count(), 0);
@@ -451,7 +455,7 @@ fn inbound_xcmp_transact_should_not_execute_when_xcm_execution_is_suspended() {
 	let bob_balance_before = Sibling::execute_with(|| hydradx_runtime::Balances::free_balance(AccountId::from(BOB)));
 
 	Sibling::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::suspend_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm_execution(RuntimeOrigin::root()));
 	});
 
 	Hydra::execute_with(|| {
@@ -519,7 +523,7 @@ fn inbound_dmp_message_should_stay_queued_when_xcm_execution_is_suspended() {
 	TestNet::reset();
 	let bob_balance_before = Hydra::execute_with(|| hydradx_runtime::Balances::free_balance(AccountId::from(BOB)));
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::suspend_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm_execution(RuntimeOrigin::root()));
 	});
 
 	send_hdx_from_relay_account_to_bob_on_hydra();
@@ -538,13 +542,13 @@ fn inbound_dmp_message_should_execute_when_xcm_execution_is_resumed() {
 	TestNet::reset();
 	let bob_balance_before = Hydra::execute_with(|| hydradx_runtime::Balances::free_balance(AccountId::from(BOB)));
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::suspend_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm_execution(RuntimeOrigin::root()));
 	});
 
 	send_hdx_from_relay_account_to_bob_on_hydra();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::resume_xcm_execution(RuntimeOrigin::root()));
+		assert_ok!(hydradx_runtime::Parameters::resume_xcm_execution(RuntimeOrigin::root()));
 		hydradx_runtime::MessageQueue::service_queues(Weight::MAX);
 
 		assert_xcm_message_processing_passed();
@@ -558,20 +562,110 @@ fn suspend_xcm_execution_should_succeed_when_origin_is_tech_committee_supermajor
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::XcmpQueue::suspend_xcm_execution(
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm_execution(
 			tech_committee_supermajority()
 		));
 	});
 }
 
 #[test]
-fn suspend_xcm_execution_should_fail_when_origin_is_not_controller() {
+fn suspend_xcm_execution_should_fail_when_origin_is_single_tech_committee_member() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		make_bob_the_only_tech_committee_member();
+
 		assert_noop!(
-			hydradx_runtime::XcmpQueue::suspend_xcm_execution(RuntimeOrigin::signed(ALICE.into())),
+			hydradx_runtime::Parameters::suspend_xcm_execution(RuntimeOrigin::signed(BOB.into())),
 			BadOrigin
 		);
+	});
+}
+
+#[test]
+fn suspend_xcm_should_block_outbound_xcm_when_called_by_single_tech_committee_member() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		register_dot_location_on_hydra();
+		make_bob_the_only_tech_committee_member();
+
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm(RuntimeOrigin::signed(
+			BOB.into()
+		)));
+
+		assert_noop!(
+			send_dot_from_hydra_to_bob_on_rococo(),
+			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
+		);
+	});
+}
+
+#[test]
+fn suspend_xcm_should_hold_inbound_xcm_when_called_by_single_tech_committee_member() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		make_bob_the_only_tech_committee_member();
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm(RuntimeOrigin::signed(
+			BOB.into()
+		)));
+	});
+
+	send_sibling_asset_to_bob_on_hydra();
+
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(SIBLING_ASSET, &AccountId::from(BOB)),
+			0
+		);
+		assert_eq!(sibling_queue_message_count(), 1);
+	});
+}
+
+#[test]
+fn suspend_xcm_should_fail_when_caller_is_not_tech_committee_member() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		make_bob_the_only_tech_committee_member();
+
+		assert_noop!(
+			hydradx_runtime::Parameters::suspend_xcm(RuntimeOrigin::signed(ALICE.into())),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn resume_xcm_should_fail_when_called_by_single_tech_committee_member() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		make_bob_the_only_tech_committee_member();
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm(RuntimeOrigin::signed(
+			BOB.into()
+		)));
+
+		assert_noop!(
+			hydradx_runtime::Parameters::resume_xcm(RuntimeOrigin::signed(BOB.into())),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn resume_xcm_should_restore_outbound_xcm_when_origin_is_tech_committee_supermajority() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		register_dot_location_on_hydra();
+		make_bob_the_only_tech_committee_member();
+		assert_ok!(hydradx_runtime::Parameters::suspend_xcm(RuntimeOrigin::signed(
+			BOB.into()
+		)));
+
+		assert_ok!(hydradx_runtime::Parameters::resume_xcm(tech_committee_supermajority()));
+
+		assert_ok!(send_dot_from_hydra_to_bob_on_rococo());
 	});
 }

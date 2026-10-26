@@ -442,18 +442,14 @@ parameter_types! {
 	pub const MessageQueueHeapSize: u32 = 128 * 1048;
 }
 
-// `QueueSuspended` is private to the xcmp-queue pallet; this is the flag `suspend_xcm_execution` sets.
-#[frame_support::storage_alias(pallet_name)]
-type QueueSuspended = StorageValue<XcmpQueue, bool, frame_support::pallet_prelude::ValueQuery>;
-
-/// Extends `XcmpQueue::suspend_xcm_execution` to relay-chain (DMP) messages, which upstream leaves running.
+/// Pauses all inbound XCM, relay chain and siblings alike, while `pallet_parameters::XcmExecutionSuspended` is set.
 pub struct XcmExecutionPausedQuery<Inner>(PhantomData<Inner>);
 
 impl<Inner: QueuePausedQuery<AggregateMessageOrigin>> QueuePausedQuery<AggregateMessageOrigin>
 	for XcmExecutionPausedQuery<Inner>
 {
 	fn is_paused(origin: &AggregateMessageOrigin) -> bool {
-		Inner::is_paused(origin) || (*origin == AggregateMessageOrigin::Parent && QueueSuspended::get())
+		Inner::is_paused(origin) || pallet_parameters::XcmExecutionSuspended::<Runtime>::get()
 	}
 }
 
