@@ -26,7 +26,7 @@
 //                  $$$
 
 use crate::mock::*;
-use crate::{AaveGasLimits, IsTestnet, Pallet as Parameters, RelayParentOffsetOverride};
+use crate::{AaveGasLimits, Error, Event, IsTestnet, Pallet as Parameters, RelayParentOffsetOverride};
 use frame_support::{assert_noop, assert_ok};
 use sp_runtime::DispatchError::BadOrigin;
 
@@ -108,5 +108,71 @@ fn set_aave_gas_limits_should_fail_when_origin_is_not_authority() {
 		);
 
 		assert_eq!(Parameters::<Test>::aave_gas_limits(), None);
+	});
+}
+
+#[test]
+fn suspend_xcm_send_should_set_flag_when_origin_is_authority() {
+	ExtBuilder.build().execute_with(|| {
+		assert_ok!(Parameters::<Test>::suspend_xcm_send(RuntimeOrigin::root()));
+
+		assert!(Parameters::<Test>::xcm_send_suspended());
+		System::assert_last_event(Event::XcmSendSuspended.into());
+	});
+}
+
+#[test]
+fn suspend_xcm_send_should_fail_when_already_suspended() {
+	ExtBuilder.build().execute_with(|| {
+		assert_ok!(Parameters::<Test>::suspend_xcm_send(RuntimeOrigin::root()));
+
+		assert_noop!(
+			Parameters::<Test>::suspend_xcm_send(RuntimeOrigin::root()),
+			Error::<Test>::AlreadySuspended
+		);
+	});
+}
+
+#[test]
+fn suspend_xcm_send_should_fail_when_origin_is_not_authority() {
+	ExtBuilder.build().execute_with(|| {
+		assert_noop!(
+			Parameters::<Test>::suspend_xcm_send(RuntimeOrigin::signed(ALICE)),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn resume_xcm_send_should_clear_flag_when_suspended() {
+	ExtBuilder.build().execute_with(|| {
+		assert_ok!(Parameters::<Test>::suspend_xcm_send(RuntimeOrigin::root()));
+
+		assert_ok!(Parameters::<Test>::resume_xcm_send(RuntimeOrigin::root()));
+
+		assert!(!Parameters::<Test>::xcm_send_suspended());
+		System::assert_last_event(Event::XcmSendResumed.into());
+	});
+}
+
+#[test]
+fn resume_xcm_send_should_fail_when_not_suspended() {
+	ExtBuilder.build().execute_with(|| {
+		assert_noop!(
+			Parameters::<Test>::resume_xcm_send(RuntimeOrigin::root()),
+			Error::<Test>::AlreadyResumed
+		);
+	});
+}
+
+#[test]
+fn resume_xcm_send_should_fail_when_origin_is_not_authority() {
+	ExtBuilder.build().execute_with(|| {
+		assert_ok!(Parameters::<Test>::suspend_xcm_send(RuntimeOrigin::root()));
+
+		assert_noop!(
+			Parameters::<Test>::resume_xcm_send(RuntimeOrigin::signed(ALICE)),
+			BadOrigin
+		);
 	});
 }

@@ -73,7 +73,17 @@ pub mod pallet {
 			quoter: H160,
 		},
 		/// The Aave trade executor gas limits were set, or cleared back to the built-in defaults.
-		AaveGasLimitsSet { limits: Option<AaveGasLimits> },
+		AaveGasLimitsSet {
+			limits: Option<AaveGasLimits>,
+		},
+		XcmSendSuspended,
+		XcmSendResumed,
+	}
+
+	#[pallet::error]
+	pub enum Error<T> {
+		AlreadySuspended,
+		AlreadyResumed,
 	}
 
 	#[pallet::pallet]
@@ -112,6 +122,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn uniswap_v3_quoter)]
 	pub type UniswapV3Quoter<T> = StorageValue<_, H160, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn xcm_send_suspended)]
+	pub type XcmSendSuspended<T> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -200,6 +214,46 @@ pub mod pallet {
 			AaveGasLimitsOverride::<T>::set(limits);
 
 			Self::deposit_event(Event::AaveGasLimitsSet { limits });
+			Ok(())
+		}
+
+		/// Suspend all outbound XCM.
+		///
+		/// The runtime's XCM router refuses every message while suspended, so user transfers fail
+		/// and roll back, and sends made while executing inbound XCM fail with the assets
+		/// left in the asset trap.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmSendSuspended` event when successful.
+		///
+		#[pallet::call_index(2)]
+		#[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+		pub fn suspend_xcm_send(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(!XcmSendSuspended::<T>::get(), Error::<T>::AlreadySuspended);
+			XcmSendSuspended::<T>::put(true);
+
+			Self::deposit_event(Event::XcmSendSuspended);
+			Ok(())
+		}
+
+		/// Resume outbound XCM.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmSendResumed` event when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+		pub fn resume_xcm_send(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(XcmSendSuspended::<T>::get(), Error::<T>::AlreadyResumed);
+			XcmSendSuspended::<T>::kill();
+
+			Self::deposit_event(Event::XcmSendResumed);
 			Ok(())
 		}
 	}

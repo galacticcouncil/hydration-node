@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 455,
+	spec_version: 456,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -243,7 +243,7 @@ construct_runtime!(
 
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
-		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
+		XcmpQueue: cumulus_pallet_xcmp_queue = 111,
 		// 113 was used by DmpQueue which is now replaced by MessageQueue
 		MessageQueue: pallet_message_queue = 114,
 		WeightReclaim: cumulus_pallet_weight_reclaim = 115,
