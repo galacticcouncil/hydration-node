@@ -8,12 +8,12 @@
 use crate::{AccountId, Balance, Balances, Runtime};
 use codec::{Decode, Encode};
 use frame_support::{
-	migrations::{SteppedMigration, SteppedMigrationError},
-	storage::storage_prefix,
-	traits::{ConstU32, LockableCurrency, ReservableCurrency},
-	weights::{Weight, WeightMeter},
+	storage::{storage_prefix, with_transaction},
+	traits::{ConstU32, LockableCurrency, OnRuntimeUpgrade, ReservableCurrency},
+	weights::Weight,
 	BoundedVec,
 };
+use sp_runtime::{DispatchError, TransactionOutcome};
 use sp_std::vec::Vec;
 
 pub struct RemoveDemocracy;
@@ -29,22 +29,6 @@ impl RemoveDemocracy {
 		}
 	}
 
-	fn item_weight(phase: u8) -> Weight {
-		let db = <Runtime as frame_system::Config>::DbWeight::get();
-		match phase {
-			// A legacy position or proposal contains at most 100 votes or depositors.
-			0 | 2 => db
-				.reads_writes(600, 600)
-				.saturating_add(Weight::from_parts(1_000_000_000, 1_048_576)),
-			3 => db
-				.reads_writes(6, 6)
-				.saturating_add(Weight::from_parts(100_000_000, 32_768)),
-			_ => db
-				.reads_writes(2, 1)
-				.saturating_add(Weight::from_parts(10_000_000, 65_536)),
-		}
-	}
-
 	fn is_finished(index: u32) -> bool {
 		let mut key = storage_prefix(b"Democracy", b"ReferendumInfoOf").to_vec();
 		let encoded = index.encode();
@@ -55,65 +39,86 @@ impl RemoveDemocracy {
 		sp_io::storage::get(&key).is_some_and(|value| value.first() == Some(&1))
 	}
 
-	fn migrate_key(phase: u8, key: &[u8]) -> Result<(), SteppedMigrationError> {
+	fn migrate_key(phase: u8, key: &[u8]) -> Result<Weight, &'static str> {
+		let mut reads = 0;
+		let mut writes = 1;
 		match phase {
 			0 => {
 				let id = <Runtime as pallet_staking::Config>::PositionItemId::decode(
-					&mut key.get(48..).ok_or(SteppedMigrationError::Failed)?,
+					&mut key.get(48..).ok_or("invalid Gov v1 storage")?,
 				)
-				.map_err(|_| SteppedMigrationError::Failed)?;
-				let raw = sp_io::storage::get(key).ok_or(SteppedMigrationError::Failed)?;
+				.map_err(|_| "invalid Gov v1 storage")?;
+				let raw = sp_io::storage::get(key).ok_or("invalid Gov v1 storage")?;
+				reads += 1;
 				let votes = pallet_staking::types::Voting::<ConstU32<100>>::decode(&mut &raw[..])
-					.map_err(|_| SteppedMigrationError::Failed)?;
-				pallet_staking::migrations::settle_legacy_votes::<Runtime>(id, votes, Self::is_finished);
+					.map_err(|_| "invalid Gov v1 storage")?;
+				if !votes.votes.is_empty() {
+					reads += 1 + votes.votes.len() as u64;
+					writes += 1;
+					pallet_staking::migrations::settle_legacy_votes::<Runtime>(id, votes, Self::is_finished);
+				}
 			}
 			2 => {
-				let raw = sp_io::storage::get(key).ok_or(SteppedMigrationError::Failed)?;
+				let raw = sp_io::storage::get(key).ok_or("invalid Gov v1 storage")?;
+				reads += 1;
 				let (depositors, amount) = <(BoundedVec<AccountId, ConstU32<100>>, Balance)>::decode(&mut &raw[..])
-					.map_err(|_| SteppedMigrationError::Failed)?;
+					.map_err(|_| "invalid Gov v1 storage")?;
 				for who in depositors {
+					reads += 6;
+					writes += 6;
 					Balances::unreserve(&who, amount);
 				}
 			}
 			3 => {
-				let who = AccountId::decode(&mut key.get(40..).ok_or(SteppedMigrationError::Failed)?)
-					.map_err(|_| SteppedMigrationError::Failed)?;
-				Balances::remove_lock(*b"democrac", &who);
+				let who = AccountId::decode(&mut key.get(40..).ok_or("invalid Gov v1 storage")?)
+					.map_err(|_| "invalid Gov v1 storage")?;
+				reads += 1;
+				if pallet_balances::Locks::<Runtime>::get(&who)
+					.iter()
+					.any(|lock| lock.id == *b"democrac")
+				{
+					reads += 5;
+					writes += 5;
+					Balances::remove_lock(*b"democrac", &who);
+				}
 			}
 			_ => {}
 		}
 		sp_io::storage::clear(key);
-		Ok(())
+		Ok(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(reads, writes))
+	}
+
+	fn migrate() -> Result<Weight, &'static str> {
+		let db = <Runtime as frame_system::Config>::DbWeight::get();
+		let mut weight = Weight::zero();
+		for phase in 0..=4 {
+			let prefix = Self::prefix(phase);
+			let mut removed = 0u64;
+			loop {
+				weight = weight.saturating_add(db.reads(1));
+				let Some(key) = sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)) else {
+					break;
+				};
+				weight = weight.saturating_add(Self::migrate_key(phase, &key)?);
+				removed += 1;
+			}
+			log::info!(target: "runtime::migration", "RemoveDemocracy phase {phase}: removed {removed} keys");
+		}
+		log::info!(target: "runtime::migration", "RemoveDemocracy estimated DB weight: {weight:?}");
+		Ok(weight)
 	}
 }
 
-impl SteppedMigration for RemoveDemocracy {
-	type Cursor = u8;
-	type Identifier = [u8; 18];
-
-	fn id() -> Self::Identifier {
-		*b"hydra-gov1-cleanup"
-	}
-
-	fn step(cursor: Option<u8>, meter: &mut WeightMeter) -> Result<Option<u8>, SteppedMigrationError> {
-		let mut phase = cursor.unwrap_or_default();
-		if phase > 4 {
-			return Err(SteppedMigrationError::InvalidCursor);
-		}
-		let required = Self::item_weight(phase);
-		if !meter.can_consume(required) {
-			return Err(SteppedMigrationError::InsufficientWeight { required });
-		}
-		loop {
-			if meter.try_consume(Self::item_weight(phase)).is_err() {
-				return Ok(Some(phase));
-			}
-			let prefix = Self::prefix(phase);
-			match sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)) {
-				Some(key) => Self::migrate_key(phase, &key)?,
-				None if phase < 4 => phase += 1,
-				None => return Ok(None),
-			}
+impl OnRuntimeUpgrade for RemoveDemocracy {
+	fn on_runtime_upgrade() -> Weight {
+		// The pallet is already absent from the runtime: a partial cleanup must never be committed.
+		let result = with_transaction(|| match Self::migrate().map_err(DispatchError::Other) {
+			Ok(weight) => TransactionOutcome::Commit(Ok(weight)),
+			Err(error) => TransactionOutcome::Rollback(Err(error)),
+		});
+		match result {
+			Ok(weight) => weight,
+			Err(error) => panic!("Gov v1 cleanup failed: {error:?}"),
 		}
 	}
 
@@ -140,17 +145,34 @@ impl SteppedMigration for RemoveDemocracy {
 				(who, reserved.saturating_sub(amount))
 			})
 			.collect();
-		Ok(expected.encode())
+		let other_locks: Vec<_> = pallet_balances::Locks::<Runtime>::iter()
+			.filter(|(_, locks)| locks.iter().any(|lock| lock.id == *b"democrac"))
+			.map(|(who, locks)| {
+				let remaining: Vec<_> = locks.into_iter().filter(|lock| lock.id != *b"democrac").collect();
+				(who, remaining)
+			})
+			.collect();
+		Ok((expected, other_locks).encode())
 	}
 
 	#[cfg(feature = "try-runtime")]
 	fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
-		let expected =
-			Vec::<(AccountId, Balance)>::decode(&mut &state[..]).map_err(|_| "invalid democracy migration snapshot")?;
+		type Snapshot = (
+			Vec<(AccountId, Balance)>,
+			Vec<(AccountId, Vec<pallet_balances::BalanceLock<Balance>>)>,
+		);
+		let (expected, other_locks) =
+			Snapshot::decode(&mut &state[..]).map_err(|_| "invalid democracy migration snapshot")?;
 		for (who, reserved) in expected {
 			frame_support::ensure!(
 				Balances::reserved_balance(&who) == reserved,
 				"incorrect democracy refund"
+			);
+		}
+		for (who, locks) in other_locks {
+			frame_support::ensure!(
+				pallet_balances::Locks::<Runtime>::get(who).to_vec() == locks,
+				"non-democracy balance locks changed"
 			);
 		}
 		for phase in [0, 1, 4] {
@@ -172,30 +194,6 @@ mod tests {
 	use super::*;
 	use frame_support::traits::{Currency, WithdrawReasons};
 
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	#[test]
-	fn cleanup_should_record_completion_when_run_by_runtime_migrator() {
-		use frame_support::{migrations::MultiStepMigrator, traits::Hooks};
-		sp_io::TestExternalities::new_empty().execute_with(|| {
-			let key = storage_prefix(b"Democracy", b"PublicPropCount");
-			sp_io::storage::set(&key, &5u32.encode());
-			<crate::MultiBlockMigrations as Hooks<crate::BlockNumber>>::on_runtime_upgrade();
-			for block in 1..20 {
-				crate::System::set_block_number(block);
-				crate::MultiBlockMigrations::step();
-				if !crate::MultiBlockMigrations::ongoing() {
-					break;
-				}
-			}
-			assert!(!crate::MultiBlockMigrations::ongoing());
-			assert!(!sp_io::storage::exists(&key));
-			assert_eq!(pallet_migrations::Historic::<Runtime>::iter().count(), 1);
-			<crate::MultiBlockMigrations as Hooks<crate::BlockNumber>>::on_runtime_upgrade();
-			crate::MultiBlockMigrations::step();
-			assert_eq!(pallet_migrations::Historic::<Runtime>::iter().count(), 1);
-		});
-	}
-
 	fn map_key(storage: &[u8], encoded_key: &[u8]) -> Vec<u8> {
 		let mut key = storage_prefix(b"Democracy", storage).to_vec();
 		key.extend_from_slice(&sp_io::hashing::twox_64(encoded_key));
@@ -203,26 +201,17 @@ mod tests {
 		key
 	}
 
-	fn run_cleanup() -> u32 {
+	fn run_cleanup() -> Weight {
 		#[cfg(feature = "try-runtime")]
 		let snapshot = RemoveDemocracy::pre_upgrade().unwrap();
-		let mut cursor = None;
-		let mut steps = 0;
-		loop {
-			let mut meter = WeightMeter::with_limit(RemoveDemocracy::item_weight(0));
-			cursor = RemoveDemocracy::transactional_step(cursor, &mut meter).unwrap();
-			steps += 1;
-			assert!(steps < 100);
-			if cursor.is_none() {
-				#[cfg(feature = "try-runtime")]
-				RemoveDemocracy::post_upgrade(snapshot).unwrap();
-				return steps;
-			}
-		}
+		let weight = RemoveDemocracy::on_runtime_upgrade();
+		#[cfg(feature = "try-runtime")]
+		RemoveDemocracy::post_upgrade(snapshot).unwrap();
+		weight
 	}
 
 	#[test]
-	fn cleanup_should_refund_deposits_and_release_only_legacy_locks_when_resumed() {
+	fn cleanup_should_refund_deposits_and_release_only_legacy_locks_when_upgraded() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
 			let who = AccountId::new([1; 32]);
 			Balances::make_free_balance_be(&who, 1_000_000_000_000_000_000);
@@ -247,7 +236,7 @@ mod tests {
 			assert!(crate::Scheduler::schedule(crate::RuntimeOrigin::root(), 100, None, 63, call).is_ok());
 			let agenda = pallet_scheduler::Agenda::<Runtime>::get(100).encode();
 
-			assert!(run_cleanup() > 1);
+			assert!(run_cleanup().ref_time() > 0);
 			assert_eq!(Balances::reserved_balance(&who), 2_000);
 			let locks = pallet_balances::Locks::<Runtime>::get(&who);
 			assert_eq!(locks.len(), 1);
@@ -267,27 +256,63 @@ mod tests {
 	}
 
 	#[test]
-	fn cleanup_should_roll_back_when_deposit_cannot_be_decoded() {
+	fn cleanup_should_settle_orphan_staking_votes_when_democracy_votes_were_removed() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
-			let key = map_key(b"DepositOf", &0u32.encode());
-			sp_io::storage::set(&key, &[255]);
-			let mut meter = WeightMeter::with_limit(RemoveDemocracy::item_weight(2));
-			assert!(matches!(
-				RemoveDemocracy::transactional_step(Some(2), &mut meter),
-				Err(SteppedMigrationError::Failed)
-			));
-			assert!(sp_io::storage::exists(&key));
+			let id = 1u128;
+			let mut position_key = storage_prefix(b"Staking", b"Positions").to_vec();
+			position_key.extend_from_slice(&sp_io::hashing::blake2_128(&id.encode()));
+			position_key.extend_from_slice(&id.encode());
+			let position = pallet_staking::types::Position::new(1_000, sp_runtime::FixedU128::default(), 1u32);
+			sp_io::storage::set(&position_key, &position.encode());
+			let vote = pallet_staking::types::Vote::new(1_000, pallet_staking::types::Conviction::Locked6x);
+			let voting = pallet_staking::types::Voting::<ConstU32<100>> {
+				votes: vec![(1, vote), (2, vote), (3, vote)].try_into().unwrap(),
+			};
+			pallet_staking::migrations::PositionVotes::<Runtime>::insert(id, voting);
+			sp_io::storage::set(
+				&map_key(b"ReferendumInfoOf", &1u32.encode()),
+				&(1u8, true, 1u32).encode(),
+			);
+			sp_io::storage::set(&map_key(b"ReferendumInfoOf", &2u32.encode()), &[0]);
+
+			run_cleanup();
+			assert_eq!(crate::Staking::get_position(id).unwrap().get_action_points(), 100);
+			assert!(!pallet_staking::migrations::PositionVotes::<Runtime>::contains_key(id));
+			run_cleanup();
+			assert_eq!(crate::Staking::get_position(id).unwrap().get_action_points(), 100);
 		});
 	}
 
 	#[test]
-	fn cleanup_should_leave_state_unchanged_when_weight_is_insufficient() {
+	fn cleanup_should_release_delegation_locks_when_account_has_no_direct_votes() {
 		sp_io::TestExternalities::new_empty().execute_with(|| {
-			let mut meter = WeightMeter::with_limit(Weight::zero());
-			assert!(matches!(
-				RemoveDemocracy::transactional_step(None, &mut meter),
-				Err(SteppedMigrationError::InsufficientWeight { .. })
-			));
+			let who = AccountId::new([2; 32]);
+			Balances::make_free_balance_be(&who, 1_000_000_000_000_000_000);
+			Balances::set_lock(*b"democrac", &who, 10_000, WithdrawReasons::all());
+			Balances::set_lock(*b"stk_stks", &who, 5_000, WithdrawReasons::all());
+			sp_io::storage::set(&map_key(b"VotingOf", &who.encode()), &[1]);
+
+			run_cleanup();
+			let locks = pallet_balances::Locks::<Runtime>::get(&who);
+			assert_eq!(locks.len(), 1);
+			assert_eq!(locks[0].id, *b"stk_stks");
+			assert_eq!(locks[0].amount, 5_000);
+		});
+	}
+
+	#[test]
+	fn cleanup_should_roll_back_when_deposit_cannot_be_decoded() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			let key = map_key(b"DepositOf", &0u32.encode());
+			sp_io::storage::set(&key, &[255]);
+			pallet_staking::migrations::PositionVotes::<Runtime>::insert(
+				1,
+				pallet_staking::types::Voting::<ConstU32<100>>::default(),
+			);
+			let result = std::panic::catch_unwind(RemoveDemocracy::on_runtime_upgrade);
+			assert!(result.is_err());
+			assert!(sp_io::storage::exists(&key));
+			assert!(pallet_staking::migrations::PositionVotes::<Runtime>::contains_key(1));
 		});
 	}
 }

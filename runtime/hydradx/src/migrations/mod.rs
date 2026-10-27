@@ -28,6 +28,7 @@ pub mod stableswap;
 pub type UnreleasedSingleBlockMigrations = (
 	pallet_ema_oracle::migrations::v3::MigrateV2ToV3<Runtime>,
 	remove_fee_fallbacks::RetireInsufficientEdPool,
+	democracy::RemoveDemocracy,
 );
 
 // These migrations can run on every runtime upgrade
@@ -39,4 +40,4 @@ pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, Unreleased
 // One-shot entries stay listed until the next release: `pallet-migrations` records completed ids,
 // so a finished migration is skipped rather than re-run.
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type MultiBlockMigrationsList = (democracy::RemoveDemocracy,);
+pub type MultiBlockMigrationsList = ();
