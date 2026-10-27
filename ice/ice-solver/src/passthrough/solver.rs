@@ -122,12 +122,12 @@ impl<A: AMMInterface> IceSolver<A> for Solver<A> {
 				continue;
 			}
 
-			let Some((route, quote, next_state)) = cache.best_sell(swap.asset_in, swap.asset_out, amount, &state)
-			else {
+			let Some((leg, next_state)) = cache.best_sell(swap.asset_in, swap.asset_out, amount, &state) else {
 				log::debug!(target: LOG_TARGET, "intent {}: no usable route {} -> {}, skipping",
 					intent.id, swap.asset_in, swap.asset_out);
 				continue;
 			};
+			let (route, quote) = (leg.route, leg.amount_out);
 
 			let ed_out = cache.ed(swap.asset_out).max(1);
 			if quote < ed_out {
