@@ -246,6 +246,7 @@ impl pallet_currencies::Config for Test {
 
 impl pallet_parameters::Config for Test {
 	type AuthorityOrigin = frame_system::EnsureRoot<AccountId>;
+	type EmergencyOrigin = frame_system::EnsureRoot<AccountId>;
 }
 
 pub struct ExtBuilder {

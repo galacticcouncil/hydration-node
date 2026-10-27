@@ -8,10 +8,12 @@ use hex_literal::hex;
 use hydradx_runtime::evm::precompiles::erc20_mapping::Erc20MappingApi;
 use hydradx_runtime::RuntimeCall;
 use hydradx_runtime::RuntimeEvent;
+use hydradx_traits::router::Route;
 use hyper::{StatusCode, Uri};
 use hyperv14 as hyper;
 use pallet_currencies_rpc_runtime_api::CurrenciesApi;
 use pallet_ethereum::Transaction;
+use pallet_ice_runtime_api::LiquidityStateApi;
 use pepl_worker_support::traits::RuntimeApiProvider;
 use pepl_worker_support::traits::RuntimeClient;
 use pepl_worker_support::types::AssetId;
@@ -35,7 +37,6 @@ use sp_core::U256;
 use sp_runtime::traits::Block;
 use sp_runtime::traits::Header as HeaderT;
 use sp_runtime::traits::Zero;
-use sp_runtime::BoundedVec;
 use sp_runtime::OpaqueExtrinsic;
 use sp_runtime::SaturatedConversion;
 use std::collections::{HashMap, HashSet};
@@ -46,6 +47,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use xcm_runtime_apis::dry_run::DryRunApi;
 
+pub mod routing;
 #[cfg(test)]
 mod tests;
 
@@ -689,6 +691,10 @@ pub struct LiquidationDecision {
 	pub user: EvmAddress,
 	pub debt_to_cover: Balance,
 	pub priority: u64,
+	/// Collateral the liquidation seizes; the amount the route is priced for.
+	pub collateral_amount: Balance,
+	/// Empty = the router's stored route for the pair.
+	pub route: Route<AssetId>,
 }
 
 /// Pure decision step: given an up-to-date money market and borrower, decide whether — and how —
@@ -700,19 +706,32 @@ pub fn decide_liquidation(
 	money_market: &MoneyMarket,
 	borrower: &Borrower,
 ) -> Option<LiquidationDecision> {
+	decide_liquidation_options(cfg, money_market, borrower)
+		.into_iter()
+		.next()
+}
+
+/// Every (collateral, debt) decision for the borrower, best first. The first one is
+/// `decide_liquidation`'s pick; the rest are fallbacks for when it cannot execute.
+pub fn decide_liquidation_options(
+	cfg: &LiquidationTaskConfig,
+	money_market: &MoneyMarket,
+	borrower: &Borrower,
+) -> Vec<LiquidationDecision> {
 	let log_prefix = cfg.log_prefix.as_str();
 
 	if borrower.total_collateral < cfg.min_collateral {
 		log::trace!(target: LOG_TARGET, "{:?} decide_liquidation(): collateral below min, skipping, borrower: {:?}, collateral: {:?}", log_prefix, borrower.address, borrower.total_collateral);
-		return None;
+		return Vec::new();
 	}
 
-	let hf = borrower
-		.calc_health_factor(money_market)
-		.inspect_err(|e| {
+	let hf = match borrower.calc_health_factor(money_market) {
+		Ok(hf) => hf,
+		Err(e) => {
 			log::error!(target: LOG_TARGET, "{:?} decide_liquidation(): failed to calc health factor, skipping, borrower: {:?}, err: {:?}", log_prefix, borrower.address, e);
-		})
-		.ok()?;
+			return Vec::new();
+		}
+	};
 
 	if hf.is_zero() {
 		log::debug!(target: LOG_TARGET, "{:?} decide_liquidation(): borrower with 0 health factor, borrower: {:?}", log_prefix, borrower.address);
@@ -720,21 +739,21 @@ pub fn decide_liquidation(
 
 	if hf >= U256::from(ONE_HF) {
 		log::trace!(target: LOG_TARGET, "{:?} decide_liquidation(): healthy borrower, borrower: {:?}", log_prefix, borrower.address);
-		return None;
+		return Vec::new();
 	}
 
 	let target_hf = cfg.target_hf.into();
-	let liq_option = match money_market.calc_best_liquidation_option_for(borrower, target_hf, log_prefix) {
-		Ok(Some(opt)) => opt,
-		Ok(None) => {
-			log::info!(target: LOG_TARGET, "{:?} decide_liquidation(): no liquidation option, borrower: {:?}, health_factor: {:?}", log_prefix, borrower.address, hf);
-			return None;
-		}
+	let liq_options = match money_market.calc_ranked_liquidation_options_for(borrower, target_hf, log_prefix) {
+		Ok(opts) => opts,
 		Err(e) => {
 			log::error!(target: LOG_TARGET, "{:?} decide_liquidation(): failed to calc liquidation option, borrower: {:?}, health_factor: {:?}, err: {:?}", log_prefix, borrower.address, hf, e);
-			return None;
+			return Vec::new();
 		}
 	};
+	if liq_options.is_empty() {
+		log::info!(target: LOG_TARGET, "{:?} decide_liquidation(): no liquidation option, borrower: {:?}, health_factor: {:?}", log_prefix, borrower.address, hf);
+		return Vec::new();
+	}
 
 	let priority: u64 = borrower
 		.total_collateral
@@ -742,22 +761,29 @@ pub fn decide_liquidation(
 		.unwrap_or(Zero::zero())
 		.saturated_into();
 
-	let Some(coll) = money_market.reserves.get(&liq_option.collateral_asset) else {
-		log::error!(target: LOG_TARGET, "{:?} decide_liquidation(): collateral reserve not found. THIS SHOULD NEVER HAPPEN, please report to project maintainers, reserve: {:?}", log_prefix, liq_option.collateral_asset);
-		return None;
-	};
-	let Some(debt) = money_market.reserves.get(&liq_option.debt_asset) else {
-		log::error!(target: LOG_TARGET, "{:?} decide_liquidation(): debt reserve not found. THIS SHOULD NEVER HAPPEN, please report to project maintainers, reserve: {:?}", log_prefix, liq_option.debt_asset);
-		return None;
-	};
+	liq_options
+		.into_iter()
+		.filter_map(|liq_option| {
+			let Some(coll) = money_market.reserves.get(&liq_option.collateral_asset) else {
+				log::error!(target: LOG_TARGET, "{:?} decide_liquidation(): collateral reserve not found. THIS SHOULD NEVER HAPPEN, please report to project maintainers, reserve: {:?}", log_prefix, liq_option.collateral_asset);
+				return None;
+			};
+			let Some(debt) = money_market.reserves.get(&liq_option.debt_asset) else {
+				log::error!(target: LOG_TARGET, "{:?} decide_liquidation(): debt reserve not found. THIS SHOULD NEVER HAPPEN, please report to project maintainers, reserve: {:?}", log_prefix, liq_option.debt_asset);
+				return None;
+			};
 
-	Some(LiquidationDecision {
-		collateral_asset: coll.asset_id,
-		debt_asset: debt.asset_id,
-		user: borrower.address,
-		debt_to_cover: liq_option.debt_to_liquidate.saturated_into(),
-		priority,
-	})
+			Some(LiquidationDecision {
+				collateral_asset: coll.asset_id,
+				debt_asset: debt.asset_id,
+				user: borrower.address,
+				debt_to_cover: liq_option.debt_to_liquidate.saturated_into(),
+				priority,
+				collateral_amount: liq_option.collateral_amount.saturated_into(),
+				route: Route::new(),
+			})
+		})
+		.collect()
 }
 
 /// The unsigned `liquidate_with_pool` call for a decision. `pool` is the market the decision was
@@ -771,7 +797,7 @@ pub fn liquidation_call(decision: &LiquidationDecision, pool: EvmAddress) -> Run
 		debt_asset: decision.debt_asset,
 		user: decision.user,
 		debt_to_cover: decision.debt_to_cover,
-		route: BoundedVec::new(),
+		route: decision.route.clone(),
 		unsigned_priority: Some(decision.priority),
 	})
 }
@@ -810,6 +836,44 @@ where
 		},
 		_ => DryRun::Unknown,
 	}
+}
+
+/// The first of a borrower's ranked decisions that has a route and survives the dry run, as the
+/// call to submit. Each dry run takes a permit from `dry_runs` (see `MAX_SCAN_DRY_RUNS_PER_BLOCK`).
+///
+/// v1 dry-ran before resubmitting "to prevent spamming with extrinsic that will fail (e.g. because
+/// of not being profitable)". A rejected option falls through to the next one: stopping at the top
+/// pick made a borrower whose best pair could not execute permanently invisible.
+pub fn first_viable_liquidation(
+	pool: EvmAddress,
+	kind: InstanceKind,
+	decisions: Vec<LiquidationDecision>,
+	liquidity: Option<&routing::LiquidityState>,
+	dry_runs: &AtomicUsize,
+	mut dry_run: impl FnMut(RuntimeCall) -> DryRun,
+	log_prefix: &str,
+) -> Option<RuntimeCall> {
+	for decision in decisions {
+		let Some(decision) = routing::route_decision(kind, liquidity, decision, log_prefix) else {
+			continue;
+		};
+		if dry_runs.fetch_add(1, Ordering::Relaxed) >= MAX_SCAN_DRY_RUNS_PER_BLOCK {
+			log::warn!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): per-block scan valve of {MAX_SCAN_DRY_RUNS_PER_BLOCK} decisions reached, deferring borrower {:?} to the next block", decision.user);
+			return None;
+		}
+		let call = liquidation_call(&decision, pool);
+		match dry_run(call.clone()) {
+			DryRun::WouldSucceed => return Some(call),
+			DryRun::Unknown => {
+				log::warn!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): dry run unavailable, submitting liquidation for {:?} unchecked", decision.user);
+				return Some(call);
+			}
+			DryRun::WouldFail(e) => {
+				log::debug!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): dry run says {} -> {} for {:?} would fail ({e:?}), trying the next option", decision.collateral_asset, decision.debt_asset, decision.user);
+			}
+		}
+	}
+	None
 }
 
 /// Wrap a call as the opaque unsigned extrinsic the tx pool takes (sync — no tx pool needed).
@@ -1293,7 +1357,8 @@ pub(crate) fn parse_oracle_price_updates(transaction: &Transaction) -> Vec<(Stri
 }
 
 /// Apply pending DIA price updates to a *fresh* money market, then re-decide liquidations for the
-/// borrowers holding any repriced reserve — the same-block oracle fast-path.
+/// borrowers holding any repriced reserve — the same-block oracle fast-path. One ranked list of
+/// decisions per liquidatable borrower (see `decide_liquidation_options`).
 ///
 /// Both directly-quoted reserves (symbol == base) and derived reserves (symbol *contains* base —
 /// e.g. `gDOT`/`vDOT` for a `DOT` update) are repriced. A derived reserve is scaled by the ratio
@@ -1309,7 +1374,7 @@ pub fn apply_oracle_updates_and_decide(
 	updates: &[(String, U256)],
 	borrowers: &[Borrower],
 	base_prices: &HashMap<String, U256>,
-) -> Vec<LiquidationDecision> {
+) -> Vec<Vec<LiquidationDecision>> {
 	use ethabi::ethereum_types::U512;
 
 	let scale = |v: U256, num: U256, den: U256| -> U256 {
@@ -1396,8 +1461,9 @@ pub fn apply_oracle_updates_and_decide(
 			}
 		}
 
-		if let Some(decision) = decide_liquidation(cfg, money_market, &b) {
-			decisions.push(decision);
+		let options = decide_liquidation_options(cfg, money_market, &b);
+		if !options.is_empty() {
+			decisions.push(options);
 		}
 	}
 	decisions
@@ -1411,7 +1477,8 @@ where
 	CL::Api: EthereumRuntimeRPCApi<B>
 		+ Erc20MappingApi<B>
 		+ CurrenciesApi<B, AssetId, AccountId, Balance>
-		+ DryRunApi<B, RuntimeCall, hydradx_runtime::RuntimeEvent, hydradx_runtime::OriginCaller>,
+		+ DryRunApi<B, RuntimeCall, hydradx_runtime::RuntimeEvent, hydradx_runtime::OriginCaller>
+		+ LiquidityStateApi<B>,
 	B: hydradx_runtime::BlockT,
 	<B as Block>::Extrinsic: From<OpaqueExtrinsic>,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
@@ -1485,6 +1552,9 @@ where
 	// case) is re-derived identically next block, and with `longevity(1)` it would be re-included
 	// every block at no cost to the submitter.
 	let mut submit_cooldown: HashMap<(EvmAddress, EvmAddress), BlockNumber> = HashMap::new();
+	// Liquidity snapshot of the last block that needed one, reused by the oracle fast path under
+	// the same staleness bound as the money-market cache.
+	let mut cached_liquidity: Option<(BlockNumber, routing::LiquidityState)> = None;
 	// Per-instance money market + borrowers are cached on each instance from its latest scan.
 	// The oracle fast-path reuses them (applying only the pending price delta) instead of
 	// re-fetching — a fetch is ~200ms of runtime-API EVM calls, too slow to beat the block that
@@ -1890,6 +1960,7 @@ where
 		  // Permits for the expensive half of a decision (`dry_run_liquidation`), reserved
 		  // atomically across the shards. See `MAX_SCAN_DRY_RUNS_PER_BLOCK`.
 		  let dry_runs = AtomicUsize::new(0);
+		  let liquidity_cell: std::sync::OnceLock<Option<routing::LiquidityState>> = std::sync::OnceLock::new();
 
 		  tokio::task::block_in_place(|| {
 			  std::thread::scope(|scope| {
@@ -1902,6 +1973,7 @@ where
 					  let cfg = &task.cfg;
 					  let found = &found;
 					  let dry_runs = &dry_runs;
+					  let liquidity_cell = &liquidity_cell;
 					  let best = b.hash;
 					  let submit_cooldown = &submit_cooldown;
 					  scope.spawn(move || {
@@ -1922,51 +1994,47 @@ where
 								  continue;
 							  }
 							  let mut submitted = false;
-							  if let Some(decision) = decide_liquidation(cfg, &ctx.mm, &borrower) {
+							  // GigaHdx decisions are re-mapped to the aToken collateral first
+							  // (fail-closed on a missing mapping).
+							  let decisions: Vec<LiquidationDecision> = decide_liquidation_options(cfg, &ctx.mm, &borrower)
+								  .iter()
+								  .filter_map(|d| map_decision_collateral(d, ctx.kind, &ctx.atoken_map, log_prefix))
+								  .collect();
+							  let on_cooldown = submit_cooldown
+								  .get(&(ctx.mm.pool, borrower.address))
+								  .is_some_and(|until| block_number < *until);
+							  if !decisions.is_empty() && on_cooldown {
+								  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): borrower {:?} is on submit cooldown, not resubmitting", borrower.address);
+							  } else if !decisions.is_empty() {
+								  // Fetched by the first shard that needs it, shared by the rest.
+								  let liquidity = liquidity_cell
+									  .get_or_init(|| routing::fetch_liquidity_state(runtime_api.deref(), best, log_prefix))
+									  .as_ref();
 								  // Submit-on-find: build the tx here (sync) and spawn the async submit.
-								  // GigaHdx decisions are re-mapped to the aToken collateral first
-								  // (fail-closed on a missing mapping).
-								  if let Some(mapped) = map_decision_collateral(&decision, ctx.kind, &ctx.atoken_map, log_prefix) {
-									  let on_cooldown = submit_cooldown
-										  .get(&(ctx.mm.pool, mapped.user))
-										  .is_some_and(|until| block_number < *until);
-									  if on_cooldown {
-										  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): borrower {:?} is on submit cooldown, not resubmitting", mapped.user);
-									  } else if dry_runs.fetch_add(1, Ordering::Relaxed) >= MAX_SCAN_DRY_RUNS_PER_BLOCK {
-										  log::warn!(target: LOG_TARGET, "{log_prefix:?} run(): per-block scan valve of {MAX_SCAN_DRY_RUNS_PER_BLOCK} decisions reached, deferring borrower {:?} to the next block", mapped.user);
-									  } else {
-										  let call = liquidation_call(&mapped, ctx.mm.pool);
-										  // v1 dry-ran before resubmitting "to prevent spamming with
-										  // extrinsic that will fail (e.g. because of not being
-										  // profitable)". `decide_liquidation` never models the
-										  // collateral sale, so a position that is underwater by the
-										  // worker's math can still revert with `NotProfitable` — and
-										  // with `longevity(1)` it would be rebuilt and re-included
-										  // every block, free, forever. Decisions are rare, so paying
-										  // for one simulation each is cheap.
-										  match dry_run_liquidation(runtime_api.deref(), best, call.clone()) {
-											  DryRun::WouldFail(e) => {
-												  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): dry run says liquidation for {:?} would fail ({e:?}), not submitting", mapped.user);
+								  if let Some(call) = first_viable_liquidation(
+									  ctx.mm.pool,
+									  ctx.kind,
+									  decisions,
+									  liquidity,
+									  dry_runs,
+									  |call| dry_run_liquidation(runtime_api.deref(), best, call),
+									  log_prefix,
+								  ) {
+									  if let Some(opaque) = encode_liquidation_opaque(call, log_prefix) {
+										  let pool = pool.clone();
+										  let user = borrower.address;
+										  let prefix = ctx.log_prefix.clone();
+										  found.fetch_add(1, Ordering::Relaxed);
+										  submitted = true;
+										  handle.spawn(async move {
+											  // A pool rejection (duplicate, pool limits, `InvalidTransaction` from
+											  // `validate_unsigned`) must never look like a landed liquidation —
+											  // that is the invisible-miss shape the worker exists to eliminate.
+											  match pool.submit_one(best, TransactionSource::Local, opaque.into()).await {
+												  Ok(_) => log::debug!(target: LOG_TARGET, "{prefix:?} run(): submitted liquidation for borrower {user:?}"),
+												  Err(e) => log::error!(target: LOG_TARGET, "{prefix:?} run(): failed to submit liquidation for borrower {user:?}, err: {e:?}"),
 											  }
-											  DryRun::WouldSucceed | DryRun::Unknown => {
-												  if let Some(opaque) = encode_liquidation_opaque(call, log_prefix) {
-													  let pool = pool.clone();
-													  let user = mapped.user;
-													  let prefix = ctx.log_prefix.clone();
-													  found.fetch_add(1, Ordering::Relaxed);
-													  submitted = true;
-													  handle.spawn(async move {
-														  // A pool rejection (duplicate, pool limits, `InvalidTransaction` from
-														  // `validate_unsigned`) must never look like a landed liquidation —
-														  // that is the invisible-miss shape the worker exists to eliminate.
-														  match pool.submit_one(best, TransactionSource::Local, opaque.into()).await {
-															  Ok(_) => log::debug!(target: LOG_TARGET, "{prefix:?} run(): submitted liquidation for borrower {user:?}"),
-															  Err(e) => log::error!(target: LOG_TARGET, "{prefix:?} run(): failed to submit liquidation for borrower {user:?}, err: {e:?}"),
-														  }
-													  });
-												  }
-											  }
-										  }
+										  });
 									  }
 								  }
 							  }
@@ -1977,6 +2045,10 @@ where
 				  drop(result_tx); // let the receiver iteration end once all threads finish
 			  });
 		  });
+
+		  if let Some(Some(state)) = liquidity_cell.into_inner() {
+			  cached_liquidity = Some((block_number, state));
+		  }
 
 		  // Drain results: prune repaid borrowers, collect the rest for each instance's
 		  // fast-path cache, and arm the submit cooldown for anything handed to the pool.
@@ -2091,7 +2163,8 @@ where
 				  base_prices.entry(r.symbol.to_ascii_lowercase()).or_insert(r.price);
 			  }
 		  }
-		  let mut decisions: Vec<(EvmAddress, LiquidationDecision)> = Vec::new();
+		  // Per borrower: (pool, kind, ranked decisions).
+		  let mut candidates: Vec<(EvmAddress, InstanceKind, Vec<LiquidationDecision>)> = Vec::new();
 		  for inst in &instances {
 			  let Some(mm_cache) = inst.cached_mm.as_ref() else { continue };
 			  if !is_fresh(inst) {
@@ -2099,24 +2172,45 @@ where
 				  continue;
 			  }
 			  let mut mm = mm_cache.clone();
-			  for decision in apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &inst.cached_borrowers, &base_prices) {
-				  if let Some(mapped) =
-					  map_decision_collateral(&decision, inst.kind, &inst.atoken_map, inst.log_prefix.as_str())
+			  for options in apply_oracle_updates_and_decide(&task.cfg, &mut mm, &updates, &inst.cached_borrowers, &base_prices) {
+				  let mapped: Vec<LiquidationDecision> = options
+					  .iter()
+					  .filter_map(|d| map_decision_collateral(d, inst.kind, &inst.atoken_map, inst.log_prefix.as_str()))
+					  .collect();
+				  let Some(user) = mapped.first().map(|d| d.user) else { continue };
+				  // Same cooldown as the scan path — the fast path must not re-submit a
+				  // decision the previous block already handed to the pool.
+				  if submit_cooldown
+					  .get(&(mm.pool, user))
+					  .is_some_and(|until| best_number < *until)
 				  {
-					  // Same cooldown as the scan path — the fast path must not re-submit a
-					  // decision the previous block already handed to the pool. No dry run here:
-					  // this path exists to beat the block that carries the oracle update, and a
-					  // simulation would cost more than the whole decision.
-					  if submit_cooldown
-						  .get(&(mm.pool, mapped.user))
-						  .is_some_and(|until| best_number < *until)
-					  {
-						  continue;
-					  }
-					  decisions.push((mm.pool, mapped));
+					  continue;
 				  }
+				  candidates.push((mm.pool, inst.kind, mapped));
 			  }
 		  }
+
+		  // Routed off the last scan's snapshot when it is fresh; otherwise fetched now, and only
+		  // because a candidate exists. No dry run on this path: it runs against `best`, before the
+		  // pending oracle update applies, so every liquidation it enables would read as failing.
+		  if !candidates.is_empty()
+			  && cached_liquidity
+				  .as_ref()
+				  .is_none_or(|(at, _)| best_number.saturating_sub(*at) > MAX_FAST_PATH_CACHE_AGE_BLOCKS)
+		  {
+			  cached_liquidity = routing::fetch_liquidity_state(client.runtime_api().deref(), best, task.cfg.log_prefix.as_str())
+				  .map(|state| (best_number, state));
+		  }
+		  let liquidity = cached_liquidity.as_ref().map(|(_, state)| state);
+		  let mut decisions: Vec<(EvmAddress, LiquidationDecision)> = candidates
+			  .into_iter()
+			  .filter_map(|(pool, kind, options)| {
+				  options
+					  .into_iter()
+					  .find_map(|d| routing::route_decision(kind, liquidity, d, task.cfg.log_prefix.as_str()))
+					  .map(|d| (pool, d))
+			  })
+			  .collect();
 
 		  if decisions.is_empty() {
 			  log::debug!(target: LOG_TARGET, "{:?} run(): oracle fast-path — no borrower flips underwater on the pending price(s)", task.cfg.log_prefix);

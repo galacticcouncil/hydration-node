@@ -12,7 +12,10 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
 	parameter_types,
 	sp_runtime::traits::{AccountIdConversion, Convert},
-	traits::{ConstU32, Contains, ContainsPair, Disabled, EitherOf, Everything, Get, Nothing, TransformOrigin},
+	traits::{
+		ConstU32, Contains, ContainsPair, Disabled, EitherOf, Everything, Get, Nothing, QueuePausedQuery,
+		TransformOrigin,
+	},
 	PalletId,
 };
 use frame_system::unique;
@@ -31,9 +34,10 @@ use sp_runtime::{traits::MaybeEquivalence, Perbill};
 use xcm_builder::{
 	AccountId32Aliases, AliasChildLocation, AliasOriginRootUsingFilter, AllowKnownQueryResponses,
 	AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom, DescribeAllTerminal, DescribeFamily, EnsureXcmOrigin,
-	GlobalConsensusConvertsFor, HashedDescription, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
-	TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin, WithUniqueTopic,
+	GlobalConsensusConvertsFor, HashedDescription, InspectMessageQueues, ParentIsPreset, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId, WeightInfoBounds, WithComputedOrigin,
+	WithUniqueTopic,
 };
 use xcm_executor::{traits::MatchesFungible, traits::TransactAsset, Config, XcmExecutor};
 
@@ -438,6 +442,17 @@ parameter_types! {
 	pub const MessageQueueHeapSize: u32 = 128 * 1048;
 }
 
+/// Pauses all inbound XCM, relay chain and siblings alike, while `pallet_parameters::XcmExecutionSuspended` is set.
+pub struct XcmExecutionPausedQuery<Inner>(PhantomData<Inner>);
+
+impl<Inner: QueuePausedQuery<AggregateMessageOrigin>> QueuePausedQuery<AggregateMessageOrigin>
+	for XcmExecutionPausedQuery<Inner>
+{
+	fn is_paused(origin: &AggregateMessageOrigin) -> bool {
+		Inner::is_paused(origin) || pallet_parameters::XcmExecutionSuspended::<Runtime>::get()
+	}
+}
+
 impl pallet_message_queue::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_message_queue::HydraWeight<Runtime>;
@@ -455,7 +470,7 @@ impl pallet_message_queue::Config for Runtime {
 	>;
 	type Size = u32;
 	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
-	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
+	type QueuePausedQuery = XcmExecutionPausedQuery<NarrowOriginToSibling<XcmpQueue>>;
 	type HeapSize = MessageQueueHeapSize;
 	type MaxStale = MessageQueueMaxStale;
 	type ServiceWeight = MessageQueueServiceWeight;
@@ -601,12 +616,47 @@ impl Convert<AccountId, Location> for AccountIdToLocation {
 
 /// The means for routing XCM messages which are not for local execution into the right message
 /// queues.
-pub type XcmRouter = WithUniqueTopic<(
-	// Two routers - use UMP to communicate with the relay chain:
-	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
-	// ..and XCMP to communicate with the sibling chains.
-	XcmpQueue,
-)>;
+pub type XcmRouter = PausableRouter<
+	WithUniqueTopic<(
+		// Two routers - use UMP to communicate with the relay chain:
+		cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
+		// ..and XCMP to communicate with the sibling chains.
+		XcmpQueue,
+	)>,
+>;
+
+/// Refuses every outbound message while `pallet_parameters::XcmSendSuspended` is set.
+pub struct PausableRouter<Inner>(PhantomData<Inner>);
+
+impl<Inner: SendXcm> SendXcm for PausableRouter<Inner> {
+	type Ticket = Inner::Ticket;
+
+	fn validate(destination: &mut Option<Location>, message: &mut Option<Xcm<()>>) -> SendResult<Self::Ticket> {
+		if pallet_parameters::XcmSendSuspended::<Runtime>::get() {
+			return Err(SendError::Transport("XCM sending is suspended"));
+		}
+		Inner::validate(destination, message)
+	}
+
+	fn deliver(ticket: Self::Ticket) -> Result<XcmHash, SendError> {
+		Inner::deliver(ticket)
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn ensure_successful_delivery(location: Option<Location>) {
+		Inner::ensure_successful_delivery(location)
+	}
+}
+
+impl<Inner: InspectMessageQueues> InspectMessageQueues for PausableRouter<Inner> {
+	fn clear_messages() {
+		Inner::clear_messages()
+	}
+
+	fn get_messages() -> Vec<(VersionedLocation, Vec<VersionedXcm<()>>)> {
+		Inner::get_messages()
+	}
+}
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
