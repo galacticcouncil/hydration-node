@@ -17,6 +17,7 @@ use crate::Runtime;
 
 pub mod circuit_breaker;
 pub mod conviction_voting;
+pub mod democracy;
 pub mod dynamic_fees;
 pub mod referenda;
 pub mod remove_fee_fallbacks;
@@ -38,4 +39,4 @@ pub type SingleBlockMigrationsList = (PermanentSingleBlockMigrations, Unreleased
 // One-shot entries stay listed until the next release: `pallet-migrations` records completed ids,
 // so a finished migration is skipped rather than re-run.
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type MultiBlockMigrationsList = ();
+pub type MultiBlockMigrationsList = (democracy::RemoveDemocracy,);

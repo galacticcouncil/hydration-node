@@ -1,6 +1,6 @@
 [package]
 name = "pallet-staking"
-version = "5.2.0"
+version = "5.3.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -34,8 +34,6 @@ frame-benchmarking = { workspace = true, optional = true }
 pallet-conviction-voting= { workspace = true }
 pallet-referenda = { workspace = true }
 
-pallet-democracy = {workspace = true}
-
 [dev-dependencies]
 pallet-uniques = { workspace = true }
 orml-tokens = { workspace = true }
@@ -60,7 +58,6 @@ std = [
 	"orml-tokens/std",
 	"pallet-conviction-voting/std",
 	"pallet-referenda/std",
-	"pallet-democracy/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -70,7 +67,6 @@ runtime-benchmarks = [
 	"pallet-uniques/runtime-benchmarks",
 	"pallet-conviction-voting/runtime-benchmarks",
 	"pallet-referenda/runtime-benchmarks",
-	"pallet-democracy/runtime-benchmarks",
 
 ]
 try-runtime = ["frame-support/try-runtime",]

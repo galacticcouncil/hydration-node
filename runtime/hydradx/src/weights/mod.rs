@@ -16,7 +16,6 @@ pub mod pallet_collective_technical_committee;
 pub mod pallet_conviction_voting;
 pub mod pallet_currencies;
 pub mod pallet_dca;
-pub mod pallet_democracy;
 pub mod pallet_dispatcher;
 pub mod pallet_dispenser;
 pub mod pallet_duster;

@@ -16,8 +16,8 @@ use hydradx_runtime::evm::{
 	precompiles::handle::EvmDataWriter, Executor,
 };
 use hydradx_runtime::{
-	Balances, ConvictionVoting, Currencies, Democracy, EVMAccounts, GigaHdx, GigaHdxRewards, Liquidation, Preimage,
-	Referenda, Runtime, RuntimeOrigin, Scheduler, Staking, System,
+	Balances, ConvictionVoting, Currencies, EVMAccounts, GigaHdx, GigaHdxRewards, Liquidation, Preimage, Referenda,
+	Runtime, RuntimeOrigin, Scheduler, Staking, System,
 };
 use hydradx_traits::evm::{CallContext, Erc20Mapping, InspectEvmAccounts, EVM};
 use orml_traits::MultiCurrency;
@@ -567,7 +567,6 @@ fn fund(account: &AccountId, amount: Balance) {
 fn next_block() {
 	System::set_block_number(System::block_number() + 1);
 	Scheduler::on_initialize(System::block_number());
-	Democracy::on_initialize(System::block_number());
 }
 
 #[allow(dead_code)]
