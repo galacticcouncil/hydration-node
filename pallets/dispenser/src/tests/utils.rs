@@ -73,11 +73,11 @@ pub fn compute_request_id(
 		sender_ss58.as_str(),
 		rlp_encoded.as_slice(),
 		caip2_id.as_str(),
-		0u32,
+		crate::KEY_VERSION,
 		core::str::from_utf8(crate::SIGNING_PATH).unwrap(),
-		"ecdsa",
-		"ethereum",
-		"",
+		core::str::from_utf8(crate::ECDSA).unwrap(),
+		core::str::from_utf8(crate::DEST).unwrap(),
+		core::str::from_utf8(crate::PARAMS).unwrap(),
 	)
 		.abi_encode_packed();
 
