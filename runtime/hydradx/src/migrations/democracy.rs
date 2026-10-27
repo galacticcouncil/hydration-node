@@ -18,6 +18,12 @@ use sp_std::vec::Vec;
 
 pub struct RemoveDemocracy;
 
+#[derive(Default)]
+struct DbOperations {
+	reads: u64,
+	writes: u64,
+}
+
 impl RemoveDemocracy {
 	fn prefix(phase: u8) -> Vec<u8> {
 		match phase {
@@ -39,87 +45,88 @@ impl RemoveDemocracy {
 		sp_io::storage::get(&key).is_some_and(|value| value.first() == Some(&1))
 	}
 
-	fn migrate_key(phase: u8, key: &[u8]) -> Result<Weight, &'static str> {
-		let mut reads = 0;
-		let mut writes = 1;
+	fn migrate_key(phase: u8, key: &[u8], operations: &mut DbOperations) -> Result<(), &'static str> {
 		match phase {
 			0 => {
 				let id = <Runtime as pallet_staking::Config>::PositionItemId::decode(
 					&mut key.get(48..).ok_or("invalid Gov v1 storage")?,
 				)
 				.map_err(|_| "invalid Gov v1 storage")?;
+				operations.reads += 1;
 				let raw = sp_io::storage::get(key).ok_or("invalid Gov v1 storage")?;
-				reads += 1;
 				let votes = pallet_staking::types::Voting::<ConstU32<100>>::decode(&mut &raw[..])
 					.map_err(|_| "invalid Gov v1 storage")?;
 				if !votes.votes.is_empty() {
-					reads += 1 + votes.votes.len() as u64;
-					writes += 1;
+					operations.reads += 1 + votes.votes.len() as u64;
+					operations.writes += 1;
 					pallet_staking::migrations::settle_legacy_votes::<Runtime>(id, votes, Self::is_finished);
 				}
 			}
 			2 => {
+				operations.reads += 1;
 				let raw = sp_io::storage::get(key).ok_or("invalid Gov v1 storage")?;
-				reads += 1;
 				let (depositors, amount) = <(BoundedVec<AccountId, ConstU32<100>>, Balance)>::decode(&mut &raw[..])
 					.map_err(|_| "invalid Gov v1 storage")?;
 				for who in depositors {
-					reads += 6;
-					writes += 6;
+					operations.reads += 6;
+					operations.writes += 6;
 					Balances::unreserve(&who, amount);
 				}
 			}
 			3 => {
 				let who = AccountId::decode(&mut key.get(40..).ok_or("invalid Gov v1 storage")?)
 					.map_err(|_| "invalid Gov v1 storage")?;
-				reads += 1;
+				operations.reads += 1;
 				if pallet_balances::Locks::<Runtime>::get(&who)
 					.iter()
 					.any(|lock| lock.id == *b"democrac")
 				{
-					reads += 5;
-					writes += 5;
+					operations.reads += 5;
+					operations.writes += 5;
 					Balances::remove_lock(*b"democrac", &who);
 				}
 			}
 			_ => {}
 		}
+		operations.writes += 1;
 		sp_io::storage::clear(key);
-		Ok(<Runtime as frame_system::Config>::DbWeight::get().reads_writes(reads, writes))
+		Ok(())
 	}
 
-	fn migrate() -> Result<Weight, &'static str> {
-		let db = <Runtime as frame_system::Config>::DbWeight::get();
-		let mut weight = Weight::zero();
+	fn migrate(operations: &mut DbOperations) -> Result<(), &'static str> {
 		for phase in 0..=4 {
 			let prefix = Self::prefix(phase);
 			let mut removed = 0u64;
 			loop {
-				weight = weight.saturating_add(db.reads(1));
+				operations.reads += 1;
 				let Some(key) = sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)) else {
 					break;
 				};
-				weight = weight.saturating_add(Self::migrate_key(phase, &key)?);
+				Self::migrate_key(phase, &key, operations)?;
 				removed += 1;
 			}
 			log::info!(target: "runtime::migration", "RemoveDemocracy phase {phase}: removed {removed} keys");
 		}
-		log::info!(target: "runtime::migration", "RemoveDemocracy estimated DB weight: {weight:?}");
-		Ok(weight)
+		Ok(())
 	}
 }
 
 impl OnRuntimeUpgrade for RemoveDemocracy {
 	fn on_runtime_upgrade() -> Weight {
-		// The pallet is already absent from the runtime: a partial cleanup must never be committed.
-		let result = with_transaction(|| match Self::migrate().map_err(DispatchError::Other) {
-			Ok(weight) => TransactionOutcome::Commit(Ok(weight)),
+		// Keep state intact for a repair upgrade if cleanup fails; the chain must keep producing blocks.
+		// Count work outside the transaction so rollback does not erase the consumed weight.
+		let mut operations = DbOperations::default();
+		let result = with_transaction(|| match Self::migrate(&mut operations).map_err(DispatchError::Other) {
+			Ok(()) => TransactionOutcome::Commit(Ok(())),
 			Err(error) => TransactionOutcome::Rollback(Err(error)),
 		});
-		match result {
-			Ok(weight) => weight,
-			Err(error) => panic!("Gov v1 cleanup failed: {error:?}"),
+		if let Err(error) = result {
+			log::error!(target: "runtime::migration", "Gov v1 cleanup rolled back: {error:?}; legacy state retained for a repair upgrade");
 		}
+		let weight =
+			<Runtime as frame_system::Config>::DbWeight::get().reads_writes(operations.reads, operations.writes);
+		log::info!(target: "runtime::migration", "RemoveDemocracy estimated DB weight: {weight:?}");
+		weight
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -309,10 +316,54 @@ mod tests {
 				1,
 				pallet_staking::types::Voting::<ConstU32<100>>::default(),
 			);
-			let result = std::panic::catch_unwind(RemoveDemocracy::on_runtime_upgrade);
-			assert!(result.is_err());
+			let weight = RemoveDemocracy::on_runtime_upgrade();
+			assert_eq!(
+				weight,
+				<Runtime as frame_system::Config>::DbWeight::get().reads_writes(6, 1)
+			);
 			assert!(sp_io::storage::exists(&key));
 			assert!(pallet_staking::migrations::PositionVotes::<Runtime>::contains_key(1));
+
+			let depositors = BoundedVec::<AccountId, ConstU32<100>>::default();
+			sp_io::storage::set(&key, &(depositors, 0u128).encode());
+			run_cleanup();
+			assert!(!sp_io::storage::exists(&key));
+			assert!(!pallet_staking::migrations::PositionVotes::<Runtime>::contains_key(1));
+		});
+	}
+
+	#[test]
+	fn cleanup_should_preserve_refunds_and_locks_when_a_later_key_is_invalid() {
+		sp_io::TestExternalities::new_empty().execute_with(|| {
+			let who = AccountId::new([1; 32]);
+			Balances::make_free_balance_be(&who, 1_000_000_000_000_000_000);
+			assert!(Balances::reserve(&who, 3_000).is_ok());
+			Balances::set_lock(*b"democrac", &who, 10_000, WithdrawReasons::all());
+			Balances::set_lock(*b"pyconvot", &who, 5_000, WithdrawReasons::all());
+			let locks = pallet_balances::Locks::<Runtime>::get(&who);
+			let depositors = BoundedVec::<_, ConstU32<100>>::try_from(vec![who.clone()]).unwrap();
+			let deposit_key = map_key(b"DepositOf", &0u32.encode());
+			let deposit = (depositors, 500u128).encode();
+			sp_io::storage::set(&deposit_key, &deposit);
+			let voter_key = map_key(b"VotingOf", &who.encode());
+			sp_io::storage::set(&voter_key, &[0]);
+			let mut invalid_key = RemoveDemocracy::prefix(3);
+			invalid_key.extend_from_slice(&[255; 8]);
+			assert!(voter_key < invalid_key);
+			sp_io::storage::set(&invalid_key, &[0]);
+			#[cfg(feature = "try-runtime")]
+			let snapshot = RemoveDemocracy::pre_upgrade().unwrap();
+
+			let weight = RemoveDemocracy::on_runtime_upgrade();
+
+			assert!(weight.ref_time() > 0);
+			assert_eq!(Balances::reserved_balance(&who), 3_000);
+			assert_eq!(pallet_balances::Locks::<Runtime>::get(&who), locks);
+			assert_eq!(sp_io::storage::get(&deposit_key).unwrap().to_vec(), deposit);
+			assert!(sp_io::storage::exists(&voter_key));
+			assert!(sp_io::storage::exists(&invalid_key));
+			#[cfg(feature = "try-runtime")]
+			assert!(RemoveDemocracy::post_upgrade(snapshot).is_err());
 		});
 	}
 }
