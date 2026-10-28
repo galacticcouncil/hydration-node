@@ -96,13 +96,15 @@ impl RemoveDemocracy {
 	fn migrate(operations: &mut DbOperations) -> Result<(), &'static str> {
 		for phase in 0..=4 {
 			let prefix = Self::prefix(phase);
+			let mut cursor = prefix.clone();
 			let mut removed = 0u64;
 			loop {
 				operations.reads += 1;
-				let Some(key) = sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)) else {
+				let Some(key) = sp_io::storage::next_key(&cursor).filter(|key| key.starts_with(&prefix)) else {
 					break;
 				};
 				Self::migrate_key(phase, &key, operations)?;
+				cursor = key;
 				removed += 1;
 			}
 			log::info!(target: "runtime::migration", "RemoveDemocracy phase {phase}: removed {removed} keys");
@@ -215,6 +217,41 @@ mod tests {
 		#[cfg(feature = "try-runtime")]
 		RemoveDemocracy::post_upgrade(snapshot).unwrap();
 		weight
+	}
+
+	#[test]
+	fn cleanup_should_remove_all_legacy_records_when_keys_are_in_backend_storage() {
+		let mut ext = sp_io::TestExternalities::new_empty();
+		let unrelated_key = storage_prefix(b"ConvictionVoting", b"VotingFor");
+		ext.execute_with(|| {
+			for index in 0..64u8 {
+				pallet_staking::migrations::PositionVotes::<Runtime>::insert(
+					index as u128,
+					pallet_staking::types::Voting::<ConstU32<100>>::default(),
+				);
+				let mut processed_key = RemoveDemocracy::prefix(1);
+				processed_key.extend_from_slice(&index.encode());
+				sp_io::storage::set(&processed_key, &[0]);
+				let depositors = BoundedVec::<AccountId, ConstU32<100>>::default();
+				sp_io::storage::set(
+					&map_key(b"DepositOf", &(index as u32).encode()),
+					&(depositors, 0u128).encode(),
+				);
+				sp_io::storage::set(&map_key(b"VotingOf", &AccountId::new([index; 32]).encode()), &[0]);
+				sp_io::storage::set(&map_key(b"ReferendumInfoOf", &(index as u32).encode()), &[1]);
+			}
+			sp_io::storage::set(&unrelated_key, &[42]);
+		});
+		ext.commit_all().unwrap();
+		ext.execute_with(|| {
+			run_cleanup();
+			for phase in [0, 1, 4] {
+				assert!(!frame_support::storage::unhashed::contains_prefixed_key(
+					&RemoveDemocracy::prefix(phase)
+				));
+			}
+			assert_eq!(sp_io::storage::get(&unrelated_key).unwrap().to_vec(), vec![42]);
+		});
 	}
 
 	#[test]
