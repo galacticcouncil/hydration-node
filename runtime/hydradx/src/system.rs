@@ -535,8 +535,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::CancelProxy => matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Democracy(..)
-					| RuntimeCall::TechnicalCommittee(..)
+				RuntimeCall::TechnicalCommittee(..)
 					| RuntimeCall::Treasury(..)
 					| RuntimeCall::Utility(..)
 					| RuntimeCall::Preimage(..)

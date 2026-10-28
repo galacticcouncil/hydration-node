@@ -1,0 +1,16 @@
+{
+  "name": "democracy-force-remove-votes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Retire legacy democracy votes and unlock expired balances before pallet removal",
+  "main": "index.js",
+  "scripts": {
+    "dry-run": "node index.js",
+    "submit": "node index.js submit",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@polkadot/api": "latest",
+    "@polkadot/util-crypto": "latest"
+  }
+}

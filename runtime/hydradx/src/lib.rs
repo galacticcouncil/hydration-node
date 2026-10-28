@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 456,
+	spec_version: 457,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -163,7 +163,6 @@ construct_runtime!(
 		Utility: pallet_utility = 13,
 		Preimage: pallet_preimage = 15,
 		Identity: pallet_identity = 17,
-		Democracy: pallet_democracy exclude_parts { Config } = 19,
 		// NOTE 19, 21, 23 & 27 are retired (was used by gov v1)
 		TechnicalCommittee: pallet_collective::<Instance2> = 25,
 		Proxy: pallet_proxy = 29,
@@ -350,7 +349,6 @@ mod benches {
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
-		[pallet_democracy, Democracy]
 		[pallet_treasury, Treasury]
 		[pallet_scheduler, Scheduler]
 		[pallet_utility, Utility]
