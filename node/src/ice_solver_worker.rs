@@ -18,6 +18,7 @@ use hydradx_runtime::{
 	HydraUncheckedExtrinsic, HydrationSimulators, RuntimeCall, SimulatorPriceDenom, SmartRouteFinder, LRNA,
 };
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
+use ice_solver::common::split::Tolerance;
 use ice_solver::{passthrough, v4, IceSolver, SolverOptions, SplitConfig};
 use pallet_ice_runtime_api::{IceSolverApi, Solution, SolverInput, SolverMode};
 use pallet_omnipool::types::Tradability;
@@ -51,6 +52,12 @@ pub struct IceSolverWorkerConfig {
 	/// `--ice-solver-split=false` falls back to single-route trades.
 	#[clap(long, default_value_t = true, action = clap::ArgAction::Set)]
 	pub ice_solver_split: bool,
+
+	/// Haircut on simulated AMM outputs, `key=ppm[+units],...` over a flat 1 bps
+	/// per route; keys `route`, `omnipool`, `stableswap`, `xyk`, `lbp`, `aave`,
+	/// `hsm`, `uniswapv3`. E.g. `route=0,omnipool=100,stableswap=0+2`.
+	#[clap(long, value_parser = Tolerance::parse)]
+	pub ice_solver_tolerance: Option<Tolerance>,
 }
 
 impl IceSolverWorkerConfig {
@@ -62,6 +69,7 @@ impl IceSolverWorkerConfig {
 		};
 		SolverOptions {
 			split,
+			tolerance: self.ice_solver_tolerance.unwrap_or_default(),
 			..SolverOptions::default()
 		}
 	}
@@ -276,8 +284,9 @@ where
 		let options = config.solver_options();
 		tracing::info!(
 			target: LOG_TARGET,
-			"starting, route splitting enabled={}",
-			options.split.max_legs > 1
+			"starting, route splitting enabled={}, tolerance={:?}",
+			options.split.max_legs > 1,
+			options.tolerance,
 		);
 
 		let mut block_stream = client.import_notification_stream();
@@ -443,6 +452,7 @@ pub mod rpc {
 mod tests {
 	use super::*;
 	use clap::Parser;
+	use ice_solver::common::split::HopTolerance;
 	use sp_runtime::Permill;
 
 	fn input_with(mode: SolverMode, state: Vec<u8>) -> SolverInput {
@@ -481,6 +491,32 @@ mod tests {
 		let config =
 			IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-split=false"]).expect("flags should parse");
 		assert_eq!(config.solver_options().split, SplitConfig::disabled());
+	}
+
+	#[test]
+	fn solver_options_should_keep_the_flat_tolerance_when_the_flag_is_absent() {
+		let config = IceSolverWorkerConfig::try_parse_from(["hydradx"]).expect("flags should parse");
+		assert_eq!(config.solver_options().tolerance, Tolerance::default());
+	}
+
+	#[test]
+	fn solver_options_should_set_venue_tolerances_when_the_flag_is_given() {
+		let config = IceSolverWorkerConfig::try_parse_from([
+			"hydradx",
+			"--ice-solver-tolerance",
+			"route=0,omnipool=100,stableswap=0+2",
+		])
+		.expect("flags should parse");
+		let t = config.solver_options().tolerance;
+		assert_eq!(t.route_ppm, 0);
+		assert_eq!(t.omnipool, HopTolerance { ppm: 100, units: 0 });
+		assert_eq!(t.stableswap, HopTolerance { ppm: 0, units: 2 });
+		assert_eq!(t.aave, HopTolerance::default());
+	}
+
+	#[test]
+	fn ice_solver_tolerance_should_fail_when_the_venue_is_unknown() {
+		assert!(IceSolverWorkerConfig::try_parse_from(["hydradx", "--ice-solver-tolerance", "curve=5"]).is_err());
 	}
 
 	#[test]

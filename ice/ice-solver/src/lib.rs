@@ -67,6 +67,7 @@ pub struct SolverOptions {
 	/// remainder is only ever filled whole. A limit only small trades clear would
 	/// otherwise be filled a sliver per block, one solution each.
 	pub min_partial_fill: Permill,
+	pub tolerance: common::split::Tolerance,
 }
 
 impl Default for SolverOptions {
@@ -74,6 +75,7 @@ impl Default for SolverOptions {
 		Self {
 			split: SplitConfig::default(),
 			min_partial_fill: Permill::from_percent(1),
+			tolerance: common::split::Tolerance::default(),
 		}
 	}
 }

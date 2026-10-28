@@ -1294,3 +1294,54 @@ fn liquidate_with_pool_should_fail_when_pool_is_wrong() {
 		);
 	});
 }
+
+// The collateral sale must execute on the route the worker found off-chain from the liquidity
+// snapshot, not only on the router's stored route.
+#[test]
+fn liquidate_with_pool_should_liquidate_when_route_is_found_off_chain() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let (pool_contract, borrower_evm, caller) = create_unhealthy_borrower_with(&ParityScenario {
+			name: "off-chain-route",
+			weth_supply: 10 * WETH_UNIT,
+			dot_supply: 0,
+			dot_borrow: 2_000 * DOT_UNIT,
+			price_mul: (7, 5),
+			hf_above_close_factor_threshold: Some(true),
+		});
+		let decision = v2_decision(caller, borrower_evm);
+
+		let (raw, _) = pallet_ice::Pallet::<Runtime>::liquidity_state();
+		let state = pepl_worker::routing::decode_liquidity_state(&raw, LOG_PREFIX).expect("snapshot decodes");
+		let routed = pepl_worker::routing::route_decision(
+			pepl_worker::InstanceKind::Generic,
+			Some(&state),
+			decision,
+			LOG_PREFIX,
+		)
+		.expect("collateral is routable to the debt asset");
+		assert_eq!(routed.collateral_amount, 1_169_873_026_140_000_000);
+		assert_eq!(
+			routed.route.to_vec(),
+			vec![hydradx_traits::router::Trade {
+				pool: hydradx_traits::router::PoolType::Omnipool,
+				asset_in: WETH,
+				asset_out: DOT,
+			}]
+		);
+
+		assert_ok!(Liquidation::liquidate_with_pool(
+			RuntimeOrigin::none(),
+			pool_contract,
+			routed.collateral_asset,
+			routed.debt_asset,
+			borrower_evm,
+			routed.debt_to_cover,
+			routed.route.clone(),
+			Some(routed.priority),
+		));
+
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
+}

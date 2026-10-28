@@ -8,8 +8,8 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	Balances, BlockNumber, ConvictionVoting, Currencies, Democracy, Omnipool, Preimage, Referenda, Scheduler, Staking,
-	System, Tokens, Vesting,
+	Balances, BlockNumber, ConvictionVoting, Currencies, Omnipool, Preimage, Referenda, Scheduler, Staking, System,
+	Tokens, Vesting,
 };
 use orml_traits::currency::MultiCurrency;
 use orml_vesting::VestingSchedule;
@@ -90,7 +90,6 @@ fn fast_forward_to(n: u32) {
 fn next_block() {
 	System::set_block_number(System::block_number() + 1);
 	Scheduler::on_initialize(System::block_number());
-	Democracy::on_initialize(System::block_number());
 }
 const AYE: Vote = Vote {
 	aye: true,

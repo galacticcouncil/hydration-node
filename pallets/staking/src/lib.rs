@@ -232,27 +232,6 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	// The original storage is kept for the following reasons.
-	// 1. To keep legacy staking votes so users don't loose points
-	// 2. To keep processed votes so balances are correctly locked after a legacy vote is removed.
-
-	#[pallet::storage]
-	/// Legacy storage! - Used to handle democracy votes until democracy pallet is fully removed.
-	pub(super) type PositionVotes<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
-
-	#[pallet::storage]
-	/// Legacy storage! - Used to handle democracy processed votes until democracy pallet is fully removed.
-	pub(super) type ProcessedVotes<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Blake2_128Concat,
-		types::ReferendumIndex,
-		types::Vote,
-		OptionQuery,
-	>;
-
 	#[pallet::storage]
 	/// Block number when we switched to 6 sec. blocks.
 	#[pallet::getter(fn six_sec_blocks_since)]

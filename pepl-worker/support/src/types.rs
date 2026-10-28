@@ -422,9 +422,22 @@ impl MoneyMarket {
 		target_health_factor: U256,
 		log_prefix: &str,
 	) -> Result<Option<LiquidationOption>, Error> {
+		Ok(self
+			.calc_ranked_liquidation_options_for(borrower, target_health_factor, log_prefix)?
+			.into_iter()
+			.next())
+	}
+
+	/// Every liquidation option, best first (see `rank_liquidation_options`).
+	pub fn calc_ranked_liquidation_options_for(
+		&self,
+		borrower: &Borrower,
+		target_health_factor: U256,
+		log_prefix: &str,
+	) -> Result<Vec<LiquidationOption>, Error> {
 		let liq_opts = self.calculate_liquidation_options(borrower, target_health_factor, log_prefix)?;
 
-		Ok(select_best_liquidation_option(liq_opts, target_health_factor))
+		Ok(rank_liquidation_options(liq_opts, target_health_factor))
 	}
 
 	/// Calculate liquidation options based on the user's reserve, price update and target health factor.
@@ -484,6 +497,7 @@ impl MoneyMarket {
 						collateral_asset: *c_addr,
 						debt_asset: *d_addr,
 						debt_to_liquidate: l.debt_amount,
+						collateral_amount: l.collateral_amount,
 					});
 				}
 			}
@@ -825,26 +839,27 @@ where
 ///    yields `U256::MAX`) — heals, seizing no more than necessary;
 /// 3. otherwise (every option leaves HF < 1.0, e.g. close-factor-capped) the highest HF —
 ///    best effort; the per-block re-scan drives the follow-up round.
-pub fn select_best_liquidation_option(
-	mut options: Vec<LiquidationOption>,
-	target_hf: U256,
-) -> Option<LiquidationOption> {
+pub fn select_best_liquidation_option(options: Vec<LiquidationOption>, target_hf: U256) -> Option<LiquidationOption> {
+	rank_liquidation_options(options, target_hf).into_iter().next()
+}
+
+/// All options ordered by the `select_best_liquidation_option` policy, so a caller that cannot
+/// execute the best one (no route for the collateral sale) can fall back to the next.
+pub fn rank_liquidation_options(mut options: Vec<LiquidationOption>, target_hf: U256) -> Vec<LiquidationOption> {
 	options.sort_by(|a, b| a.health_factor.cmp(&b.health_factor));
 
 	let one = U256::from(ONE_HF);
-	if let Some(best_healthy) = options
-		.iter()
+	let (healthy, rest): (Vec<_>, Vec<_>) = options
+		.into_iter()
+		.partition(|o| o.health_factor >= one && o.health_factor <= target_hf);
+	let (overshoot, underwater): (Vec<_>, Vec<_>) = rest.into_iter().partition(|o| o.health_factor > target_hf);
+
+	healthy
+		.into_iter()
 		.rev()
-		.find(|o| o.health_factor >= one && o.health_factor <= target_hf)
-	{
-		return Some(best_healthy.clone());
-	}
-
-	if let Some(smallest_overshoot) = options.iter().find(|o| o.health_factor > target_hf) {
-		return Some(smallest_overshoot.clone());
-	}
-
-	options.into_iter().next_back()
+		.chain(overshoot)
+		.chain(underwater.into_iter().rev())
+		.collect()
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -853,6 +868,8 @@ pub struct LiquidationOption {
 	pub collateral_asset: EvmAddress,
 	pub debt_asset: EvmAddress,
 	pub debt_to_liquidate: U256,
+	/// Collateral the liquidation seizes, bonus included — what the pallet sells for the debt.
+	pub collateral_amount: U256,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

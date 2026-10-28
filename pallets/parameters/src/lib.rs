@@ -61,6 +61,10 @@ pub mod pallet {
 	pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
 		/// Origin allowed to change parameters.
 		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
+		/// Origin allowed to stop all XCM in one call. Meant to be wider than `AuthorityOrigin`
+		/// (e.g. any single technical committee member), as it can only stop, never resume.
+		type EmergencyOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 	}
 
 	#[pallet::event]
@@ -73,7 +77,23 @@ pub mod pallet {
 			quoter: H160,
 		},
 		/// The Aave trade executor gas limits were set, or cleared back to the built-in defaults.
-		AaveGasLimitsSet { limits: Option<AaveGasLimits> },
+		AaveGasLimitsSet {
+			limits: Option<AaveGasLimits>,
+		},
+		XcmSendSuspended,
+		XcmSendResumed,
+		XcmExecutionSuspended,
+		XcmExecutionResumed,
+		/// Both outbound and inbound XCM were suspended.
+		XcmSuspended,
+		/// Both outbound and inbound XCM were resumed.
+		XcmResumed,
+	}
+
+	#[pallet::error]
+	pub enum Error<T> {
+		AlreadySuspended,
+		AlreadyResumed,
 	}
 
 	#[pallet::pallet]
@@ -112,6 +132,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn uniswap_v3_quoter)]
 	pub type UniswapV3Quoter<T> = StorageValue<_, H160, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn xcm_send_suspended)]
+	pub type XcmSendSuspended<T> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn xcm_execution_suspended)]
+	pub type XcmExecutionSuspended<T> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -200,6 +228,124 @@ pub mod pallet {
 			AaveGasLimitsOverride::<T>::set(limits);
 
 			Self::deposit_event(Event::AaveGasLimitsSet { limits });
+			Ok(())
+		}
+
+		/// Suspend all outbound XCM.
+		///
+		/// The runtime's XCM router refuses every message while suspended, so user transfers fail
+		/// and roll back, and sends made while executing inbound XCM fail with the assets
+		/// left in the asset trap.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmSendSuspended` event when successful.
+		///
+		#[pallet::call_index(2)]
+		#[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+		pub fn suspend_xcm_send(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(!XcmSendSuspended::<T>::get(), Error::<T>::AlreadySuspended);
+			XcmSendSuspended::<T>::put(true);
+
+			Self::deposit_event(Event::XcmSendSuspended);
+			Ok(())
+		}
+
+		/// Resume outbound XCM.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmSendResumed` event when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+		pub fn resume_xcm_send(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(XcmSendSuspended::<T>::get(), Error::<T>::AlreadyResumed);
+			XcmSendSuspended::<T>::kill();
+
+			Self::deposit_event(Event::XcmSendResumed);
+			Ok(())
+		}
+
+		/// Suspend execution of all inbound XCM, from the relay chain and from siblings.
+		///
+		/// Messages are not dropped: they stay queued and execute once execution is resumed.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmExecutionSuspended` event when successful.
+		///
+		#[pallet::call_index(4)]
+		#[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+		pub fn suspend_xcm_execution(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(!XcmExecutionSuspended::<T>::get(), Error::<T>::AlreadySuspended);
+			XcmExecutionSuspended::<T>::put(true);
+
+			Self::deposit_event(Event::XcmExecutionSuspended);
+			Ok(())
+		}
+
+		/// Resume execution of inbound XCM, including messages queued while suspended.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmExecutionResumed` event when successful.
+		///
+		#[pallet::call_index(5)]
+		#[pallet::weight((T::DbWeight::get().reads_writes(1, 1), DispatchClass::Operational))]
+		pub fn resume_xcm_execution(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			ensure!(XcmExecutionSuspended::<T>::get(), Error::<T>::AlreadyResumed);
+			XcmExecutionSuspended::<T>::kill();
+
+			Self::deposit_event(Event::XcmExecutionResumed);
+			Ok(())
+		}
+
+		/// Emergency stop: suspend both outbound and inbound XCM.
+		///
+		/// Succeeds even if either side is already suspended, so it can always be used in an emergency.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::EmergencyOrigin`
+		///
+		/// Emits `XcmSuspended` event when successful.
+		///
+		#[pallet::call_index(6)]
+		#[pallet::weight((T::DbWeight::get().writes(2), DispatchClass::Operational))]
+		pub fn suspend_xcm(origin: OriginFor<T>) -> DispatchResult {
+			T::EmergencyOrigin::ensure_origin(origin)?;
+			XcmSendSuspended::<T>::put(true);
+			XcmExecutionSuspended::<T>::put(true);
+
+			Self::deposit_event(Event::XcmSuspended);
+			Ok(())
+		}
+
+		/// Resume both outbound and inbound XCM.
+		///
+		/// Succeeds even if either side is already resumed.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::AuthorityOrigin`
+		///
+		/// Emits `XcmResumed` event when successful.
+		///
+		#[pallet::call_index(7)]
+		#[pallet::weight((T::DbWeight::get().writes(2), DispatchClass::Operational))]
+		pub fn resume_xcm(origin: OriginFor<T>) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			XcmSendSuspended::<T>::kill();
+			XcmExecutionSuspended::<T>::kill();
+
+			Self::deposit_event(Event::XcmResumed);
 			Ok(())
 		}
 	}
