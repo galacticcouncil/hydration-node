@@ -5828,7 +5828,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "457.0.0"
+version = "458.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -9334,7 +9334,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dispatcher"
-version = "1.8.0"
+version = "1.9.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14171,7 +14171,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.126.3"
+version = "1.127.0"
 dependencies = [
  "amm-simulator",
  "cumulus-pallet-aura-ext",

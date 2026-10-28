@@ -142,6 +142,7 @@ pub mod pallet {
 		/// Aave - the reserve is paused and no operations are allowed
 		AaveReservePaused,
 		UniswapV3InsufficientLiquidity,
+		UniswapV3SwapFailed,
 	}
 
 	#[pallet::event]
