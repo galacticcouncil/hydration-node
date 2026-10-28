@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.7.1"
+version = "15.7.2"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5806,7 +5806,7 @@ dependencies = [
  "pallet-referrals",
  "pallet-route-executor",
  "pallet-stableswap",
- "pallet-staking 5.2.0",
+ "pallet-staking 5.3.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-uniques",
@@ -5828,7 +5828,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "456.0.0"
+version = "458.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5893,7 +5893,6 @@ dependencies = [
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
  "pallet-dca",
- "pallet-democracy 4.5.0",
  "pallet-dispatcher",
  "pallet-dispenser",
  "pallet-duster",
@@ -5935,7 +5934,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-otc-settlements",
- "pallet-parameters 1.5.0",
+ "pallet-parameters 1.6.0",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-referenda",
@@ -5946,7 +5945,7 @@ dependencies = [
  "pallet-session",
  "pallet-signet",
  "pallet-stableswap",
- "pallet-staking 5.2.0",
+ "pallet-staking 5.3.0",
  "pallet-state-trie-migration",
  "pallet-timestamp",
  "pallet-tips",
@@ -6141,7 +6140,7 @@ dependencies = [
 
 [[package]]
 name = "ice-solver"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9318,26 +9317,6 @@ dependencies = [
 
 [[package]]
 name = "pallet-democracy"
-version = "4.5.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "pallet-preimage",
- "pallet-scheduler",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-democracy"
 version = "41.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#6a657941f7f74e2ccc3b09695d9c00bee47a5d85"
 dependencies = [
@@ -9441,7 +9420,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dynamic-evm-fee"
-version = "1.3.0"
+version = "1.3.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9454,7 +9433,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-evm",
- "pallet-parameters 1.5.0",
+ "pallet-parameters 1.6.0",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "primitives",
@@ -10521,7 +10500,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-parameters"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10886,7 +10865,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-staking"
-version = "5.2.0"
+version = "5.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10897,7 +10876,6 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-conviction-voting",
- "pallet-democracy 4.5.0",
  "pallet-referenda",
  "pallet-uniques",
  "parity-scale-codec",
@@ -11535,8 +11513,9 @@ dependencies = [
 
 [[package]]
 name = "pepl-worker"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "amm-simulator",
  "clap",
  "cumulus-primitives-core",
  "ethabi",
@@ -11550,12 +11529,14 @@ dependencies = [
  "hex",
  "hex-literal",
  "hydradx-runtime",
+ "hydradx-traits",
  "hyper 0.14.31",
  "hyper-rustls 0.24.2",
  "log",
  "pallet-currencies-rpc-runtime-api",
  "pallet-ethereum",
  "pallet-evm",
+ "pallet-ice-runtime-api",
  "pallet-liquidation",
  "parity-scale-codec",
  "pepl-worker-support",
@@ -11576,7 +11557,7 @@ dependencies = [
 
 [[package]]
 name = "pepl-worker-support"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -14003,7 +13984,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-child-bounties",
  "pallet-conviction-voting",
- "pallet-democracy 41.0.0",
+ "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-identity",
@@ -14281,7 +14262,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-stableswap",
- "pallet-staking 5.2.0",
+ "pallet-staking 5.3.0",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
@@ -14349,7 +14330,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-omnipool",
  "pallet-stableswap",
- "pallet-staking 5.2.0",
+ "pallet-staking 5.3.0",
  "primitives",
  "scraper",
  "serde",

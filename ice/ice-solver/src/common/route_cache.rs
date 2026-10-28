@@ -5,6 +5,7 @@
 //! route set) and existential deposits are memoized because on chain they are a
 //! registry read the resolution stages ask for over and over.
 
+use crate::common::split::{Leg, Tolerance};
 use hydradx_traits::amm::AMMInterface;
 use hydradx_traits::router::Route;
 use ice_support::{AssetId, Balance};
@@ -20,6 +21,7 @@ pub struct RouteCache<A: AMMInterface> {
 	existential_deposits: BTreeMap<AssetId, Balance>,
 	/// Directed pairs with no route at all — reported in the solve summary.
 	unroutable: BTreeSet<(AssetId, AssetId)>,
+	pub tolerance: Tolerance,
 	_phantom: PhantomData<A>,
 }
 
@@ -35,6 +37,7 @@ impl<A: AMMInterface> RouteCache<A> {
 			routes: BTreeMap::new(),
 			existential_deposits: BTreeMap::new(),
 			unroutable: BTreeSet::new(),
+			tolerance: Tolerance::default(),
 			_phantom: PhantomData,
 		}
 	}
@@ -68,7 +71,7 @@ impl<A: AMMInterface> RouteCache<A> {
 	}
 
 	/// Best `ExactIn` sell across every discovered route, simulated against
-	/// `state`: the winning route, its output, and the state after that trade.
+	/// `state`: the winning leg and the state after that trade.
 	///
 	/// Never memoized — the result is only valid for the state it was simulated
 	/// against, and callers thread the state between trades.
@@ -78,19 +81,22 @@ impl<A: AMMInterface> RouteCache<A> {
 		asset_out: AssetId,
 		amount_in: Balance,
 		state: &A::State,
-	) -> Option<(Route<AssetId>, Balance, A::State)> {
-		let mut best: Option<(Route<AssetId>, Balance, A::State)> = None;
+	) -> Option<(Leg, A::State)> {
+		let mut best: Option<(Leg, A::State)> = None;
 		for i in 0..self.routes(asset_in, asset_out, state).len() {
 			let Some(route) = self.route_at(asset_in, asset_out, i) else {
 				break;
 			};
-			let Ok((new_state, exec)) = A::sell(asset_in, asset_out, amount_in, route.clone(), state) else {
+			let Ok((new_state, leg)) = Leg::sell::<A>(&self.tolerance, asset_in, asset_out, amount_in, route, state)
+			else {
 				continue;
 			};
-			// `>=` keeps the last maximum on ties; the route list is
-			// deterministic, so the choice is stable across collators.
-			if best.as_ref().map(|(_, out, _)| exec.amount_out >= *out).unwrap_or(true) {
-				best = Some((route, exec.amount_out, new_state));
+			// Ranked on the claim: venues are haircut differently. `>=` keeps the
+			// last maximum on ties; the route list is deterministic, so the choice
+			// is stable across collators.
+			let rank = |l: &Leg| (l.claimed_out(&self.tolerance), l.amount_out);
+			if best.as_ref().map(|(b, _)| rank(&leg) >= rank(b)).unwrap_or(true) {
+				best = Some((leg, new_state));
 			}
 		}
 		best

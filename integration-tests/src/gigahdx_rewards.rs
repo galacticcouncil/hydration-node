@@ -25,8 +25,8 @@ use frame_support::traits::{schedule::DispatchTime, Bounded, LockIdentifier, OnI
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::{
-	pallet_custom_origins::Origin as CustomOrigin, Balances, BlockNumber, ConvictionVoting, Democracy, EVMAccounts,
-	GigaHdx, GigaHdxRewards, OriginCaller, Preimage, Referenda, Runtime, RuntimeOrigin, Scheduler, System,
+	pallet_custom_origins::Origin as CustomOrigin, Balances, BlockNumber, ConvictionVoting, EVMAccounts, GigaHdx,
+	GigaHdxRewards, OriginCaller, Preimage, Referenda, Runtime, RuntimeOrigin, Scheduler, System,
 };
 use pallet_conviction_voting::{AccountVote, Conviction, Vote};
 use pallet_gigahdx::traits::VotingCommitmentInspect;
@@ -178,7 +178,6 @@ fn gigahdx_cooldown() -> BlockNumber {
 fn next_block() {
 	System::set_block_number(System::block_number() + 1);
 	Scheduler::on_initialize(System::block_number());
-	Democracy::on_initialize(System::block_number());
 }
 
 fn aye(amount: u128) -> AccountVote<u128> {

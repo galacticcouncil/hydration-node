@@ -1,6 +1,6 @@
 [package]
 name = "pepl-worker-support"
-version = "0.1.0"
+version = "0.2.0"
 description = "PEPL Liquidation Worker"
 authors = ["GalacticCouncil"]
 edition = "2021"

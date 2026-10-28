@@ -49,6 +49,7 @@ fn option(health_factor: U256, marker: u8) -> LiquidationOption {
 		collateral_asset: H160::repeat_byte(marker),
 		debt_asset: H160::repeat_byte(marker),
 		debt_to_liquidate: U256::from(1u8),
+		collateral_amount: U256::from(1u8),
 	}
 }
 
@@ -110,6 +111,42 @@ fn select_best_should_pick_highest_hf_when_no_option_heals() {
 	let best = select_best_liquidation_option(vec![better.clone(), worse], U256::from(TARGET_HF));
 
 	assert_eq!(best, Some(better));
+}
+
+// The fallback order behind the best pick: remaining in-target options closest first, then
+// overshoots smallest first, then underwater options highest HF first.
+#[test]
+fn rank_liquidation_options_should_order_fallbacks_by_selection_policy_when_many_options_exist() {
+	let in_target_close = option(U256::from(1_000_900_000_000_000_000u128), 1);
+	let in_target_far = option(U256::from(1_000_100_000_000_000_000u128), 2);
+	let small_overshoot = option(U256::from(1_200_000_000_000_000_000u128), 3);
+	let full_repay = option(U256::MAX, 4);
+	let underwater_high = option(U256::from(970_000_000_000_000_000u128), 5);
+	let underwater_low = option(U256::from(900_000_000_000_000_000u128), 6);
+
+	let ranked = rank_liquidation_options(
+		vec![
+			underwater_low.clone(),
+			full_repay.clone(),
+			in_target_far.clone(),
+			small_overshoot.clone(),
+			underwater_high.clone(),
+			in_target_close.clone(),
+		],
+		U256::from(TARGET_HF),
+	);
+
+	assert_eq!(
+		ranked,
+		vec![
+			in_target_close,
+			in_target_far,
+			small_overshoot,
+			full_repay,
+			underwater_high,
+			underwater_low
+		]
+	);
 }
 
 // Aave reserve configuration bitmap: liquidation threshold in bits [16..31], liquidation bonus
