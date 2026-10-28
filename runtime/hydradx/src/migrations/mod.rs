@@ -20,7 +20,6 @@ pub mod conviction_voting;
 pub mod democracy;
 pub mod dynamic_fees;
 pub mod referenda;
-pub mod remove_fee_fallbacks;
 pub mod scheduler;
 pub mod stableswap;
 
