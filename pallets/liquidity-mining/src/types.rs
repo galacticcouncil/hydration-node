@@ -42,7 +42,7 @@ impl<T: Config<I>, I: 'static> PriceAdjustment<GlobalFarmData<T, I>> for Default
 /// `GlobalFarm` based on their stake in `GlobalFarm`. `YieldFarm` stake in `GlobalFarm` is derived from
 /// users stake in `YieldFarm`.
 /// Yield farm is considered live from global farm view if yield farm is `active` or `stopped`.
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 #[codec(mel_bound())]
 #[scale_info(skip_type_params(T, I))]
 pub struct GlobalFarmData<T: Config<I>, I: 'static = ()> {
@@ -189,7 +189,7 @@ impl<T: Config<I>, I: 'static> GlobalFarmData<T, I> {
 	}
 }
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 #[codec(mel_bound())]
 #[scale_info(skip_type_params(T, I))]
 pub struct YieldFarmData<T: Config<I>, I: 'static = ()> {
@@ -271,7 +271,7 @@ impl<T: Config<I>, I: 'static> YieldFarmData<T, I> {
 /// `denom = t + scale_coef`
 ///
 /// `loyalty_multiplier = num/denom`
-#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, DecodeWithMemTracking, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T, I))]
 pub struct LoyaltyCurve {
 	pub initial_reward_percentage: FixedU128,
@@ -295,7 +295,7 @@ impl Default for LoyaltyCurve {
 /// Every deposit should have at least one farm entry and deposit without farm entries
 /// should be removed from storage and LP shares should be unlocked.
 /// `redeposit_lp_shares()` is used to add a new farm entry into the deposit("re-lock" LP shares").
-#[derive(Clone, Encode, Decode, RuntimeDebug, TypeInfo, PartialEq, Eq, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, Debug, TypeInfo, PartialEq, Eq, MaxEncodedLen)]
 #[codec(mel_bound())]
 #[scale_info(skip_type_params(T, I))]
 pub struct DepositData<T: Config<I>, I: 'static = ()> {
@@ -364,7 +364,7 @@ impl<T: Config<I>, I: 'static> DepositData<T, I> {
 	}
 }
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 #[codec(mel_bound())]
 #[scale_info(skip_type_params(T, I))]
 pub struct YieldFarmEntry<T: Config<I>, I: 'static = ()> {
@@ -409,7 +409,7 @@ impl<T: Config<I>, I: 'static> YieldFarmEntry<T, I> {
 ///   `Active` again or can be `Terminated`. This state can be used only for yield farms.
 /// - `Terminated` - farm is destroyed and it's waiting to be removed from the storage. This state can't be
 ///   reverted and is available for both farm types.
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 pub enum FarmState {
 	Active,
 	Stopped,

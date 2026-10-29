@@ -222,7 +222,7 @@ pub fn get_oracle_price(asset_pair: &str) -> Option<(U256, U256)> {
 	None
 }
 
-#[derive(sp_core::RuntimeDebug)]
+#[derive(Debug)]
 pub struct ApiProvider<C>(pub C);
 
 impl<B: Block, C> RuntimeApiProvider<B> for ApiProvider<C>

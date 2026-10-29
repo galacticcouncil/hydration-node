@@ -45,18 +45,7 @@ where
 /// Note: Some of the oracles are named after certain periods of time.
 /// This description relies on the mapping of the enum to the internal implementation and can thus not be guaranteed.
 #[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	Copy,
-	Clone,
-	RuntimeDebug,
-	TypeInfo,
-	MaxEncodedLen,
+	Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Debug, TypeInfo, MaxEncodedLen,
 )]
 pub enum OraclePeriod {
 	/// The oracle data is from the last block, thus unaggregated.
@@ -98,7 +87,7 @@ impl OraclePeriod {
 
 /// Struct to represent oracle data aggregated over a time period. Includes the age of the oracle
 /// as metadata. Age is the blocks between first data and the timestamp of the most recent value.
-#[derive(Encode, Decode, Eq, PartialEq, Clone, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Default, Debug, TypeInfo, MaxEncodedLen)]
 pub struct AggregatedEntry<Balance, BlockNumber, Price> {
 	pub price: Price,
 	pub volume: Volume<Balance>,
@@ -131,7 +120,7 @@ impl<Balance, BlockNumber, Price> From<(Price, Volume<Balance>, Liquidity<Balanc
 
 /// Struct to represent trade volume for an asset pair.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(RuntimeDebug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 pub struct Volume<Balance> {
 	pub a_in: Balance,
 	pub b_out: Balance,
@@ -236,7 +225,7 @@ impl<Balance> From<Volume<Balance>> for (Balance, Balance, Balance, Balance) {
 
 /// Struct to represent pool liquidity for an asset pair.
 #[derive(
-	RuntimeDebug, Encode, Decode, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen,
+	Debug, Encode, Decode, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen,
 )]
 pub struct Liquidity<Balance> {
 	pub a: Balance,
@@ -359,7 +348,7 @@ where
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, Default, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Default, Debug, TypeInfo, MaxEncodedLen)]
 pub struct RawEntry<Balance, BlockNumber> {
 	pub price: (Balance, Balance),
 	pub volume: Volume<Balance>,
