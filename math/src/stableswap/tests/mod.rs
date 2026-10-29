@@ -3,6 +3,7 @@ mod invariants;
 mod multi_assets;
 mod prices;
 mod recalculate_pegs;
+mod swap_mirror;
 mod two_assets;
 
 use crate::types::Balance;
