@@ -16,8 +16,10 @@ pub const PARAMS: &[u8] = b"";
 
 /// Fixed signing derivation path — all dispenser requests use the same
 /// MPC-derived key so that only one EVM wallet needs to be funded and
-/// whitelisted on the faucet contract.
-pub const SIGNING_PATH: &[u8] = b"dispenser";
+/// whitelisted on the faucet contract. It lies in SigNet's `bidirectional/`
+/// namespace, which the MPC reserves so that no plain sign request can
+/// derive this key and use up a request's nonce.
+pub const SIGNING_PATH: &[u8] = b"bidirectional/dispenser";
 
 pub trait WeightInfo {
 	fn request_fund() -> Weight;
