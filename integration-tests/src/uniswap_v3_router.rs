@@ -554,7 +554,7 @@ fn register_pool() -> EvmAddress {
 }
 
 fn uniswap_snapshot() -> amm_simulator::uniswap_v3::Snapshot {
-	<HydrationSimulators as SimulatorSet>::initial_state().3
+	(*<HydrationSimulators as SimulatorSet>::initial_state().3).clone()
 }
 
 #[test]
@@ -780,7 +780,7 @@ fn probe_uniswap_snapshot() {
 			RoutingTarget::UniswapV3Pool(UniswapV3::find_pool(1001, 222, 3000).unwrap().unwrap()),
 			Some(RoutingState::Included),
 		));
-		let snap = <HydrationSimulators as SimulatorSet>::initial_state().3;
+		let snap = (*<HydrationSimulators as SimulatorSet>::initial_state().3).clone();
 		for (addr, curve) in snap.pools.iter() {
 			println!(
 				"curve {addr:?}: a_to_b {} samples, max_in {:?}; b_to_a {} samples, max_in {:?}",

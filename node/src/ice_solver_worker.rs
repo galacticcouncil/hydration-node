@@ -173,7 +173,7 @@ pub(crate) fn build_extrinsic(
 			return None;
 		}
 	};
-	state.0.hub_sells_disabled = !hub_sells_allowed;
+	Arc::make_mut(&mut state.0).hub_sells_disabled = !hub_sells_allowed;
 	// Reseed every solve — blocking-pool threads are reused.
 	ED_TL.with(|m| {
 		let mut m = m.borrow_mut();

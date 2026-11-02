@@ -82,15 +82,15 @@ impl AMMInterface for DecimalsAmm {
 }
 
 #[test]
-fn default_should_haircut_one_bps_per_route_when_the_route_has_several_hops() {
+fn default_should_sum_the_measured_venue_tolerances() {
 	let t = Tolerance::default();
 	let l = leg(
 		&t,
 		route(&[PoolType::Aave, PoolType::Omnipool, PoolType::Stableswap(100)]),
-		&[1, 1, 1_234_567],
+		&[1_234_567, 1_234_567, 1_234_567],
 	);
-	assert_eq!(l.claimed_out(&t), 1_234_567 - 123);
-	assert_eq!(l.claimed_out_strict(&t), 1_234_567 - 124);
+	assert_eq!(l.claimed_out(&t), 1_234_567 - 128);
+	assert_eq!(l.claimed_out_strict(&t), 1_234_567 - 129);
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn leg_sell_should_take_only_the_last_hop_units_when_intermediate_hops_have_none
 
 #[test]
 fn claimed_out_should_not_haircut_when_every_hop_is_zero() {
-	let t = Tolerance::parse("route=0").unwrap();
+	let t = Tolerance::parse("route=0,aave=0").unwrap();
 	let l = leg(
 		&t,
 		route(&[PoolType::UniswapV3(3000), PoolType::Aave]),
@@ -156,9 +156,9 @@ fn claimed_out_strict_should_round_the_share_up_when_it_is_fractional() {
 #[test]
 fn parse_should_keep_defaults_when_a_venue_is_not_named() {
 	let t = Tolerance::parse("uniswapv3=0+5").unwrap();
-	assert_eq!(t.route_ppm, 100);
+	assert_eq!(t.route_ppm, 0);
 	assert_eq!(t.uniswap_v3, HopTolerance { ppm: 0, units: 5 });
-	assert_eq!(t.omnipool, HopTolerance::default());
+	assert_eq!(t.omnipool, HopTolerance { ppm: 100, units: 0 });
 }
 
 #[test]

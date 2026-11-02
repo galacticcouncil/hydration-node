@@ -9023,7 +9023,7 @@ fn solver_should_drop_aave_intent_and_settle_the_rest_when_reserves_are_capped()
 					// keep the decimals bits and the active flag (bit 56) so this exercises
 					// the cap rather than an inactive reserve, set a one-token supply cap,
 					// push supply far past it, and leave nothing to withdraw.
-					for reserve in state.2.reserves.values_mut() {
+					for reserve in std::sync::Arc::make_mut(&mut state.2).reserves.values_mut() {
 						let decimals_bits = reserve.configuration & (sp_core::U256::from(0xFFu64) << 48);
 						reserve.configuration =
 							decimals_bits | (sp_core::U256::one() << 56) | (sp_core::U256::from(1u64) << 116);

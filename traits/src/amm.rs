@@ -14,6 +14,7 @@ use frame_support::traits::Get;
 use hydra_dx_math::types::Ratio;
 use primitives::{AssetId, Balance};
 use scale_info::TypeInfo;
+use sp_std::sync::Arc;
 use sp_std::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
@@ -287,10 +288,10 @@ pub trait AMMInterface {
 /// Blanket implementation for single simulator.
 /// Allows using a single `AmmSimulator` where a `SimulatorSet` is expected.
 impl<S: AmmSimulator> SimulatorSet for S {
-	type State = S::Snapshot;
+	type State = Arc<S::Snapshot>;
 
 	fn initial_state() -> Self::State {
-		S::snapshot()
+		Arc::new(S::snapshot())
 	}
 
 	fn simulate_sell(
@@ -304,7 +305,7 @@ impl<S: AmmSimulator> SimulatorSet for S {
 		if !S::matches_pool_type(pool_type) {
 			return Err(SimulatorError::NotSupported);
 		}
-		S::simulate_sell(asset_in, asset_out, amount_in, min_amount_out, state)
+		S::simulate_sell(asset_in, asset_out, amount_in, min_amount_out, state).map(|(s, r)| (Arc::new(s), r))
 	}
 
 	fn simulate_buy(
@@ -318,7 +319,7 @@ impl<S: AmmSimulator> SimulatorSet for S {
 		if !S::matches_pool_type(pool_type) {
 			return Err(SimulatorError::NotSupported);
 		}
-		S::simulate_buy(asset_in, asset_out, amount_out, max_amount_in, state)
+		S::simulate_buy(asset_in, asset_out, amount_out, max_amount_in, state).map(|(s, r)| (Arc::new(s), r))
 	}
 
 	fn get_spot_price(
