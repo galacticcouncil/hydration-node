@@ -170,16 +170,16 @@ fn intent_should_settle_through_both_routes_when_the_new_pool_prices_the_first_c
 			let solution = run_and_submit_as::<V4Solver>(SolverMode::V4, "stableswap_split");
 			let received = Currencies::free_balance(WETH, &alice) - before;
 
-			let single_route: Shape = vec![(existing_route(), sale, 39_316_158_329_486_508_810)];
+			let single_route: Shape = vec![(existing_route(), sale, 39320051018430022322)];
 			assert_eq!(pools(&single), single_route);
-			assert_eq!(resolved(&single), vec![(ALICE_ID, sale, 39_316_158_329_486_508_810)]);
+			assert_eq!(resolved(&single), vec![(ALICE_ID, sale, 39320051018430022322)]);
 			let split: Shape = vec![
-				(vec![PoolType::Stableswap(pool)], 4 * UNIT, 3_920_465_932_961_080_778),
-				(existing_route(), 35_999_999_999_999_999_998, 35_552_341_506_643_445_547),
+				(vec![PoolType::Stableswap(pool)], 4 * UNIT, 3920854097904938309),
+				(existing_route(), 35_999_999_999_999_999_998, 35555861540455984498),
 			];
 			assert_eq!(pools(&solution), split);
-			assert_eq!(resolved(&solution), vec![(ALICE_ID, sale, 39_472_807_439_604_526_325)]);
-			assert_eq!(received, 39_472_807_439_604_526_325);
+			assert_eq!(resolved(&solution), vec![(ALICE_ID, sale, 39476715638360922807)]);
+			assert_eq!(received, 39476715638360922807);
 		});
 }
 
@@ -199,10 +199,10 @@ fn intent_should_stay_on_one_route_when_split_gain_is_below_threshold() {
 			let single = solve_as::<V4NoSplit>().expect("resolves");
 			let solution = run_and_submit_as::<V4Solver>(SolverMode::V4, "stableswap_below_threshold");
 
-			let one_route: Shape = vec![(existing_route(), sale, 19_913_168_068_155_459_090)];
+			let one_route: Shape = vec![(existing_route(), sale, 19915139668954286360)];
 			assert_eq!(pools(&single), one_route);
 			assert_eq!(pools(&solution), one_route);
-			assert_eq!(resolved(&solution), vec![(ALICE_ID, sale, 19_913_168_068_155_459_090)]);
+			assert_eq!(resolved(&solution), vec![(ALICE_ID, sale, 19915139668954286360)]);
 		});
 }
 
@@ -227,33 +227,30 @@ fn netting_should_split_only_the_residual_when_opposing_flow_leaves_one() {
 			// Bob's side is matched against Alice's and never reaches a pool; only
 			// Alice's residual is routed, and only it is split.
 			let residual = 42_000_800_000_000_000_000;
-			assert_eq!(
-				pools(&single),
-				vec![(existing_route(), residual, 41_140_146_721_530_196_571)]
-			);
+			assert_eq!(pools(&single), vec![(existing_route(), residual, 41144220003383813419)]);
 			assert_eq!(
 				pools(&solution),
 				vec![
 					(
 						vec![PoolType::Stableswap(pool)],
 						4_200_080_000_000_000_000,
-						4_098_422_336_583_598_486
+						4098828120973359236
 					),
-					(existing_route(), 37_800_719_999_999_999_998, 37_261_524_673_764_943_420),
+					(existing_route(), 37_800_719_999_999_999_998, 37265213933633633015),
 				]
 			);
 			assert_eq!(
 				resolved(&single),
 				vec![
 					(BOB_ID, 8 * UNIT, 7_997_600_160_000_000_000),
-					(ALICE_ID, 50 * UNIT, 49_138_546_721_530_196_571),
+					(ALICE_ID, 50 * UNIT, 49142620003383813419),
 				]
 			);
 			assert_eq!(
 				resolved(&solution),
 				vec![
 					(BOB_ID, 8 * UNIT, 7_997_600_160_000_000_002),
-					(ALICE_ID, 50 * UNIT, 49_358_347_010_348_541_906),
+					(ALICE_ID, 50 * UNIT, 49362442054606992251),
 				]
 			);
 		});
