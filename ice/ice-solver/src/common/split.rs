@@ -76,11 +76,7 @@ impl Default for Tolerance {
 			lbp: HopTolerance { ppm: 100, units: 0 },
 			aave: HopTolerance { ppm: 0, units: 2 },
 			hsm: HopTolerance { ppm: 100, units: 0 },
-<<<<<<< HEAD
-			uniswap_v3: HopTolerance::default(),
-=======
 			uniswap_v3: HopTolerance { ppm: 0, units: 2 },
->>>>>>> master
 		}
 	}
 }
