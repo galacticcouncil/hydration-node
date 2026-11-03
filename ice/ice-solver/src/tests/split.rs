@@ -288,6 +288,7 @@ fn solve_with(intents: Vec<Intent>, state: Book, split: SplitConfig) -> Solution
 		Permill::zero(),
 		&SolverOptions {
 			split,
+			tolerance: super::flat_tolerance(),
 			..SolverOptions::default()
 		},
 	)

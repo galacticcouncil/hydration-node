@@ -554,7 +554,7 @@ fn register_pool() -> EvmAddress {
 }
 
 fn uniswap_snapshot() -> amm_simulator::uniswap_v3::Snapshot {
-	<HydrationSimulators as SimulatorSet>::initial_state().3
+	(*<HydrationSimulators as SimulatorSet>::initial_state().3).clone()
 }
 
 #[test]
@@ -780,7 +780,7 @@ fn probe_uniswap_snapshot() {
 			RoutingTarget::UniswapV3Pool(UniswapV3::find_pool(1001, 222, 3000).unwrap().unwrap()),
 			Some(RoutingState::Included),
 		));
-		let snap = <HydrationSimulators as SimulatorSet>::initial_state().3;
+		let snap = (*<HydrationSimulators as SimulatorSet>::initial_state().3).clone();
 		for (addr, curve) in snap.pools.iter() {
 			println!(
 				"curve {addr:?}: a_to_b {} samples, max_in {:?}; b_to_a {} samples, max_in {:?}",
@@ -966,7 +966,7 @@ fn split_sale_trades() -> Vec<TradeShape> {
 		(
 			vec![PoolType::UniswapV3(FEE_TIER)],
 			2_490_234_375_000_000_000_000,
-			24_147_885_566_400,
+			24_150_300_596_457,
 		),
 	]
 }
@@ -994,9 +994,12 @@ fn intent_should_settle_through_omnipool_and_uniswap_v3_when_amount_exceeds_v3_c
 		);
 		assert_eq!(paid_out(&single), 96_101_217_529_770);
 		assert_eq!(trade_shapes(&solution), split_sale_trades());
-		assert_eq!(paid_out(&solution), 96_678_163_161_817);
-		assert_eq!(solution.score, 6_678_163_161_817);
-		assert_eq!(received, 96_678_163_161_817);
+		assert_eq!(paid_out(&solution), 96_680_578_191_874);
+		assert_eq!(solution.score, 6_680_578_191_874);
+		assert!(
+			received >= paid_out(&solution) && received <= paid_out(&solution).saturating_add(2),
+			"aToken balance rounding may credit at most two units above the nominal payout"
+		);
 		assert_eq!(
 			router_balances(),
 			router_before,
@@ -1011,7 +1014,7 @@ fn intent_should_be_admitted_when_only_the_split_clears_its_limit() {
 		register_pool();
 		fund_alice_from_treasury(ASSET_OUT, SPLIT_SALE);
 		// Between what the Omnipool alone pays (96_101_217_529_770) and what the
-		// split pays (96_678_163_161_817).
+		// split pays (96_680_578_191_874).
 		submit_intent(ASSET_OUT, ASSET_IN, SPLIT_SALE, 96_400_000_000_000);
 
 		let single = crate::ice::harness::solve_as::<crate::ice::harness::V4NoSplit>();
@@ -1022,8 +1025,8 @@ fn intent_should_be_admitted_when_only_the_split_clears_its_limit() {
 
 		assert!(single.is_none(), "the single route cannot pay the limit");
 		assert_eq!(trade_shapes(&solution), split_sale_trades());
-		assert_eq!(paid_out(&solution), 96_678_163_161_817);
-		assert_eq!(solution.score, 278_163_161_817);
+		assert_eq!(paid_out(&solution), 96_680_578_191_874);
+		assert_eq!(solution.score, 280_578_191_874);
 	});
 }
 

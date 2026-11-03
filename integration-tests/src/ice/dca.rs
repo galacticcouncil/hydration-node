@@ -1144,7 +1144,7 @@ fn dca_through_stableswap_single_hop() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 99035129791013827215, "score");
+			assert_eq!(solution.score, 99045034259309967196, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1155,7 +1155,7 @@ fn dca_through_stableswap_single_hop() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 18);
 				assert_eq!(s.amount_in, 100000000u128);
-				assert_eq!(s.amount_out, 100035129791013827215u128);
+				assert_eq!(s.amount_out, 100045034259309967196u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1165,7 +1165,7 @@ fn dca_through_stableswap_single_hop() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 98490489034185927448, "score");
+			assert_eq!(solution.score, 98500132614003553307, "score");
 			// The first trade left the stableswap pools imbalanced enough that the
 			// second is split across the paths through assets 21 and 23 (+~12 bps).
 			assert_eq!(solution.trades.len(), 2, "trades count");
@@ -1178,7 +1178,7 @@ fn dca_through_stableswap_single_hop() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 18);
 				assert_eq!(s.amount_in, 100000000u128);
-				assert_eq!(s.amount_out, 99490489034185927448u128);
+				assert_eq!(s.amount_out, 99500132614003553307u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1260,7 +1260,7 @@ fn dca_through_omnipool_and_stableswap_multi_hop() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 10322, "score");
+			assert_eq!(solution.score, 10318, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1271,7 +1271,7 @@ fn dca_through_omnipool_and_stableswap_multi_hop() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 10);
 				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 20322u128);
+				assert_eq!(s.amount_out, 20318u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1280,7 +1280,7 @@ fn dca_through_omnipool_and_stableswap_multi_hop() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 10322, "score");
+			assert_eq!(solution.score, 10318, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1291,7 +1291,7 @@ fn dca_through_omnipool_and_stableswap_multi_hop() {
 				assert_eq!(s.asset_in, 0);
 				assert_eq!(s.asset_out, 10);
 				assert_eq!(s.amount_in, 10000000000000u128);
-				assert_eq!(s.amount_out, 20322u128);
+				assert_eq!(s.amount_out, 20318u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1366,7 +1366,7 @@ fn dca_through_aave_pair() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 977491, "score");
+			assert_eq!(solution.score, 977589, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1377,7 +1377,7 @@ fn dca_through_aave_pair() {
 				assert_eq!(s.asset_in, 22);
 				assert_eq!(s.asset_out, 1003);
 				assert_eq!(s.amount_in, 1000000u128);
-				assert_eq!(s.amount_out, 999900u128);
+				assert_eq!(s.amount_out, 999998u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1386,7 +1386,7 @@ fn dca_through_aave_pair() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 977491, "score");
+			assert_eq!(solution.score, 977589, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1397,7 +1397,7 @@ fn dca_through_aave_pair() {
 				assert_eq!(s.asset_in, 22);
 				assert_eq!(s.asset_out, 1003);
 				assert_eq!(s.amount_in, 1000000u128);
-				assert_eq!(s.amount_out, 999900u128);
+				assert_eq!(s.amount_out, 999998u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1521,7 +1521,7 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 		{
 			let solution = advance_and_solve(PERIOD);
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 9554442994231870026, "score");
+			assert_eq!(solution.score, 9555388978686744466, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1532,7 +1532,7 @@ fn dca_stays_alive_when_trade_fails_until_lockdown_is_lifted() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 100);
 				assert_eq!(s.amount_in, 10000000u128);
-				assert_eq!(s.amount_out, 9554442994231871026u128);
+				assert_eq!(s.amount_out, 9555388978686745466u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
@@ -1742,7 +1742,7 @@ fn dca_retries_every_block_until_success() {
 		{
 			let solution = run_solver_and_submit();
 			assert_eq!(solution.resolved_intents.len(), 1, "resolved count");
-			assert_eq!(solution.score, 9554442994231870026, "score");
+			assert_eq!(solution.score, 9555388978686744466, "score");
 			assert_eq!(solution.trades.len(), 1, "trades count");
 			{
 				let r = &solution.resolved_intents[0];
@@ -1753,7 +1753,7 @@ fn dca_retries_every_block_until_success() {
 				assert_eq!(s.asset_in, 10);
 				assert_eq!(s.asset_out, 100);
 				assert_eq!(s.amount_in, 10000000u128);
-				assert_eq!(s.amount_out, 9554442994231871026u128);
+				assert_eq!(s.amount_out, 9555388978686745466u128);
 				assert_eq!(s.partial, ice_support::Partial::No);
 			}
 			solution
