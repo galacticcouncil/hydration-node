@@ -61,9 +61,9 @@ use std::{collections::BTreeMap, sync::Mutex};
 use substrate_prometheus_endpoint::Registry;
 
 pub(crate) mod evm;
-use crate::{chain_spec, cli, ice_solver_worker, rpc};
+use crate::{cerebro_guard, chain_spec, cli, ice_solver_worker, rpc};
 
-type ParachainClient = TFullClient<
+pub(crate) type ParachainClient = TFullClient<
 	Block,
 	RuntimeApi,
 	WasmExecutor<(
@@ -300,6 +300,7 @@ async fn start_node_impl(
 	ethereum_config: evm::EthereumConfig,
 	liquidation_worker_config: pepl_worker::LiquidationWorkerCli,
 	ice_solver_worker_config: ice_solver_worker::IceSolverWorkerConfig,
+	cerebro_guard_config: cerebro_guard::GuardConfig,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	no_tx_priority_override: bool,
@@ -427,6 +428,26 @@ async fn start_node_impl(
 		}
 	}
 
+	// The guard only matters where blocks are authored.
+	let cerebro_guard = (validator && cerebro_guard_config.mode != cerebro_guard::GuardMode::Off).then(|| {
+		Arc::new(cerebro_guard::Shared::new(
+			cerebro_guard_config,
+			Some(&base_path_for_pepl),
+			prometheus_registry.as_ref(),
+		))
+	});
+	if let Some(shared) = &cerebro_guard {
+		task_manager.spawn_handle().spawn_blocking(
+			"cerebro-guard-maintenance",
+			Some("cerebro-guard"),
+			cerebro_guard::run_maintenance::<_, ParachainBackend, _>(
+				client.clone(),
+				transaction_pool.clone(),
+				shared.clone(),
+			),
+		);
+	}
+
 	// Data provided from the ICE solver worker to RPC API.
 	let ice_solver_task_data = Arc::new(ice_solver_worker::IceSolverTaskData::new());
 
@@ -491,6 +512,13 @@ async fn start_node_impl(
 		let overrides = overrides.clone();
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 		let backend = backend.clone();
+		let cerebro_guard = cerebro_guard.clone().map(|shared| {
+			let pool: Arc<dyn cerebro_guard::rpc::PoolControl> = Arc::new(cerebro_guard::rpc::NodePool {
+				client: client.clone(),
+				pool: transaction_pool.clone(),
+			});
+			(shared, pool)
+		});
 
 		Box::new(move |subscription_task_executor| {
 			let deps = crate::rpc::FullDeps {
@@ -499,6 +527,7 @@ async fn start_node_impl(
 				backend: backend.clone(),
 				ice_solver_task_data: ice_solver_task_data.clone(),
 				pepl_status: pepl_status.clone(),
+				cerebro_guard: cerebro_guard.clone(),
 			};
 
 			let module = rpc::create_full(deps)?;
@@ -605,6 +634,7 @@ async fn start_node_impl(
 			collator_key.expect("Command line arguments do not allow this. qed"),
 			collator_peer_id,
 			announce_block,
+			cerebro_guard,
 		)?;
 	}
 
@@ -656,6 +686,7 @@ fn start_consensus(
 	collator_key: CollatorPair,
 	collator_peer_id: PeerId,
 	announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
+	cerebro_guard: Option<Arc<cerebro_guard::Shared>>,
 ) -> Result<(), sc_service::Error> {
 	use cumulus_client_consensus_aura::collators::slot_based::{self as slot_based, Params as SlotBasedParams};
 
@@ -666,6 +697,12 @@ fn start_consensus(
 		prometheus_registry,
 		telemetry.clone(),
 	);
+	let proposer = match cerebro_guard {
+		Some(shared) => {
+			proposer.with_extrinsic_guard(Arc::new(cerebro_guard::CerebroGuard::new(client.clone(), shared)))
+		}
+		None => proposer,
+	};
 
 	let collator_service = CollatorService::new(
 		client.clone(),
@@ -722,6 +759,10 @@ pub async fn start_node(
 		cli.ethereum_config,
 		cli.liquidation_worker_config,
 		cli.ice_solver_worker_config,
+		cerebro_guard::GuardConfig::from_cli(
+			&cli.cerebro_guard_config,
+			cli.run.base.base.pool_config.tx_ban_seconds.unwrap_or(30 * 60),
+		),
 		collator_options,
 		para_id,
 		cli.no_tx_priority_override,

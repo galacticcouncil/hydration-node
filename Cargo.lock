@@ -37,6 +37,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1254,7 +1260,7 @@ dependencies = [
  "cc",
  "cfg-if",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.7.2",
  "object 0.32.2",
  "rustc-demangle",
 ]
@@ -1292,7 +1298,7 @@ checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 [[package]]
 name = "binary-merkle-tree"
 version = "16.1.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "hash-db",
  "log",
@@ -1557,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "bp-xcm-bridge-hub-router"
 version = "0.23.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -1725,6 +1731,57 @@ dependencies = [
  "jobserver",
  "libc",
  "shlex 2.0.1",
+]
+
+[[package]]
+name = "cerebro-core"
+version = "0.1.0"
+dependencies = [
+ "hydra-dx-math",
+ "primitive-types 0.13.1",
+]
+
+[[package]]
+name = "cerebro-hydration"
+version = "0.1.0"
+dependencies = [
+ "cerebro-core",
+ "fp-evm",
+ "fp-self-contained",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "hydra-dx-math",
+ "hydradx-runtime",
+ "hydradx-traits",
+ "log",
+ "orml-tokens",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-dca",
+ "pallet-ema-oracle",
+ "pallet-evm",
+ "pallet-evm-accounts",
+ "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
+ "pallet-otc",
+ "pallet-route-executor",
+ "pallet-stableswap",
+ "pallet-staking 5.3.0",
+ "pallet-transaction-multi-payment",
+ "pallet-transaction-payment",
+ "pallet-xyk",
+ "pallet-xyk-liquidity-mining",
+ "parity-scale-codec",
+ "primitive-types 0.13.1",
+ "primitives",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "ureq",
 ]
 
 [[package]]
@@ -2497,7 +2554,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-bootnodes"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -2521,7 +2578,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-cli"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "clap",
  "parity-scale-codec",
@@ -2538,7 +2595,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-collator"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-client-consensus-common",
  "cumulus-client-network",
@@ -2561,7 +2618,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-aura"
 version = "0.29.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-client-collator",
@@ -2609,7 +2666,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-common"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-client-pov-recovery",
@@ -2641,7 +2698,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-network"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-relay-chain-interface",
@@ -2669,7 +2726,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-parachain-inherent"
 version = "0.23.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2691,7 +2748,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-pov-recovery"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2719,7 +2776,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-service"
 version = "0.32.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-channel 1.9.0",
  "cumulus-client-cli",
@@ -2763,7 +2820,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-aura-ext"
 version = "0.26.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "frame-support",
@@ -2780,7 +2837,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.26.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "bytes",
@@ -2823,7 +2880,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system-proc-macro"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",
@@ -2834,7 +2891,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-session-benchmarking"
 version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -2847,7 +2904,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-weight-reclaim"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "derive-where",
@@ -2866,7 +2923,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcm"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -2881,7 +2938,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcmp-queue"
 version = "0.26.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "approx",
  "bitflags 1.3.2",
@@ -2908,7 +2965,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-aura"
 version = "0.22.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-api",
  "sp-consensus-aura",
@@ -2917,7 +2974,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-core"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-core-primitives",
@@ -2934,7 +2991,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-parachain-inherent"
 version = "0.24.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -2948,7 +3005,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-proof-size-hostfunction"
 version = "0.17.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-externalities",
  "sp-runtime-interface",
@@ -2958,7 +3015,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-storage-weight-reclaim"
 version = "17.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-proof-size-hostfunction",
@@ -2975,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-timestamp"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "sp-inherents",
@@ -2985,7 +3042,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-utility"
 version = "0.26.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -3002,7 +3059,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-inprocess-interface"
 version = "0.32.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-channel 1.9.0",
  "async-trait",
@@ -3030,7 +3087,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-interface"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3051,7 +3108,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-minimal-node"
 version = "0.32.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -3087,7 +3144,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-rpc-interface"
 version = "0.29.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "cumulus-primitives-core",
@@ -3120,7 +3177,7 @@ dependencies = [
 [[package]]
 name = "cumulus-relay-chain-streams"
 version = "0.7.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-relay-chain-interface",
  "futures",
@@ -3134,7 +3191,7 @@ dependencies = [
 [[package]]
 name = "cumulus-test-relay-sproof-builder"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "parity-scale-codec",
@@ -4399,6 +4456,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
+name = "flate2"
+version = "1.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide 0.9.1",
+ "zlib-rs",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4439,7 +4507,7 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 [[package]]
 name = "fork-tree"
 version = "13.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
 ]
@@ -4566,7 +4634,7 @@ checksum = "6c2141d6d6c8512188a7891b4b01590a45f6dac67afb4f255c4124dbb86d4eaa"
 [[package]]
 name = "frame-benchmarking"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-support-procedural",
@@ -4590,7 +4658,7 @@ dependencies = [
 [[package]]
 name = "frame-benchmarking-cli"
 version = "54.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "Inflector",
  "array-bytes 6.2.2",
@@ -4672,7 +4740,7 @@ dependencies = [
 [[package]]
 name = "frame-election-provider-solution-type"
 version = "16.1.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",
@@ -4683,7 +4751,7 @@ dependencies = [
 [[package]]
 name = "frame-election-provider-support"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-election-provider-solution-type",
  "frame-support",
@@ -4700,7 +4768,7 @@ dependencies = [
 [[package]]
 name = "frame-executive"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "aquamarine",
  "frame-support",
@@ -4730,7 +4798,7 @@ dependencies = [
 [[package]]
 name = "frame-metadata-hash-extension"
 version = "0.14.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "const-hex",
@@ -4746,7 +4814,7 @@ dependencies = [
 [[package]]
 name = "frame-remote-externalities"
 version = "0.57.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "indicatif",
@@ -4768,7 +4836,7 @@ dependencies = [
 [[package]]
 name = "frame-storage-access-test-runtime"
 version = "0.7.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "parity-scale-codec",
@@ -4782,7 +4850,7 @@ dependencies = [
 [[package]]
 name = "frame-support"
 version = "46.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "aquamarine",
  "array-bytes 6.2.2",
@@ -4823,7 +4891,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural"
 version = "37.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "Inflector",
  "cfg-expr",
@@ -4843,7 +4911,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural-tools"
 version = "13.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support-procedural-tools-derive",
  "proc-macro-crate 3.5.0",
@@ -4855,7 +4923,7 @@ dependencies = [
 [[package]]
 name = "frame-support-procedural-tools-derive"
 version = "12.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4865,7 +4933,7 @@ dependencies = [
 [[package]]
 name = "frame-system"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cfg-if",
  "docify",
@@ -4884,7 +4952,7 @@ dependencies = [
 [[package]]
 name = "frame-system-benchmarking"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4898,7 +4966,7 @@ dependencies = [
 [[package]]
 name = "frame-system-rpc-runtime-api"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "parity-scale-codec",
@@ -4908,7 +4976,7 @@ dependencies = [
 [[package]]
 name = "frame-try-runtime"
 version = "0.52.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5704,10 +5772,12 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "17.3.0"
+version = "17.4.0"
 dependencies = [
  "amm-simulator",
  "async-trait",
+ "cerebro-core",
+ "cerebro-hydration",
  "clap",
  "cumulus-client-cli",
  "cumulus-client-collator",
@@ -5736,6 +5806,7 @@ dependencies = [
  "frame-system",
  "futures",
  "futures-timer",
+ "hex",
  "hex-literal",
  "hydra-dx-build-script-utils",
  "hydradx-runtime",
@@ -5769,6 +5840,7 @@ dependencies = [
  "primitives",
  "rlp 0.6.1",
  "sc-basic-authorship",
+ "sc-block-builder",
  "sc-chain-spec",
  "sc-cli",
  "sc-client-api",
@@ -5778,6 +5850,7 @@ dependencies = [
  "sc-network-sync",
  "sc-offchain",
  "sc-rpc",
+ "sc-rpc-api",
  "sc-service",
  "sc-telemetry",
  "sc-tracing",
@@ -6113,7 +6186,7 @@ dependencies = [
  "rustls 0.21.12",
  "tokio",
  "tokio-rustls 0.24.1",
- "webpki-roots",
+ "webpki-roots 0.25.4",
 ]
 
 [[package]]
@@ -7384,7 +7457,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "url",
- "webpki-roots",
+ "webpki-roots 0.25.4",
 ]
 
 [[package]]
@@ -7902,6 +7975,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "miniz_oxide"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c"
+dependencies = [
+ "adler2",
+ "simd-adler32",
+]
+
+[[package]]
 name = "mio"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7940,7 +8023,7 @@ dependencies = [
 [[package]]
 name = "mmr-gadget"
 version = "51.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "log",
@@ -7959,7 +8042,7 @@ dependencies = [
 [[package]]
 name = "mmr-rpc"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -8496,7 +8579,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 1.3.1",
+ "proc-macro-crate 3.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.112",
@@ -8824,7 +8907,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "pallet-asset-conversion"
 version = "28.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8842,7 +8925,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-rate"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8885,7 +8968,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-tx-payment"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8901,7 +8984,7 @@ dependencies = [
 [[package]]
 name = "pallet-assets"
 version = "49.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8917,7 +9000,7 @@ dependencies = [
 [[package]]
 name = "pallet-aura"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8933,7 +9016,7 @@ dependencies = [
 [[package]]
 name = "pallet-authority-discovery"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8948,7 +9031,7 @@ dependencies = [
 [[package]]
 name = "pallet-authorship"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8961,7 +9044,7 @@ dependencies = [
 [[package]]
 name = "pallet-babe"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8984,7 +9067,7 @@ dependencies = [
 [[package]]
 name = "pallet-bags-list"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "aquamarine",
  "docify",
@@ -9005,7 +9088,7 @@ dependencies = [
 [[package]]
 name = "pallet-balances"
 version = "47.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -9021,7 +9104,7 @@ dependencies = [
 [[package]]
 name = "pallet-beefy"
 version = "47.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9040,7 +9123,7 @@ dependencies = [
 [[package]]
 name = "pallet-beefy-mmr"
 version = "47.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "binary-merkle-tree",
@@ -9089,7 +9172,7 @@ dependencies = [
 [[package]]
 name = "pallet-bounties"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9126,7 +9209,7 @@ dependencies = [
 [[package]]
 name = "pallet-broker"
 version = "0.25.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "frame-benchmarking",
@@ -9144,7 +9227,7 @@ dependencies = [
 [[package]]
 name = "pallet-child-bounties"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9253,7 +9336,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-selection"
 version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-pallet-session-benchmarking",
  "frame-benchmarking",
@@ -9273,7 +9356,7 @@ dependencies = [
 [[package]]
 name = "pallet-collective"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -9290,7 +9373,7 @@ dependencies = [
 [[package]]
 name = "pallet-conviction-voting"
 version = "46.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "assert_matches",
  "frame-benchmarking",
@@ -9338,7 +9421,7 @@ dependencies = [
 [[package]]
 name = "pallet-dap-satellite"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9395,7 +9478,7 @@ dependencies = [
 [[package]]
 name = "pallet-delegated-staking"
 version = "13.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -9410,7 +9493,7 @@ dependencies = [
 [[package]]
 name = "pallet-democracy"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9561,7 +9644,7 @@ dependencies = [
 [[package]]
 name = "pallet-election-provider-multi-phase"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -9582,7 +9665,7 @@ dependencies = [
 [[package]]
 name = "pallet-election-provider-support-benchmarking"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -9595,7 +9678,7 @@ dependencies = [
 [[package]]
 name = "pallet-elections-phragmen"
 version = "47.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9854,7 +9937,7 @@ dependencies = [
 [[package]]
 name = "pallet-fast-unstake"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -9959,7 +10042,7 @@ dependencies = [
 [[package]]
 name = "pallet-grandpa"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10062,7 +10145,7 @@ dependencies = [
 [[package]]
 name = "pallet-identity"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "enumflags2",
  "frame-benchmarking",
@@ -10078,7 +10161,7 @@ dependencies = [
 [[package]]
 name = "pallet-im-online"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10097,7 +10180,7 @@ dependencies = [
 [[package]]
 name = "pallet-indices"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10267,7 +10350,7 @@ dependencies = [
 [[package]]
 name = "pallet-message-queue"
 version = "49.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -10286,7 +10369,7 @@ dependencies = [
 [[package]]
 name = "pallet-migrations"
 version = "16.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -10305,7 +10388,7 @@ dependencies = [
 [[package]]
 name = "pallet-mmr"
 version = "46.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -10317,7 +10400,7 @@ dependencies = [
 [[package]]
 name = "pallet-multi-asset-bounties"
 version = "0.3.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -10334,7 +10417,7 @@ dependencies = [
 [[package]]
 name = "pallet-multisig"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -10365,7 +10448,7 @@ dependencies = [
 [[package]]
 name = "pallet-nis"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -10375,7 +10458,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10393,7 +10476,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools-benchmarking"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -10413,7 +10496,7 @@ dependencies = [
 [[package]]
 name = "pallet-nomination-pools-runtime-api"
 version = "42.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "pallet-nomination-pools",
  "parity-scale-codec",
@@ -10423,7 +10506,7 @@ dependencies = [
 [[package]]
 name = "pallet-offences"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10438,7 +10521,7 @@ dependencies = [
 [[package]]
 name = "pallet-offences-benchmarking"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -10576,7 +10659,7 @@ dependencies = [
 [[package]]
 name = "pallet-parameters"
 version = "0.17.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -10607,7 +10690,7 @@ dependencies = [
 [[package]]
 name = "pallet-preimage"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10623,7 +10706,7 @@ dependencies = [
 [[package]]
 name = "pallet-proxy"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -10633,7 +10716,7 @@ dependencies = [
 [[package]]
 name = "pallet-ranked-collective"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10651,7 +10734,7 @@ dependencies = [
 [[package]]
 name = "pallet-recovery"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -10661,7 +10744,7 @@ dependencies = [
 [[package]]
 name = "pallet-referenda"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "assert_matches",
  "frame-benchmarking",
@@ -10715,7 +10798,7 @@ dependencies = [
 [[package]]
 name = "pallet-root-offences"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10731,7 +10814,7 @@ dependencies = [
 [[package]]
 name = "pallet-root-testing"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10770,7 +10853,7 @@ dependencies = [
 [[package]]
 name = "pallet-scheduler"
 version = "47.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -10787,7 +10870,7 @@ dependencies = [
 [[package]]
 name = "pallet-session"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10809,7 +10892,7 @@ dependencies = [
 [[package]]
 name = "pallet-session-benchmarking"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10843,7 +10926,7 @@ dependencies = [
 [[package]]
 name = "pallet-society"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10918,7 +11001,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -10940,7 +11023,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-async-ah-client"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10960,7 +11043,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-async-rc-client"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10980,7 +11063,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-reward-fn"
 version = "24.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "sp-arithmetic",
@@ -10989,7 +11072,7 @@ dependencies = [
 [[package]]
 name = "pallet-staking-runtime-api"
 version = "31.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "sp-api",
@@ -10999,7 +11082,7 @@ dependencies = [
 [[package]]
 name = "pallet-state-trie-migration"
 version = "51.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11015,7 +11098,7 @@ dependencies = [
 [[package]]
 name = "pallet-sudo"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11030,7 +11113,7 @@ dependencies = [
 [[package]]
 name = "pallet-timestamp"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11048,7 +11131,7 @@ dependencies = [
 [[package]]
 name = "pallet-tips"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11116,7 +11199,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11132,7 +11215,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc"
 version = "49.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "jsonrpsee",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -11148,7 +11231,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -11160,7 +11243,7 @@ dependencies = [
 [[package]]
 name = "pallet-treasury"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -11179,7 +11262,7 @@ dependencies = [
 [[package]]
 name = "pallet-uniques"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11193,7 +11276,7 @@ dependencies = [
 [[package]]
 name = "pallet-utility"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11209,7 +11292,7 @@ dependencies = [
 [[package]]
 name = "pallet-vesting"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11223,7 +11306,7 @@ dependencies = [
 [[package]]
 name = "pallet-whitelist"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
@@ -11233,7 +11316,7 @@ dependencies = [
 [[package]]
 name = "pallet-xcm"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bounded-collections",
  "frame-benchmarking",
@@ -11257,7 +11340,7 @@ dependencies = [
 [[package]]
 name = "pallet-xcm-benchmarks"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11327,7 +11410,7 @@ dependencies = [
 [[package]]
 name = "parachains-common"
 version = "28.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-utility",
@@ -11360,7 +11443,7 @@ dependencies = [
 [[package]]
 name = "parachains-common-types"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-consensus-aura",
  "sp-core",
@@ -11787,7 +11870,7 @@ dependencies = [
 [[package]]
 name = "polkadot-approval-distribution"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "futures-timer",
@@ -11805,7 +11888,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-bitfield-distribution"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "futures-timer",
@@ -11820,7 +11903,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-distribution"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fatality",
  "futures",
@@ -11843,7 +11926,7 @@ dependencies = [
 [[package]]
 name = "polkadot-availability-recovery"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "fatality",
@@ -11876,7 +11959,7 @@ dependencies = [
 [[package]]
 name = "polkadot-cli"
 version = "32.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "clap",
  "frame-benchmarking-cli",
@@ -11901,7 +11984,7 @@ dependencies = [
 [[package]]
 name = "polkadot-collator-protocol"
 version = "29.1.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "bitvec",
@@ -11930,7 +12013,7 @@ dependencies = [
 [[package]]
 name = "polkadot-core-primitives"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -11941,7 +12024,7 @@ dependencies = [
 [[package]]
 name = "polkadot-dispute-distribution"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fatality",
  "futures",
@@ -11963,7 +12046,7 @@ dependencies = [
 [[package]]
 name = "polkadot-erasure-coding"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-node-primitives",
@@ -11977,7 +12060,7 @@ dependencies = [
 [[package]]
 name = "polkadot-gossip-support"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "futures-timer",
@@ -11998,7 +12081,7 @@ dependencies = [
 [[package]]
 name = "polkadot-network-bridge"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "always-assert",
  "async-trait",
@@ -12021,7 +12104,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-collation-generation"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "parity-scale-codec",
@@ -12039,7 +12122,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-approval-voting"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "bitvec",
@@ -12071,7 +12154,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-approval-voting-parallel"
 version = "0.12.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -12095,7 +12178,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-av-store"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "futures",
@@ -12114,7 +12197,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-backing"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "fatality",
@@ -12135,7 +12218,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-bitfield-signing"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "polkadot-node-subsystem",
@@ -12150,7 +12233,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-candidate-validation"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -12173,7 +12256,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-chain-api"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "polkadot-node-metrics",
@@ -12187,7 +12270,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-chain-selection"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "futures-timer",
@@ -12203,7 +12286,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-dispute-coordinator"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fatality",
  "futures",
@@ -12221,7 +12304,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-parachains-inherent"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -12238,7 +12321,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-prospective-parachains"
 version = "28.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fatality",
  "futures",
@@ -12253,7 +12336,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-provisioner"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "fatality",
@@ -12272,7 +12355,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "always-assert",
  "array-bytes 6.2.2",
@@ -12300,7 +12383,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-checker"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "polkadot-node-subsystem",
@@ -12313,7 +12396,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-pvf-common"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cpu-time",
  "futures",
@@ -12341,7 +12424,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-runtime-api"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "polkadot-node-metrics",
@@ -12356,7 +12439,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-metrics"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bs58",
  "futures",
@@ -12373,7 +12456,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-network-protocol"
 version = "29.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-channel 1.9.0",
  "async-trait",
@@ -12398,7 +12481,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-primitives"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "bounded-vec",
@@ -12422,7 +12505,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "polkadot-node-subsystem-types",
  "polkadot-overseer",
@@ -12431,7 +12514,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem-types"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "derive_more 0.99.20",
@@ -12459,7 +12542,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem-util"
 version = "29.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fatality",
  "futures",
@@ -12489,7 +12572,7 @@ dependencies = [
 [[package]]
 name = "polkadot-overseer"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -12509,7 +12592,7 @@ dependencies = [
 [[package]]
 name = "polkadot-parachain-primitives"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "bounded-collections",
@@ -12526,7 +12609,7 @@ dependencies = [
 [[package]]
 name = "polkadot-primitives"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "bounded-collections",
@@ -12555,7 +12638,7 @@ dependencies = [
 [[package]]
 name = "polkadot-primitives-test-helpers"
 version = "0.3.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
@@ -12570,7 +12653,7 @@ dependencies = [
 [[package]]
 name = "polkadot-rpc"
 version = "30.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "jsonrpsee",
  "mmr-rpc",
@@ -12603,7 +12686,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-common"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "frame-benchmarking",
@@ -12653,7 +12736,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-metrics"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bs58",
  "frame-benchmarking",
@@ -12665,7 +12748,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-parachains"
 version = "25.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitflags 1.3.2",
  "bitvec",
@@ -12714,7 +12797,7 @@ dependencies = [
 [[package]]
 name = "polkadot-sdk-frame"
 version = "0.15.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-benchmarking",
@@ -12749,7 +12832,7 @@ dependencies = [
 [[package]]
 name = "polkadot-service"
 version = "32.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "frame-benchmarking",
@@ -12858,7 +12941,7 @@ dependencies = [
 [[package]]
 name = "polkadot-statement-distribution"
 version = "29.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitvec",
  "fatality",
@@ -12878,7 +12961,7 @@ dependencies = [
 [[package]]
 name = "polkadot-statement-table"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
@@ -13396,7 +13479,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "log",
  "multimap",
  "once_cell",
@@ -13416,7 +13499,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03da047801ff44bb6a4d407d4860c05fd70bb81714e6b2f3812603d5b145b042"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "log",
  "multimap",
  "petgraph 0.8.3",
@@ -13448,7 +13531,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.112",
@@ -13461,7 +13544,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.112",
@@ -14006,7 +14089,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime"
 version = "30.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "binary-merkle-tree",
  "bitvec",
@@ -14104,7 +14187,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime-constants"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -14217,9 +14300,11 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.127.1"
+version = "1.128.0"
 dependencies = [
  "amm-simulator",
+ "cerebro-core",
+ "cerebro-hydration",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
@@ -14348,6 +14433,7 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
+ "sp-state-machine",
  "sp-std",
  "sp-transaction-pool",
  "sp-trie",
@@ -14530,7 +14616,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs 0.26.11",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -14631,7 +14717,7 @@ dependencies = [
 [[package]]
 name = "sc-allocator"
 version = "36.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "sp-core",
@@ -14642,7 +14728,7 @@ dependencies = [
 [[package]]
 name = "sc-authority-discovery"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -14674,7 +14760,7 @@ dependencies = [
 [[package]]
 name = "sc-basic-authorship"
 version = "0.54.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "log",
@@ -14697,7 +14783,7 @@ dependencies = [
 [[package]]
 name = "sc-block-builder"
 version = "0.49.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "sp-api",
@@ -14712,7 +14798,7 @@ dependencies = [
 [[package]]
 name = "sc-chain-spec"
 version = "49.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "docify",
@@ -14738,7 +14824,7 @@ dependencies = [
 [[package]]
 name = "sc-chain-spec-derive"
 version = "12.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",
@@ -14749,7 +14835,7 @@ dependencies = [
 [[package]]
 name = "sc-cli"
 version = "0.58.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "bip39",
@@ -14791,7 +14877,7 @@ dependencies = [
 [[package]]
 name = "sc-client-api"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fnv",
  "futures",
@@ -14817,7 +14903,7 @@ dependencies = [
 [[package]]
 name = "sc-client-db"
 version = "0.52.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "hash-db",
  "kvdb",
@@ -14845,7 +14931,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -14868,7 +14954,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-aura"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "fork-tree",
@@ -14899,7 +14985,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-babe"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "fork-tree",
@@ -14936,7 +15022,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-babe-rpc"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "jsonrpsee",
@@ -14958,7 +15044,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-beefy"
 version = "35.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -14992,7 +15078,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-beefy-rpc"
 version = "35.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "jsonrpsee",
@@ -15012,7 +15098,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-epochs"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "fork-tree",
  "parity-scale-codec",
@@ -15025,7 +15111,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-grandpa"
 version = "0.41.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "ahash 0.8.11",
  "array-bytes 6.2.2",
@@ -15070,7 +15156,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-grandpa-rpc"
 version = "0.41.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "finality-grandpa",
  "futures",
@@ -15090,7 +15176,7 @@ dependencies = [
 [[package]]
 name = "sc-consensus-slots"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -15114,7 +15200,7 @@ dependencies = [
 [[package]]
 name = "sc-executor"
 version = "0.48.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.3",
@@ -15137,7 +15223,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-common"
 version = "0.44.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "polkavm",
  "sc-allocator",
@@ -15150,7 +15236,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-polkavm"
 version = "0.41.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "polkavm",
@@ -15162,7 +15248,7 @@ dependencies = [
 [[package]]
 name = "sc-executor-wasmtime"
 version = "0.44.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "anyhow",
  "log",
@@ -15178,7 +15264,7 @@ dependencies = [
 [[package]]
 name = "sc-informant"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "console",
  "futures",
@@ -15194,7 +15280,7 @@ dependencies = [
 [[package]]
 name = "sc-keystore"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "parking_lot 0.12.3",
@@ -15208,7 +15294,7 @@ dependencies = [
 [[package]]
 name = "sc-mixnet"
 version = "0.26.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "arrayvec 0.7.8",
@@ -15236,7 +15322,7 @@ dependencies = [
 [[package]]
 name = "sc-network"
 version = "0.56.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -15285,7 +15371,7 @@ dependencies = [
 [[package]]
 name = "sc-network-common"
 version = "0.53.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bitflags 1.3.2",
  "parity-scale-codec",
@@ -15295,7 +15381,7 @@ dependencies = [
 [[package]]
 name = "sc-network-gossip"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "ahash 0.8.11",
  "futures",
@@ -15314,7 +15400,7 @@ dependencies = [
 [[package]]
 name = "sc-network-light"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -15335,7 +15421,7 @@ dependencies = [
 [[package]]
 name = "sc-network-statement"
 version = "0.38.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -15358,7 +15444,7 @@ dependencies = [
 [[package]]
 name = "sc-network-sync"
 version = "0.55.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "async-channel 1.9.0",
@@ -15392,7 +15478,7 @@ dependencies = [
 [[package]]
 name = "sc-network-transactions"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "futures",
@@ -15411,7 +15497,7 @@ dependencies = [
 [[package]]
 name = "sc-network-types"
 version = "0.20.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bs58",
  "bytes",
@@ -15432,7 +15518,7 @@ dependencies = [
 [[package]]
 name = "sc-offchain"
 version = "51.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bytes",
  "fnv",
@@ -15466,7 +15552,7 @@ dependencies = [
 [[package]]
 name = "sc-proposer-metrics"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "substrate-prometheus-endpoint",
@@ -15475,7 +15561,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc"
 version = "51.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-channel 1.9.0",
  "futures",
@@ -15509,7 +15595,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-api"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -15530,7 +15616,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-server"
 version = "28.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "dyn-clone",
  "forwarded-header-value",
@@ -15554,7 +15640,7 @@ dependencies = [
 [[package]]
 name = "sc-rpc-spec-v2"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "futures",
@@ -15587,7 +15673,7 @@ dependencies = [
 [[package]]
 name = "sc-runtime-utilities"
 version = "0.8.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "sc-executor",
@@ -15602,7 +15688,7 @@ dependencies = [
 [[package]]
 name = "sc-service"
 version = "0.57.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "directories",
@@ -15666,7 +15752,7 @@ dependencies = [
 [[package]]
 name = "sc-state-db"
 version = "0.42.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -15677,7 +15763,7 @@ dependencies = [
 [[package]]
 name = "sc-statement-store"
 version = "27.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-channel 1.9.0",
  "futures",
@@ -15702,7 +15788,7 @@ dependencies = [
 [[package]]
 name = "sc-storage-monitor"
 version = "0.28.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "clap",
  "fs4",
@@ -15715,7 +15801,7 @@ dependencies = [
 [[package]]
 name = "sc-sync-state-rpc"
 version = "0.56.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -15734,7 +15820,7 @@ dependencies = [
 [[package]]
 name = "sc-sysinfo"
 version = "47.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "derive_more 0.99.20",
  "futures",
@@ -15754,7 +15840,7 @@ dependencies = [
 [[package]]
 name = "sc-telemetry"
 version = "30.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "chrono",
  "futures",
@@ -15773,7 +15859,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "chrono",
  "console",
@@ -15801,7 +15887,7 @@ dependencies = [
 [[package]]
 name = "sc-tracing-proc-macro"
 version = "11.1.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",
@@ -15812,7 +15898,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -15844,7 +15930,7 @@ dependencies = [
 [[package]]
 name = "sc-transaction-pool-api"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -15862,7 +15948,7 @@ dependencies = [
 [[package]]
 name = "sc-utils"
 version = "20.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-channel 1.9.0",
  "futures",
@@ -16510,6 +16596,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "simd-adler32"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
+
+[[package]]
 name = "similar"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -16586,7 +16678,7 @@ dependencies = [
 [[package]]
 name = "slot-range-helper"
 version = "22.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "enumn",
  "parity-scale-codec",
@@ -16781,7 +16873,7 @@ dependencies = [
 [[package]]
 name = "sp-api"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "hash-db",
@@ -16803,7 +16895,7 @@ dependencies = [
 [[package]]
 name = "sp-api-proc-macro"
 version = "27.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "Inflector",
  "blake2 0.10.6",
@@ -16817,7 +16909,7 @@ dependencies = [
 [[package]]
 name = "sp-application-crypto"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -16829,7 +16921,7 @@ dependencies = [
 [[package]]
 name = "sp-arithmetic"
 version = "28.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "integer-sqrt",
@@ -16843,7 +16935,7 @@ dependencies = [
 [[package]]
 name = "sp-authority-discovery"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -16855,7 +16947,7 @@ dependencies = [
 [[package]]
 name = "sp-block-builder"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-api",
  "sp-inherents",
@@ -16865,7 +16957,7 @@ dependencies = [
 [[package]]
 name = "sp-blockchain"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "futures",
  "parity-scale-codec",
@@ -16886,7 +16978,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus"
 version = "0.47.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "futures",
@@ -16903,7 +16995,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-aura"
 version = "0.47.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -16919,7 +17011,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-babe"
 version = "0.47.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -16937,7 +17029,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-beefy"
 version = "29.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -16957,7 +17049,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-grandpa"
 version = "28.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "finality-grandpa",
  "log",
@@ -16974,7 +17066,7 @@ dependencies = [
 [[package]]
 name = "sp-consensus-slots"
 version = "0.47.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -16985,7 +17077,7 @@ dependencies = [
 [[package]]
 name = "sp-core"
 version = "40.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "ark-vrf",
  "array-bytes 6.2.2",
@@ -17032,7 +17124,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.20.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "ark-bls12-377 0.5.0",
  "ark-bls12-377-ext",
@@ -17056,7 +17148,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-hashing"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -17069,7 +17161,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-hashing-proc-macro"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "quote",
  "sp-crypto-hashing",
@@ -17079,7 +17171,7 @@ dependencies = [
 [[package]]
 name = "sp-database"
 version = "10.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "kvdb",
  "kvdb-rocksdb",
@@ -17089,7 +17181,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "15.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "proc-macro-warning",
  "proc-macro2",
@@ -17100,7 +17192,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.32.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -17110,7 +17202,7 @@ dependencies = [
 [[package]]
 name = "sp-genesis-builder"
 version = "0.22.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -17122,7 +17214,7 @@ dependencies = [
 [[package]]
 name = "sp-inherents"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "impl-trait-for-tuples",
@@ -17135,7 +17227,7 @@ dependencies = [
 [[package]]
 name = "sp-io"
 version = "45.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bytes",
  "docify",
@@ -17161,7 +17253,7 @@ dependencies = [
 [[package]]
 name = "sp-keyring"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-core",
  "sp-runtime",
@@ -17171,7 +17263,7 @@ dependencies = [
 [[package]]
 name = "sp-keystore"
 version = "0.46.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.3",
@@ -17182,7 +17274,7 @@ dependencies = [
 [[package]]
 name = "sp-maybe-compressed-blob"
 version = "11.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "thiserror 1.0.69",
  "zstd 0.12.4",
@@ -17191,7 +17283,7 @@ dependencies = [
 [[package]]
 name = "sp-metadata-ir"
 version = "0.12.3"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-metadata",
  "parity-scale-codec",
@@ -17201,7 +17293,7 @@ dependencies = [
 [[package]]
 name = "sp-mixnet"
 version = "0.19.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -17212,7 +17304,7 @@ dependencies = [
 [[package]]
 name = "sp-mmr-primitives"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "log",
  "parity-scale-codec",
@@ -17229,7 +17321,7 @@ dependencies = [
 [[package]]
 name = "sp-npos-elections"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -17242,7 +17334,7 @@ dependencies = [
 [[package]]
 name = "sp-offchain"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-api",
  "sp-core",
@@ -17252,7 +17344,7 @@ dependencies = [
 [[package]]
 name = "sp-panic-handler"
 version = "13.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "backtrace",
  "regex",
@@ -17261,7 +17353,7 @@ dependencies = [
 [[package]]
 name = "sp-rpc"
 version = "38.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "rustc-hash 1.1.0",
  "serde",
@@ -17271,7 +17363,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime"
 version = "46.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "binary-merkle-tree",
  "bytes",
@@ -17302,7 +17394,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "34.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -17320,7 +17412,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "21.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "Inflector",
  "expander",
@@ -17333,7 +17425,7 @@ dependencies = [
 [[package]]
 name = "sp-session"
 version = "43.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -17347,7 +17439,7 @@ dependencies = [
 [[package]]
 name = "sp-staking"
 version = "43.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
@@ -17360,7 +17452,7 @@ dependencies = [
 [[package]]
 name = "sp-state-machine"
 version = "0.50.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "hash-db",
  "log",
@@ -17380,7 +17472,7 @@ dependencies = [
 [[package]]
 name = "sp-statement-store"
 version = "25.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "aes-gcm",
  "curve25519-dalek",
@@ -17406,12 +17498,12 @@ dependencies = [
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 
 [[package]]
 name = "sp-storage"
 version = "23.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -17423,7 +17515,7 @@ dependencies = [
 [[package]]
 name = "sp-timestamp"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -17435,7 +17527,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "19.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "regex",
@@ -17447,7 +17539,7 @@ dependencies = [
 [[package]]
 name = "sp-transaction-pool"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "sp-api",
  "sp-runtime",
@@ -17456,7 +17548,7 @@ dependencies = [
 [[package]]
 name = "sp-transaction-storage-proof"
 version = "41.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "parity-scale-codec",
@@ -17471,7 +17563,7 @@ dependencies = [
 [[package]]
 name = "sp-trie"
 version = "43.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "ahash 0.8.11",
  "foldhash",
@@ -17496,7 +17588,7 @@ dependencies = [
 [[package]]
 name = "sp-version"
 version = "44.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -17514,7 +17606,7 @@ dependencies = [
 [[package]]
 name = "sp-version-proc-macro"
 version = "15.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "parity-scale-codec",
  "proc-macro-warning",
@@ -17526,7 +17618,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -17538,7 +17630,7 @@ dependencies = [
 [[package]]
 name = "sp-weights"
 version = "34.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "bounded-collections",
  "parity-scale-codec",
@@ -17723,7 +17815,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 [[package]]
 name = "staging-parachain-info"
 version = "0.26.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -17736,7 +17828,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm"
 version = "22.0.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "bounded-collections",
@@ -17757,7 +17849,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm-builder"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "environmental",
  "frame-support",
@@ -17781,7 +17873,7 @@ dependencies = [
 [[package]]
 name = "staging-xcm-executor"
 version = "25.2.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "environmental",
  "frame-benchmarking",
@@ -17885,7 +17977,7 @@ dependencies = [
 [[package]]
 name = "substrate-bip39"
 version = "0.6.1"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "hmac 0.12.1",
  "pbkdf2",
@@ -17910,12 +18002,12 @@ dependencies = [
 [[package]]
 name = "substrate-build-script-utils"
 version = "11.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 
 [[package]]
 name = "substrate-frame-rpc-system"
 version = "50.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "docify",
  "frame-system-rpc-runtime-api",
@@ -17935,7 +18027,7 @@ dependencies = [
 [[package]]
 name = "substrate-prometheus-endpoint"
 version = "0.17.7"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "http-body-util",
  "hyper 1.5.1",
@@ -17949,7 +18041,7 @@ dependencies = [
 [[package]]
 name = "substrate-rpc-client"
 version = "0.55.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "async-trait",
  "jsonrpsee",
@@ -17962,7 +18054,7 @@ dependencies = [
 [[package]]
 name = "substrate-state-trie-migration-rpc"
 version = "49.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "jsonrpsee",
  "parity-scale-codec",
@@ -17979,7 +18071,7 @@ dependencies = [
 [[package]]
 name = "substrate-wasm-builder"
 version = "32.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "build-helper",
@@ -18849,7 +18941,7 @@ dependencies = [
 [[package]]
 name = "tracing-gum"
 version = "24.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "coarsetime",
  "polkadot-primitives",
@@ -18860,7 +18952,7 @@ dependencies = [
 [[package]]
 name = "tracing-gum-proc-macro"
 version = "5.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "expander",
  "proc-macro-crate 3.5.0",
@@ -19118,6 +19210,24 @@ name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
+
+[[package]]
+name = "ureq"
+version = "2.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02d1a66277ed75f640d608235660df48c8e3c19f3b4edb6a263315626cc3c01d"
+dependencies = [
+ "base64",
+ "flate2",
+ "log",
+ "once_cell",
+ "rustls 0.23.35",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "url",
+ "webpki-roots 0.26.11",
+]
 
 [[package]]
 name = "url"
@@ -19778,9 +19888,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
 
 [[package]]
+name = "webpki-roots"
+version = "0.26.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
+dependencies = [
+ "webpki-roots 1.0.11",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5f280bbb2b287bc8e7de7e3852945a0ff50d1bbcb5ed42b6c7a568c546df171"
+dependencies = [
+ "rustls-pki-types",
+]
+
+[[package]]
 name = "westend-runtime"
 version = "31.1.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "binary-merkle-tree",
  "bitvec",
@@ -19887,7 +20015,7 @@ dependencies = [
 [[package]]
 name = "westend-runtime-constants"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "polkadot-primitives",
@@ -20532,7 +20660,7 @@ dependencies = [
 [[package]]
 name = "xcm-emulator"
 version = "0.27.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "array-bytes 6.2.2",
  "cumulus-pallet-parachain-system",
@@ -20568,7 +20696,7 @@ dependencies = [
 [[package]]
 name = "xcm-procedural"
 version = "11.0.2"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -20579,7 +20707,7 @@ dependencies = [
 [[package]]
 name = "xcm-runtime-apis"
 version = "0.13.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -20593,7 +20721,7 @@ dependencies = [
 [[package]]
 name = "xcm-simulator"
 version = "26.0.0"
-source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2603-4-patch#15ae48be9d288c5ef185cbd39f87c989042d7494"
+source = "git+https://www.github.com/galacticcouncil/polkadot-sdk?rev=3cd69731e43df4d2cd3c5ac256ec2bc71709afb8#3cd69731e43df4d2cd3c5ac256ec2bc71709afb8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -20814,6 +20942,12 @@ dependencies = [
  "quote",
  "syn 2.0.112",
 ]
+
+[[package]]
+name = "zlib-rs"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
 
 [[package]]
 name = "zstd"

@@ -66,6 +66,10 @@ pub struct Cli {
 	/// ICE solver worker configuration
 	#[clap(flatten)]
 	pub ice_solver_worker_config: crate::ice_solver_worker::IceSolverWorkerConfig,
+
+	/// Block guard configuration
+	#[clap(flatten)]
+	pub cerebro_guard_config: crate::cerebro_guard::CerebroGuardCli,
 }
 
 #[derive(Debug)]
