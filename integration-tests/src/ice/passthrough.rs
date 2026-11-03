@@ -436,9 +436,9 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 		&v4,
 		2,
 		2,
-		13778637061199802,
-		13778637061199802,
-		&[14778425464087880, 221597111922],
+		13778637061199800,
+		13778637061199800,
+		&[14778425464087880, 221597111920],
 	);
 	assert_outcome(
 		&pt,
@@ -455,7 +455,7 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 	// Strict routes value through the pot and sweeps the matched fee; pass-through
 	// touches neither account. The sub-ED HDX residual stays in the pot because the pot is a
 	// seeded, live account - as on mainnet; it used to be dust-reaped down to nothing.
-	assert_eq!(v4.pot_delta, vec![78130359444, 22161927, 1]);
+	assert_eq!(v4.pot_delta, vec![78130359444, 22161929, 1]);
 	assert_eq!(v4.fee_delta, vec![2800000000000, 0, 0]);
 	assert_eq!(pt.pot_delta, vec![0, 0, 0]);
 	assert_eq!(pt.fee_delta, vec![0, 0, 0]);
@@ -496,9 +496,9 @@ fn three_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pas
 		&v4,
 		3,
 		2,
-		5848644064753465,
-		5848644064753465,
-		&[67433819967149, 1173241108, 6281710071545208],
+		5848638719523344,
+		5848638719523344,
+		&[67433757503864, 1173241108, 6281704788778372],
 	);
 	assert_outcome(
 		&pt,
@@ -545,9 +545,9 @@ fn partial_coincidence_should_settle_every_intent_through_the_amm_when_mode_is_p
 		&v4,
 		2,
 		2,
-		13749119045233406,
-		13749119045233406,
-		&[14749049912240615, 79132992791],
+		13749119045233404,
+		13749119045233404,
+		&[14749049912240615, 79132992789],
 	);
 	assert_outcome(
 		&pt,
@@ -604,9 +604,9 @@ fn four_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pass
 		&v4,
 		4,
 		3,
-		43712571438721010,
-		43712571438721010,
-		&[676286517104114, 159538036540, 8919692554988036, 35217442828592320],
+		43712521100252200,
+		43712521100252200,
+		&[676286517104114, 159538017397, 8919692554988036, 35217392490142653],
 	);
 	assert_outcome(
 		&pt,
@@ -670,14 +670,14 @@ fn five_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pass
 		&v4,
 		5,
 		4,
-		76040401730210000,
-		76040401730210000,
+		76040351348030055,
+		76040351348030055,
 		&[
 			676286517104114,
-			159538039638,
+			159538020838,
 			8919692554988035,
 			33305976737841383,
-			35239296382236830,
+			35239246000075685,
 		],
 	);
 	assert_outcome(
@@ -738,9 +738,9 @@ fn same_pair_direct_match_should_settle_both_sides_through_the_amm_when_mode_is_
 		&v4,
 		3,
 		2,
-		14456573836907570,
-		14456573836907570,
-		&[14780718153014936, 676286517104114, 79166788520],
+		14456573836907566,
+		14456573836907566,
+		&[14780718153014936, 676286517104114, 79166788516],
 	);
 	assert_outcome(
 		&pt,
@@ -797,9 +797,9 @@ fn tight_limit_edge_intent_should_skip_without_failing_the_batch_when_mode_is_pa
 		&v4,
 		3,
 		2,
-		5789144064753465,
-		5789144064753465,
-		&[0, 1173241108, 6281710071545208, 67433819967149],
+		5789138719523344,
+		5789138719523344,
+		&[0, 1173241108, 6281704788778372, 67433757503864],
 	);
 	assert_outcome(
 		&pt,
@@ -858,9 +858,9 @@ fn tight_limit_cycle_intent_should_skip_without_failing_the_batch_when_mode_is_p
 		&v4,
 		3,
 		3,
-		8559350190542233,
-		8559350190542233,
-		&[676286517104114, 159538642564, 8883914134795555, 0],
+		8559332420936986,
+		8559332420936986,
+		&[676286517104114, 159538642562, 8883896365190310, 0],
 	);
 	assert_outcome(
 		&pt,

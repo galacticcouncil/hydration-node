@@ -331,6 +331,7 @@ fn solve_fixture(raw: &str) -> (Vec<Intent>, Solution) {
 	let solve = |split: SplitConfig| {
 		let options = SolverOptions {
 			split,
+			tolerance: super::flat_tolerance(),
 			..SolverOptions::default()
 		};
 		let solution =

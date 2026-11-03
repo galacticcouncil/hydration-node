@@ -750,9 +750,9 @@ impl<A: AMMInterface> Solver<A> {
 			return (quote_f(cache, v_f), quote_b(cache, v_b));
 		};
 
-		match flow {
-			FlowDirection::SingleForward { amount } => (quote_f(cache, amount), None),
-			FlowDirection::SingleBackward { amount } => (None, quote_b(cache, amount)),
+		let (out_f, out_b) = match flow {
+			FlowDirection::SingleForward { amount } => return (quote_f(cache, amount), None),
+			FlowDirection::SingleBackward { amount } => return (None, quote_b(cache, amount)),
 			FlowDirection::PerfectCancel { a_as_b, b_as_a } => {
 				(Some(ctx.fee_ctx.apply(a_as_b)), Some(ctx.fee_ctx.apply(b_as_a)))
 			}
@@ -782,7 +782,14 @@ impl<A: AMMInterface> Solver<A> {
 				};
 				(out_f, out_b)
 			}
-		}
+		};
+		// The reference price can sit far from the market (max over routes, fee-inclusive), so a
+		// direction valued below what the AMM alone pays it would drop intents the AMM can fill.
+		let floor = |matched: Option<Balance>, amm: Option<Balance>| match (matched, amm) {
+			(Some(m), Some(a)) => Some(m.max(a)),
+			(m, a) => m.or(a),
+		};
+		(floor(out_f, quote_f(cache, v_f)), floor(out_b, quote_b(cache, v_b)))
 	}
 
 	/// Uniform-price crossing for one unordered pair.

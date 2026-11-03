@@ -173,7 +173,7 @@ pub(crate) fn build_extrinsic(
 			return None;
 		}
 	};
-	state.0.hub_sells_disabled = !hub_sells_allowed;
+	Arc::make_mut(&mut state.0).hub_sells_disabled = !hub_sells_allowed;
 	// Reseed every solve — blocking-pool threads are reused.
 	ED_TL.with(|m| {
 		let mut m = m.borrow_mut();
@@ -494,7 +494,7 @@ mod tests {
 	}
 
 	#[test]
-	fn solver_options_should_keep_the_flat_tolerance_when_the_flag_is_absent() {
+	fn solver_options_should_keep_the_default_tolerance_when_the_flag_is_absent() {
 		let config = IceSolverWorkerConfig::try_parse_from(["hydradx"]).expect("flags should parse");
 		assert_eq!(config.solver_options().tolerance, Tolerance::default());
 	}
@@ -511,7 +511,7 @@ mod tests {
 		assert_eq!(t.route_ppm, 0);
 		assert_eq!(t.omnipool, HopTolerance { ppm: 100, units: 0 });
 		assert_eq!(t.stableswap, HopTolerance { ppm: 0, units: 2 });
-		assert_eq!(t.aave, HopTolerance::default());
+		assert_eq!(t.aave, Tolerance::default().aave);
 	}
 
 	#[test]

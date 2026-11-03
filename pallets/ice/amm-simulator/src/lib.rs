@@ -84,7 +84,7 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 		route: Route<u32>,
 		state: &Self::State,
 	) -> Result<(Self::State, TradeExecution), Self::Error> {
-		let mut current_state = state.clone();
+		let mut current_state = None;
 		let mut current_amount = amount_in;
 		let original_amount_in = amount_in;
 
@@ -95,15 +95,15 @@ impl<C: SimulatorConfig> AMMInterface for HydrationSimulator<C> {
 				trade.asset_out,
 				current_amount,
 				0, // No limit check on intermediate hops
-				&current_state,
+				current_state.as_ref().unwrap_or(state),
 			)?;
 
-			current_state = new_state;
+			current_state = Some(new_state);
 			current_amount = result.amount_out;
 		}
 
 		Ok((
-			current_state,
+			current_state.unwrap_or_else(|| state.clone()),
 			TradeExecution {
 				amount_in: original_amount_in,
 				amount_out: current_amount,

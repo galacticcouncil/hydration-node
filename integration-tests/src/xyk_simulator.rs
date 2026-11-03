@@ -110,7 +110,7 @@ fn register_pool(asset: AssetId) {
 }
 
 fn xyk_snapshot() -> amm_simulator::xyk::Snapshot {
-	<HydrationSimulators as SimulatorSet>::initial_state().4
+	(*<HydrationSimulators as SimulatorSet>::initial_state().4).clone()
 }
 
 fn key(asset: AssetId) -> (AssetId, AssetId) {

@@ -71,7 +71,7 @@ fn chain_should_net_the_shared_leg_when_an_intermediate_asset_is_bought_and_sold
 			// residual BNC reaches the pool.
 			assert_eq!(sol.resolved_intents.len(), 2, "both chain intents resolve");
 			assert_eq!(amm_trade_count(&sol), 2);
-			assert_eq!(sol.score, 13778637061199802u128);
+			assert_eq!(sol.score, 13778637061199800u128);
 			assert_eq!(amm_in_for(&sol, hdx, dot), 0, "the HDX leg never reaches the pool");
 			assert_eq!(amm_in_for(&sol, bnc, hdx), 53009477949832u128);
 			assert_eq!(amm_in_for(&sol, bnc, dot), 946990522050167u128);
@@ -86,7 +86,7 @@ fn chain_should_net_the_shared_leg_when_an_intermediate_asset_is_bought_and_sold
 			assert_eq!(swap(bob).asset_in, hdx);
 			assert_eq!(swap(bob).asset_out, dot);
 			assert_eq!(swap(bob).amount_in, bob_hdx);
-			assert_eq!(swap(bob).amount_out, 221597111922u128, "Bob DOT out");
+			assert_eq!(swap(bob).amount_out, 221597111920u128, "Bob DOT out");
 		});
 }
 
@@ -129,16 +129,16 @@ fn three_asset_cycle_should_internalize_when_all_legs_are_present() {
 			let sol = run_and_submit("cycle_3asset_ring");
 			assert_eq!(sol.resolved_intents.len(), 3, "the whole cycle resolves");
 			assert_eq!(amm_trade_count(&sol), 2);
-			assert_eq!(sol.score, 5848644064753465u128);
+			assert_eq!(sol.score, 5848638719523344u128);
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
-				67433819967149u128,
+				67433757503864u128,
 				"Alice BNC out"
 			);
 			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 1173241108u128, "Bob DOT out");
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
-				6281710071545208u128,
+				6281704788778372u128,
 				"Charlie HDX out"
 			);
 		});
@@ -182,7 +182,7 @@ fn partial_coincidence_should_net_the_overlap_and_route_only_the_rest() {
 			// routed; the HDX->DOT leg itself never reaches the pool.
 			assert_eq!(sol.resolved_intents.len(), 2);
 			assert_eq!(amm_trade_count(&sol), 2);
-			assert_eq!(sol.score, 13749119045233406u128);
+			assert_eq!(sol.score, 13749119045233404u128);
 			assert_eq!(amm_in_for(&sol, hdx, dot), 0, "the HDX leg never reaches the pool");
 			assert_eq!(amm_in_for(&sol, bnc, hdx), 661789099267797u128);
 			assert_eq!(amm_in_for(&sol, bnc, dot), 338210900732202u128);
@@ -191,7 +191,7 @@ fn partial_coincidence_should_net_the_overlap_and_route_only_the_rest() {
 				14749049912240615u128,
 				"Alice HDX out"
 			);
-			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 79132992791u128, "Bob DOT out");
+			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 79132992789u128, "Bob DOT out");
 		});
 }
 
@@ -244,13 +244,13 @@ fn four_asset_cycle_should_internalize_when_it_exceeds_ring_detection() {
 			// Four legs, three AMM trades: the cycle internalizes all but the residual.
 			assert_eq!(sol.resolved_intents.len(), 4, "the whole 4-cycle resolves");
 			assert_eq!(amm_trade_count(&sol), 3);
-			assert_eq!(sol.score, 43712571438721010u128);
+			assert_eq!(sol.score, 43712521100252200u128);
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
 				676286517104114u128,
 				"Alice BNC out"
 			);
-			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 159538036540u128, "Bob DOT out");
+			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 159538017397u128, "Bob DOT out");
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
 				8919692554988036u128,
@@ -258,7 +258,7 @@ fn four_asset_cycle_should_internalize_when_it_exceeds_ring_detection() {
 			);
 			assert_eq!(
 				swap(resolved(&sol, dave_id)).amount_out,
-				35217442828592320u128,
+				35217392490142653u128,
 				"Dave HDX out"
 			);
 		});
@@ -306,16 +306,16 @@ fn four_asset_chain_should_net_both_intermediates() {
 			let sol = run_and_submit("chain_4asset");
 			assert_eq!(sol.resolved_intents.len(), 3);
 			assert_eq!(amm_trade_count(&sol), 3);
-			assert_eq!(sol.score, 25803520695372633u128);
+			assert_eq!(sol.score, 25803494643001332u128);
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
 				14778425464087880u128,
 				"Alice HDX out"
 			);
-			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 222204364143u128, "Bob DOT out");
+			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 222204364141u128, "Bob DOT out");
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
-				13024883026920610u128,
+				13024856974549311u128,
 				"Charlie WETH out"
 			);
 		});
@@ -375,13 +375,13 @@ fn five_asset_cycle_should_internalize_when_it_exceeds_ring_detection() {
 			let sol = run_and_submit("cycle_5asset");
 			assert_eq!(sol.resolved_intents.len(), 5, "the whole 5-cycle resolves");
 			assert_eq!(amm_trade_count(&sol), 4);
-			assert_eq!(sol.score, 76040401730210000u128);
+			assert_eq!(sol.score, 76040351348030055u128);
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
 				676286517104114u128,
 				"Alice BNC out"
 			);
-			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 159538039638u128, "Bob DOT out");
+			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 159538020838u128, "Bob DOT out");
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
 				8919692554988035u128,
@@ -394,7 +394,7 @@ fn five_asset_cycle_should_internalize_when_it_exceeds_ring_detection() {
 			);
 			assert_eq!(
 				swap(resolved(&sol, eve_id)).amount_out,
-				35239296382236830u128,
+				35239246000075685u128,
 				"Eve HDX out"
 			);
 		});
@@ -443,7 +443,7 @@ fn netting_should_compose_with_the_same_pair_direct_match() {
 			// off it; only two residual trades reach the pool.
 			assert_eq!(sol.resolved_intents.len(), 3);
 			assert_eq!(amm_trade_count(&sol), 2);
-			assert_eq!(sol.score, 14456573836907570u128);
+			assert_eq!(sol.score, 14456573836907566u128);
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
 				14780718153014936u128,
@@ -456,7 +456,7 @@ fn netting_should_compose_with_the_same_pair_direct_match() {
 			);
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
-				79166788520u128,
+				79166788516u128,
 				"Charlie DOT out"
 			);
 		});
@@ -513,13 +513,13 @@ fn disjoint_groups_should_settle_independently_when_batched_together() {
 			let sol = run_and_submit("disjoint_groups");
 			assert_eq!(sol.resolved_intents.len(), 4);
 			assert_eq!(amm_trade_count(&sol), 3);
-			assert_eq!(sol.score, 78431977036771331u128);
+			assert_eq!(sol.score, 78431979085936776u128);
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
 				14778425464087880u128,
 				"Alice HDX out"
 			);
-			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 221597111922u128, "Bob DOT out");
+			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 221597111920u128, "Bob DOT out");
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
 				33305976737841383u128,
@@ -527,7 +527,7 @@ fn disjoint_groups_should_settle_independently_when_batched_together() {
 			);
 			assert_eq!(
 				swap(resolved(&sol, dave_id)).amount_out,
-				33347363237730146u128,
+				33347365286895593u128,
 				"Dave WETH out"
 			);
 		});
@@ -581,16 +581,16 @@ fn cycle_should_still_settle_when_one_edge_intent_has_a_tight_limit() {
 			// Dave's loose HDX->BNC intent carries the same edge.
 			assert_eq!(sol.resolved_intents.len(), 3);
 			assert_eq!(amm_trade_count(&sol), 2);
-			assert_eq!(sol.score, 5789144064753465u128);
+			assert_eq!(sol.score, 5789138719523344u128);
 			assert!(!is_resolved(&sol, alice_id), "the tight-limit intent stays out");
 			assert_eq!(
 				swap(resolved(&sol, dave_id)).amount_out,
-				67433819967149u128,
+				67433757503864u128,
 				"Dave BNC out"
 			);
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
-				6281710071545208u128,
+				6281704788778372u128,
 				"Charlie HDX out"
 			);
 			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 1173241108u128, "Bob DOT out");
@@ -694,17 +694,17 @@ fn cycle_should_exclude_the_intent_whose_limit_exceeds_the_netted_rate() {
 			// cycle settles as a 3-leg chain without him.
 			assert_eq!(sol.resolved_intents.len(), 3);
 			assert_eq!(amm_trade_count(&sol), 3);
-			assert_eq!(sol.score, 8559350190542233u128);
+			assert_eq!(sol.score, 8559332420936986u128);
 			assert!(!is_resolved(&sol, dave_id), "the tight-limit intent stays out");
 			assert_eq!(
 				swap(resolved(&sol, alice_id)).amount_out,
 				676286517104114u128,
 				"Alice BNC out"
 			);
-			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 159538642564u128, "Bob DOT out");
+			assert_eq!(swap(resolved(&sol, bob_id)).amount_out, 159538642562u128, "Bob DOT out");
 			assert_eq!(
 				swap(resolved(&sol, charlie_id)).amount_out,
-				8883914134795555u128,
+				8883896365190310u128,
 				"Charlie WETH out"
 			);
 		});
@@ -752,6 +752,6 @@ fn four_asset_cycle_should_conserve_every_asset_when_submitted() {
 			// conservation and the score recompute both hold on chain.
 			assert_eq!(sol.resolved_intents.len(), 4);
 			assert_eq!(amm_trade_count(&sol), 3);
-			assert_eq!(sol.score, 43712571438721010u128);
+			assert_eq!(sol.score, 43712521100252200u128);
 		});
 }
