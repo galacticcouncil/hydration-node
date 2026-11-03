@@ -136,7 +136,7 @@ fn leg_sell_should_take_only_the_last_hop_units_when_intermediate_hops_have_none
 
 #[test]
 fn claimed_out_should_not_haircut_when_every_hop_is_zero() {
-	let t = Tolerance::parse("route=0,aave=0").unwrap();
+	let t = Tolerance::parse("route=0,aave=0,uniswapv3=0").unwrap();
 	let l = leg(
 		&t,
 		route(&[PoolType::UniswapV3(3000), PoolType::Aave]),
