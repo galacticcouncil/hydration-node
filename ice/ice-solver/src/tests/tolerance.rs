@@ -84,6 +84,7 @@ impl AMMInterface for DecimalsAmm {
 #[test]
 fn default_should_sum_the_measured_venue_tolerances() {
 	let t = Tolerance::default();
+	assert_eq!(t.uniswap_v3, HopTolerance { ppm: 0, units: 2 });
 	let l = leg(
 		&t,
 		route(&[PoolType::Aave, PoolType::Omnipool, PoolType::Stableswap(100)]),

@@ -64,8 +64,9 @@ pub struct Tolerance {
 
 impl Default for Tolerance {
 	/// Per-venue table measured on mainnet: Omnipool drifts up to 1 bps between
-	/// build and execution, Stableswap and Aave only round, Uniswap v3 always
-	/// underquotes. XYK, LBP and HSM keep 1 bps because they are unmeasured.
+	/// build and execution, Stableswap and Aave only round, and Uniswap v3's
+	/// curve underquotes while bound-token transfers can still round. XYK, LBP
+	/// and HSM keep 1 bps because they are unmeasured.
 	fn default() -> Self {
 		Self {
 			route_ppm: 0,
@@ -75,7 +76,7 @@ impl Default for Tolerance {
 			lbp: HopTolerance { ppm: 100, units: 0 },
 			aave: HopTolerance { ppm: 0, units: 2 },
 			hsm: HopTolerance { ppm: 100, units: 0 },
-			uniswap_v3: HopTolerance::default(),
+			uniswap_v3: HopTolerance { ppm: 0, units: 2 },
 		}
 	}
 }
