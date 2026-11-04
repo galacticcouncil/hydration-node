@@ -1,109 +1,105 @@
-# Report Formatting
+# Audit artifacts and report contract
 
-## Report Path
+Every scan has one external run directory containing `scope.json`, `pass-K.json` files, raw
+candidate results/dispositions, and `full-report.md`. Follow the workspace campaign layout
+when present. Canonical findings reports are persisted even without `--file-output`; that
+flag creates an additional copy at the requested path. Use UTC `YYMMDDHHMM` for artifact names.
 
-When `--file-output` is set, resolve the git repository root via `git rev-parse --show-toplevel` and save the report to `{repo_root}/findings/{timestamp}-hydration-{feature-name}-{model-name}-cl0wdit.md`, where `{feature-name}` is the name of the feature or pallet, `{model-name}` is a filesystem-safe lowercase model slug such as `gpt-5`, `claude-opus-4-5`, or `o3`, and `{timestamp}` is `YYYYMMDD-HHMMSS` at scan time. Create the `findings/` directory if it doesn't exist.
+The deterministic helper is `scripts/audit_artifacts.py`, relative to the skill root. It uses
+only Python's standard library. It does not judge findings, invoke models, modify source code,
+or contact a chain. It validates JSON and assembles the report from saved pass artifacts.
 
-## Output Format
+## Scope JSON
 
-````
-# Security Audit — <Runtime / Pallet name or repo name>
+Write factual values, not the example placeholders. Files are an array so paths with spaces
+are preserved. Record revisions and reviewed-file provenance in the linked bundle manifest.
+The `model` and `reasoning_effort` fields come from the runtime/user/workspace instructions;
+do not guess model suffixes. Additional factual scope metadata is allowed.
 
----
-
-## Scope
-
-| Field | Value |
-|---|---|
-| **Skill version** | hydration_cl0wdit vX.Y.Z |
-| **Model** | <model name/version and reasoning effort> |
-| **Report date** | YYYY-MM-DD |
-| **Commit hash / revision** | `<full commit hash or reviewed revision>` |
-| **Commit date** | YYYY-MM-DD HH:MM:SS ±HHMM |
-| **Mode** | ALL / default / filename |
-| **In-scope files** | `pallet_foo/src/lib.rs` · `pallet_bar/src/lib.rs`<br>`runtime/src/lib.rs` | <!-- list every file, 2-3 per line -->
-| **Confidence threshold (1–100)** | N |
-
----
-
-## Findings
-
-[95] **1. <Title>**
-
-`pallet_name::dispatchable_or_hook` · Confidence: 95
-
-**Description**
-<One sentence: what the vulnerable pattern is and how it can be exploited.>
-
-**Fix**
-
-```diff
-- vulnerable line(s)
-+ fixed line(s)
+```json
+{
+  "scan_id": "2611041010-feature-scan-1",
+  "campaign": "2611041000-feature",
+  "timestamp": "2026-11-04T10:10:00Z",
+  "repository": "https://github.com/owner/repository",
+  "local_checkout": "/absolute/path/to/audited/repository",
+  "target_revision": "full-target-hash",
+  "comparison": "git diff full-base-hash...full-target-hash (merge base full-merge-base-hash)",
+  "mode": "cl0wdit0.3.0",
+  "model": "exact-model-identifier",
+  "reasoning_effort": "actual-effort",
+  "skill_version": "0.3.0",
+  "skill_revision": "skill-commit-and-content-hash-if-locally-modified",
+  "execution": "sequential",
+  "passes_planned": 1,
+  "roles_planned": ["math", "access"],
+  "files": ["pallets/example/src/lib.rs"],
+  "memory": false,
+  "limitations": "Scope, contexts not read, unresolved assumptions and unavailable roles.",
+  "validation": "Exact commands and results, or source-trace-only limitations."
+}
 ```
 
----
+The example role list is abbreviated: the normal full plan has 17 roles listed in
+`orchestration.md`. A reduced plan needs a scope/budget explanation. When memory is enabled,
+add `ledger_path` pointing to the external campaign ledger; use `snapshot-memory` before the
+first pass. Keep the scan directory outside `local_checkout`.
 
-[82] **2. <Title>**
+## Pass JSON
 
-`pallet_name::function_name` · Confidence: 82
+Each saved pass names all completed/failed roles, exact revision/model/effort, adjudicated
+items, and rejected/duplicate candidate dispositions. No empty missing-role lists that imply
+an unexecuted lens was completed. Use a failed role reason if the role did not run.
 
-**Description**
-<One sentence: what the vulnerable pattern is and how it can be exploited.>
-
-**Fix**
-
-```diff
-- vulnerable line(s)
-+ fixed line(s)
+```json
+{
+  "number": 1,
+  "target_revision": "full-target-hash",
+  "model": "exact-model-identifier",
+  "reasoning_effort": "actual-effort",
+  "roles_completed": ["math"],
+  "roles_failed": {"access": "required worker unavailable"},
+  "candidates": ["pass-1/math/1", "pass-1/math/2"],
+  "items": [{
+    "kind": "FINDING",
+    "module": "pallets/example/src/lib.rs::Example",
+    "function": "claim",
+    "bug_class": "incorrect-reward-scale",
+    "title": "Claim uses the wrong reward scale",
+    "description": "The claimant receives excess rewards because claim applies the asset scale twice.",
+    "locations": ["pallets/example/src/lib.rs:100"],
+    "severity": "High",
+    "confidence": 95,
+    "path": "concrete caller -> guards -> writes/transfers -> victim impact",
+    "proof": "Concrete values, code citations and before/after state.",
+    "assumptions": "Required state and its evidence.",
+    "fix": "Precise implementation steps or a complete safe diff.",
+    "verification": "Actual reproduction command/result, or source trace only.",
+    "candidate_ids": ["pass-1/math/1"],
+    "agent_roles": ["math"]
+  }],
+  "rejected": [{"candidate_id": "pass-1/math/2", "reason": "duplicate of pass-1/math/1"}]
+}
 ```
 
----
+A `LEAD` uses the same identity/location/provenance fields plus `next_check`. It has no
+`severity` or `confidence`. Include `proof`, `path`, `fix` or `assumptions` only where supported.
+Use `details` for specialty-specific evidence fields, and `seam` for combined lenses. Every
+confirmed finding requires path, proof, verification and suggested fix. The helper's
+`CONFIDENCE_THRESHOLD` is the single executable threshold. It validates shape, not truth.
 
-< ... all above-threshold findings ... >
+## Assembled report
 
----
+The helper puts model, effort and skill provenance directly below the title, followed by scope,
+actual pass/role coverage, validation/limitations, a findings overview, and detailed findings.
+Each finding retains all saved pass occurrences so alternate proof/fix text cannot vanish
+under context pressure. Leads and unvalidated historical records appear separately. A missing
+or all-failed review is displayed as incomplete; it must never be described as a clean audit.
 
-[75] **3. <Title>**
+Do not conflate confidence, severity, agent agreement, number of passes, ledger scan counts,
+or returned DB weights with measured runtime performance. Source traces are valid evidence
+when complete; label them accurately rather than claiming tests were executed.
 
-`pallet_name::function_name` · Confidence: 75
-
-**Description**
-<The vulnerable code pattern and why it is exploitable, in 1 short sentence>
-
----
-
-< ... all below-threshold findings (description only, no Fix block) ... >
-
----
-
-## Summary
-
-| # | Confidence | Title |
-|---|---|---|
-| 1 | [95] | <title> |
-| 2 | [82] | <title> |
-| 3 | [75] | <title> |
-
----
-
-## Leads
-
-_Vulnerability trails with concrete code smells where the full exploit path could not be completed in one analysis pass. These are not false positives — they are high-signal leads for manual review. Not scored._
-
-- **<Title>** — `pallet_name::function_name` — Code smells: <missing guard, unsafe arithmetic, etc.> — <1-2 sentence description of the trail and what remains unverified>
-- **<Title>** — `pallet_name::function_name` — Code smells: <...> — <1-2 sentence description>
-
----
-
-> **Disclaimer:** This audit was conducted by an AI agent. Automated analysis cannot guarantee the absence of vulnerabilities. Independent manual review, formal verification where applicable, and runtime monitoring are strongly recommended before deploying to production.
-
-````
-
-## Rules
-
-- Follow the template above exactly.
-- Sort findings highest confidence first.
-- Location format: use `pallet_name::function_name` (Rust path style), not dot notation.
-- Findings below the confidence threshold receive a description but **no Fix block**.
-- Draft findings directly into the report format — do not regenerate or reword them after the fact.
+The `candidates` inventory lists every raw candidate ID. Every ID must occur exactly once
+in an item's `candidate_ids` or in `rejected`; validation rejects silent drops and duplicate
+dispositions. Do not omit raw candidates merely because adjudication rejected them.

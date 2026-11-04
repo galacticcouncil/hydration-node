@@ -1,71 +1,60 @@
-# Finding Validation
+# Finding validation
 
-Every finding passes four sequential gates. Fail any gate → **rejected** or **demoted** to lead. Later gates are not evaluated for failed findings.
+Apply four gates to each candidate and save its disposition. Evidence can change a verdict;
+there is no rule against revisiting an earlier conclusion. Unknown behavior remains unknown.
 
-## Gate 1 — Refutation
+## 1. Execution
 
-Construct the strongest argument that the finding is wrong. Find the guard, check, or constraint that kills the attack — quote the exact line and trace how it blocks the claimed step.
+Trace caller or lifecycle trigger through every relevant guard, hook, helper, cross-pallet
+call, transaction boundary and mutation to the claimed harm. Quote the exact blocking check
+when rejecting a claim. A name, comment, conventional library behavior or speculative guard
+is not a refutation; equally, an uncertain path is not an executable path.
 
-- Concrete refutation (specific guard blocks exact claimed step) → **REJECTED** (or **DEMOTE** if code smell remains)
-- Speculative refutation ("probably wouldn't happen") → **clears**, continue
+## 2. Reachable state
 
-## Gate 2 — Reachability
+Show how the required state arises at the reviewed revision/configuration, or label the
+unverified deployment assumption. For upgrades, include old storage shapes, bounds, versions,
+locks, reserves, paused/empty states and partial prior cleanup. Do not require a production
+exploit to be run against a live chain to prove a source-level defect.
 
-Prove the vulnerable state exists in a live deployment.
+## 3. Trigger and trust
 
-- Structurally impossible (enforced invariant prevents it) → **REJECTED**
-- Requires privileged actions outside normal operation → **DEMOTE**
-- Achievable through normal usage or common token/XCM behaviors → **clears**, continue
+Identify who controls inputs and who triggers execution. Distinguish a trusted actor abusing
+intended authority from a defect during normal authorized operation. A normal upgrade that
+traps block production, a keeper action that loses funds, or a hook that corrupts state can
+be reportable without an attacker holding governance privileges. State that prerequisite and
+avoid describing it as an unprivileged exploit when it is an operational failure.
 
-## Gate 3 — Trigger
+For economic attacks, calculate realistic capital, fees, repetition and extraction. An attack
+with no profit can still be a supported availability/resource-exhaustion finding if its cost
+and victim impact are material. Do not reject denial of service solely because it pays no
+attacker profit.
 
-Prove an unprivileged actor executes the attack.
+## 4. Material impact
 
-- Only trusted roles can trigger (sudo, governance, council, admin origin) → **DEMOTE**
-- Costs exceed extraction → **REJECTED**
-- Unprivileged actor triggers profitably → **clears**, continue
+Name the victim and supported loss, blocked operation, consensus/upgrade failure, or persistent
+resource use. Separate duration, recoverability and scope from severity. Self-harm, ordinary
+privilege, version-bump housekeeping and missing tests without a demonstrated defect are not
+findings. Compounding dust requires a concrete repetition/cost argument.
 
-## Gate 4 — Impact
+## Verdicts, severity and confidence
 
-Prove material harm to an identifiable victim.
+- `FINDING`: every required step is evidenced, with a supported severity (Critical/High/Medium/
+  Low), confidence, path, proof, suggested fix and verification status.
+- `LEAD`: a specific unresolved mechanism with locations, uncertainty, a next check and a
+  mitigation when supportable. Do not assign a confidence score or confirmed severity.
+- `REJECTED`: a concrete counterexample or excluded scope, recorded with candidate ID and reason.
 
-- Self-harm only → **REJECTED**
-- Dust-level, no compounding → **DEMOTE**
-- Material loss to identifiable victim → **CONFIRMED**
+Confidence is evidence strength, not a checklist score and not severity. The executable
+threshold is `CONFIDENCE_THRESHOLD` in `scripts/audit_artifacts.py` (75). Below that standard,
+keep a lead. Every confirmed finding gets a concrete suggested fix regardless of severity.
+A completed trace may promote a lead. Agent convergence, repeated observations, and a similar
+bug in another pallet are reasons to investigate, never substitutes for that pallet's proof.
 
-## Confidence
+Review fixes for availability, accounting, access and repeated instances. State alternatives
+when they are independently safe. Reject an unsafe raw-agent fix rather than preserving it
+verbatim as a recommendation.
 
-Start at **100**, deduct: partial attack path **-20**, bounded non-compounding impact **-15**, requires specific (but achievable) state **-10**. Confidence ≥ 80 gets description + fix. Below 80 gets description only.
-
-## Safe patterns (do not flag)
-
-- `saturating_*` with explicit justification comment or preceding bounds check
-- `.unwrap_or_default()` on storage reads (never panics)
-- `.expect("description; qed")` with a sound preceding proof
-- `#[pallet::call]` dispatchables without `#[transactional]` (implicit since FRAME v2)
-- Hardcoded weights in `benchmarking.rs`, `weights.rs`, or test modules
-- `ensure_none` in test/mock modules
-- `SafeCallFilter = Everything` for trusted internal XCM origins
-- Governance parameter changes that are by-design privileges
-- Division-before-multiply inside `FixedU128` or similar fixed-point wrappers
-- Bounded storage (`BoundedVec`, `BoundedBTreeMap`) with tight limits and gating deposit
-
-## Lead promotion
-
-Before finalizing leads, promote where warranted:
-
-- **Cross-pallet echo.** Same root cause confirmed as FINDING in one pallet → promote in every pallet where the identical pattern appears.
-- **Multi-agent convergence.** 2+ agents flagged same area, lead was demoted (not rejected) → promote to FINDING at confidence 75.
-- **Partial-path completion.** Only weakness is incomplete trace but path is reachable and unguarded → promote to FINDING at confidence 75, description only.
-
-## Leads
-
-High-signal trails for manual investigation. No confidence score, no fix — title, code smells, and what remains unverified.
-
-## Known False Positives
-
-Before scoring, check the finding against `known-false-positives.md` (included in your bundle). If it matches a listed pattern, drop it — do not score or report it.
-
-## Do Not Report
-
-Anything a linter, compiler, or `cargo clippy` would dismiss. Admin/governance privileges by design. Missing event emissions. Centralization without exploit path. Implausible preconditions (but fee-on-transfer via XCM, rebasing assets, freezing/thawing ARE plausible for runtimes handling arbitrary assets or XCM messages).
+`known-false-positives.md` provides questions to disprove common claims. None is an automatic
+exemption: verify the pinned SDK implementation and runtime wiring. Fixed-point wrappers,
+bounded collections, comments and trusted origins do not prove safety by themselves.

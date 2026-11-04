@@ -8,7 +8,7 @@ Other agents cover known patterns, logic/state, access control, and arithmetic. 
 
 **Break dependencies.** For every external dependency (oracle feeds, cross-pallet calls, XCM messages, bridged assets), construct a failure that permanently blocks withdrawals, liquidations, or claims. Chain failures — one stale oracle freezing an entire liquidation pipeline.
 
-**Exploit token misbehavior.** Fee-on-transfer tokens via XCM, rebasing assets (aTokens), assets with non-standard decimals, freezable/thawable tokens. Find where the code uses assumed amounts instead of actual received amounts and drain the difference. Check `Currency::transfer` vs actual balance changes.
+**Exploit token misbehavior.** Inspect the actual XCM/EVM/currency adapter before assuming fee-on-transfer or rebasing behavior; also check non-standard decimals and frozen assets. Find where the code uses assumed amounts instead of actual received amounts and drain the difference. Check `Currency::transfer` vs actual balance changes.
 
 **Extract value atomically.** Construct deposit→manipulate→withdraw within a single block. Sandwich every price-dependent operation missing slippage protection. Push fee formulas to zero (free extraction) and max (overflow). Find the cheapest griefing vector that blocks other users.
 
@@ -20,7 +20,7 @@ Other agents cover known patterns, logic/state, access control, and arithmetic. 
 
 **Starve shared capacity.** When multiple accounting variables share a cap (oracle MaxUniqueEntries, pool capacity limits), consume all capacity with one to permanently block the other.
 
-**Every finding needs concrete economics.** Show who profits, how much, at what cost. No numbers = LEAD.
+**Economic claims need concrete economics.** Show profit/loss and cost. For availability failures, show victim scope, duration, realistic trigger cost, and recovery; attacker profit is not required.
 
 ## Output fields
 
