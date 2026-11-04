@@ -1,6 +1,6 @@
 # Known False Positives
 
-Before reporting a finding, check it against this list. If a finding matches a pattern below, it is a known false positive — drop it silently.
+Use these patterns to test a claim against the actual pinned SDK, runtime configuration and call path. A matching name or comment is not an automatic exemption. Record concrete refutations during adjudication.
 
 ---
 
@@ -8,7 +8,7 @@ Before reporting a finding, check it against this list. If a finding matches a p
 
 **Pattern:** Flagging a `#[pallet::call]` dispatchable for lacking explicit `#[transactional]` annotation, claiming storage changes may not revert on error.
 
-**Why it's wrong:** Since FRAME v2 (~Substrate 0.9.25+), all `#[pallet::call]` dispatchables are automatically wrapped in a transactional layer. Storage mutations revert on `Err` by default. The `#[transactional]` attribute was subsequently deprecated because the behavior is implicit. Only flag missing transactional semantics for **non-dispatchable** internal functions called outside of a dispatchable context (e.g., hooks like `on_initialize`, `on_finalize`, offchain workers) where the automatic wrapper does not apply.
+**Verification:** Inspect the pinned FRAME pallet-call expansion and the actual invocation path. Current FRAME dispatchable expansion can use `with_storage_layer`, which rolls back that call's storage on `Err`; direct helper calls and lifecycle hooks may have different boundaries. Missing an explicit attribute alone is not proof of partial writes. Conversely, a successful outer operation, ignored inner error, non-storage side effect, or panic can have different consequences. Confirm where state commits and whether block production can recover.
 
 ---
 
@@ -16,7 +16,7 @@ Before reporting a finding, check it against this list. If a finding matches a p
 
 **Pattern:** Flagging `saturating_add`, `saturating_sub`, `saturating_mul` as masking errors when the saturating behavior is explicitly the intended design.
 
-**Why it's wrong:** Saturating arithmetic is correct when clamping is the desired outcome — e.g., capping a counter at `u128::MAX`, decrementing a non-critical metric toward zero, or computing a fee floor. Only flag `saturating_*` when: (a) the operation is on a **balance or share calculation** where underflow/overflow should be an error, AND (b) there is no preceding guard (`ensure!`, `if` check, or explicit comment) validating the operands. If the code has a comment like `// saturating is intentional here` or a preceding bounds check, drop it.
+**Why it's wrong:** Saturating arithmetic is correct when clamping is the desired outcome — e.g., capping a counter at `u128::MAX`, decrementing a non-critical metric toward zero, or computing a fee floor. Only flag `saturating_*` when: (a) the operation is on a **balance or share calculation** where underflow/overflow should be an error, AND (b) there is no preceding guard (`ensure!`, `if` check, or explicit comment) validating the operands. A comment is a claim to verify, and a preceding bound must actually prove the operation safe. Check repeated rounding, accounting conservation and saturation on all reachable paths.
 
 ---
 
@@ -60,19 +60,19 @@ Before reporting a finding, check it against this list. If a finding matches a p
 
 ---
 
-## FP-008: Division-before-multiply in fixed-point math libraries
+## FP-008: Division order inside fixed-point libraries
 
-**Pattern:** Flagging `(a / b) * c` ordering in code that uses fixed-point or high-precision math libraries (`FixedU128`, `rug`, `hydra-dx-math`).
+**Pattern:** Reporting division-before-multiplication solely from operator order, without using the actual library's scale and rounding rules.
 
-**Why it's wrong:** Fixed-point math libraries handle intermediate precision internally — division before multiplication is often correct within these abstractions because the library upscales internally. Only flag division-before-multiply when: (a) the operation uses raw integer types (`u128`, `Balance`) without fixed-point wrappers, AND (b) the denominator can exceed the numerator, causing truncation to zero.
+**Verification:** Fixed-point wrappers preserve a finite scale, not exact real arithmetic. Calculate intermediate rounding and overflow with actual balances, decimals, and the pinned implementation. A wrapper is not an exemption. Report a concrete amplified loss, zero result or invariant violation; reject an allegation only when the actual computation/guard rules it out.
 
 ---
 
-## FP-009: Storage writes without deposit for bounded/ephemeral state
+## FP-009: Storage deposits for bounded or ephemeral state
 
-**Pattern:** Flagging storage writes that lack a storage deposit when the storage is bounded or ephemeral.
+**Pattern:** Treating every storage write without a dedicated deposit as exploitable, or treating any bounded collection/ordinary fee as proof that growth is safe.
 
-**Why it's wrong:** Not all storage writes need deposits. Bounded collections (`BoundedVec`, `BoundedBTreeMap`) with tight limits, per-block transient state (cleared in `on_finalize`), and storage that requires an existing deposit (e.g., account with ED) to exist are not vulnerable to unbounded bloat. Only flag missing deposits when: (a) the storage is **unbounded or has a high limit** (>1000 entries), AND (b) any signed user can trigger the write, AND (c) there is no deposit, fee, or ED requirement gating the write.
+**Verification:** Determine the global number of keys/accounts, multiplicative per-key bounds, retention/cleanup, attacker budget and worst-case weight/proof. Per-account bounds do not cap account count; transaction fees and EDs may not price persistent storage. Reject only when the actual bounds or economics prevent material harm. There is no universal safe collection-size threshold.
 
 ---
 
@@ -84,11 +84,11 @@ Before reporting a finding, check it against this list. If a finding matches a p
 
 ---
 
-## FP-011: Missing slippage protection on privileged/internal operations
+## FP-011: Slippage on privileged/internal operations
 
-**Pattern:** Flagging governance or protocol-internal operations for missing slippage parameters (min_amount_out, max_price).
+**Pattern:** Reporting missing user slippage parameters on an internal operation without showing that its price or ordering can be manipulated.
 
-**Why it's wrong:** Slippage protection is a user-facing defense against MEV. Governance operations (executed via council/referendum) and protocol-internal operations (called from hooks, not user-initiated) are not sandwichable in the traditional sense. Only flag missing slippage when: (a) the function is callable by **any signed user**, OR (b) the privileged operation can be frontrun by manipulating pool state before the governance extrinsic executes in the block.
+**Verification:** Resolve the actual scheduler/hook ordering, pool state and available attacker transactions. Governance and protocol-internal trades can still be manipulated before execution. Require a concrete ordering, capital/cost and victim effect; do not dismiss them solely because the trigger has a trusted origin.
 
 ---
 

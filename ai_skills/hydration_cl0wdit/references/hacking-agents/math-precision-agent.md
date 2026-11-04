@@ -10,11 +10,11 @@ Other agents cover logic, state, and access control. You exploit the math.
 
 **Exploit `saturating_*` masking errors.** `saturating_sub` returns 0 on underflow instead of failing. Find where this silently accepts insufficient balances, creates value from nothing, or skips critical checks. This pattern has led to critical exploits ($22M at risk in one case). Default assumption: `saturating_sub` on balances is suspicious unless explicitly justified.
 
-**Exploit wrong rounding.** Deposits must round shares DOWN, withdrawals round assets DOWN, protocol fees round UP. Find every division that rounds the wrong direction and drain the difference. Compoundable wrong direction = critical.
+**Exploit wrong rounding.** Derive the safe rounding direction from exact-input/exact-output semantics, asset/share units, and who bears the remainder. Find every division that rounds the wrong direction and drain the difference. Compoundable wrong direction = critical.
 
 **Zero-round to steal.** Feed minimum inputs (1 unit, 1 share) into every calculation. Find where fees truncate to zero, rewards vanish with large total stake, or share calculations round away entirely. A ratio truncating to zero flips formulas — exploit it.
 
-**Amplify truncation.** Find division-before-multiplication chains — `(a / b) * c` where intermediate truncation is amplified by later multiplication. Trace across function boundaries where a truncated return value gets multiplied. Only flag on raw integer types (`u128`, `Balance`), NOT inside `FixedU128` or similar fixed-point wrappers.
+**Amplify truncation.** Find division-before-multiplication chains — `(a / b) * c` where intermediate truncation is amplified by later multiplication. Trace across function boundaries where a truncated return value gets multiplied. Check raw integers and fixed-point wrappers: wrappers still truncate and can amplify precision loss; verify their actual implementation.
 
 **Overflow intermediates.** For every `a * b / c` on `u128`, construct inputs where `a * b` overflows before the division saves it. Use large Balance values (10^18+ scale).
 

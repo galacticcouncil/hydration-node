@@ -1,114 +1,98 @@
 ---
 name: hydration_cl0wdit
-description: Security audit of Substrate runtime built in Rust. Scans current dir by default, or a specific PR with --pr.
+description: Audit Substrate runtimes, Rust pallets, migrations, runtime adapters, and their operational boundaries. Supports explicit file or PR scope, repeated passes with --loop, and opt-in campaign memory. Use for security audits and targeted security reaudits.
 allowed-tools: Read, Glob, Grep, WebFetch, Bash, Agent
 ---
 
-# Substrate Security Audit
+# Substrate security audit
 
-You are the orchestrator of a parallelized security audit of a Substrate runtime and/or its pallets.
+Audit the specified revision and report reproducible security or operational defects. This
+workflow adapts Pashov Solidity Auditor v4.1 to FRAME, XCM, ORML, and Hydration. Its provenance
+and intentional differences are in [upstream-adaptation.md](references/upstream-adaptation.md).
 
-## Codex compatibility
+These audit instructions apply when running an audit, not when inspecting or editing this skill.
+Read the local `VERSION` at execution time and use the report label `cl0wdit{version}`.
 
-This skill is shared across agent environments. If you are running in Codex, map the Claude-oriented tool names as follows:
+## Scope and authorization
 
-- `Read` -> `sed`, `rg`, or other file-read commands.
-- `Glob` -> `rg --files` or `find`.
-- `Grep` -> `rg`.
-- `Bash` -> `exec_command`.
-- `WebFetch` -> the web tool, or `curl` only when shell network access is available.
-- `Agent` -> Codex sub-agents, following the active Codex environment policy for agent spawning. If sub-agents are unavailable or disallowed in the current environment, run a reduced local review or ask the user how to proceed.
+Follow repository instructions and the workspace campaign workflow when available. On this
+workspace that workflow is `/home/cl0w/workspace-docs/workflows/audits.md`. Reuse the campaign
+and bundle when scope and revisions match; keep copied source and reproduction artifacts in
+its external archive. Keep reports in the established campaign destination.
 
-The banner and four-turn orchestration apply only when the user requests an audit run. They do not apply when the user asks to inspect, update, or explain this skill.
+- No arguments: follow the workspace comparison default (`master...HEAD`), recording the base,
+  merge base, target hashes, and exact command. Outside that workspace, default to the current
+  repository's production Rust sources. State which interpretation was used.
+- Named files/directories: audit exactly those paths, even if they are tests or dependencies.
+  Read relevant callers, implementation dependencies, runtime configuration, and base-side
+  code as supporting context; list context separately from changed scope.
+- `--pr <number|URL>`: resolve the repository and base/head hashes using connected GitHub tools
+  or `gh`, with the GitHub API as a fallback. Handle pagination, renames, and deleted files.
+  Pin source to the PR revision; do not silently review an unrelated local checkout.
+- Use `rg --files` for discovery. Exclude `.git`, `target`, `node_modules`, generated build
+  outputs, and vendored dependencies from default discovery, not from explicit requests or
+  necessary context. Classify test/mock/benchmark files as evidence; do not discard them.
+  Inline `#[cfg(test)]` modules require inspection too. Runtime migration and deployment
+  scripts, chain specs, adapters, precompiles, build configuration, and public runtime APIs
+  remain eligible when they affect the requested change.
+- Audit workers are read-only in the audited checkout. Put PoCs and scratch work in the
+  external archive or an isolated copy, including when a PoC would later be deleted. Check
+  for existing user changes and record which revision supplied every reviewed file.
+- Delegation requires the user's explicit request under this repository's AGENTS.md. A skill
+  invocation alone does not authorize spawning agents. Otherwise apply the same lenses
+  sequentially and report that execution mode. Respect actual concurrency limits.
+- Inherit the current model unless the user specifies another available model. Record actual
+  model identifiers and reasoning efforts; never silently substitute or invent provenance.
 
-## Mode Selection
+## Passes and memory
 
-**Exclude pattern:** skip directories `tests/`, `benchmarking/`, `mock/` and files matching `*test*.rs`, `*mock*.rs`, `*bench*.rs`.
+A **scan** is one invocation against a fixed source snapshot. A **pass** is one review with
+all planned specialty lenses. Multiple passes that share earlier results are not independent.
 
-- **Default** (no arguments): scan all `.rs` files using the exclude pattern. Use Bash `find` (not Glob).
-- **`$filename ...`**: scan the specified file(s) only.
+- Default: one pass, no historical ledger access. No model or pass-count question is needed.
+- `--loop` means three passes; `--loop N` or an explicit natural-language count means N,
+  from 1 through 10. For a vague request for several passes, clarify the count before the
+  repeated work. Do not copy upstream Solidity duration/cost estimates to Substrate audits.
+- `--memory` enables campaign-scoped finding memory. More than one pass also enables memory.
+  Loop feedback includes results from earlier passes of this scan. Earlier scans are clearly
+  labelled historical, never accepted as proof at the current revision.
+- An explicitly independent review reads no historical findings or ledger. Honor that mode
+  before applying loop defaults; ask only if the user's requested modes conflict.
+- Preserve records that are not rediscovered, including during partial-file scans. Absence,
+  a rename, or a function-name regex is not evidence of a fix. A targeted reaudit records a
+  supported disposition for each requested prior finding in its report.
+- `--file-output [path]` makes an additional copy of the assembled report. It does not control
+  canonical campaign/run persistence: every scan records its scope, passes, and full report.
+  Do not place additional files in the audited checkout without this flag or user direction.
 
-**Flags:**
+## Workflow
 
-- `--pr <ref>`: Audit a specific pull request. `<ref>` can be a PR number or a full GitHub PR URL. Do NOT use `gh` — fetch PR data via `WebFetch` against the GitHub API (`https://api.github.com/repos/{owner}/{repo}/pulls/{number}/files`). Parse the response for changed `.rs` files.
-- `--file-output` (off by default): also write the report to a markdown file at the path specified by `{resolved_path}/report-formatting.md`. Never write a report file unless explicitly passed.
+1. **Freeze scope and prepare the bundle.** Record revisions, paths, changed vs supporting
+   files, source status, skill version/revision, model/effort, execution mode, roles, and pass
+   count. Read [orchestration.md](references/orchestration.md) for bundles and the role matrix.
+   Preserve the four Substrate/Hydration vector collections as audit checklists.
+2. **Load the review rules.** Read [judging.md](references/judging.md),
+   [report-formatting.md](references/report-formatting.md), and
+   [report-language.md](references/report-language.md). Each worker receives the
+   [senior auditor SOP](references/senior-auditor-sop.md), its specialty, the
+   [shared rules](references/hacking-agents/shared-rules.md), and relevant factual source.
+3. **Review each pass.** Use [agent-prompts.md](references/agent-prompts.md). With authorized
+   delegation, schedule waves within available slots and wait for all launched work before
+   updating bundles. Otherwise use sequential lenses without claiming independent agents.
+   Save raw results and disclose failed or unexecuted roles. Revisit a concrete unresolved
+   question when evidence changes; do not declare `UNCERTAIN` equivalent to `ALLOWS`.
+4. **Adjudicate and persist.** Follow [dedup-and-assembly.md](references/dedup-and-assembly.md).
+   Canonicalize labels without merging distinct root causes or losing proofs/fixes. Account
+   for each candidate as confirmed, lead, duplicate, or rejected with evidence. Agent counts
+   and repeat observations do not establish validity. Save a structured pass file.
+5. **Assemble one report.** The standard-library helper
+   `scripts/audit_artifacts.py` validates the artifacts and assembles every saved finding and
+   lead; do not regenerate the final report from memory. Report incomplete coverage plainly.
+   Update optional campaign memory from the immutable pre-scan snapshot, once per scan.
+   Persist the report and workspace task note even when no findings are confirmed.
 
-## Orchestration
-
-**Turn 1 — Discover.** Print the banner, then make these parallel tool calls in one message:
-
-a. Discover in-scope `.rs` files per mode selection:
-   - **No `--pr`:** Two Bash `find` commands — one for production `.rs` files (excluding test/bench/mock), one for test/bench/mock `.rs` files only.
-   - **With `--pr`:** Use `WebFetch` to call `https://api.github.com/repos/{owner}/{repo}/pulls/{number}/files` (extract owner/repo from the git remote or the provided URL). Parse the JSON response for changed `.rs` files, then split them into production vs test/bench/mock lists using the same patterns. Do NOT use `gh`.
-b. Glob for `**/references/attack-vectors/substrate-attack-vectors.md` — extract the `references/` directory (two levels up) as `{resolved_path}`
-c. Read the local `VERSION` file from the same directory as this skill
-d. Fetch `https://raw.githubusercontent.com/galacticcouncil/hydration-node/main/ai_skills/hydration_cl0wdit/VERSION` (`Bash curl -sf` in Claude; web tool in Codex when shell network is restricted)
-e. Bash `mktemp -d /tmp/audit-XXXXXX` → store as `{bundle_dir}`
-
-If the remote VERSION fetch succeeds and differs from local, print `⚠ hydration_cl0wdit v{local} is outdated — a newer version is available in the repo`. If it fails, skip silently.
-
-**Turn 2 — Prepare.** In one message, make parallel tool calls: (a) Read `{resolved_path}/report-formatting.md`, (b) Read `{resolved_path}/judging.md`.
-
-Then build all bundles in a single Bash command using `cat` (not shell variables or heredocs):
-
-1. `{bundle_dir}/source.md` — ALL in-scope production `.rs` files, each with a `### path` header and fenced code block.
-2. Agent bundles = `source.md` + agent-specific files:
-
-| Bundle                | Appended files (relative to `{resolved_path}`)                                                                             |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `agent-1-bundle.md`   | `attack-vectors/hydration-attack-vectors.md` + `hacking-agents/vector-scan-agent.md` + `hacking-agents/shared-rules.md`    |
-| `agent-2-bundle.md`   | `attack-vectors/substrate-attack-vectors.md` + `hacking-agents/vector-scan-agent.md` + `hacking-agents/shared-rules.md`    |
-| `agent-3-bundle.md`   | `attack-vectors/substrate-attack-vectors-1.md` + `hacking-agents/vector-scan-agent.md` + `hacking-agents/shared-rules.md`  |
-| `agent-4-bundle.md`   | `attack-vectors/substrate-attack-vectors-2.md` + `hacking-agents/vector-scan-agent.md` + `hacking-agents/shared-rules.md`  |
-| `agent-5-bundle.md`   | `hacking-agents/math-precision-agent.md` + `hacking-agents/shared-rules.md`                                                |
-| `agent-6-bundle.md`   | `hacking-agents/access-control-agent.md` + `hacking-agents/shared-rules.md`                                                |
-| `agent-7-bundle.md`   | `hacking-agents/economic-security-agent.md` + `hacking-agents/shared-rules.md`                                             |
-| `agent-8-bundle.md`   | `hacking-agents/execution-trace-agent.md` + `hacking-agents/shared-rules.md`                                               |
-| `agent-9-bundle.md`   | `hacking-agents/invariant-agent.md` + `hacking-agents/shared-rules.md`                                                     |
-| `agent-10-bundle.md`  | `hacking-agents/first-principles-agent.md` + `hacking-agents/shared-rules.md`                                              |
-| `agent-11-bundle.md`  | test/bench/mock `.rs` files (with `### path` headers) + production dispatchable summary + `hacking-agents/test-benchmark-agent.md` |
-
-Every hacking agent (1–10) receives the full production codebase via `source.md`. Agent 11 receives test/bench/mock code plus a production dispatchable summary (list every `#[pallet::call]` function name and its containing file). All bundles also get `known-false-positives.md` + `judging.md` + `report-formatting.md` appended.
-
-Print line counts for every bundle and `source.md`. Do NOT inline file content into agent prompts.
-
-**Turn 3 — Spawn.** In one message, spawn all 11 agents as parallel audit workers (Claude: foreground Agent calls; Codex: sub-agents). Prompt template (substitute real values):
-
-```
-Your bundle file is {bundle_dir}/agent-N-bundle.md (XXXX lines).
-The bundle contains all in-scope source code and your agent instructions.
-Read the bundle fully before producing findings.
-```
-
-**Turn 4 — Deduplicate, validate & output.** Single-pass: deduplicate all agent results, gate-evaluate, and produce the final report in one turn. Do NOT print an intermediate dedup list — go straight to the report.
-
-1. **Deduplicate.** Parse every FINDING and LEAD from all agents. Group by `group_key` field (format: `Pallet | function | bug-class`). Exact-match first; then merge synonymous bug_class tags sharing the same pallet and function. Keep the best version per group, number sequentially, annotate `[agents: N]`.
-
-   Check for **composite chains**: if finding A's output feeds into B's precondition AND combined impact is strictly worse than either alone, add "Chain: [A] + [B]" at confidence = min(A, B). Most audits have 0–2.
-
-2. **Gate evaluation.** Run each deduplicated finding through the four gates in `judging.md` (do not skip or reorder). Evaluate each finding exactly once — do not revisit after verdict.
-
-   **Single-pass protocol:** evaluate every relevant code path ONCE in fixed order (hooks → dispatchables → internal helpers → cross-pallet calls). One-line verdict per path: `BLOCKS`, `ALLOWS`, `IRRELEVANT`, or `UNCERTAIN`. Commit after all paths — do not re-examine. `UNCERTAIN` = `ALLOWS`.
-
-3. **Lead promotion & rejection guardrails.**
-   - Promote LEAD → FINDING (confidence 75) if: complete exploit chain traced in source, OR `[agents: 2+]` demoted (not rejected) the same issue.
-   - `[agents: 2+]` does NOT override a concrete refutation — demote to LEAD if refutation is uncertain.
-   - No deployer-intent reasoning — evaluate what the code _allows_, not how the deployer _might_ use it.
-
-4. **Fix verification** (confidence ≥ 80 only): trace the attack with fix applied; verify no new DoS, panic, or broken invariants; list all locations if the pattern repeats. If no safe fix exists, omit it with a note.
-
-5. **Format and print** per `report-formatting.md`. Exclude rejected items. If `--file-output`: also write to file.
-
-## Banner
-
-Before doing anything else, print this exactly:
-
-```
-          oooo    .oooo.                          .o8   o8o      .
-          `888   d8P'`Y8b                        "888   `"'    .o8
- .ooooo.   888  888    888 oooo oooo    ooo  .oooo888  oooo  .o888oo
-d88' `"Y8  888  888    888  `88. `88.  .8'  d88' `888  `888    888
-888        888  888    888   `88..]88..8'   888   888   888    888
-888   .o8  888  `88b  d88'    `888'`888'    888   888   888    888 .
-`Y8bod8P' o888o  `Y8bd8P'      `8'  `8'     `Y8bod88P" o888o   "888"
-```
+A later pass gets known bug-class labels and evidence, then checks new functions, paths,
+boundaries, and combinations. It must still report a known bug it can reproduce. Stop after
+N passes, a user stop request, an unavailable required input, or a failed pass that prevents
+meaningful progress. Preserve partial results and actual coverage; never label failure as a
+clean audit. Do not modify production code or publish/send reports unless requested.
