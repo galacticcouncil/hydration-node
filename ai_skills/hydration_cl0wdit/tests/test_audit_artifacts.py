@@ -25,8 +25,8 @@ class AuditArtifactsTests(unittest.TestCase):
             timestamp="2026-11-04T10:10:00Z", repository="https://example.invalid/repository",
             local_checkout=str(self.root / "audited-checkout"), target_revision="a" * 40,
             comparison="git diff master...HEAD; merge base " + "b" * 40,
-            mode="cl0wdit0.3.0", model="test-model", reasoning_effort="test-effort",
-            skill_version="0.3.0", skill_revision="c" * 40, execution="sequential",
+            mode="cl0wdit1.0", model="test-model", reasoning_effort="test-effort",
+            skill_version="1.0", skill_revision="c" * 40, execution="sequential",
             passes_planned=1, roles_planned=["math", "access"], files=["src/path with spaces.rs"],
             memory=False, ledger_path=str(self.ledger), limitations="fixture scope", validation="fixture trace",
         )

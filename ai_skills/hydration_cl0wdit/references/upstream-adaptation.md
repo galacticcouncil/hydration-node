@@ -6,7 +6,7 @@ Source: https://github.com/pashov/skills/tree/92b0ea6786e6c210bc9a839e4813d50876
 The MIT license notice is retained at `../LICENSE.pashov`.
 
 This update keeps the `hydration_cl0wdit` entrypoint and its Codex/Claude symlinks. It raises
-the local version from 0.2.0 to 0.3.0; it does not imply version equivalence with Pashov.
+the local version from 0.2.0 to 1.0; it does not imply version equivalence with Pashov.
 
 Adopted concepts:
 
