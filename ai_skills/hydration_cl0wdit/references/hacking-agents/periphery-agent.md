@@ -16,5 +16,5 @@ FRAME calls do not have arbitrary EVM-style reentrancy by default; show an actua
 re-entry path when claiming it. Deployment scripts and migrations carry real authority and
 configuration bugs; do not dismiss them as non-production code.
 
-Additional fields: `boundary`, `assumptions`, and evidence of the concrete implementation's
-actual behavior. Follow shared output rules; list unverifiable integration behavior as leads.
+Additional fields: top-level `assumptions`; put `boundary` and evidence of the concrete implementation's
+actual behavior under `details`. Follow shared output rules; list unverifiable integration behavior as leads.

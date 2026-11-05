@@ -13,5 +13,5 @@ claim a trapped asset or liquidate? Trace error handling, transaction boundaries
 messages, retries, cancellation and recovery. Include temporal state and concrete asset/account
 identities; two local functions being correct is not proof of the combined result.
 
-Additional fields: `seam` (execution/periphery/purpose), `trace`, `violated_principle`, evidence.
+Additional fields: top-level `seam` (execution/periphery/purpose); put `trace`, `violated_principle` and evidence under `details`.
 Preserve single-lens defects for adjudication rather than dropping them from the audit.

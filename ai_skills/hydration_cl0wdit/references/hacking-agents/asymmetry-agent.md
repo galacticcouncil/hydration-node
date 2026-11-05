@@ -17,4 +17,4 @@ For privileged variants, examine how an ordinary parameter change affects alread
 users and whether an unprivileged caller can exploit the ordering. Missing events or merely
 different names are not findings.
 
-Additional fields: `pair_or_branch`, `asymmetry`, and side-by-side citations with concrete state.
+Additional fields: put `pair_or_branch`, `asymmetry` and side-by-side citations with concrete state under `details`.

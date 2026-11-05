@@ -19,4 +19,4 @@ Do not infer fee-on-transfer, rebasing or arbitrary callbacks from a generic run
 trait. Verify the adapter and token integration. Only exercise Solidity-specific boundary
 semantics when an actual EVM/contract boundary exists.
 
-Additional fields: `boundary`, `assumptions`, `actual`, and a concrete trigger/state delta.
+Additional fields: top-level `assumptions`; put `boundary`, `actual` and a concrete trigger/state delta under `details`.

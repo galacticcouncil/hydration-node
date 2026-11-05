@@ -13,5 +13,5 @@ specific authority the actor has, why it is insufficient to justify the claimed 
 which valuation or alternate path turns it into harm. A role performing its documented power
 is not a bug; a normal authorized operation corrupting existing state can be.
 
-Additional fields: `seam` (access/economics/asymmetry), `actor`, concrete deltas and origin path.
+Additional fields: top-level `seam` (access/economics/asymmetry); put `actor`, concrete deltas and the origin path under `details`.
 Do not invent generic governance malice or EVM-style caller behavior in native pallet code.
