@@ -6,7 +6,6 @@ use num_enum::TryFromPrimitive;
 use primitives::EvmAddress;
 use sc_client_api::StorageData;
 use sc_client_api::StorageKey;
-use sp_core::RuntimeDebug;
 use sp_core::H256;
 use sp_core::U256;
 use sp_runtime::traits::Block;
@@ -31,7 +30,7 @@ const LOG_TARGET: &str = "liquidation-worker";
 // constants live in `types.rs`, next to the math that uses them.
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	GetPool = "getPool()",
@@ -90,7 +89,7 @@ pub fn fetch_addresses_provider<B: Block, RA: RuntimeApiProvider<B>>(
 pub mod traits {
 	use super::*;
 
-	#[derive(RuntimeDebug)]
+	#[derive(Debug)]
 	pub enum RuntimeApiErr {
 		Api(sp_api::ApiError),
 		Dispatch(DispatchError),

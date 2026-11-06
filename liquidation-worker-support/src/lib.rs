@@ -24,7 +24,7 @@ use frame_support::{pallet_prelude::*, sp_runtime::traits::Block as BlockT, Dese
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use primitives::EvmAddress;
 use sp_arithmetic::ArithmeticError;
-use sp_core::{RuntimeDebug, H160, H256, U256};
+use sp_core::{H160, H256, U256};
 use sp_std::{boxed::Box, ops::BitAnd, vec::Vec};
 use std::marker::PhantomData;
 use xcm_runtime_apis::dry_run::{CallDryRunEffects, Error as XcmDryRunApiError};
@@ -33,7 +33,7 @@ pub type Balance = u128;
 pub type AssetId = u32;
 pub type CallResult = (ExitReason, Vec<u8>);
 
-#[derive(RuntimeDebug)]
+#[derive(Debug)]
 pub enum LiquidationError {
 	DispatchError(DispatchError),
 	EvmError(ExitReason),
@@ -90,7 +90,7 @@ const MAX_LIQUIDATION_CLOSE_FACTOR: u128 = 10_000u128;
 const CLOSE_FACTOR_HF_THRESHOLD: u128 = 950_000_000_000_000_000u128;
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	GetPool = "getPool()",
@@ -218,7 +218,7 @@ pub fn percent_mul(value: U256, percentage: U256) -> Result<U256, LiquidationErr
 }
 
 /// Collateral and debt amounts of a reserve in the base currency.
-#[derive(Default, Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct UserReserve {
 	pub collateral: U256,
 	pub debt: U256,
@@ -228,7 +228,7 @@ pub struct UserReserve {
 /// Bitmap of the users collaterals and borrows. It is divided into pairs of bits, one pair per asset.
 /// The first bit indicates if the user uses an asset as collateral, the second whether the user borrows an asset.
 /// The corresponding assets are in the same position as `fetch_reserves_list()`.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 struct UserConfiguration(U256);
 impl UserConfiguration {
 	/// Returns `true` if the user uses the asset as collateral.
@@ -246,7 +246,7 @@ impl UserConfiguration {
 	}
 }
 
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct EModeCategory {
 	// ltv: u16,
 	liquidation_threshold: u16,
@@ -268,7 +268,7 @@ impl EModeCategory {
 }
 
 /// User's data. The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct UserData {
 	address: EvmAddress,
 	configuration: UserConfiguration,
@@ -634,7 +634,7 @@ where
 /// Configuration of the reserve.
 /// https://github.com/aave/aave-v3-core/blob/782f51917056a53a2c228701058a6c3fb233684a/contracts/protocol/libraries/types/DataTypes.sol#L5
 /// Not all data fields are used.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ReserveData {
 	configuration: U256, // https://github.com/aave-dao/aave-v3-origin/blob/3aad8ca184159732e4b3d8c82cd56a8707a106a2/src/core/contracts/protocol/libraries/types/DataTypes.sol#L79
 	liquidity_index: u128,
@@ -671,7 +671,7 @@ impl ReserveData {
 }
 
 /// State of asset reserve.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Reserve {
 	pub reserve_data: ReserveData,
 	pub asset_address: EvmAddress,
@@ -932,7 +932,7 @@ impl Reserve {
 	}
 }
 
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct LiquidationAmounts {
 	pub debt_amount: U256,
 	pub collateral_amount: U256,
@@ -942,7 +942,7 @@ pub struct LiquidationAmounts {
 
 /// Captures the state of the money market related to liquidations.
 /// The state is not automatically updated. Any change in the chain can invalidate the data stored in the struct.
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct MoneyMarketData<Block, OriginCaller, RuntimeCall, RuntimeEvent>
 where
 	Block: BlockT,
@@ -1654,7 +1654,7 @@ impl<Block: BlockT, OriginCaller, RuntimeCall, RuntimeEvent>
 	}
 }
 
-#[derive(Eq, PartialEq, Clone, RuntimeDebug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct LiquidationOption {
 	pub health_factor: U256,
 	pub collateral_asset: EvmAddress,

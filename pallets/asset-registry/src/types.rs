@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 pub type Name<L> = BoundedVec<u8, L>;
 pub type Symbol<L> = BoundedVec<u8, L>;
 
-#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Copy, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AssetType {
 	Token,
@@ -64,7 +64,7 @@ impl From<AssetType> for AssetKind {
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(StringLimit))]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AssetDetails<StringLimit: Get<u32>> {
