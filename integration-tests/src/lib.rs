@@ -6,6 +6,7 @@ mod aave_simulator;
 mod asset_registry;
 mod bonds;
 mod call_filter;
+mod cerebro_diff;
 mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;

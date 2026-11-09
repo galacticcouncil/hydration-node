@@ -1,0 +1,19 @@
+## findings
+## actions
+0xa68abb2c637db14d23605af3b912b288ac7eeb194da7a37320d5b37fb6e1d688|13342002|2|0|pool|1|omnipool-lm reward-claim
+0xa68abb2c637db14d23605af3b912b288ac7eeb194da7a37320d5b37fb6e1d688|13342010|2|0|pool|1|router HOLLAR→USDC
+0x8e5d7d0bca97794e0a04842fab54f89473ee215c433e525531c31a743061bb5a|13342010|3|0|pool|0|
+## pool_leaks
+## blocks
+13342000|3|0|
+13342001|2|0|
+13342002|3|0|ext2[0xa68abb2c…]: omnipool-lm reward-claim
+13342003|3|0|
+13342004|2|0|
+13342005|2|0|
+13342006|2|0|
+13342007|2|0|
+13342008|2|0|
+13342009|4|0|dca[0x6d6f646c…]: router H2O→HDX
+13342010|5|0|ext2[0xa68abb2c…]: router HOLLAR→USDC
+13342011|3|0|
