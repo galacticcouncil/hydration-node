@@ -1,0 +1,11 @@
+## findings
+## actions
+0x9a4aeae262919949aafad880ef2c9560ce3697027ec2435b3353dd126d2ee53a|13364672|2|-3960|pool|1|router DOT→HDX
+0xe0fb39806e1b559acc7fae3a38b84da033e29d0ee1fced2a5a30842964bcde4e|13364672|3|1089726|pool|1|router PRIME→HOLLAR
+0xe0fb39806e1b559acc7fae3a38b84da033e29d0ee1fced2a5a30842964bcde4e|13364672|4|-1097898|pool|1|router vDOT→HOLLAR
+0xe0fb39806e1b559acc7fae3a38b84da033e29d0ee1fced2a5a30842964bcde4e|13364672|1000002|0|lp|1|dca stableswap add-liq, router aDOT→HEURC
+## pool_leaks
+## blocks
+13364671|2|0|
+13364672|8|0|ext2[0x9a4aeae2…]: router DOT→HDX | ext3[0xe0fb3980…]: router PRIME→HOLLAR | ext4[0xe0fb3980…]: router vDOT→HOLLAR | hooks[unsigned]: omnipool HOLLAR→HDX, omnipool HOLLAR→HDX | dca[0xe0fb3980…]: stableswap add-liq, router aDOT→HEURC
+13364673|4|0|

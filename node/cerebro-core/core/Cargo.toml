@@ -1,0 +1,12 @@
+[package]
+name = "cerebro-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Chain-agnostic detection core for the cerebro suspicious-profit monitor"
+
+# Purity budget: hydra-dx-math (the chain's own AMM invariant math — never reimplemented)
+# and primitive-types. Nothing else.
+[dependencies]
+hydra-dx-math = { workspace = true, features = ["std"] }
+primitive-types = { workspace = true, features = ["std"] }

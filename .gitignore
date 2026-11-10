@@ -50,6 +50,7 @@ fork-testing/local-raw.json
 .env
 
 SNAPSHOT*
+!node/cerebro-core/hydration/src/snapshot.rs
 
 db.sqlite*
 zombienet

@@ -1,0 +1,16 @@
+## findings
+## actions
+0xf2ff382d72029597035b13d87942b7161b381e971e191ed6f2cb46b14c3a25b0|13172991|1000001|0|pool|1|dca router DOT→HOLLAR
+0x108b88285f7bc242c138dd8ab4bc3eaa4d0dc382857182d9bad198f5f8659941|13172993|3|-9923|pool|1|router USDT→DOT
+0xd0342add0c37bbaa2524a4d43da7d84333311b9c730bb1075f6340a31c82da29|13172993|4|-4044|pool|1|
+0xf2ff382d72029597035b13d87942b7161b381e971e191ed6f2cb46b14c3a25b0|13172995|1000001|0|pool|1|dca router DOT→HOLLAR
+0x7279fcf9694718e1234d102825dccaf332f0ea36edf1ca7c0358c4b68260d24b|13172996|2|0|pool|0|router PAXG→DOT
+## pool_leaks
+## blocks
+13172990|3|0|
+13172991|4|0|hooks[unsigned]: omnipool HOLLAR→HDX | dca[0xf2ff382d…]: router DOT→HOLLAR
+13172992|2|0|
+13172993|6|0|ext3[0x108b8828…]: router USDT→DOT | hooks[unsigned]: omnipool vDOT→HDX, omnipool vDOT→HDX
+13172994|4|0|
+13172995|4|0|hooks[unsigned]: omnipool HOLLAR→HDX | dca[0xf2ff382d…]: router DOT→HOLLAR
+13172996|4|0|ext2[0x7279fcf9…]: router PAXG→DOT | hooks[unsigned]: omnipool aDOT→HDX, omnipool aDOT→HDX
