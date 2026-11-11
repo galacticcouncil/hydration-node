@@ -1,48 +1,57 @@
-# Shared Scan Rules
+# Shared review rules
 
-## Reading
+Read the frozen source, manifest and specialty instructions in your bundle. Inspect relevant
+callers, runtime trait implementations, feature flags, configuration, dependency versions and
+base-side context when needed; record additions to reviewed context. Request missing context
+instead of inventing it. Do not claim a full read when the bundle was truncated.
 
-Your bundle has two sections:
+The audited checkout is read-only. Put tests, PoCs and scratch files in the external archive
+or an isolated copy, never in the original checkout even temporarily. Use local tools as
+mapped by the host: Read -> bounded file reads; Glob/Grep -> rg; Bash -> command execution.
+Do not spawn further workers unless explicitly authorized. Return results to the orchestrator;
+it owns the durable artifacts and report.
 
-1. **Core source** (inline) — read in parallel chunks (offset + limit), compute offsets from the line count in your prompt.
-2. **Peripheral file manifest** — file paths under `# Peripheral Files (read on demand)`. Read only those relevant to your specialty.
+Check dispatchables, lifecycle hooks, migrations, unsigned validation, runtime APIs, scheduled
+calls, XCM/EVM/precompile entry points, internal helpers and cross-pallet calls. Resolve the
+actual concrete runtime implementation before importing a Solidity or generic FRAME assumption.
 
-If your environment does not have a `Read` tool with offset/limit parameters, use the closest bounded file-read equivalent, such as `sed -n '<start>,<end>p'`, and parallelize those bounded reads when possible.
-
-When matching function names, check both public dispatchables (`#[pallet::call]`), hooks (`on_initialize`, `on_finalize`, `on_idle`, `on_runtime_upgrade`), and internal helpers they call.
-
-## Cross-pallet patterns
-
-When you find a bug in one pallet, **weaponize that pattern across every other pallet in the bundle.** Search by function name AND by code pattern. Finding unsafe arithmetic in `PalletA::do_transfer` means you check every other pallet's transfer logic — missing a repeat instance is an audit failure.
-
-After scanning: escalate every finding to its worst exploitable variant (DoS may hide fund theft). Then revisit every function where you found something and attack the other branches.
-
-## Do not report
-
-Admin/governance/sudo functions doing admin things. Standard DeFi tradeoffs (MEV, rounding dust). Self-harm-only bugs. "Governance can rug" without a concrete mechanism. Anything a linter or `cargo clippy` would catch.
+For a discovered pattern, search sibling paths and other in-scope implementations. Keep
+separate root causes/fixes separate. A suggested fix must be checked for new loss of funds,
+blocked execution, bad weight accounting and missing recovery. Ordinary authorized upgrades
+and hooks can expose reportable operational defects; "privileged" does not dismiss them.
 
 ## Output
 
-**Do NOT write any files.** No report files, no output files. Return findings as text in your final response only. The orchestrator handles all file output.
+Return structured candidate blocks with no generic preamble. Vector roles may begin with their
+classification table. Assign each candidate an ID such as `pass-1/math/1`; retain it through
+adjudication. Use a repository-relative module path (including pallet instance when relevant),
+exact function name, and kebab-case bug class. Reuse known labels for the same root cause;
+never merge different defects merely because they share a function or a broad class.
 
-Return structured blocks only — no preamble, no narration. Exception: vector scan agent outputs its classification block first.
+```text
+FINDING | id: pass-1/access/1 | module: pallets/foo/src/lib.rs::Foo | function: withdraw | bug_class: missing-owner-check
+locations: pallets/foo/src/lib.rs:123
+severity: High
+confidence: 95
+path: actor -> entry point -> relevant guards -> state change -> victim impact
+proof: concrete amounts/state sequence and citations from the reviewed revision
+assumptions: required state and which deployment assumptions were verified
+description: actor, trigger and effect in plain language
+fix: minimal safe diff or precise implementation steps
+verification: executed reproduction (command/result), or source trace only
 
-FINDINGs have concrete, unguarded, exploitable attack paths. LEADs have real code smells with partial paths — default to LEAD over dropping.
-
-**Every FINDING must have a `proof:` field** — concrete values, traces, or state sequences from the actual code. No proof = LEAD, no exceptions.
-
-**One vulnerability per item.** Same root cause = one item. Different fixes needed = separate items.
-
+LEAD | id: pass-1/math/1 | module: pallets/foo/src/lib.rs::Foo | function: claim | bug_class: rounding-drift
+locations: pallets/foo/src/lib.rs:234
+description: concrete mechanism and what is unproven
+next_check: exact missing evidence or reproduction to resolve it
+fix: suggested mitigation, only when supportable
+verification: which parts were inspected and which were not
 ```
-FINDING | pallet: Name | function: func | bug_class: kebab-tag | group_key: Pallet | function | bug-class
-path: caller → extrinsic/hook → internal call → storage mutation → impact
-proof: concrete values/trace demonstrating the bug
-description: one sentence
-fix: one-sentence suggestion
 
-LEAD | pallet: Name | function: func | bug_class: kebab-tag | group_key: Pallet | function | bug-class
-code_smells: what you found
-description: one sentence explaining trail and what remains unverified
-```
+Use the same fields for operational defects, identifying the lifecycle trigger instead of
+inventing an attacker. No complete path/proof means a LEAD; no agent vote count overrides it.
+Include the additional fields your specialty requests. Keep code and numeric evidence exact.
 
-The `group_key` enables deduplication: `PalletName | functionName | bug_class`. Agents may add custom fields.
+A known-finding section is historical context, not a suppress-list or proof of validity. Hunt
+new paths, but report known bugs you can still demonstrate. Explicit independent reviews
+receive no historical section. A later pass that receives feedback is not independent.

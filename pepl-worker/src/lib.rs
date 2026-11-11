@@ -21,6 +21,7 @@ use pepl_worker_support::types::Balance;
 use pepl_worker_support::types::BlockNumber;
 use pepl_worker_support::types::Borrower;
 use pepl_worker_support::types::MoneyMarket;
+use pepl_worker_support::types::Timestamp;
 use pepl_worker_support::Hydration;
 use primitives::AccountId;
 use primitives::EvmAddress;
@@ -126,6 +127,20 @@ pub const ZERO_DEBT_READS_BEFORE_PRUNE: u32 = 3;
 // independent shards, so the cooldown lives on the main task and is applied at both submit sites.
 pub const SUBMIT_COOLDOWN_BLOCKS: BlockNumber = 4;
 
+// `FixedVelocityConsensusHook` permits one block beyond `BLOCK_PROCESSING_VELOCITY` to fill the
+// unincluded segment. All of those blocks can carry the same Aura-slot timestamp.
+pub const MAX_BLOCKS_PER_SLOT: u32 = primitives::constants::chain::BLOCK_PROCESSING_VELOCITY.saturating_add(1);
+
+/// Timestamp the next block executes at, given how many blocks already carry `now`. Every block of
+/// a slot carries the slot's timestamp, so it only advances once the slot is full.
+pub fn next_block_timestamp(now: Timestamp, blocks_at_now: u32) -> Timestamp {
+	if blocks_at_now >= MAX_BLOCKS_PER_SLOT {
+		now.saturating_add(primitives::constants::time::SLOT_DURATION / 1_000)
+	} else {
+		now
+	}
+}
+
 // Contracts' addresses
 pub mod contracts {
 	use super::*;
@@ -211,6 +226,7 @@ pub mod storage_key {
 	use super::*;
 
 	pub const SYSTEM_EVENTS: [u8; 32] = hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7");
+	pub const TIMESTAMP_NOW: [u8; 32] = hex!("f0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb");
 
 	/// `pallet_liquidation::BorrowingContract` — the main money-market pool. ValueQuery:
 	/// an absent value means the chain uses the pallet's default (the main pool).
@@ -1653,7 +1669,7 @@ where
 		  // Everything that needs the (non-`Send`) runtime API happens in this scope: instance
 		  // bootstrap/discovery, per-instance money-market fetches, and event discovery. Plain
 		  // data (`now` + per-instance scan contexts) moves out for the parallel scan.
-		  let (now, mut scan_ctxs) = {
+		  let (now, exec_now, mut scan_ctxs) = {
 			  let runtime_api = client.runtime_api();
 			  let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
 
@@ -1661,6 +1677,27 @@ where
 				  log::error!(target: LOG_TARGET, "{:?} run(): failed to read timestamp for block {:?}, skipping", task.cfg.log_prefix, b.hash);
 				  continue;
 			  };
+			  // The tx executes in the next block: price interest at that block's timestamp, or a
+			  // borrower that interest pushes under 1.0 at a slot boundary is seen a block late.
+			  // Parents are read from storage: a runtime API instance refuses calls at a second block.
+			  let timestamp_at = |hash| {
+				  task.client
+					  .storage(hash, &StorageKey(storage_key::TIMESTAMP_NOW.to_vec()))
+					  .ok()
+					  .flatten()
+					  .and_then(|d| u64::decode(&mut &d.0[..]).ok())
+					  .map(|ms| ms / 1_000)
+			  };
+			  let mut blocks_at_now = 1;
+			  let mut cursor = *b.header.parent_hash();
+			  while blocks_at_now < MAX_BLOCKS_PER_SLOT
+				  && timestamp_at(cursor) == Some(now)
+			  {
+				  blocks_at_now += 1;
+				  let Ok(Some(parent)) = client.header(cursor) else { break };
+				  cursor = *parent.parent_hash();
+			  }
+			  let exec_now = next_block_timestamp(now, blocks_at_now);
 
 			  // --- On-chain instance bootstrap (primary source, no external dependency) ---
 			  // The chain itself names the markets: `Liquidation.BorrowingContract` (main) and
@@ -1933,7 +1970,7 @@ where
 				  }
 			  }
 
-			  (now, ctxs)
+			  (now, exec_now, ctxs)
 		  };
 
 		  // Flattened (instance, borrower) pairs — one parallel fan-out serves all markets.
@@ -1983,7 +2020,7 @@ where
 							  let Some(Some(ctx)) = scan_ctxs.get(*idx) else { continue };
 							  let log_prefix = ctx.log_prefix.as_str();
 							  let Some(borrower) =
-								  ctx.hydration.fetch_borrower(&api, best, block_number, &ctx.mm, *addr, now)
+								  ctx.hydration.fetch_borrower(&api, best, block_number, &ctx.mm, *addr, exec_now)
 							  else {
 								  // Infra failure — keep the borrower; the set shrinks only on on-chain evidence.
 								  log::error!(target: LOG_TARGET, "{log_prefix:?} run(): failed to fetch borrower {addr:?}, skipping");
@@ -2006,6 +2043,17 @@ where
 							  if !decisions.is_empty() && on_cooldown {
 								  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): borrower {:?} is on submit cooldown, not resubmitting", borrower.address);
 							  } else if !decisions.is_empty() {
+								  // Healthy at `now`, underwater at `exec_now`: the dry run executes at `now`,
+								  // where the liquidation still reverts, so it cannot judge this one.
+								  let crossing = exec_now != now
+									  && ctx
+										  .hydration
+										  .fetch_borrower(&api, best, block_number, &ctx.mm, *addr, now)
+										  .and_then(|b| b.calc_health_factor(&ctx.mm).ok())
+										  .is_some_and(|hf| hf >= U256::from(ONE_HF));
+								  if crossing {
+									  log::debug!(target: LOG_TARGET, "{log_prefix:?} run(): borrower {:?} goes underwater at the next block's timestamp, submitting without dry run", borrower.address);
+								  }
 								  // Fetched by the first shard that needs it, shared by the rest.
 								  let liquidity = liquidity_cell
 									  .get_or_init(|| routing::fetch_liquidity_state(runtime_api.deref(), best, log_prefix))
@@ -2017,7 +2065,13 @@ where
 									  decisions,
 									  liquidity,
 									  dry_runs,
-									  |call| dry_run_liquidation(runtime_api.deref(), best, call),
+									  |call| {
+										  if crossing {
+											  DryRun::WouldSucceed
+										  } else {
+											  dry_run_liquidation(runtime_api.deref(), best, call)
+										  }
+									  },
 									  log_prefix,
 								  ) {
 									  if let Some(opaque) = encode_liquidation_opaque(call, log_prefix) {

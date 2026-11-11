@@ -28,3 +28,12 @@ available Codex equivalent:
 Available shared skills:
 - `hydration_cl0wdit` - security audit workflow for Substrate runtime and pallet
   code.
+
+## Audit reporting exclusions
+
+Do not treat missing, stale, mismatched, or incorrect version fields or version
+bumps as audit findings. Exclude version-only issues—including runtime spec,
+transaction, crate, package, release, and similar version discrepancies—from
+candidate inventories, findings reports, consolidated reports, and campaign
+summaries. Version metadata that identifies the model, skill, source, or audited
+revision remains required as provenance and is not a finding.
