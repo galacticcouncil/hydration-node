@@ -431,18 +431,7 @@ impl DcaData {
 }
 
 #[derive(
-	Copy,
-	DecodeWithMemTracking,
-	Clone,
-	Encode,
-	Decode,
-	Eq,
-	PartialEq,
-	Debug,
-	MaxEncodedLen,
-	TypeInfo,
-	PartialOrd,
-	Ord,
+	Copy, DecodeWithMemTracking, Clone, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo, PartialOrd, Ord,
 )]
 pub enum SwapType {
 	ExactIn,
