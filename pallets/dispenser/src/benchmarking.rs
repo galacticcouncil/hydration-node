@@ -146,11 +146,11 @@ mod benches {
 			&Pallet::<T>::account_id(),
 			&rlp,
 			&caip2_id,
-			0,
+			KEY_VERSION,
 			&path,
-			b"ecdsa",
-			b"ethereum",
-			b"",
+			ECDSA,
+			DEST,
+			PARAMS,
 		)
 		.expect("generate_request_id ok in benchmark");
 

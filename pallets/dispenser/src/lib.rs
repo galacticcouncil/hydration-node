@@ -283,7 +283,8 @@ pub mod pallet {
 			let caip2_id = alloc::format!("eip155:{}", tx.chain_id);
 
 			// Derive canonical request ID and compare with user-supplied one.
-			let req_id = Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, 0, &path, ECDSA, ETHEREUM, b"")?;
+			let req_id =
+				Self::generate_request_id(&pallet_acc, &rlp, &caip2_id, KEY_VERSION, &path, ECDSA, DEST, PARAMS)?;
 
 			ensure!(req_id == request_id, Error::<T>::InvalidRequestId);
 			ensure!(
@@ -325,11 +326,11 @@ pub mod pallet {
 				frame_system::RawOrigin::Signed(pallet_acc.clone()).into(),
 				BoundedVec::try_from(rlp).map_err(|_| Error::<T>::Serialization)?,
 				BoundedVec::try_from(caip2_id.into_bytes()).map_err(|_| Error::<T>::Serialization)?,
-				0,
+				KEY_VERSION,
 				BoundedVec::try_from(path).map_err(|_| Error::<T>::Serialization)?,
 				BoundedVec::try_from(ECDSA.to_vec()).map_err(|_| Error::<T>::Serialization)?,
-				BoundedVec::try_from(ETHEREUM.to_vec()).map_err(|_| Error::<T>::Serialization)?,
-				BoundedVec::try_from(vec![]).map_err(|_| Error::<T>::Serialization)?,
+				BoundedVec::try_from(DEST.to_vec()).map_err(|_| Error::<T>::Serialization)?,
+				BoundedVec::try_from(PARAMS.to_vec()).map_err(|_| Error::<T>::Serialization)?,
 				BoundedVec::try_from(output_deserialization_schema).map_err(|_| Error::<T>::Serialization)?,
 				BoundedVec::try_from(respond_serialization_schema).map_err(|_| Error::<T>::Serialization)?,
 			)?;

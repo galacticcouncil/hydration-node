@@ -140,10 +140,10 @@ describe('ERC20 Vault Integration', () => {
       Array.from(ethers.getBytes(tx.unsignedSerialized)),
       {
         caip2_id: `eip155:${ENV.EVM_CHAIN_ID}`,
-        keyVersion: 0,
+        keyVersion: 1,
         path: DISPENSER_SIGNING_PATH,
-        algo: 'ecdsa',
-        dest: 'ethereum',
+        algo: 'ECDSA',
+        dest: '',
         params: '',
       },
     )
