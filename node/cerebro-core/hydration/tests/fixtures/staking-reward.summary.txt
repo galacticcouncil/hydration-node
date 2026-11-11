@@ -1,0 +1,13 @@
+## findings
+## actions
+0xdeedf7e42afd141c6df13be64dc11d898f7b854e0e2d41949c60149581b79378|13215041|2|-2862|pool|1|staking reward-claim
+0x9a9eac5b7cd0c923f1c5ca78926e99a2c180f4a6775723a28a57b6f2cae08418|13215041|3|1996|pool|1|router USDT→LINK
+## pool_leaks
+## blocks
+13215038|2|0|
+13215039|2|0|
+13215040|2|0|
+13215041|5|0|ext2[0xdeedf7e4…]: staking reward-claim | ext3[0x9a9eac5b…]: router USDT→LINK | hooks[unsigned]: omnipool LINK→HDX
+13215042|3|0|
+13215043|2|0|
+13215044|4|0|dca[0x6d6f646c…]: router H2O→HDX

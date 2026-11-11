@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "15.8.0"
+version = "15.9.0"
 description = "Hydration node"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -54,6 +54,9 @@ ice-support = { workspace = true, features = ["std"] }
 hydradx-traits = { workspace = true, features = ["std"] }
 pepl-worker = { workspace = true }
 pepl-worker-support = { workspace = true }
+cerebro-core = { workspace = true }
+cerebro-hydration = { workspace = true }
+hex = { workspace = true, features = ["std"] }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true }
@@ -65,6 +68,8 @@ scale-info = { workspace = true, features = ["std"] }
 pallet-transaction-payment-rpc = { workspace = true }
 pallet-currencies-rpc-runtime-api = { workspace = true }
 sc-basic-authorship = { workspace = true }
+sc-block-builder = { workspace = true }
+sc-rpc-api = { workspace = true }
 sc-chain-spec = { workspace = true }
 sc-cli = { workspace = true }
 sc-client-api = { workspace = true }

@@ -1,0 +1,59 @@
+[package]
+name = "cerebro-hydration"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Hydration chain adapter: runtime-event decode, storage plumbing, reader-trait impls"
+
+[dependencies]
+cerebro-core = { path = "../core" }
+
+# Runtime + pallet crates — pulled in for their TYPES only (RuntimeEvent enums, storage layouts).
+hydradx-runtime = { workspace = true, features = ["std"] }
+primitives = { workspace = true, features = ["std"] }
+hydradx-traits = { workspace = true, features = ["std"] }
+hydra-dx-math = { workspace = true, features = ["std"] }
+pallet-omnipool = { workspace = true, features = ["std"] }
+pallet-stableswap = { workspace = true, features = ["std"] }
+pallet-xyk = { workspace = true, features = ["std"] }
+pallet-omnipool-liquidity-mining = { workspace = true, features = ["std"] }
+pallet-xyk-liquidity-mining = { workspace = true, features = ["std"] }
+pallet-route-executor = { workspace = true, features = ["std"] }
+pallet-dca = { workspace = true, features = ["std"] }
+pallet-currencies = { workspace = true, features = ["std"] }
+pallet-staking = { workspace = true, features = ["std"] }
+pallet-otc = { workspace = true, features = ["std"] }
+pallet-ema-oracle = { workspace = true, features = ["std"] }
+pallet-asset-registry = { workspace = true, features = ["std"] }
+pallet-transaction-multi-payment = { workspace = true, features = ["std"] }
+pallet-evm-accounts = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, features = ["std"] }
+pallet-transaction-payment = { workspace = true, features = ["std"] }
+
+# SDK + frontier types for decoding and state_call.
+sp-core = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
+fp-evm = { workspace = true, features = ["std"] }
+pallet-evm = { workspace = true, features = ["std"] }
+fp-self-contained = { workspace = true, features = ["std"] }
+orml-tokens = { workspace = true, features = ["std"] }
+
+primitive-types = { workspace = true, features = ["std"] }
+codec = { workspace = true, features = ["std"] }
+ureq = { version = "2.10", features = ["json"], optional = true }
+serde = { workspace = true, features = ["std", "derive"] }
+serde_json = { workspace = true, features = ["std"] }
+log = { workspace = true, features = ["std"] }
+hex = { workspace = true, features = ["std"] }
+
+[features]
+# Live JSON-RPC (the monitor). Without it `RemoteApi` only replays recorded fixtures.
+rpc = ["dep:ureq"]
+
+[[example]]
+name = "decode_block"
+path = "examples/decode_block.rs"
+required-features = ["rpc"]
