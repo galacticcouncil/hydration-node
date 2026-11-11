@@ -974,3 +974,15 @@ fn first_viable_liquidation_should_return_next_option_when_first_dry_run_fails()
 	);
 	assert_eq!(dry_runs.load(Ordering::Relaxed), 2);
 }
+
+#[test]
+fn next_block_timestamp_should_advance_after_the_extra_fill_block() {
+	assert_eq!(next_block_timestamp(1_794_239_616, MAX_BLOCKS_PER_SLOT), 1_794_239_622);
+}
+
+#[test]
+fn next_block_timestamp_should_keep_now_while_the_extra_fill_block_is_available() {
+	for blocks_at_now in 1..MAX_BLOCKS_PER_SLOT {
+		assert_eq!(next_block_timestamp(1_794_239_616, blocks_at_now), 1_794_239_616);
+	}
+}
