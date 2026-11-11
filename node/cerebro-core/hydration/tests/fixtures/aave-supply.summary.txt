@@ -1,0 +1,9 @@
+## findings
+## actions
+0x9cd2ffb7d527a8ae318f3c845d1fb76e0610941b6641694cecec8602e968b741|13358736|2|-1791|pool|1|
+0x169858b96fc71cedfcaff0542dfbfd9e4fa824f9afad4c3e304f9ab529bf7d5f|13358736|3|-4064|pool|1|router DOT→HOLLAR
+## pool_leaks
+## blocks
+13358735|2|0|
+13358736|5|0|ext3[0x169858b9…]: router DOT→HOLLAR | hooks[unsigned]: omnipool HOLLAR→HDX, omnipool HOLLAR→HDX
+13358737|3|0|

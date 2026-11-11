@@ -1,0 +1,8 @@
+## findings
+## actions
+0x45544800106daedbda15e17656bffa74e2fcd1312561bea30000000000000000|13240733|2|20070105285|lp|1|omnipool-lm reward-claim, omnipool remove-liq
+## pool_leaks
+## blocks
+13240732|2|0|
+13240733|4|0|ext2[0x45544800…]: omnipool-lm reward-claim, omnipool remove-liq
+13240734|3|0|

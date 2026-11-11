@@ -67,6 +67,11 @@ pub struct FullDeps<C, P, B> {
 	pub ice_solver_task_data: Arc<IceSolverTaskData>,
 	/// Status handle of the running PEPL worker; `None` when no worker runs on this node.
 	pub pepl_status: Option<Arc<pepl_worker::WorkerStatus>>,
+	/// Block guard state and pool handle; `None` when the guard is off.
+	pub cerebro_guard: Option<(
+		Arc<crate::cerebro_guard::Shared>,
+		Arc<dyn crate::cerebro_guard::rpc::PoolControl>,
+	)>,
 }
 
 /// `liquidation_*` RPCs: the only external signal that the liquidation worker is alive and what
@@ -216,7 +221,13 @@ where
 		backend,
 		ice_solver_task_data,
 		pepl_status,
+		cerebro_guard,
 	} = deps;
+
+	if let Some((shared, pool)) = cerebro_guard {
+		use crate::cerebro_guard::rpc::{CerebroGuardRpcImpl, CerebroGuardRpcServer};
+		module.merge(CerebroGuardRpcImpl::new(shared, pool).into_rpc())?;
+	}
 
 	module.merge(LiquidationWorker::new(pepl_status).into_rpc())?;
 	module.merge(System::new(client.clone(), pool).into_rpc())?;

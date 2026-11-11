@@ -4,6 +4,8 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
+    'node/cerebro-core/core',
+    'node/cerebro-core/hydration',
     'runtime/hydradx',
     'pallets/omnipool',
     'pallets/dca',
@@ -193,6 +195,8 @@ amm-simulator = { path = "pallets/ice/amm-simulator", default-features = false }
 pallet-lazy-executor = { path = "pallets/lazy-executor", default-features = false }
 pepl-worker = { path = "pepl-worker", default-features = false }
 pepl-worker-support = { path = "pepl-worker/support", default-features = false }
+cerebro-core = { path = "node/cerebro-core/core" }
+cerebro-hydration = { path = "node/cerebro-core/hydration" }
 pallet-gigahdx = { path = "pallets/gigahdx", default-features = false }
 pallet-gigahdx-rewards = { path = "pallets/gigahdx-rewards", default-features = false }
 
@@ -257,6 +261,7 @@ sp-crypto-ec-utils = { git = "https://github.com/galacticcouncil/polkadot-sdk", 
 sp-wasm-interface = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }
 
 sc-basic-authorship = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }
+sc-block-builder = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }
 sc-chain-spec = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }
 sc-cli = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }
 sc-client-api = { git = "https://github.com/galacticcouncil/polkadot-sdk", branch = "polkadot-stable2506-11-patch", default-features = false }

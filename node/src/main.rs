@@ -18,6 +18,7 @@
 //! Node CLI library.
 #![warn(missing_docs)]
 
+mod cerebro_guard;
 mod chain_spec;
 
 #[macro_use]

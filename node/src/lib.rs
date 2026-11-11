@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod cerebro_guard;
 pub mod chain_spec;
 pub mod cli;
 pub mod ice_solver_worker;
