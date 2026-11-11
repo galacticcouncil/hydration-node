@@ -127,10 +127,14 @@ pub const ZERO_DEBT_READS_BEFORE_PRUNE: u32 = 3;
 // independent shards, so the cooldown lives on the main task and is applied at both submit sites.
 pub const SUBMIT_COOLDOWN_BLOCKS: BlockNumber = 4;
 
+// `FixedVelocityConsensusHook` permits one block beyond `BLOCK_PROCESSING_VELOCITY` to fill the
+// unincluded segment. All of those blocks can carry the same Aura-slot timestamp.
+pub const MAX_BLOCKS_PER_SLOT: u32 = primitives::constants::chain::BLOCK_PROCESSING_VELOCITY.saturating_add(1);
+
 /// Timestamp the next block executes at, given how many blocks already carry `now`. Every block of
 /// a slot carries the slot's timestamp, so it only advances once the slot is full.
 pub fn next_block_timestamp(now: Timestamp, blocks_at_now: u32) -> Timestamp {
-	if blocks_at_now >= primitives::constants::chain::BLOCK_PROCESSING_VELOCITY {
+	if blocks_at_now >= MAX_BLOCKS_PER_SLOT {
 		now.saturating_add(primitives::constants::time::SLOT_DURATION / 1_000)
 	} else {
 		now
@@ -1686,7 +1690,7 @@ where
 			  };
 			  let mut blocks_at_now = 1;
 			  let mut cursor = *b.header.parent_hash();
-			  while blocks_at_now < primitives::constants::chain::BLOCK_PROCESSING_VELOCITY
+			  while blocks_at_now < MAX_BLOCKS_PER_SLOT
 				  && timestamp_at(cursor) == Some(now)
 			  {
 				  blocks_at_now += 1;
