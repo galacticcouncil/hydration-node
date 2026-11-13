@@ -191,7 +191,7 @@ fn main() {
 	let state = decode_liquidity_state(&ls.state, "replay").expect("snapshot decodes");
 
 	for d in decisions {
-		let Some(d) = route_decision(InstanceKind::Generic, Some(&state), d, "replay") else {
+		let Ok(d) = route_decision(InstanceKind::Generic, Some(&state), d, "replay") else {
 			println!("\nno route for option");
 			continue;
 		};

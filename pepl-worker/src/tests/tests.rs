@@ -933,7 +933,7 @@ fn route_decision_should_keep_empty_route_when_liquidity_state_is_unavailable() 
 
 	assert_eq!(
 		routing::route_decision(InstanceKind::Generic, None, decision.clone(), "test"),
-		Some(decision)
+		Ok(decision)
 	);
 }
 
@@ -975,8 +975,17 @@ fn first_viable_liquidation_should_return_next_option_when_first_dry_run_fails()
 	assert_eq!(dry_runs.load(Ordering::Relaxed), 2);
 }
 
+fn not_profitable() -> DryRun {
+	DryRun::WouldFail(pallet_liquidation::Error::<hydradx_runtime::Runtime>::NotProfitable.into())
+}
+
+// How an EVM revert the runtime has no error for reaches the worker.
+fn unmapped_revert() -> DryRun {
+	DryRun::WouldFail(sp_runtime::DispatchError::Other(""))
+}
+
 #[test]
-fn first_viable_liquidation_should_return_half_size_when_no_option_is_viable_at_full_size() {
+fn first_viable_liquidation_should_return_half_size_when_no_option_is_profitable_at_full_size() {
 	let pool = EvmAddress::repeat_byte(0x11);
 	let best = routable_decision(690, 44);
 	let other = routable_decision(5, 10);
@@ -986,11 +995,7 @@ fn first_viable_liquidation_should_return_half_size_when_no_option_is_viable_at_
 		..best.clone()
 	};
 	let dry_runs = AtomicUsize::new(0);
-	let mut verdicts = vec![
-		DryRun::WouldSucceed,
-		DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
-		DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
-	];
+	let mut verdicts = vec![DryRun::WouldSucceed, not_profitable(), not_profitable()];
 	let mut dry_run_calls = Vec::new();
 
 	let call = first_viable_liquidation(
@@ -1019,7 +1024,46 @@ fn first_viable_liquidation_should_return_half_size_when_no_option_is_viable_at_
 }
 
 #[test]
-fn first_viable_liquidation_should_return_none_when_no_size_is_viable() {
+fn first_viable_liquidation_should_retry_only_unprofitable_options_at_half_size() {
+	let pool = EvmAddress::repeat_byte(0x11);
+	let best = routable_decision(690, 44);
+	let other = routable_decision(5, 10);
+	let half_of_other = LiquidationDecision {
+		debt_to_cover: 500,
+		collateral_amount: 1_000,
+		..other.clone()
+	};
+	let dry_runs = AtomicUsize::new(0);
+	let mut verdicts = vec![DryRun::WouldSucceed, not_profitable(), unmapped_revert()];
+	let mut dry_run_calls = Vec::new();
+
+	let call = first_viable_liquidation(
+		pool,
+		InstanceKind::Generic,
+		vec![best.clone(), other.clone()],
+		None,
+		&dry_runs,
+		|call| {
+			dry_run_calls.push(call);
+			verdicts.pop().expect("one verdict per dry run")
+		},
+		"test",
+	);
+
+	assert_eq!(call, Some(liquidation_call(&half_of_other, pool)));
+	assert_eq!(
+		dry_run_calls,
+		vec![
+			liquidation_call(&best, pool),
+			liquidation_call(&other, pool),
+			liquidation_call(&half_of_other, pool)
+		]
+	);
+	assert_eq!(dry_runs.load(Ordering::Relaxed), 3);
+}
+
+#[test]
+fn first_viable_liquidation_should_not_retry_smaller_when_failure_is_not_a_shortfall() {
 	let dry_runs = AtomicUsize::new(0);
 
 	let call = first_viable_liquidation(
@@ -1028,7 +1072,25 @@ fn first_viable_liquidation_should_return_none_when_no_size_is_viable() {
 		vec![routable_decision(690, 44), routable_decision(5, 10)],
 		None,
 		&dry_runs,
-		|_| DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
+		|_| unmapped_revert(),
+		"test",
+	);
+
+	assert_eq!(call, None);
+	assert_eq!(dry_runs.load(Ordering::Relaxed), 2);
+}
+
+#[test]
+fn first_viable_liquidation_should_return_none_when_no_size_is_profitable() {
+	let dry_runs = AtomicUsize::new(0);
+
+	let call = first_viable_liquidation(
+		EvmAddress::repeat_byte(0x11),
+		InstanceKind::Generic,
+		vec![routable_decision(690, 44), routable_decision(5, 10)],
+		None,
+		&dry_runs,
+		|_| not_profitable(),
 		"test",
 	);
 

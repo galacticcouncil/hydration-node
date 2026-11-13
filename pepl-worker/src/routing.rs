@@ -82,9 +82,14 @@ pub fn best_sell_route(
 	best
 }
 
-/// Attach the route the pallet will sell the seized collateral on. `None` drops the decision: no
-/// route exists, or the best one returns less than `debt_to_cover` and the pallet would revert
-/// with `NotProfitable`.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Unroutable {
+	NoRoute,
+	/// The best route returns less than `debt_to_cover`; the pallet would revert with `NotProfitable`.
+	Shortfall,
+}
+
+/// Attach the route the pallet will sell the seized collateral on.
 ///
 /// Without a snapshot the decision keeps the empty route (stored-route lookup). The gigahdx market
 /// never sells collateral, so its decisions pass through untouched.
@@ -93,12 +98,12 @@ pub fn route_decision(
 	liquidity: Option<&LiquidityState>,
 	mut decision: LiquidationDecision,
 	log_prefix: &str,
-) -> Option<LiquidationDecision> {
+) -> Result<LiquidationDecision, Unroutable> {
 	let Some(state) = liquidity else {
-		return Some(decision);
+		return Ok(decision);
 	};
 	if kind == InstanceKind::GigaHdx || decision.collateral_asset == decision.debt_asset {
-		return Some(decision);
+		return Ok(decision);
 	}
 
 	let timer = Instant::now();
@@ -109,13 +114,13 @@ pub fn route_decision(
 		decision.collateral_amount,
 	) else {
 		log::info!(target: LOG_TARGET, "{log_prefix:?} route_decision(): no route {} -> {} for borrower {:?}, elapsed: {:?}", decision.collateral_asset, decision.debt_asset, decision.user, timer.elapsed());
-		return None;
+		return Err(Unroutable::NoRoute);
 	};
 	if amount_out < decision.debt_to_cover {
 		log::info!(target: LOG_TARGET, "{log_prefix:?} route_decision(): best route {} -> {} returns {amount_out} < debt_to_cover {} for borrower {:?}", decision.collateral_asset, decision.debt_asset, decision.debt_to_cover, decision.user);
-		return None;
+		return Err(Unroutable::Shortfall);
 	}
 	log::debug!(target: LOG_TARGET, "{log_prefix:?} route_decision(): {} -> {} via {} hop(s), out {amount_out} vs debt_to_cover {}, elapsed: {:?}", decision.collateral_asset, decision.debt_asset, route.len(), decision.debt_to_cover, timer.elapsed());
 	decision.route = route;
-	Some(decision)
+	Ok(decision)
 }

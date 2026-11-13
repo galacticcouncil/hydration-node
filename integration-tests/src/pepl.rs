@@ -1411,8 +1411,23 @@ fn first_viable_liquidation_should_return_half_size_when_full_size_sale_does_not
 				decision.clone(),
 				LOG_PREFIX
 			),
-			None
+			Err(pepl_worker::routing::Unroutable::Shortfall)
 		);
+		let route: hydradx_traits::router::Route<AssetId> = vec![hydradx_traits::router::Trade {
+			pool: hydradx_traits::router::PoolType::Omnipool,
+			asset_in: WETH,
+			asset_out: DOT,
+		}]
+		.try_into()
+		.unwrap();
+		let full_size = pepl_worker::LiquidationDecision {
+			route: route.clone(),
+			..decision.clone()
+		};
+		assert!(matches!(
+			dry_run_dispatch(pepl_worker::liquidation_call(&full_size, pool_contract)),
+			pepl_worker::DryRun::WouldFail(e) if e == pallet_liquidation::Error::<Runtime>::NotProfitable.into()
+		));
 
 		let call = pepl_worker::first_viable_liquidation(
 			pool_contract,
@@ -1428,13 +1443,7 @@ fn first_viable_liquidation_should_return_half_size_when_full_size_sale_does_not
 		let half = pepl_worker::LiquidationDecision {
 			debt_to_cover: 154_290_408_566_050,
 			collateral_amount: 8_576_345_556_397_500_000,
-			route: vec![hydradx_traits::router::Trade {
-				pool: hydradx_traits::router::PoolType::Omnipool,
-				asset_in: WETH,
-				asset_out: DOT,
-			}]
-			.try_into()
-			.unwrap(),
+			route,
 			..decision
 		};
 		assert_eq!(call, pepl_worker::liquidation_call(&half, pool_contract));
