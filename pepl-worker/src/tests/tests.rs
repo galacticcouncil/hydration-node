@@ -976,6 +976,70 @@ fn first_viable_liquidation_should_return_next_option_when_first_dry_run_fails()
 }
 
 #[test]
+fn first_viable_liquidation_should_return_half_size_when_no_option_is_viable_at_full_size() {
+	let pool = EvmAddress::repeat_byte(0x11);
+	let best = routable_decision(690, 44);
+	let other = routable_decision(5, 10);
+	let half_of_best = LiquidationDecision {
+		debt_to_cover: 500,
+		collateral_amount: 1_000,
+		..best.clone()
+	};
+	let dry_runs = AtomicUsize::new(0);
+	let mut verdicts = vec![
+		DryRun::WouldSucceed,
+		DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
+		DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
+	];
+	let mut dry_run_calls = Vec::new();
+
+	let call = first_viable_liquidation(
+		pool,
+		InstanceKind::Generic,
+		vec![best.clone(), other.clone()],
+		None,
+		&dry_runs,
+		|call| {
+			dry_run_calls.push(call);
+			verdicts.pop().expect("one verdict per dry run")
+		},
+		"test",
+	);
+
+	assert_eq!(call, Some(liquidation_call(&half_of_best, pool)));
+	assert_eq!(
+		dry_run_calls,
+		vec![
+			liquidation_call(&best, pool),
+			liquidation_call(&other, pool),
+			liquidation_call(&half_of_best, pool)
+		]
+	);
+	assert_eq!(dry_runs.load(Ordering::Relaxed), 3);
+}
+
+#[test]
+fn first_viable_liquidation_should_return_none_when_no_size_is_viable() {
+	let dry_runs = AtomicUsize::new(0);
+
+	let call = first_viable_liquidation(
+		EvmAddress::repeat_byte(0x11),
+		InstanceKind::Generic,
+		vec![routable_decision(690, 44), routable_decision(5, 10)],
+		None,
+		&dry_runs,
+		|_| DryRun::WouldFail(sp_runtime::DispatchError::Other("NotProfitable")),
+		"test",
+	);
+
+	assert_eq!(call, None);
+	assert_eq!(
+		dry_runs.load(Ordering::Relaxed),
+		2 * (MAX_SIZE_DOWN_HALVINGS as usize + 1)
+	);
+}
+
+#[test]
 fn next_block_timestamp_should_advance_after_the_extra_fill_block() {
 	assert_eq!(next_block_timestamp(1_794_239_616, MAX_BLOCKS_PER_SLOT), 1_794_239_622);
 }

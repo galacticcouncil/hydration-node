@@ -36,6 +36,7 @@ use sp_core::H160;
 use sp_core::H256;
 use sp_core::U256;
 use sp_runtime::traits::Block;
+use sp_runtime::traits::Dispatchable;
 use sp_runtime::BoundedVec;
 use xcm_emulator::Network;
 
@@ -940,14 +941,13 @@ fn create_unhealthy_borrower() -> (EvmAddress, EvmAddress, EvmAddress) {
 	create_unhealthy_borrower_with(&PINNED_SCENARIO)
 }
 
-/// Parameterized variant of [`create_unhealthy_borrower`] used by the parity matrix.
-fn create_unhealthy_borrower_with(s: &ParityScenario) -> (EvmAddress, EvmAddress, EvmAddress) {
+/// Binds the EVM accounts, funds ALICE and CHARLIE and points the liquidation pallet at the
+/// snapshot's pool. Returns `(pool_contract, alice_evm_address, caller)`.
+fn prepare_money_market() -> (EvmAddress, EvmAddress, EvmAddress) {
 	deposit_hdx_to_protocol_account();
 	hydradx_run_to_next_block();
 
 	let pallet_acc = Liquidation::account_id();
-	let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
-	let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
 
 	let caller = EVMAccounts::evm_address(&AccountId::from(CHARLIE));
 	assert_ok!(Currencies::deposit(DOT, &CHARLIE.into(), ALICE_INITIAL_DOT_BALANCE));
@@ -972,6 +972,25 @@ fn create_unhealthy_borrower_with(s: &ParityScenario) -> (EvmAddress, EvmAddress
 	));
 	assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
 
+	(pool_contract, alice_evm_address, caller)
+}
+
+fn set_dot_oracle_price(price: u128, timestamp: u128) {
+	let mut data = price.to_be_bytes().to_vec();
+	data.extend_from_slice(timestamp.to_be_bytes().as_ref());
+	update_oracle_price(
+		vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
+		ORACLE_ADDRESS,
+		ORACLE_CALLER,
+	);
+}
+
+/// Parameterized variant of [`create_unhealthy_borrower`] used by the parity matrix.
+fn create_unhealthy_borrower_with(s: &ParityScenario) -> (EvmAddress, EvmAddress, EvmAddress) {
+	let (pool_contract, alice_evm_address, caller) = prepare_money_market();
+	let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+	let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+
 	if s.weth_supply > 0 {
 		supply(pool_contract, alice_evm_address, weth_asset_address, s.weth_supply);
 	}
@@ -987,15 +1006,7 @@ fn create_unhealthy_borrower_with(s: &ParityScenario) -> (EvmAddress, EvmAddress
 
 	// raise the DOT price (DOT is the debt) -> HF < 1
 	let (price, timestamp) = get_oracle_price("DOT/USD").unwrap();
-	let price = price.as_u128() * s.price_mul.0 / s.price_mul.1;
-	let timestamp = timestamp.as_u128() + 6;
-	let mut data = price.to_be_bytes().to_vec();
-	data.extend_from_slice(timestamp.to_be_bytes().as_ref());
-	update_oracle_price(
-		vec![("DOT/USD", U256::from_big_endian(&data[0..32]))],
-		ORACLE_ADDRESS,
-		ORACLE_CALLER,
-	);
+	set_dot_oracle_price(price.as_u128() * s.price_mul.0 / s.price_mul.1, timestamp.as_u128() + 6);
 
 	let usr = get_user_account_data(pool_contract, alice_evm_address).unwrap();
 	let hf = usr.health_factor;
@@ -1343,5 +1354,93 @@ fn liquidate_with_pool_should_liquidate_when_route_is_found_off_chain() {
 
 		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
 		assert_health_factor_is_within_tolerance(usr.health_factor, U256::from(TARGET_HF));
+	});
+}
+
+/// Stand-in for the worker's `DryRunApi` call: dispatch as the worker's unsigned extrinsic, then
+/// roll back.
+fn dry_run_dispatch(call: RuntimeCall) -> pepl_worker::DryRun {
+	let result = frame_support::storage::with_transaction(|| {
+		sp_runtime::TransactionOutcome::Rollback(Ok::<_, sp_runtime::DispatchError>(
+			call.dispatch(RuntimeOrigin::none()),
+		))
+	});
+	match result {
+		Ok(Ok(_)) => pepl_worker::DryRun::WouldSucceed,
+		Ok(Err(e)) => pepl_worker::DryRun::WouldFail(e.error),
+		Err(e) => pepl_worker::DryRun::WouldFail(e),
+	}
+}
+
+// A position too large for the pool: the WETH seized by the liquidation that restores the target
+// HF sells for less DOT than the debt it covered, so that liquidation can never execute. Half of
+// it sells at a profit.
+#[test]
+fn first_viable_liquidation_should_return_half_size_when_full_size_sale_does_not_cover_debt() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT_2).execute_with(|| {
+		let (pool_contract, borrower_evm, caller) = prepare_money_market();
+		let lender = EVMAccounts::evm_address(&AccountId::from(BOB));
+		let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+		let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
+		assert_ok!(Currencies::deposit(DOT, &BOB.into(), 150_000 * DOT_UNIT));
+		assert_ok!(Currencies::deposit(WETH, &ALICE.into(), 100 * WETH_UNIT));
+
+		// The snapshot's oracle values WETH at 5.5x fewer DOT than its Omnipool pays, which makes a
+		// sale of any size profitable. DOT/USD is moved to where the oracle and the pool agree:
+		// 1.50 USD to borrow, then 1.9725 USD to take the HF to 0.9596.
+		let (_, timestamp) = get_oracle_price("DOT/USD").unwrap();
+		set_dot_oracle_price(150_000_000, timestamp.as_u128() + 6);
+		supply(pool_contract, lender, dot_asset_address, 150_000 * DOT_UNIT);
+		supply(pool_contract, borrower_evm, weth_asset_address, 762 * WETH_UNIT / 10);
+		borrow(pool_contract, borrower_evm, dot_asset_address, 120_000 * DOT_UNIT);
+		hydradx_run_to_next_block();
+		set_dot_oracle_price(197_250_000, timestamp.as_u128() + 12);
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_eq!(usr.health_factor, U256::from(959_598_740_368_145_332u128));
+
+		let decision = v2_decision(caller, borrower_evm);
+		assert_eq!(decision.debt_to_cover, 308_580_817_132_100);
+		assert_eq!(decision.collateral_amount, 17_152_691_112_795_000_000);
+		let (raw, _) = pallet_ice::Pallet::<Runtime>::liquidity_state();
+		let state = pepl_worker::routing::decode_liquidity_state(&raw, LOG_PREFIX).expect("snapshot decodes");
+		assert_eq!(
+			pepl_worker::routing::route_decision(
+				pepl_worker::InstanceKind::Generic,
+				Some(&state),
+				decision.clone(),
+				LOG_PREFIX
+			),
+			None
+		);
+
+		let call = pepl_worker::first_viable_liquidation(
+			pool_contract,
+			pepl_worker::InstanceKind::Generic,
+			vec![decision.clone()],
+			Some(&state),
+			&std::sync::atomic::AtomicUsize::new(0),
+			dry_run_dispatch,
+			LOG_PREFIX,
+		)
+		.expect("half of the liquidation is viable");
+
+		let half = pepl_worker::LiquidationDecision {
+			debt_to_cover: 154_290_408_566_050,
+			collateral_amount: 8_576_345_556_397_500_000,
+			route: vec![hydradx_traits::router::Trade {
+				pool: hydradx_traits::router::PoolType::Omnipool,
+				asset_in: WETH,
+				asset_out: DOT,
+			}]
+			.try_into()
+			.unwrap(),
+			..decision
+		};
+		assert_eq!(call, pepl_worker::liquidation_call(&half, pool_contract));
+
+		assert_ok!(call.dispatch(RuntimeOrigin::none()));
+		let usr = get_user_account_data(pool_contract, borrower_evm).unwrap();
+		assert_eq!(usr.health_factor, U256::from(977_245_072_262_317_165u128));
 	});
 }
