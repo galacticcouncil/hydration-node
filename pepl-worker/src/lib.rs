@@ -82,6 +82,11 @@ const LIQUIDATIONS_PER_BLOCK: u8 = 20;
 // plus the next block's scan re-finds whatever was trimmed.
 pub const MAX_SCAN_DRY_RUNS_PER_BLOCK: usize = 256;
 
+// Halvings tried when no liquidation executes at the size that restores the target HF.
+// ponytail: fixed halving ladder; bisect on the route simulation if the pool depth it leaves
+// unused matters.
+pub const MAX_SIZE_DOWN_HALVINGS: u32 = 6;
+
 // Default worker log prefix (overridable once a CLI flag exists).
 const DEFAULT_LOG_PREFIX: &str = "pepl-worker";
 
@@ -860,6 +865,13 @@ where
 /// v1 dry-ran before resubmitting "to prevent spamming with extrinsic that will fail (e.g. because
 /// of not being profitable)". A rejected option falls through to the next one: stopping at the top
 /// pick made a borrower whose best pair could not execute permanently invisible.
+///
+/// When no option executes at the size that restores the target HF, the ones whose collateral
+/// sale did not cover the debt are retried at half the size, up to `MAX_SIZE_DOWN_HALVINGS` times.
+/// A liquidation too large for the pool to absorb never becomes viable on its own: the size only
+/// grows as the HF falls. A smaller one leaves the borrower liquidatable, so the next blocks
+/// continue it. Any other failure is not retried, a smaller size would spend dry runs on it for
+/// nothing.
 pub fn first_viable_liquidation(
 	pool: EvmAddress,
 	kind: InstanceKind,
@@ -869,25 +881,54 @@ pub fn first_viable_liquidation(
 	mut dry_run: impl FnMut(RuntimeCall) -> DryRun,
 	log_prefix: &str,
 ) -> Option<RuntimeCall> {
-	for decision in decisions {
-		let Some(decision) = routing::route_decision(kind, liquidity, decision, log_prefix) else {
-			continue;
-		};
-		if dry_runs.fetch_add(1, Ordering::Relaxed) >= MAX_SCAN_DRY_RUNS_PER_BLOCK {
-			log::warn!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): per-block scan valve of {MAX_SCAN_DRY_RUNS_PER_BLOCK} decisions reached, deferring borrower {:?} to the next block", decision.user);
-			return None;
-		}
-		let call = liquidation_call(&decision, pool);
-		match dry_run(call.clone()) {
-			DryRun::WouldSucceed => return Some(call),
-			DryRun::Unknown => {
-				log::warn!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): dry run unavailable, submitting liquidation for {:?} unchecked", decision.user);
-				return Some(call);
+	let not_profitable: sp_runtime::DispatchError =
+		pallet_liquidation::Error::<hydradx_runtime::Runtime>::NotProfitable.into();
+	let mut candidates = decisions;
+	for halvings in 0..=MAX_SIZE_DOWN_HALVINGS {
+		let mut short = Vec::new();
+		for full_size in candidates {
+			// Aave seizes collateral in proportion to the debt covered, so both scale together.
+			let decision = LiquidationDecision {
+				debt_to_cover: full_size.debt_to_cover >> halvings,
+				collateral_amount: full_size.collateral_amount >> halvings,
+				..full_size.clone()
+			};
+			if decision.debt_to_cover == 0 {
+				continue;
 			}
-			DryRun::WouldFail(e) => {
-				log::debug!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): dry run says {} -> {} for {:?} would fail ({e:?}), trying the next option", decision.collateral_asset, decision.debt_asset, decision.user);
+			let decision = match routing::route_decision(kind, liquidity, decision, log_prefix) {
+				Ok(decision) => decision,
+				Err(routing::Unroutable::Shortfall) => {
+					short.push(full_size);
+					continue;
+				}
+				Err(routing::Unroutable::NoRoute) => continue,
+			};
+			if dry_runs.fetch_add(1, Ordering::Relaxed) >= MAX_SCAN_DRY_RUNS_PER_BLOCK {
+				log::warn!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): per-block scan valve of {MAX_SCAN_DRY_RUNS_PER_BLOCK} decisions reached, deferring borrower {:?} to the next block", decision.user);
+				return None;
+			}
+			let call = liquidation_call(&decision, pool);
+			match dry_run(call.clone()) {
+				DryRun::WouldSucceed => {
+					if halvings > 0 {
+						log::info!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): liquidating {:?} at 1/{} of the size that restores the target HF, debt_to_cover: {}", decision.user, 1u32 << halvings, decision.debt_to_cover);
+					}
+					return Some(call);
+				}
+				DryRun::Unknown => {
+					log::warn!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): dry run unavailable, submitting liquidation for {:?} unchecked", decision.user);
+					return Some(call);
+				}
+				DryRun::WouldFail(e) => {
+					log::debug!(target: LOG_TARGET, "{log_prefix:?} first_viable_liquidation(): dry run says {} -> {} for {:?} would fail ({e:?}), trying the next option", decision.collateral_asset, decision.debt_asset, decision.user);
+					if e == not_profitable {
+						short.push(full_size);
+					}
+				}
 			}
 		}
+		candidates = short;
 	}
 	None
 }
@@ -2261,7 +2302,7 @@ where
 			  .filter_map(|(pool, kind, options)| {
 				  options
 					  .into_iter()
-					  .find_map(|d| routing::route_decision(kind, liquidity, d, task.cfg.log_prefix.as_str()))
+					  .find_map(|d| routing::route_decision(kind, liquidity, d, task.cfg.log_prefix.as_str()).ok())
 					  .map(|d| (pool, d))
 			  })
 			  .collect();
