@@ -31,7 +31,7 @@ use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::Saturating;
-use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use sp_runtime::{ArithmeticError, Debug, DispatchError};
 use sp_std::vec::Vec;
 pub mod weights;
 
@@ -47,7 +47,7 @@ pub mod types;
 /// Max trade volume limit multiplier of liquidity that can be traded in a block
 pub const MAX_LIMIT_VALUE: u32 = 10_000;
 
-#[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
+#[derive(Clone, Encode, Decode, Debug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 #[scale_info(skip_type_params(T))]
 pub struct TradeVolumeLimit<T: Config> {
 	pub volume_in: T::Balance,
@@ -100,7 +100,7 @@ where
 	}
 }
 
-#[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
+#[derive(Clone, Encode, Decode, Debug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 #[scale_info(skip_type_params(T))]
 pub struct LiquidityLimit<T: Config> {
 	pub liquidity: T::Balance,
@@ -186,7 +186,7 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Clone, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq, Eq, DecodeWithMemTracking)]
+	#[derive(Clone, Encode, Decode, Debug, TypeInfo, MaxEncodedLen, PartialEq, Eq, DecodeWithMemTracking)]
 	pub enum GlobalAssetCategory {
 		External,
 		Local,

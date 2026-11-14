@@ -44,7 +44,7 @@ use sp_core::H160;
 ///
 /// Each field is the ceiling of one call shape, not a charge: unused gas costs
 /// nothing, but `trade` and `view` also size the router's declared weight.
-#[derive(Clone, Copy, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Copy, Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Debug, TypeInfo, MaxEncodedLen)]
 pub struct AaveGasLimits {
 	pub trade: u64,
 	pub view: u64,

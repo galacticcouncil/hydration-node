@@ -2,7 +2,6 @@ use codec::Decode;
 use codec::DecodeWithMemTracking;
 use codec::Encode;
 use codec::MaxEncodedLen;
-use frame_support::pallet_prelude::RuntimeDebug;
 use frame_support::pallet_prelude::TypeInfo;
 use frame_support::traits::ConstU32;
 use frame_support::BoundedVec;
@@ -13,7 +12,7 @@ pub type Identificator = u128;
 /// Upper bound on the opaque, contract-decoded `data` carried by a forward action.
 pub const MAX_FORWARD_DATA: u32 = 512;
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, DecodeWithMemTracking, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug, TypeInfo, DecodeWithMemTracking, MaxEncodedLen)]
 pub enum Source {
 	ICE(Identificator),
 }
@@ -22,7 +21,7 @@ pub enum Source {
 ///
 /// Built by the intent pallet at resolution time (one per executed trade) from the user's
 /// `OnResolved::Forward` plus the resolved amounts, and handed to the lazy-executor to run.
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, DecodeWithMemTracking, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, Eq, Debug, TypeInfo, DecodeWithMemTracking, MaxEncodedLen)]
 pub struct ForwardAction {
 	pub contract: EvmAddress,
 	pub intent_id: u128,

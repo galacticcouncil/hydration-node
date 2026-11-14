@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::sp_runtime::RuntimeDebug;
 use hydra_dx_math::ema::{calculate_new_by_integrating_incoming, update_outdated_to_current, EmaPrice};
 use hydra_dx_math::types::Fraction;
 use hydradx_traits::{AggregatedEntry, Liquidity, Volume};
@@ -38,7 +37,7 @@ pub type Price = EmaPrice;
 /// A type representing data produced by a trade or liquidity event.
 /// Includes the block number where it was created/updated.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(RuntimeDebug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 pub struct OracleEntry<BlockNumber> {
 	pub price: Price,
 	pub volume: Volume<Balance>,

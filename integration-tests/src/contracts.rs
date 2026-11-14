@@ -15,7 +15,7 @@ use hydradx_traits::evm::{CallContext, InspectEvmAccounts, EVM};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pretty_assertions::assert_eq;
 use primitives::EvmAddress;
-use sp_core::{RuntimeDebug, H256, U256};
+use sp_core::{H256, U256};
 use test_utils::expect_events;
 use xcm_emulator::{Network, TestExt};
 
@@ -24,7 +24,7 @@ pub fn deployer() -> EvmAddress {
 }
 
 #[module_evm_utility_macro::generate_function_selector]
-#[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
 pub enum Function {
 	IsContract = "isContract(address)",

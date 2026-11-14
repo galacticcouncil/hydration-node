@@ -26,7 +26,7 @@
 use crate::evm::evm_fee::evm_fee_payer;
 use crate::evm::WethAssetId;
 use ethereum::AuthorizationList;
-use fp_evm::{Account, TransactionValidationError};
+use fp_evm::{Account, StateOverride, TransactionValidationError};
 use frame_support::traits::Get;
 use hydradx_traits::AccountFeeCurrencyBalanceInCurrency;
 use pallet_evm::runner::Runner;
@@ -89,9 +89,11 @@ where
 			fp_evm::CheckEvmTransactionConfig {
 				evm_config,
 				block_gas_limit: T::BlockGasLimit::get(),
+				transaction_gas_limit: T::TransactionGasLimit::get(),
 				base_fee,
 				chain_id: T::ChainId::get(),
 				is_transactional,
+				allow_unprotected_txs: false,
 			},
 			fp_evm::CheckEvmTransactionInput {
 				chain_id: Some(T::ChainId::get()),
@@ -131,6 +133,7 @@ where
 		validate: bool,
 		weight_limit: Option<Weight>,
 		proof_size_base_cost: Option<u64>,
+		state_override: StateOverride,
 		config: &evm::Config,
 	) -> Result<CallInfo, RunnerError<Self::Error>> {
 		if validate {
@@ -171,6 +174,7 @@ where
 			false,
 			weight_limit,
 			proof_size_base_cost,
+			state_override,
 			config,
 		)?;
 
