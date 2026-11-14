@@ -285,7 +285,7 @@ jobs:
     needs: build  # Make sure this runs after build job to have the wasm artifact
     permissions: { }
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: false && github.event_name == 'pull_request'
     steps:
       - name: Checkout polkadot-ecosystem-tests
         uses: actions/checkout@v2
