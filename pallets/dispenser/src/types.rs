@@ -6,13 +6,20 @@ pub type Bytes32 = [u8; 32];
 pub type BalanceOf<T> =
 	<<T as pallet_signet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-pub const ECDSA: &[u8] = b"ecdsa";
-pub const ETHEREUM: &[u8] = b"ethereum";
+/// Request fields Section 7.1 of the SigNet bidirectional spec requires:
+/// key version at least 1, `algo` as the SDK spells it, `dest` and `params`
+/// reserved and blank. They enter the request id.
+pub const KEY_VERSION: u32 = 1;
+pub const ECDSA: &[u8] = b"ECDSA";
+pub const DEST: &[u8] = b"";
+pub const PARAMS: &[u8] = b"";
 
 /// Fixed signing derivation path — all dispenser requests use the same
 /// MPC-derived key so that only one EVM wallet needs to be funded and
-/// whitelisted on the faucet contract.
-pub const SIGNING_PATH: &[u8] = b"dispenser";
+/// whitelisted on the faucet contract. It lies in SigNet's `bidirectional/`
+/// namespace, which the MPC reserves so that no plain sign request can
+/// derive this key and use up a request's nonce.
+pub const SIGNING_PATH: &[u8] = b"bidirectional/dispenser";
 
 pub trait WeightInfo {
 	fn request_fund() -> Weight;

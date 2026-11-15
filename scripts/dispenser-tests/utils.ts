@@ -21,7 +21,7 @@ export const PALLET_ID_STR = 'py/fucet'
 export const MODL_PREFIX = 'modl'
 
 // Fixed signing path used by the dispenser pallet for all users
-export const DISPENSER_SIGNING_PATH = 'dispenser'
+export const DISPENSER_SIGNING_PATH = 'bidirectional/dispenser'
 
 // Cached result for dev chain detection
 let _isDevChain: boolean | null = null
