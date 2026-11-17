@@ -571,6 +571,14 @@ impl<T: frame_system::Config> pallet_omnipool::WeightInfo for HydraWeight<T> {
 		Weight::from_parts(19_675_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: `Omnipool::Assets` (r:1 w:0)
+	/// Storage: `Omnipool::SlipFeeLevel` (r:0 w:1)
+	/// Placeholder until the benchmark run: `set_slip_fee` plus one read.
+	fn set_asset_slip_fee_level() -> Weight {
+		Weight::from_parts(19_675_000, 3550)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 	/// Storage: `Omnipool::Assets` (r:1 w:1)
 	/// Proof: `Omnipool::Assets` (`max_values`: None, `max_size`: Some(85), added: 2560, mode: `MaxEncodedLen`)
 	/// Storage: `AssetRegistry::Assets` (r:2 w:0)

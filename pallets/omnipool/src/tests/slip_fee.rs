@@ -1048,7 +1048,8 @@ fn buy_with_cap_fired_should_match_math_layer_cost() {
 				asset_in_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
 				asset_out_hub_reserve: hdx_state.hub_reserve,
 				asset_out_delta: hydra_dx_math::omnipool::types::SignedBalance::zero(),
-				max_slip_fee,
+				asset_in_max_slip_fee: max_slip_fee,
+				asset_out_max_slip_fee: max_slip_fee,
 			};
 			let math_result = hydra_dx_math::omnipool::calculate_buy_state_changes(
 				&(&token100_state).into(),

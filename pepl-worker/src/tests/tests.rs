@@ -937,6 +937,75 @@ fn route_decision_should_keep_empty_route_when_liquidity_state_is_unavailable() 
 	);
 }
 
+/// Omnipool with assets 5 and 10 at price 1; every other venue empty.
+fn omnipool_liquidity_state(slip_fee_levels: &[(AssetId, u8)]) -> routing::LiquidityState {
+	use amm_simulator::omnipool::OmnipoolSnapshot;
+	use pallet_omnipool::types::{AssetReserveState, SlipFeeConfig, Tradability};
+	use std::sync::Arc;
+
+	let pool = AssetReserveState {
+		reserve: 1_000_000 * 10u128.pow(12),
+		hub_reserve: 1_000_000 * 10u128.pow(12),
+		shares: 1_000_000 * 10u128.pow(12),
+		protocol_shares: 0,
+		cap: u128::MAX,
+		tradable: Tradability::all(),
+	};
+	let omnipool = OmnipoolSnapshot {
+		assets: [(5, pool), (10, pool)].into_iter().collect(),
+		hub_asset_id: 1,
+		max_in_ratio: 3,
+		max_out_ratio: 3,
+		slip_fee: Some(SlipFeeConfig {
+			max_slip_fee: sp_runtime::Permill::from_percent(50),
+		}),
+		slip_fee_levels: slip_fee_levels
+			.iter()
+			.map(|(asset, level)| (*asset, sp_runtime::Percent::from_percent(*level)))
+			.collect(),
+		..Default::default()
+	};
+	(
+		Arc::new(omnipool),
+		Arc::default(),
+		Arc::new(amm_simulator::aave::Snapshot {
+			reserves: Default::default(),
+			contract: Default::default(),
+			pairs: Vec::new(),
+		}),
+		Arc::default(),
+		Arc::default(),
+	)
+}
+
+// The route check runs before the dry run: pricing a lowered asset at the full slip fee would
+// record a shortfall and halve a liquidation the chain accepts at full size.
+#[test]
+fn route_decision_should_accept_full_size_when_lowered_level_covers_debt() {
+	let collateral_amount = 100_000 * 10u128.pow(12);
+	let full = omnipool_liquidity_state(&[]);
+	let lowered = omnipool_liquidity_state(&[(5, 0), (10, 0)]);
+	let (_, out_full) = routing::best_sell_route(&full, 5, 10, collateral_amount).expect("route at full level");
+	let (route, out_lowered) =
+		routing::best_sell_route(&lowered, 5, 10, collateral_amount).expect("route at lowered level");
+	assert!(out_lowered > out_full);
+
+	let decision = LiquidationDecision {
+		debt_to_cover: (out_full + out_lowered) / 2,
+		collateral_amount,
+		..routable_decision(5, 10)
+	};
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&full), decision.clone(), "test"),
+		Err(routing::Unroutable::Shortfall)
+	);
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&lowered), decision.clone(), "test"),
+		Ok(LiquidationDecision { route, ..decision })
+	);
+}
+
 #[test]
 fn decode_liquidity_state_should_return_none_when_snapshot_is_malformed() {
 	assert!(routing::decode_liquidity_state(&[0xFF, 0x01], "test").is_none());

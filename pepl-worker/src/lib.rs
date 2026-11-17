@@ -1526,6 +1526,22 @@ pub fn apply_oracle_updates_and_decide(
 	decisions
 }
 
+/// Raw storage reads at `at`. A failed read is logged and reads as unset.
+fn storage_reader<'a, B: Block, C: RuntimeClient<B>>(
+	client: &'a C,
+	at: B::Hash,
+	log_prefix: &'a str,
+) -> impl Fn(&[u8]) -> Option<Vec<u8>> + 'a {
+	move |key| {
+		client
+			.storage(at, &StorageKey(key.to_vec()))
+			.inspect_err(|e| log::error!(target: LOG_TARGET, "{log_prefix:?} storage read failed, err: {e:?}"))
+			.ok()
+			.flatten()
+			.map(|data| data.0)
+	}
+}
+
 pub async fn run<C, B, CL, TP>(task: LiquidationTask<C, B, TP>, client: Arc<CL>)
 where
 	CL: BlockchainEvents<B> + 'static,
@@ -1540,7 +1556,7 @@ where
 	<B as Block>::Extrinsic: From<OpaqueExtrinsic>,
 	<B as BlockT>::Extrinsic: frame_support::traits::IsType<hydradx_runtime::opaque::UncheckedExtrinsic>,
 	TP: TransactionPool<Block = B> + 'static,
-	C: RuntimeClient<B>,
+	C: RuntimeClient<B> + Sync,
 {
 	let mut blocks_stream = client.import_notification_stream();
 	// Mempool monitor for pending DIA oracle-update txs — drives the same-block fast-path.
@@ -2054,6 +2070,7 @@ where
 					  let liquidity_cell = &liquidity_cell;
 					  let best = b.hash;
 					  let submit_cooldown = &submit_cooldown;
+					  let runtime_client = &task.client;
 					  scope.spawn(move || {
 						  let runtime_api = client.runtime_api();
 						  let api = pepl_worker_support::types::ApiProvider::<&CL::Api>(runtime_api.deref());
@@ -2097,7 +2114,14 @@ where
 								  }
 								  // Fetched by the first shard that needs it, shared by the rest.
 								  let liquidity = liquidity_cell
-									  .get_or_init(|| routing::fetch_liquidity_state(runtime_api.deref(), best, log_prefix))
+									  .get_or_init(|| {
+										  routing::fetch_liquidity_state(
+											  runtime_api.deref(),
+											  best,
+											  storage_reader(runtime_client, best, log_prefix),
+											  log_prefix,
+										  )
+									  })
 									  .as_ref();
 								  // Submit-on-find: build the tx here (sync) and spawn the async submit.
 								  if let Some(call) = first_viable_liquidation(
@@ -2293,8 +2317,14 @@ where
 				  .as_ref()
 				  .is_none_or(|(at, _)| best_number.saturating_sub(*at) > MAX_FAST_PATH_CACHE_AGE_BLOCKS)
 		  {
-			  cached_liquidity = routing::fetch_liquidity_state(client.runtime_api().deref(), best, task.cfg.log_prefix.as_str())
-				  .map(|state| (best_number, state));
+			  let log_prefix = task.cfg.log_prefix.as_str();
+			  cached_liquidity = routing::fetch_liquidity_state(
+				  client.runtime_api().deref(),
+				  best,
+				  storage_reader(&task.client, best, log_prefix),
+				  log_prefix,
+			  )
+			  .map(|state| (best_number, state));
 		  }
 		  let liquidity = cached_liquidity.as_ref().map(|(_, state)| state);
 		  let mut decisions: Vec<(EvmAddress, LiquidationDecision)> = candidates
