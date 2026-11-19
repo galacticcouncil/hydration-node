@@ -85,6 +85,10 @@ pub struct OmnipoolSnapshot {
 	/// the node after decoding: skipping it keeps the encoding the runtime produces unchanged.
 	#[codec(skip)]
 	pub slip_fee_levels: BTreeMap<AssetId, Percent>,
+	/// Base (asset fee, protocol fee) per asset. When set, sells use these and no slip fee, as a
+	/// liquidation sale does on-chain. Set by the node, not shipped.
+	#[codec(skip)]
+	pub base_fees: Option<BTreeMap<AssetId, (Permill, Permill)>>,
 }
 
 impl OmnipoolSnapshot {
@@ -255,6 +259,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			slip_fee_delta: BTreeMap::new(),
 			hub_sells_disabled: false,
 			slip_fee_levels: DP::slip_fee_levels().collect(),
+			base_fees: None,
 		}
 	}
 
@@ -303,8 +308,15 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooLarge);
 		}
 
-		let (asset_fee, _) = snapshot.get_fees(asset_out);
-		let (_, protocol_fee) = snapshot.get_fees(asset_in);
+		let fee_of = |asset| {
+			snapshot
+				.base_fees
+				.as_ref()
+				.and_then(|base| base.get(&asset).copied())
+				.unwrap_or_else(|| snapshot.get_fees(asset))
+		};
+		let (asset_fee, _) = fee_of(asset_out);
+		let (_, protocol_fee) = fee_of(asset_in);
 		let withdraw_fee = Permill::from_percent(0); // Not used in trades
 
 		let slip = snapshot.load_trade_slip_fees(
@@ -313,6 +325,11 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			asset_out,
 			asset_out_state.hub_reserve,
 		);
+		let charged_slip = if snapshot.base_fees.is_some() {
+			None
+		} else {
+			slip.as_ref()
+		};
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 			&asset_in_state.into(),
@@ -321,7 +338,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			asset_fee,
 			protocol_fee,
 			withdraw_fee,
-			slip.as_ref(),
+			charged_slip,
 		)
 		.ok_or(SimulatorError::MathError)?;
 

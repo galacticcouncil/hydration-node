@@ -221,6 +221,7 @@ impl pallet_omnipool::Config for Test {
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type Fee = FeeProvider;
+	type BaseFeeOnly = frame_support::traits::Nothing;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;

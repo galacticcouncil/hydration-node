@@ -324,6 +324,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BaseFeeOnly = frame_support::traits::Nothing;
 	type BurnProtocolFee = BurnFee;
 }
 
