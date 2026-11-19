@@ -9,10 +9,11 @@ use frame_support::pallet_prelude::TransactionSource;
 use frame_support::{assert_noop, assert_ok};
 use hydradx_traits::{
 	evm::InspectEvmAccounts,
-	router::{AssetPair, RouteProvider},
+	router::{AssetPair, PoolType, RouteProvider, Trade},
 };
 use orml_traits::parameters::sp_runtime::BoundedVec;
 use orml_traits::MultiCurrency;
+use sp_runtime::traits::Dispatchable;
 
 pub fn expect_last_events(e: Vec<RuntimeEvent>) {
 	// We only check if the events are as expected, not necessarily in order.
@@ -579,5 +580,105 @@ fn liquidate_gigahdx_should_proceed_when_realize_yield_fails() {
 			),
 			Error::<Test>::NoGigaHdxPosition
 		);
+	});
+}
+
+#[test]
+fn liquidate_should_leave_execution_context_empty_when_successful() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
+		let route = Router::get_route(AssetPair {
+			asset_in: HDX,
+			asset_out: DOT,
+		});
+
+		assert_ok!(Liquidation::liquidate(
+			RuntimeOrigin::signed(ALICE),
+			HDX,
+			DOT,
+			EvmAccounts::evm_address(&BOB),
+			1_000 * ONE,
+			route,
+		));
+
+		assert_eq!(Broadcast::get_context(), vec![]);
+	});
+}
+
+#[test]
+fn liquidate_should_leave_execution_context_empty_when_sale_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
+		let route_not_starting_with_collateral = BoundedVec::truncate_from(vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: DOT,
+			asset_out: HDX,
+		}]);
+		let call = RuntimeCall::Liquidation(pallet::Call::liquidate {
+			collateral_asset: HDX,
+			debt_asset: DOT,
+			user: EvmAccounts::evm_address(&BOB),
+			debt_to_cover: 1_000 * ONE,
+			route: route_not_starting_with_collateral,
+		});
+
+		assert_eq!(
+			call.dispatch(RuntimeOrigin::signed(ALICE)).map_err(|e| e.error),
+			Err(pallet_route_executor::Error::<Test>::InvalidRoute.into())
+		);
+
+		assert_eq!(Broadcast::get_context(), vec![]);
+	});
+}
+
+#[test]
+fn liquidate_position_should_leave_execution_context_empty_when_sale_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(Liquidation::set_borrowing_contract(
+			RuntimeOrigin::root(),
+			EvmAddress::from_slice(&[9; 20])
+		));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(
+			Liquidation::account_id()
+		),));
+		assert_ok!(EvmAccounts::bind_evm_address(RuntimeOrigin::signed(MONEY_MARKET),));
+		let debt_to_cover = 1_000 * ONE;
+		assert_ok!(Currencies::deposit(DOT, &Liquidation::account_id(), debt_to_cover));
+		let route_not_starting_with_collateral = BoundedVec::truncate_from(vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: DOT,
+			asset_out: HDX,
+		}]);
+		let data = Liquidation::encode_liquidation_data(
+			HDX,
+			DOT,
+			EvmAccounts::evm_address(&BOB),
+			&route_not_starting_with_collateral,
+		);
+
+		assert_eq!(
+			Liquidation::liquidate_position(
+				EvmAccounts::evm_address(&Liquidation::account_id()),
+				debt_to_cover,
+				&data
+			),
+			Err(pallet_route_executor::Error::<Test>::InvalidRoute.into())
+		);
+
+		assert_eq!(Broadcast::get_context(), vec![]);
 	});
 }

@@ -43,10 +43,10 @@ where
 	Api: LiquidityStateApi<B> + ApiExt<B>,
 {
 	let timer = Instant::now();
-	if !api.has_api::<dyn LiquidityStateApi<B>>(at).unwrap_or(false) {
+	let Some(api_version) = api.api_version::<dyn LiquidityStateApi<B>>(at).ok().flatten() else {
 		log::debug!(target: LOG_TARGET, "{log_prefix:?} fetch_liquidity_state(): runtime has no LiquidityStateApi, using stored routes");
 		return None;
-	}
+	};
 	let raw = api
 		.liquidity_state(at)
 		.inspect_err(|e| {
@@ -56,6 +56,14 @@ where
 	let fetched = timer.elapsed();
 	let mut state = decode_liquidity_state(&raw.state, log_prefix)?;
 	std::sync::Arc::make_mut(&mut state.0).fill_slip_fee_levels::<hydradx_runtime::Runtime>(read_storage);
+	if api_version >= 2 {
+		match api.omnipool_base_fees(at) {
+			Ok(fees) => std::sync::Arc::make_mut(&mut state.0).base_fees = Some(fees.into_iter().collect()),
+			Err(e) => {
+				log::error!(target: LOG_TARGET, "{log_prefix:?} fetch_liquidity_state(): omnipool_base_fees failed, simulating full fees, err: {e:?}")
+			}
+		}
+	}
 	log::debug!(target: LOG_TARGET, "{log_prefix:?} fetch_liquidity_state(): {} bytes, fetch {:?}, decode {:?}", raw.state.len(), fetched, timer.elapsed().saturating_sub(fetched));
 	Some(state)
 }

@@ -13,6 +13,7 @@ mod sell;
 mod add_all_liquidity;
 mod add_liquidity_with_limit;
 mod barrier;
+mod base_fee_only;
 pub(crate) mod mock;
 mod positions;
 mod protocol_fee;

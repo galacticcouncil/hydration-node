@@ -69,6 +69,9 @@ thread_local! {
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = const { RefCell::new(Permill::from_percent(100)) };
 	pub static ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static BASE_ASSET_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static BASE_PROTOCOL_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
+	pub static BASE_FEE_ONLY: RefCell<Vec<AccountId>> = const { RefCell::new(Vec::new()) };
 	pub static BURN_FEE: RefCell<Permill> = const { RefCell::new(Permill::from_percent(0)) };
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = const { RefCell::new(1000u128) };
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = const { RefCell::new(1000u128) };
@@ -213,6 +216,7 @@ impl Config for Test {
 	type MinWithdrawalFee = MinWithdrawFee;
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BaseFeeOnly = BaseFeeOnlyAccounts;
 	type BurnProtocolFee = BurnFee;
 }
 
@@ -221,6 +225,9 @@ pub struct ExtBuilder {
 	registered_assets: Vec<AssetId>,
 	asset_fee: Permill,
 	protocol_fee: Permill,
+	base_asset_fee: Permill,
+	base_protocol_fee: Permill,
+	base_fee_only: Vec<AccountId>,
 	burn_fee: Permill,
 	asset_weight_cap: Permill,
 	min_liquidity: u128,
@@ -291,6 +298,9 @@ impl Default for ExtBuilder {
 			],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),
+			base_asset_fee: Permill::from_percent(0),
+			base_protocol_fee: Permill::from_percent(0),
+			base_fee_only: vec![],
 			burn_fee: Permill::from_percent(0),
 			asset_weight_cap: Permill::from_percent(100),
 			min_liquidity: 0,
@@ -332,6 +342,17 @@ impl ExtBuilder {
 		self.protocol_fee = fee;
 		self
 	}
+	pub fn with_base_fees(mut self, asset_fee: Permill, protocol_fee: Permill) -> Self {
+		self.base_asset_fee = asset_fee;
+		self.base_protocol_fee = protocol_fee;
+		self
+	}
+
+	pub fn with_base_fee_only(mut self, account: AccountId) -> Self {
+		self.base_fee_only.push(account);
+		self
+	}
+
 	pub fn with_burn_fee(mut self, fee: Permill) -> Self {
 		self.burn_fee = fee;
 		self
@@ -423,6 +444,15 @@ impl ExtBuilder {
 		});
 		PROTOCOL_FEE.with(|v| {
 			*v.borrow_mut() = self.protocol_fee;
+		});
+		BASE_ASSET_FEE.with(|v| {
+			*v.borrow_mut() = self.base_asset_fee;
+		});
+		BASE_PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = self.base_protocol_fee;
+		});
+		BASE_FEE_ONLY.with(|v| {
+			*v.borrow_mut() = self.base_fee_only;
 		});
 		BURN_FEE.with(|v| {
 			*v.borrow_mut() = self.burn_fee;
@@ -708,6 +738,21 @@ impl GetDynamicFee<(AssetId, Balance)> for FeeProvider {
 
 	fn get_and_store(key: (AssetId, Balance)) -> Self::Fee {
 		Self::get(key)
+	}
+
+	fn get_base(_: (AssetId, Balance)) -> Self::Fee {
+		(
+			BASE_ASSET_FEE.with(|v| *v.borrow()),
+			BASE_PROTOCOL_FEE.with(|v| *v.borrow()),
+		)
+	}
+}
+
+pub struct BaseFeeOnlyAccounts;
+
+impl Contains<AccountId> for BaseFeeOnlyAccounts {
+	fn contains(account: &AccountId) -> bool {
+		BASE_FEE_ONLY.with(|v| v.borrow().contains(account))
 	}
 }
 

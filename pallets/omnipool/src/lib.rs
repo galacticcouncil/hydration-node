@@ -84,7 +84,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
 use frame_support::traits::{
 	tokens::nonfungibles::{Create, Inspect, Mutate},
-	ExistenceRequirement,
+	Contains, ExistenceRequirement,
 };
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
@@ -177,6 +177,9 @@ pub mod pallet {
 
 		/// Dynamic fee support - returns (Asset Fee, Protocol Fee) for given asset
 		type Fee: GetDynamicFee<(Self::AssetId, Balance), Fee = (Permill, Permill)>;
+
+		/// Sells signed by these accounts pay only the base fee and no slip fee.
+		type BaseFeeOnly: Contains<Self::AccountId>;
 
 		/// Minimum withdrawal fee
 		#[pallet::constant]
@@ -849,6 +852,8 @@ pub mod pallet {
 		///
 		/// Asset's tradable states must contain SELL flag for asset_in and BUY flag for asset_out, otherwise `NotAllowed` error is returned.
 		///
+		/// Sells signed by `T::BaseFeeOnly` accounts pay only the base fee and no slip fee.
+		///
 		/// Parameters:
 		/// - `asset_in`: ID of asset sold to the pool
 		/// - `asset_out`: ID of asset bought from the pool
@@ -924,6 +929,14 @@ pub mod pallet {
 				asset_out,
 				asset_out_state.hub_reserve,
 			);
+
+			let (asset_fee, protocol_fee, slip) = if T::BaseFeeOnly::contains(&who) {
+				let (base_asset_fee, _) = T::Fee::get_base((asset_out, asset_out_state.reserve));
+				let (_, base_protocol_fee) = T::Fee::get_base((asset_in, asset_in_state.reserve));
+				(base_asset_fee, base_protocol_fee, None)
+			} else {
+				(asset_fee, protocol_fee, slip)
+			};
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state).into(),
