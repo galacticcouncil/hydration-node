@@ -26,13 +26,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::manual_inspect)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::useless_conversion)]
 
 use codec::{decode_from_bytes, Encode};
 use ethabi::ethereum_types::BigEndianHash;
 use evm::{ExitReason, ExitSucceed};
 use frame_support::{
+	dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo},
 	pallet_prelude::*,
-	sp_runtime::traits::AccountIdConversion,
+	sp_runtime::{traits::AccountIdConversion, Saturating},
 	traits::{
 		fungibles::{Inspect, Mutate},
 		tokens::{Fortitude, Precision, Preservation},
@@ -40,7 +43,11 @@ use frame_support::{
 	},
 	PalletId,
 };
-use frame_system::{ensure_none, pallet_prelude::OriginFor, RawOrigin};
+use frame_system::{
+	ensure_none,
+	pallet_prelude::{BlockNumberFor, OriginFor},
+	RawOrigin,
+};
 use hydradx_traits::evm::CallResult;
 use hydradx_traits::evm::Erc20Mapping;
 use hydradx_traits::gigahdx::Seize;
@@ -73,6 +80,10 @@ pub use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+// EVM gas used by the running liquidation. Not a storage value: a reverted flash loan rolls storage
+// back, and the gas its callback burned must still be counted.
+environmental::environmental!(evm_gas_used: u64);
+
 pub type Balance = u128;
 pub type AssetId = u32;
 pub type Priority = u64;
@@ -80,6 +91,11 @@ pub type Priority = u64;
 //NOTE: `u64::max - 1` is set in /node/src/tx_priority.json oracles' updates.
 //We don't want to frontrun oracle updates so these should be kept in sync.
 pub const MAX_UNSIGNED_LIQUIDATION_PRIORITY: Priority = u64::MAX - 2;
+// Blocks an unsigned liquidation may name as its last valid one, counted from the next block. Keeps
+// the expiry a property of the chain instead of trusting the node to pick a near block. Well above
+// the one block a worker asks for: a collator's pool validates against a view that can trail its
+// best block by a few blocks while it authors, and the bound must not reject the liquidation there.
+pub const MAX_UNSIGNED_LIQUIDATION_LIFETIME: u32 = 10;
 //NOTE: base unsigned liquidation tx priority. `unsigned_priority` param is added on top of this
 //and it should represent collateral at risk(max. 10_000_000.0[BASE]).
 const BASE_UNSIGNED_LIQUIDATION_PRIORITY: Priority = MAX_UNSIGNED_LIQUIDATION_PRIORITY - 10_000_000;
@@ -160,6 +176,10 @@ pub mod pallet {
 		/// lookup, the seize ledger ops and the conviction-lock release.
 		/// Wired to `pallet_gigahdx` / `pallet_gigahdx_rewards` in the runtime.
 		type GigaHdx: crate::traits::GigaHdxSupport<Self::AccountId>;
+
+		/// Size of the storage proof recorded so far in the block, `None` where proof recording
+		/// is off. Lets a liquidation be charged the proof it produced instead of its reservation.
+		type RecordedProofSize: Get<Option<u64>>;
 	}
 
 	#[pallet::type_value]
@@ -214,6 +234,24 @@ pub mod pallet {
 					unsigned_priority,
 					..
 				} => valid_tx((user, pool), unsigned_priority.unwrap_or(0)),
+				Call::submit_liquidation {
+					user,
+					pool,
+					priority,
+					valid_until,
+					..
+				} => {
+					// The block this liquidation would go into: the pool validates on top of the
+					// best block with the number already advanced, a block being built has its own.
+					let including_block = frame_system::Pallet::<T>::block_number();
+					if including_block > *valid_until {
+						return InvalidTransaction::Stale.into();
+					}
+					if *valid_until >= including_block.saturating_add(MAX_UNSIGNED_LIQUIDATION_LIFETIME.into()) {
+						return InvalidTransaction::Call.into();
+					}
+					valid_tx((user, pool), *priority)
+				}
 				_ => InvalidTransaction::Call.into(),
 			}
 		}
@@ -315,29 +353,7 @@ pub mod pallet {
 		/// Emits `Liquidated` event when successful.
 		///
 		#[pallet::call_index(0)]
-		// Two branches with different substrate costs (the EVM gas budget is shared):
-		//   - generic: `liquidate()` benchmark + the router sell weight.
-		//   - gigahdx: `liquidate()` (pallet-level reads) + the benchmarked seize
-		//     sequence (`seize_weight`) + the exact vote-clearance loop
-		//     (`clear_weight_for`, from the borrower's recorded vote count). The
-		//     route is unused on this branch.
-		// Both add 4× `GasLimit`: the gigahdx branch makes up to 3 full-gas EVM
-		// calls (borrow + liquidationCall + surplus repay) plus the adapter's
-		// cheaper debt-read view calls; 4× is the shared safe upper bound.
-		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
-			.saturating_add(
-				if *collateral_asset == <T as Config>::GigaHdx::gigahdx_asset_id() {
-					<T as Config>::GigaHdx::seize_weight()
-						.saturating_add(<T as Config>::GigaHdx::clear_weight_for(*user))
-				} else {
-					<T as Config>::RouterWeightInfo::sell_weight(route)
-				}
-			)
-			.saturating_add(
-				<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true)
-					.saturating_mul(4)
-			)
-		)]
+		#[pallet::weight(Pallet::<T>::liquidation_weight(*collateral_asset, *debt_asset, *user, route))]
 		pub fn liquidate(
 			_origin: OriginFor<T>,
 			collateral_asset: AssetId,
@@ -345,8 +361,11 @@ pub mod pallet {
 			user: EvmAddress,
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
-		) -> DispatchResult {
-			Self::do_liquidate(collateral_asset, debt_asset, user, debt_to_cover, route)
+		) -> DispatchResultWithPostInfo {
+			let declared = Self::liquidation_weight(collateral_asset, debt_asset, user, &route);
+			Self::with_weight_refund(declared, Self::evm_gas_budgets(collateral_asset, debt_asset), || {
+				Self::do_liquidate(collateral_asset, debt_asset, user, debt_to_cover, route)
+			})
 		}
 
 		/// Set the borrowing market contract address.
@@ -388,24 +407,7 @@ pub mod pallet {
 		/// Emits `Liquidated` event when successful.
 		///
 		#[pallet::call_index(2)]
-		// Same two-branch cost model as `liquidate` (see the comment there), plus one
-		// storage read for the pool consistency check.
-		#[pallet::weight(<T as Config>::WeightInfo::liquidate()
-			.saturating_add(
-				if *collateral_asset == <T as Config>::GigaHdx::gigahdx_asset_id() {
-					<T as Config>::GigaHdx::seize_weight()
-						.saturating_add(<T as Config>::GigaHdx::clear_weight_for(*user))
-				} else {
-					<T as Config>::RouterWeightInfo::sell_weight(route)
-				}
-			)
-			.saturating_add(
-				<T as Config>::GasWeightMapping::gas_to_weight(<T as Config>::GasLimit::get(), true)
-					.saturating_mul(4)
-			)
-			.saturating_add(T::DbWeight::get().reads(1))
-		)]
-		#[allow(clippy::too_many_arguments)]
+		#[pallet::weight(Pallet::<T>::unsigned_liquidation_weight(*collateral_asset, *debt_asset, *user, route))]
 		pub fn liquidate_with_pool(
 			origin: OriginFor<T>,
 			pool: EvmAddress,
@@ -415,7 +417,166 @@ pub mod pallet {
 			debt_to_cover: Balance,
 			route: Route<AssetId>,
 			_unsigned_priority: Option<Priority>,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
+			Self::do_unsigned_liquidation(origin, pool, collateral_asset, debt_asset, user, debt_to_cover, route)
+		}
+
+		/// Liquidates an existing money market position on behalf of the protocol, as an unsigned
+		/// transaction that expires.
+		///
+		/// Only a collator's own liquidation worker can submit it: the origin must be none and
+		/// `ValidateUnsigned` rejects externally received transactions. The public permissionless
+		/// path is `liquidate`.
+		///
+		/// The transaction is valid up to block `valid_until` and is rejected as stale after it,
+		/// in the transaction pool and at inclusion, so a liquidation decided on an old state can
+		/// never be executed later. Supersedes `liquidate_with_pool`, which never expires.
+		///
+		/// Parameters:
+		/// - `origin`: Must be none (unsigned transaction).
+		/// - `pool`: EVM address of the money-market pool the liquidation was decided against. Must
+		/// be the pool the liquidation executes on, or the call fails with `PoolAddressMismatch`.
+		/// - `collateral_asset`: Asset ID used as collateral in the MM position.
+		/// - `debt_asset`: Asset ID used as debt in the MM position.
+		/// - `user`: EVM address of the MM position that we want to liquidate.
+		/// - `debt_to_cover`: Amount of debt we want to liquidate.
+		/// - `route`: The route we trade against. Required for the fee calculation.
+		/// - `priority`: Priority added on top of `BASE_UNSIGNED_LIQUIDATION_PRIORITY`.
+		/// - `valid_until`: Last block the transaction can be included in. At most
+		/// `MAX_UNSIGNED_LIQUIDATION_LIFETIME` blocks ahead.
+		///
+		/// Emits `Liquidated` event when successful.
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(Pallet::<T>::unsigned_liquidation_weight(*collateral_asset, *debt_asset, *user, route))]
+		pub fn submit_liquidation(
+			origin: OriginFor<T>,
+			pool: EvmAddress,
+			collateral_asset: AssetId,
+			debt_asset: AssetId,
+			user: EvmAddress,
+			debt_to_cover: Balance,
+			route: Route<AssetId>,
+			_priority: Priority,
+			_valid_until: BlockNumberFor<T>,
+		) -> DispatchResultWithPostInfo {
+			Self::do_unsigned_liquidation(origin, pool, collateral_asset, debt_asset, user, debt_to_cover, route)
+		}
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	pub fn account_id() -> T::AccountId {
+		PalletId(*b"lqdation").into_account_truncating()
+	}
+
+	/// Full `GasLimit` budgets a liquidation can spend in the EVM.
+	pub fn evm_gas_budgets(collateral_asset: AssetId, debt_asset: AssetId) -> u64 {
+		if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
+			// borrow, liquidationCall and surplus repay, plus one for the adapter's debt-read views.
+			4
+		} else if debt_asset == T::HollarId::get() {
+			// The flash loan, and the liquidationCall its callback runs on a gas budget of its own.
+			2
+		} else {
+			1
+		}
+	}
+
+	/// Declared weight of a liquidation: the `liquidate()` benchmark, the substrate work of its
+	/// branch (gigahdx seize and vote clearance, or the router sell) and its EVM gas budgets.
+	pub fn liquidation_weight(
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		route: &[Trade<AssetId>],
+	) -> Weight {
+		let branch_weight = if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
+			T::GigaHdx::seize_weight().saturating_add(T::GigaHdx::clear_weight_for(user))
+		} else {
+			T::RouterWeightInfo::sell_weight(route)
+		};
+		<T as Config>::WeightInfo::liquidate()
+			.saturating_add(branch_weight)
+			.saturating_add(Self::evm_gas_weight(Self::evm_gas_budgets(
+				collateral_asset,
+				debt_asset,
+			)))
+	}
+
+	/// `liquidation_weight` plus the read of the pool the liquidation is checked against.
+	pub fn unsigned_liquidation_weight(
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		route: &[Trade<AssetId>],
+	) -> Weight {
+		Self::liquidation_weight(collateral_asset, debt_asset, user, route).saturating_add(T::DbWeight::get().reads(1))
+	}
+
+	fn evm_gas_weight(budgets: u64) -> Weight {
+		T::GasWeightMapping::gas_to_weight(T::GasLimit::get(), true).saturating_mul(budgets)
+	}
+
+	/// Runs `liquidation` and reports the weight it used: ref time less the EVM gas left unspent,
+	/// proof size as measured by the block's proof recorder. Applies to failed liquidations too.
+	fn with_weight_refund(
+		declared: Weight,
+		gas_budgets: u64,
+		liquidation: impl FnOnce() -> DispatchResult,
+	) -> DispatchResultWithPostInfo {
+		let proof_before = T::RecordedProofSize::get();
+		let mut gas_used = 0u64;
+		let result = evm_gas_used::using(&mut gas_used, liquidation);
+
+		let unused_gas = T::GasLimit::get().saturating_mul(gas_budgets).saturating_sub(gas_used);
+		let unused_ref_time = T::GasWeightMapping::gas_to_weight(unused_gas, true)
+			.ref_time()
+			.min(Self::evm_gas_weight(gas_budgets).ref_time());
+		let mut actual_weight = declared.saturating_sub(Weight::from_parts(unused_ref_time, 0));
+		// Gas says nothing about proof size here: the executor runs without proof metering.
+		if let (Some(before), Some(after)) = (proof_before, T::RecordedProofSize::get()) {
+			*actual_weight.proof_size_mut() = after.saturating_sub(before).min(declared.proof_size());
+		}
+
+		let post_info = PostDispatchInfo {
+			actual_weight: Some(actual_weight),
+			pays_fee: Pays::Yes,
+		};
+		match result {
+			Ok(()) => Ok(post_info),
+			Err(error) => Err(DispatchErrorWithPostInfo { post_info, error }),
+		}
+	}
+
+	/// EVM call on the liquidation gas budget; the gas it used counts against the weight refund.
+	fn evm_call(context: CallContext, data: Vec<u8>) -> CallResult {
+		let result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		// A call that never reached the EVM reports no gas. Its cost is unknown: count the budget.
+		let used = if result.gas_used.is_zero() {
+			T::GasLimit::get()
+		} else {
+			u64::try_from(result.gas_used).unwrap_or(u64::MAX)
+		};
+		evm_gas_used::with(|total| *total = total.saturating_add(used));
+		result
+	}
+
+	/// Shared body of `liquidate_with_pool` and `submit_liquidation`.
+	fn do_unsigned_liquidation(
+		origin: OriginFor<T>,
+		pool: EvmAddress,
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		user: EvmAddress,
+		debt_to_cover: Balance,
+		route: Route<AssetId>,
+	) -> DispatchResultWithPostInfo
+	where
+		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
+	{
+		let declared = Self::unsigned_liquidation_weight(collateral_asset, debt_asset, user, &route);
+		Self::with_weight_refund(declared, Self::evm_gas_budgets(collateral_asset, debt_asset), || {
 			ensure_none(origin)?;
 
 			let expected = if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
@@ -426,16 +587,10 @@ pub mod pallet {
 			ensure!(pool == expected, Error::<T>::PoolAddressMismatch);
 
 			Self::do_liquidate(collateral_asset, debt_asset, user, debt_to_cover, route)
-		}
-	}
-}
-
-impl<T: Config> Pallet<T> {
-	pub fn account_id() -> T::AccountId {
-		PalletId(*b"lqdation").into_account_truncating()
+		})
 	}
 
-	/// Shared body of `liquidate` and `liquidate_with_pool`.
+	/// Shared body of every liquidation call.
 	fn do_liquidate(
 		collateral_asset: AssetId,
 		debt_asset: AssetId,
@@ -483,7 +638,7 @@ impl<T: Config> Pallet<T> {
 				.write(Bytes(liquidation_data))
 				.build();
 
-			let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+			let call_result = Self::evm_call(context, data);
 
 			if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::info!(target: "liquidation", "Flash loan Hollar EVM execution failed - {:?}. Reason: {:?}", call_result.exit_reason, call_result.value);
@@ -524,6 +679,9 @@ impl<T: Config> Pallet<T> {
 		T::AccountId: AsRef<[u8; 32]> + IsType<AccountId32>,
 	{
 		ensure!(debt_asset == T::HollarId::get(), Error::<T>::UnsupportedDebtAsset);
+
+		// The adapter's debt-read views are not metered here, so their budget is never refunded.
+		evm_gas_used::with(|total| *total = total.saturating_add(T::GasLimit::get()));
 
 		let borrower = T::EvmAccounts::account_id(user);
 
@@ -583,7 +741,7 @@ impl<T: Config> Pallet<T> {
 		// Liquidation account borrows the clamped HOLLAR from the main money market.
 		let borrow_data = Self::encode_borrow_call_data(hollar_address, capped, liq_evm);
 		let borrow_ctx = CallContext::new_call(borrowing_pool, liq_evm);
-		let borrow_result = T::Evm::call(borrow_ctx, borrow_data, U256::zero(), T::GasLimit::get());
+		let borrow_result = Self::evm_call(borrow_ctx, borrow_data);
 		if borrow_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::info!(target: "liquidation", "gigahdx: liquidation-account HOLLAR borrow reverted: {:?}", borrow_result.value);
 			return Err(Error::<T>::BorrowFailed.into());
@@ -598,7 +756,7 @@ impl<T: Config> Pallet<T> {
 		let hollar_before = <T as Config>::Currency::balance(debt_asset, &liq_account);
 		let liq_data = Self::encode_liquidation_call_data(st_hdx, debt_asset, user, capped, true);
 		let liq_ctx = CallContext::new_call(pool, liq_evm);
-		let liq_result = T::Evm::call(liq_ctx, liq_data, U256::zero(), T::GasLimit::get());
+		let liq_result = Self::evm_call(liq_ctx, liq_data);
 		if liq_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::info!(target: "liquidation", "gigahdx: liquidationCall reverted: {:?}", liq_result.value);
 			return Err(T::EvmErrorDecoder::convert(liq_result));
@@ -644,7 +802,7 @@ impl<T: Config> Pallet<T> {
 		if surplus > 0 {
 			let repay_data = Self::encode_repay_call_data(hollar_address, surplus, liq_evm);
 			let repay_ctx = CallContext::new_call(borrowing_pool, liq_evm);
-			let repay_result = T::Evm::call(repay_ctx, repay_data, U256::zero(), T::GasLimit::get());
+			let repay_result = Self::evm_call(repay_ctx, repay_data);
 			if repay_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 				log::info!(target: "liquidation", "gigahdx: surplus HOLLAR repay reverted: {:?}", repay_result.value);
 				return Err(Error::<T>::RepayFailed.into());
@@ -730,7 +888,7 @@ impl<T: Config> Pallet<T> {
 		let context = CallContext::new_call(contract, liquidator);
 		let data = Self::encode_liquidation_call_data(collateral_asset, debt_asset, user, debt_to_cover, false);
 
-		let call_result = T::Evm::call(context, data, U256::zero(), T::GasLimit::get());
+		let call_result = Self::evm_call(context, data);
 		if call_result.exit_reason != ExitReason::Succeed(ExitSucceed::Returned) {
 			log::info!(target: "liquidation",
 						"Evm execution failed. Reason: {:?}", call_result.value);

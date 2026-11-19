@@ -32,6 +32,7 @@ use sc_transaction_pool_api::InPoolTransaction;
 use sc_transaction_pool_api::TransactionPool;
 use sc_transaction_pool_api::TransactionSource;
 use serde::Deserialize;
+use sp_api::Core;
 use sp_api::ProvideRuntimeApi;
 use sp_core::H256;
 use sp_core::U256;
@@ -77,9 +78,9 @@ const LIQUIDATIONS_PER_BLOCK: u8 = 20;
 // number would be worse than not capping it: the shards run in parallel with no global sort, so the
 // survivors would be an arbitrary subset rather than the largest positions — the tx pool already
 // picks the right ones, ordering by `unsigned_priority` (= collateral at risk). The valve is
-// therefore set above what a block can execute anyway (~250-600 `liquidate` calls fit the normal
-// PoV budget), so it only ever trims work that could not have landed this block, and `longevity(1)`
-// plus the next block's scan re-finds whatever was trimmed.
+// therefore set far above what a block can execute (a handful of `liquidate` calls fit the normal
+// PoV budget), so it only ever trims work that could not have landed this block, and the next
+// block's scan re-finds whatever was trimmed.
 pub const MAX_SCAN_DRY_RUNS_PER_BLOCK: usize = 256;
 
 // Halvings tried when no liquidation executes at the size that restores the target HF.
@@ -130,7 +131,17 @@ pub const ZERO_DEBT_READS_BEFORE_PRUNE: u32 = 3;
 // After a liquidation is handed to the tx pool, the same (pool, borrower) is not re-submitted for
 // this many blocks. v1 used a per-block `liquidated_users` set plus a `tx_waitlist`; v2 scans in
 // independent shards, so the cooldown lives on the main task and is applied at both submit sites.
+// Applies on a runtime without the expiring call; an expiring liquidation is resubmitted as soon as
+// it has expired, see `submit_cooldown_blocks`.
 pub const SUBMIT_COOLDOWN_BLOCKS: BlockNumber = 4;
+
+// First runtime with `submit_liquidation`, the liquidation call that expires.
+pub const SUBMIT_LIQUIDATION_SPEC_VERSION: u32 = 459;
+
+// Blocks after the one a liquidation was decided on that can include it. Two, not one: under load a
+// scan outlasts the block time and the worker runs a block behind, and with one block every
+// liquidation it then submits has already expired.
+pub const LIQUIDATION_LIFETIME_BLOCKS: BlockNumber = 2;
 
 // `FixedVelocityConsensusHook` permits one block beyond `BLOCK_PROCESSING_VELOCITY` to fill the
 // unincluded segment. All of those blocks can carry the same Aura-slot timestamp.
@@ -716,6 +727,26 @@ pub struct LiquidationDecision {
 	pub collateral_amount: Balance,
 	/// Empty = the router's stored route for the pair.
 	pub route: Route<AssetId>,
+	/// Last block that can include the liquidation. `None` on a runtime that predates
+	/// `submit_liquidation`: the liquidation is then submitted as `liquidate_with_pool`.
+	pub valid_until: Option<BlockNumber>,
+}
+
+/// Last block that can include a liquidation decided on block `decided_on`, `None` when the
+/// runtime cannot take an expiring liquidation yet.
+pub fn liquidation_valid_until(spec_version: u32, decided_on: BlockNumber) -> Option<BlockNumber> {
+	(spec_version >= SUBMIT_LIQUIDATION_SPEC_VERSION).then(|| decided_on.saturating_add(LIQUIDATION_LIFETIME_BLOCKS))
+}
+
+/// Blocks a borrower is not resubmitted for after its liquidation was handed to the pool. For an
+/// expiring liquidation, as long as it lives: resubmitting earlier would decide on a state the
+/// pending liquidation has not changed yet, and both would land.
+pub fn submit_cooldown_blocks(valid_until: Option<BlockNumber>) -> BlockNumber {
+	if valid_until.is_some() {
+		LIQUIDATION_LIFETIME_BLOCKS
+	} else {
+		SUBMIT_COOLDOWN_BLOCKS
+	}
 }
 
 /// Pure decision step: given an up-to-date money market and borrower, decide whether — and how —
@@ -802,24 +833,36 @@ pub fn decide_liquidation_options(
 				priority,
 				collateral_amount: liq_option.collateral_amount.saturated_into(),
 				route: Route::new(),
+				valid_until: None,
 			})
 		})
 		.collect()
 }
 
-/// The unsigned `liquidate_with_pool` call for a decision. `pool` is the market the decision was
-/// made against; the pallet rejects the call if it is not the pool the liquidation would execute
-/// on. The call carries `unsigned_priority = collateral-at-risk`, so the tx pool orders competing
-/// liquidations for the block builder.
+/// The unsigned call for a decision. `pool` is the market the decision was made against; the
+/// pallet rejects the call if it is not the pool the liquidation would execute on. The priority is
+/// the collateral at risk, so the tx pool orders competing liquidations for the block builder.
 pub fn liquidation_call(decision: &LiquidationDecision, pool: EvmAddress) -> RuntimeCall {
-	RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
-		pool,
-		collateral_asset: decision.collateral_asset,
-		debt_asset: decision.debt_asset,
-		user: decision.user,
-		debt_to_cover: decision.debt_to_cover,
-		route: decision.route.clone(),
-		unsigned_priority: Some(decision.priority),
+	RuntimeCall::Liquidation(match decision.valid_until {
+		Some(valid_until) => pallet_liquidation::Call::submit_liquidation {
+			pool,
+			collateral_asset: decision.collateral_asset,
+			debt_asset: decision.debt_asset,
+			user: decision.user,
+			debt_to_cover: decision.debt_to_cover,
+			route: decision.route.clone(),
+			priority: decision.priority,
+			valid_until,
+		},
+		None => pallet_liquidation::Call::liquidate_with_pool {
+			pool,
+			collateral_asset: decision.collateral_asset,
+			debt_asset: decision.debt_asset,
+			user: decision.user,
+			debt_to_cover: decision.debt_to_cover,
+			route: decision.route.clone(),
+			unsigned_priority: Some(decision.priority),
+		},
 	})
 }
 
@@ -1543,6 +1586,13 @@ where
 	C: RuntimeClient<B>,
 {
 	let mut blocks_stream = client.import_notification_stream();
+	// A runtime whose version cannot be read is treated as one that predates the expiring call.
+	let spec_version_at = |hash: B::Hash| {
+		client
+			.runtime_api()
+			.version(hash)
+			.map_or(0, |version| version.spec_version)
+	};
 	// Mempool monitor for pending DIA oracle-update txs — drives the same-block fast-path.
 	let mut tx_stream = task.transaction_pool.import_notification_stream();
 
@@ -1605,9 +1655,8 @@ where
 	// life of the process and starve the per-block scan.
 	let mut pool_resolve_backoff: HashMap<EvmAddress, (u32, BlockNumber)> = HashMap::new();
 	// (pool, borrower) → block the next submission is allowed at. Replaces v1's `liquidated_users`
-	// dedup and `tx_waitlist`: a decision that reverts on chain (the dry run cannot catch every
-	// case) is re-derived identically next block, and with `longevity(1)` it would be re-included
-	// every block at no cost to the submitter.
+	// dedup and `tx_waitlist`, and keeps the oracle fast path from doubling a liquidation the scan
+	// of the same block already submitted.
 	let mut submit_cooldown: HashMap<(EvmAddress, EvmAddress), BlockNumber> = HashMap::new();
 	// Liquidity snapshot of the last block that needed one, reused by the oracle fast path under
 	// the same staleness bound as the money-market cache.
@@ -1655,6 +1704,12 @@ where
 		  }
 
 		  if !b.is_new_best {
+			  continue;
+		  }
+
+		  // Behind on imports: a liquidation decided on this block could not make the next one.
+		  if client.info().best_hash != b.hash {
+			  log::debug!(target: LOG_TARGET, "{:?} run(): block {:?} is no longer the best block, skipping its scan", task.cfg.log_prefix, b.hash);
 			  continue;
 		  }
 
@@ -1706,6 +1761,7 @@ where
 		  }
 
 		  let block_number: BlockNumber = (*b.header.number()).saturated_into();
+		  let valid_until = liquidation_valid_until(spec_version_at(b.hash), block_number);
 
 		  // Everything that needs the (non-`Send`) runtime API happens in this scope: instance
 		  // bootstrap/discovery, per-instance money-market fetches, and event discovery. Plain
@@ -2077,6 +2133,7 @@ where
 							  let decisions: Vec<LiquidationDecision> = decide_liquidation_options(cfg, &ctx.mm, &borrower)
 								  .iter()
 								  .filter_map(|d| map_decision_collateral(d, ctx.kind, &ctx.atoken_map, log_prefix))
+								  .map(|d| LiquidationDecision { valid_until, ..d })
 								  .collect();
 							  let on_cooldown = submit_cooldown
 								  .get(&(ctx.mm.pool, borrower.address))
@@ -2151,7 +2208,7 @@ where
 		  for ScanResult { idx, addr, borrower, submitted } in result_rx {
 			  if submitted {
 				  if let Some(pool) = instances[idx].pool {
-					  submit_cooldown.insert((pool, addr), block_number.saturating_add(SUBMIT_COOLDOWN_BLOCKS));
+					  submit_cooldown.insert((pool, addr), block_number.saturating_add(submit_cooldown_blocks(valid_until)));
 				  }
 			  }
 			  match borrower {
@@ -2242,6 +2299,7 @@ where
 		  let info = client.info();
 		  let best = info.best_hash;
 		  let best_number: BlockNumber = info.best_number.saturated_into();
+		  let valid_until = liquidation_valid_until(spec_version_at(best), best_number);
 		  // A market whose per-block scan keeps failing keeps serving its last good snapshot.
 		  // Deciding from it submits liquidations sized against long-repaid debt on every oracle
 		  // tick — each rejected on chain — so bound how stale a cache may be, both as a decision
@@ -2271,6 +2329,7 @@ where
 				  let mapped: Vec<LiquidationDecision> = options
 					  .iter()
 					  .filter_map(|d| map_decision_collateral(d, inst.kind, &inst.atoken_map, inst.log_prefix.as_str()))
+					  .map(|d| LiquidationDecision { valid_until, ..d })
 					  .collect();
 				  let Some(user) = mapped.first().map(|d| d.user) else { continue };
 				  // Same cooldown as the scan path — the fast path must not re-submit a
@@ -2317,7 +2376,7 @@ where
 		  for (market_pool, decision) in decisions.iter().take(cap) {
 			  submit_cooldown.insert(
 				  (*market_pool, decision.user),
-				  best_number.saturating_add(SUBMIT_COOLDOWN_BLOCKS),
+				  best_number.saturating_add(submit_cooldown_blocks(valid_until)),
 			  );
 			  let _ = task.submit_liquidation(best, *market_pool, decision).await;
 		  }

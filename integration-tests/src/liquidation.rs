@@ -7,7 +7,7 @@ use fp_evm::{
 	ExitSucceed::{Returned, Stopped},
 };
 use fp_rpc::runtime_decl_for_ethereum_runtime_rpc_api::EthereumRuntimeRPCApi;
-use frame_support::{assert_noop, assert_ok, BoundedVec};
+use frame_support::{assert_noop, assert_ok, dispatch::DispatchClass, weights::Weight, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::{
 	evm::{
@@ -22,7 +22,7 @@ use hydradx_runtime::{
 };
 use hydradx_traits::{
 	evm::{CallContext, Erc20Encoding, EVM},
-	router::{AssetPair, RouteProvider},
+	router::{AssetPair, PoolType, RouteProvider, Trade},
 };
 use liquidation_worker_support::*;
 use orml_traits::currency::MultiCurrency;
@@ -30,6 +30,7 @@ use pallet_currencies_rpc_runtime_api::runtime_decl_for_currencies_api::Currenci
 use primitives::EvmAddress;
 use sp_api::ApiError;
 use sp_core::{H256, U256};
+use xcm_emulator::TestExt;
 use xcm_runtime_apis::dry_run::{
 	runtime_decl_for_dry_run_api::DryRunApi, CallDryRunEffects, Error as XcmDryRunApiError,
 };
@@ -427,6 +428,144 @@ fn liquidate_with_pool_should_work_when_pool_matches_borrowing_contract() {
 	});
 }
 
+fn apply_submit_liquidation(
+	pool: EvmAddress,
+	user: EvmAddress,
+	debt_to_cover: Balance,
+	valid_until: hydradx_runtime::BlockNumber,
+) -> sp_runtime::ApplyExtrinsicResult {
+	let call = RuntimeCall::Liquidation(pallet_liquidation::Call::submit_liquidation {
+		pool,
+		collateral_asset: WETH,
+		debt_asset: DOT,
+		user,
+		debt_to_cover,
+		route: Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		}),
+		priority: 0,
+		valid_until,
+	});
+	hydradx_runtime::Executive::apply_extrinsic(hydradx_runtime::HydraUncheckedExtrinsic::new_bare(call))
+}
+
+#[test]
+fn submit_liquidation_should_liquidate_position_when_block_is_its_last_valid_one() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		let (pool_contract, alice_evm_address, borrow_dot_amount) = arrange_unhealthy_mm_position();
+		let treasury_dot_initial_balance = Currencies::free_balance(DOT, &BorrowingTreasuryAccount::get());
+
+		// Act
+		let result = apply_submit_liquidation(
+			pool_contract,
+			alice_evm_address,
+			borrow_dot_amount,
+			hydradx_runtime::System::block_number(),
+		);
+
+		// Assert
+		assert_eq!(result, Ok(Ok(())));
+		assert!(Currencies::free_balance(DOT, &BorrowingTreasuryAccount::get()) > treasury_dot_initial_balance);
+	});
+}
+
+#[test]
+fn submit_liquidation_should_not_be_included_when_block_is_past_valid_until() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		let (pool_contract, alice_evm_address, borrow_dot_amount) = arrange_unhealthy_mm_position();
+		let valid_until = hydradx_runtime::System::block_number();
+		hydradx_runtime::System::set_block_number(valid_until + 1);
+
+		// Act
+		let result = apply_submit_liquidation(pool_contract, alice_evm_address, borrow_dot_amount, valid_until);
+
+		// Assert
+		assert_eq!(
+			result,
+			Err(sp_runtime::transaction_validity::InvalidTransaction::Stale.into())
+		);
+	});
+}
+
+#[test]
+fn liquidate_should_refund_unused_gas_when_liquidation_succeeds() {
+	TestNet::reset();
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
+		// Arrange
+		let (_, alice_evm_address, borrow_dot_amount) = arrange_unhealthy_mm_position();
+		let route = Router::get_route(AssetPair {
+			asset_in: WETH,
+			asset_out: DOT,
+		});
+		let declared = pallet_liquidation::Pallet::<Runtime>::liquidation_weight(WETH, DOT, alice_evm_address, &route);
+
+		// Act
+		let post_info = Liquidation::liquidate(
+			RuntimeOrigin::signed(BOB.into()),
+			WETH,
+			DOT,
+			alice_evm_address,
+			borrow_dot_amount,
+			route,
+		)
+		.expect("liquidation succeeds");
+
+		// Assert
+		let refunded = declared.saturating_sub(post_info.actual_weight.expect("actual weight is reported"));
+		assert_eq!(refunded, Weight::from_parts(90_305_668_000, 0));
+	});
+}
+
+/// How many liquidations sold over one Omnipool hop the Normal dispatch class admits in a block,
+/// by declared weight.
+fn liquidations_per_block(collateral_asset: AssetId, debt_asset: AssetId) -> u64 {
+	let route = vec![Trade {
+		pool: PoolType::Omnipool,
+		asset_in: collateral_asset,
+		asset_out: debt_asset,
+	}];
+	let declared = pallet_liquidation::Pallet::<Runtime>::liquidation_weight(
+		collateral_asset,
+		debt_asset,
+		EvmAddress::default(),
+		&route,
+	);
+	let limit = <Runtime as frame_system::Config>::BlockWeights::get()
+		.get(DispatchClass::Normal)
+		.max_total
+		.expect("normal class has a limit");
+	(limit.ref_time() / declared.ref_time()).min(limit.proof_size() / declared.proof_size())
+}
+
+#[test]
+fn liquidation_should_fit_seven_times_in_block_when_debt_is_not_hollar() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_eq!(liquidations_per_block(WETH, DOT), 7);
+	});
+}
+
+#[test]
+fn liquidation_should_fit_three_times_in_block_when_debt_is_hollar() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_eq!(liquidations_per_block(WETH, 222), 3);
+	});
+}
+
+#[test]
+fn liquidation_should_fit_once_in_block_when_collateral_is_gigahdx() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		assert_eq!(liquidations_per_block(67, 222), 1);
+	});
+}
+
 // A pool that is not the borrowing contract must be rejected before any liquidation
 // work — the on-chain execution gate a worker bug cannot get past.
 #[test]
@@ -452,7 +591,8 @@ fn liquidate_with_pool_should_fail_when_pool_does_not_match_borrowing_contract()
 				borrow_dot_amount,
 				route,
 				None,
-			),
+			)
+			.map_err(|e| e.error),
 			pallet_liquidation::Error::<Runtime>::PoolAddressMismatch
 		);
 	});
@@ -474,7 +614,8 @@ fn liquidate_with_pool_should_fail_when_origin_is_signed() {
 				1_000,
 				BoundedVec::new(),
 				None,
-			),
+			)
+			.map_err(|e| e.error),
 			sp_runtime::traits::BadOrigin
 		);
 	});
@@ -682,7 +823,8 @@ fn liquidation_should_revert_correctly_when_evm_call_fails() {
 				alice_evm_address,
 				borrow_dot_amount,
 				route,
-			),
+			)
+			.map_err(|e| e.error),
 			pallet_dispatcher::Error::<Runtime>::AaveHealthFactorNotBelowThreshold
 		);
 
