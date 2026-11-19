@@ -1,6 +1,6 @@
 [package]
 name = "pepl-worker"
-version = "0.2.2"
+version = "0.2.3"
 description = "PEPL Liquidation Worker"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -44,6 +44,7 @@ hydradx-traits = { workspace = true, features = ["std"] }
 pallet-ice-runtime-api = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
+pallet-omnipool = { workspace = true, features = ["std"] }
 pretty_assertions = { workspace = true }
 sc-service = { workspace = true }
 ethereum = { workspace = true, features = ["std"] }

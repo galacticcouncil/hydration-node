@@ -28,6 +28,7 @@ pub trait WeightInfo {
 	fn remove_all_liquidity() -> Weight;
 	fn add_all_liquidity() -> Weight;
 	fn set_slip_fee() -> Weight;
+	fn set_asset_slip_fee_level() -> Weight;
 }
 
 /// Weights for pallet_omnipool using the hydraDX node and recommended hardware.
@@ -687,6 +688,11 @@ impl WeightInfo for () {
 	fn set_slip_fee() -> Weight {
 		Weight::from_parts(10_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(0_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn set_asset_slip_fee_level() -> Weight {
+		Weight::from_parts(10_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

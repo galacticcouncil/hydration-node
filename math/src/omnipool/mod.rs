@@ -8,4 +8,4 @@ mod invariants;
 mod tests;
 
 pub use math::*;
-pub use slip_fee::calculate_slip_fee_amount;
+pub use slip_fee::{apply_slip_fee_level, calculate_slip_fee_amount};
