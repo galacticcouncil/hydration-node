@@ -5733,7 +5733,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.9.0"
+version = "15.9.1"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5901,7 +5901,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "458.0.0"
+version = "459.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -10184,8 +10184,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidation"
-version = "2.6.1"
+version = "2.7.0"
 dependencies = [
+ "environmental",
  "ethabi",
  "ethereum",
  "ethereum-types",
@@ -11596,7 +11597,7 @@ dependencies = [
 
 [[package]]
 name = "pepl-worker"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "amm-simulator",
  "clap",
@@ -14254,7 +14255,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.128.1"
+version = "1.128.2"
 dependencies = [
  "amm-simulator",
  "cerebro-core",

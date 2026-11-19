@@ -139,6 +139,7 @@ fn map_decision_collateral_should_pass_through_when_market_is_generic() {
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	};
 
 	let mapped = map_decision_collateral(&decision, InstanceKind::Generic, &HashMap::new(), "test")
@@ -158,6 +159,7 @@ fn map_decision_collateral_should_replace_underlying_with_atoken_when_market_is_
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	};
 	let atoken_map = HashMap::from([(670u32, 67u32)]); // stHDX -> GIGAHDX aToken
 
@@ -183,6 +185,7 @@ fn map_decision_collateral_should_return_none_when_atoken_mapping_is_missing() {
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	};
 
 	assert_eq!(
@@ -216,6 +219,7 @@ fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_give
 				asset_out: 10,
 			},
 		]),
+		valid_until: None,
 	};
 	let market_pool = H160::repeat_byte(0x77);
 
@@ -922,6 +926,7 @@ fn routable_decision(collateral_asset: AssetId, debt_asset: AssetId) -> Liquidat
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	}
 }
 
@@ -1111,4 +1116,65 @@ fn next_block_timestamp_should_keep_now_while_the_extra_fill_block_is_available(
 	for blocks_at_now in 1..MAX_BLOCKS_PER_SLOT {
 		assert_eq!(next_block_timestamp(1_794_239_616, blocks_at_now), 1_794_239_616);
 	}
+}
+
+#[test]
+fn liquidation_valid_until_should_be_two_blocks_after_decision_when_runtime_has_expiring_call() {
+	assert_eq!(liquidation_valid_until(SUBMIT_LIQUIDATION_SPEC_VERSION, 100), Some(102));
+}
+
+#[test]
+fn liquidation_valid_until_should_be_none_when_runtime_predates_expiring_call() {
+	assert_eq!(liquidation_valid_until(SUBMIT_LIQUIDATION_SPEC_VERSION - 1, 100), None);
+}
+
+#[test]
+fn submit_cooldown_blocks_should_be_liquidation_lifetime_when_liquidation_expires() {
+	assert_eq!(submit_cooldown_blocks(Some(102)), 2);
+}
+
+#[test]
+fn submit_cooldown_blocks_should_be_four_when_liquidation_does_not_expire() {
+	assert_eq!(submit_cooldown_blocks(None), 4);
+}
+
+#[test]
+fn liquidation_call_should_be_submit_liquidation_when_decision_expires() {
+	let pool = sp_core::H160::repeat_byte(0x09);
+	let decision = LiquidationDecision {
+		valid_until: Some(102),
+		..routable_decision(5, 10)
+	};
+
+	assert_eq!(
+		liquidation_call(&decision, pool),
+		RuntimeCall::Liquidation(pallet_liquidation::Call::submit_liquidation {
+			pool,
+			collateral_asset: 5,
+			debt_asset: 10,
+			user: sp_core::H160::repeat_byte(0xAB),
+			debt_to_cover: 1_000,
+			route: Route::new(),
+			priority: 7,
+			valid_until: 102,
+		})
+	);
+}
+
+#[test]
+fn liquidation_call_should_be_liquidate_with_pool_when_decision_does_not_expire() {
+	let pool = sp_core::H160::repeat_byte(0x09);
+
+	assert_eq!(
+		liquidation_call(&routable_decision(5, 10), pool),
+		RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
+			pool,
+			collateral_asset: 5,
+			debt_asset: 10,
+			user: sp_core::H160::repeat_byte(0xAB),
+			debt_to_cover: 1_000,
+			route: Route::new(),
+			unsigned_priority: Some(7),
+		})
+	);
 }
