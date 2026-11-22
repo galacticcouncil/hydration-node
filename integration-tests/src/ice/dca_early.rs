@@ -36,7 +36,7 @@ const BOB_DCA_TRADE: Balance = 400_000_000_000;
 const PIN_FIRST_OUT: Balance = 674_325_708_682;
 const PIN_EARLY_OUT: Balance = 676_286_282_545;
 const PIN_EARLY_BOB_AMM_IN: Balance = 9_323_578_433_142;
-const PIN_SLOT_OUT: Balance = 674_325_474_839;
+const PIN_SLOT_OUT: Balance = 674_392_914_130;
 const PIN_TOGETHER_ALICE_AMM_IN: Balance = 4_086_529_207_152;
 
 fn step() {

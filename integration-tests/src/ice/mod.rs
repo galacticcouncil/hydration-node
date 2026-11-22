@@ -16,3 +16,4 @@ mod recorder;
 mod solver;
 mod split;
 mod stuck_intents;
+mod whole_output;

@@ -179,7 +179,7 @@ fn intent_should_settle_through_both_routes_when_the_new_pool_prices_the_first_c
 			];
 			assert_eq!(pools(&solution), split);
 			assert_eq!(resolved(&solution), vec![(ALICE_ID, sale, 39476715638360922807)]);
-			assert_eq!(received, 39476715638360922807);
+			assert_eq!(received, 39476755115116037928);
 		});
 }
 

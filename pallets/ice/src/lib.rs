@@ -271,6 +271,9 @@ pub mod pallet {
 		/// bound by the limit re-derived from its stored state, and a failing intent is
 		/// skipped instead of failing the batch.
 		///
+		/// Under `SolverMode::V4` an asset's only receiver is paid that asset's residual above
+		/// the matched-volume fee.
+		///
 		/// Parameters:
 		/// - `solution`: solution to execute
 		///
@@ -327,8 +330,8 @@ pub mod pallet {
 			// residual per asset (intent_in + pool_out − intent_out − pool_in)
 			// must cover `matched_X * fee_rate` where `matched_X = intent_in −
 			// pool_in`. The fee is then swept to `T::FeeReceiver`. Anything
-			// beyond the expected fee (pool positive slippage) accumulates in
-			// the holding pot as today.
+			// beyond the expected fee goes to the asset's receiver when it has
+			// only one, otherwise it stays in the holding pot.
 			let mut flows: BTreeMap<AssetId, AssetFlow> = BTreeMap::new();
 
 			for ResolvedIntent { id, data: intent } in &solution.resolved_intents {
@@ -354,6 +357,7 @@ pub mod pallet {
 				entry_in.intent_in = entry_in.intent_in.saturating_add(intent.amount_in());
 				let entry_out = flows.entry(intent.asset_out()).or_default();
 				entry_out.intent_out = entry_out.intent_out.saturating_add(intent.amount_out());
+				entry_out.receivers = entry_out.receivers.saturating_add(1);
 			}
 
 			for t in &solution.trades {
@@ -414,6 +418,11 @@ pub mod pallet {
 				entry_out.pool_out = entry_out.pool_out.saturating_add(actual_pool_out);
 			}
 
+			// Leaves exactly the fee as residual, so `settle_matched_fees` still rejects a shortfall.
+			for f in flows.values_mut().filter(|f| f.receivers == 1) {
+				f.intent_out = f.intent_out.saturating_add(f.excess::<T>(fee_rate));
+			}
+
 			let mut exec_score: Score = 0;
 			let mut exec_prices: BTreeMap<(AssetId, AssetId), Price> = BTreeMap::new();
 			for resolved_intent in &solution.resolved_intents {
@@ -424,20 +433,22 @@ pub mod pallet {
 
 				let owner = pallet_intent::Pallet::<T>::intent_owner(id).ok_or(Error::<T>::IntentOwnerNotFound)?;
 
-				// `resolve.amount_out` is the NET amount delivered to the user
-				// — the solver has already baked the matched-volume fee into
-				// matched pricing. Transfer the full amount; the residual that
+				// The amounts are NET — the solver has already baked the
+				// matched-volume fee into matched pricing. The residual that
 				// remains in the holding pot is the protocol fee, swept below.
-				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), transferring, id: {:?}, to: {:?}, amount: {:?}", LOG_PREFIX, id, owner, resolve.amount_out());
+				let delivered = Self::delivered(&flows, resolved_intent);
+				log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), transferring, id: {:?}, to: {:?}, amount: {:?}", LOG_PREFIX, id, owner, delivered.data.amount_out());
 
 				<T as Config>::Currency::transfer(
 					resolve.asset_out(),
 					&holding_pot,
 					&owner,
-					resolve.amount_out(),
+					delivered.data.amount_out(),
 					AllowDeath,
 				)?;
 
+				// Price and score use the claimed amounts, the only ones the solver and
+				// `validate_unsigned` can know.
 				Self::validate_price_consistency(&mut exec_prices, resolve)?;
 
 				let intent = pallet_intent::Pallet::<T>::get_intent(id).ok_or(Error::<T>::IntentNotFound)?;
@@ -446,12 +457,12 @@ pub mod pallet {
 				log::debug!(target: LOG_TARGET, "{LOG_PREFIX:?}: sumbit_solution(), id: {id:?}, surplus: {surplus:?}");
 				exec_score = exec_score.checked_add(surplus).ok_or(Error::<T>::ArithmeticOverflow)?;
 
-				pallet_intent::Pallet::<T>::intent_resolved(&owner, resolved_intent)?;
+				pallet_intent::Pallet::<T>::intent_resolved(&owner, &delivered)?;
 			}
 
 			// Conservation: the holding pot must hold at least `matched_X * fee_rate`
 			// per asset after all transfers. Sweep that fee to the dedicated
-			// receiver account; any excess (pool positive slippage) stays in the pot.
+			// receiver account; any excess of a shared output asset stays in the pot.
 			Self::settle_matched_fees(&flows, &holding_pot, fee_rate)?;
 
 			log::debug!(target: LOG_TARGET, "{:?}: sumbit_solution(), solution execution finished, exec_score: {:?}, score: {:?}", LOG_PREFIX, exec_score, solution.score);
@@ -615,20 +626,46 @@ pub mod pallet {
 /// `matched_X` is the volume of `X` that flowed intent-to-intent without
 /// touching an AMM. The protocol fee on that volume is what stays in the
 /// holding pot after every other transfer settles; it is then swept to
-/// `T::FeeReceiver`. Pool positive slippage (`pool_out` exceeding the
-/// solver's claimed minimum) lands on top and stays in the working pot.
+/// `T::FeeReceiver`. Anything above it (e.g. pool positive slippage) is paid
+/// to the asset's receiver when it has only one, otherwise it stays in the pot.
 #[derive(Default, Clone, Copy)]
 struct AssetFlow {
 	/// Sum of `resolve.amount_in` over resolved intents with `asset_in == X`.
 	intent_in: Balance,
-	/// Sum of `resolve.amount_out` over resolved intents with `asset_out == X`.
+	/// Sum of `resolve.amount_out` over resolved intents with `asset_out == X`,
+	/// raised by the excess when `receivers == 1`.
 	intent_out: Balance,
+	receivers: u32,
 	/// Sum of `trade.amount_in` over pool trades with `asset_in == X`.
 	pool_in: Balance,
 	/// Sum of actual amounts received by the holding pot from pool trades
 	/// with `asset_out == X` (measured via balance delta — captures positive
 	/// pool slippage). The claimed `trade.amount_out` is only a minimum.
 	pool_out: Balance,
+}
+
+impl AssetFlow {
+	fn expected_fee(&self, fee_rate: Permill) -> Balance {
+		fee_rate.mul_floor(self.intent_in.saturating_sub(self.pool_in))
+	}
+
+	fn residual<T: Config>(&self) -> Result<Balance, Error<T>> {
+		let inflows = self
+			.intent_in
+			.checked_add(self.pool_out)
+			.ok_or(Error::<T>::ArithmeticOverflow)?;
+		let outflows = self
+			.intent_out
+			.checked_add(self.pool_in)
+			.ok_or(Error::<T>::ArithmeticOverflow)?;
+		inflows.checked_sub(outflows).ok_or(Error::<T>::FeeMismatch)
+	}
+
+	/// Residual above the expected fee; `0` when the residual does not cover it.
+	fn excess<T: Config>(&self, fee_rate: Permill) -> Balance {
+		self.residual::<T>()
+			.map_or(0, |r| r.saturating_sub(self.expected_fee(fee_rate)))
+	}
 }
 
 impl<T: Config> Pallet<T> {
@@ -758,6 +795,19 @@ impl<T: Config> Pallet<T> {
 		Ok(surplus)
 	}
 
+	/// `resolved` with the amount paid out. A sole receiver's raised `intent_out`
+	/// is its own claim plus the asset's excess.
+	fn delivered(flows: &BTreeMap<AssetId, AssetFlow>, resolved: &ResolvedIntent) -> ResolvedIntent {
+		let mut delivered = resolved.clone();
+		if let Some(f) = flows.get(&resolved.data.asset_out()).filter(|f| f.receivers == 1) {
+			match &mut delivered.data {
+				IntentData::Swap(s) | IntentData::MatchFirstSwap { swap: s, .. } => s.amount_out = f.intent_out,
+				IntentData::Dca(d) => d.amount_out = f.intent_out,
+			}
+		}
+		delivered
+	}
+
 	/// Verify the matched-volume fee invariant and sweep collected fees to the
 	/// dedicated `T::FeeReceiver` account.
 	fn settle_matched_fees(
@@ -767,19 +817,8 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let fee_receiver = T::FeeReceiver::get();
 		for (asset, f) in flows.iter() {
-			let matched = f.intent_in.saturating_sub(f.pool_in);
-			let expected_fee = fee_rate.mul_floor(matched);
-
-			let inflows = f
-				.intent_in
-				.checked_add(f.pool_out)
-				.ok_or(Error::<T>::ArithmeticOverflow)?;
-			let outflows = f
-				.intent_out
-				.checked_add(f.pool_in)
-				.ok_or(Error::<T>::ArithmeticOverflow)?;
-			let residual = inflows.checked_sub(outflows).ok_or(Error::<T>::FeeMismatch)?;
-			ensure!(residual >= expected_fee, Error::<T>::FeeMismatch);
+			let expected_fee = f.expected_fee(fee_rate);
+			ensure!(f.residual::<T>()? >= expected_fee, Error::<T>::FeeMismatch);
 
 			// Only sweep when the fee clears the asset's existential deposit.
 			// A sub-ED transfer to the (non-dust-protected) receiver would be
