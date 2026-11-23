@@ -1,6 +1,6 @@
 [package]
 name = "pallet-liquidation"
-version = "2.7.0"
+version = "2.8.0"
 description = "A pallet for money market liquidations"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -13,6 +13,7 @@ codec = { workspace = true, features = ["derive", "max-encoded-len"] }
 scale-info = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }
+environmental = { workspace = true }
 
 # primitives
 sp-std = { workspace = true }
@@ -67,6 +68,7 @@ ethereum-types = { workspace = true }
 default = ["std"]
 std = [
     "codec/std",
+    "environmental/std",
     "frame-support/std",
     "frame-system/std",
     "sp-core/std",
