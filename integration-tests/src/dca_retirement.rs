@@ -2,17 +2,15 @@
 
 use crate::driver::HydrationTestDriver;
 use crate::ice::PATH_TO_SNAPSHOT;
-use crate::polkadot_test_net::{
-	hydradx_run_to_next_block, Hydra, TestNet, ALICE, BOB, CHARLIE, DOT, HDX, LOCAL_EXT_HYDRAPARACHAIN, LRNA, UNITS,
-};
+use crate::polkadot_test_net::{hydradx_run_to_next_block, Hydra, TestNet, ALICE, BOB, CHARLIE, DOT, HDX, LRNA, UNITS};
 use amm_simulator::HydrationSimulator;
 use codec::Decode;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::weights::Weight;
-use frame_support::{assert_ok, storage_alias, Blake2_128Concat, BoundedVec, Twox64Concat};
+use frame_support::{assert_ok, storage_alias, Blake2_128Concat, Twox64Concat};
 use hydradx_runtime::migrations::dca::{
 	LegacyOrder, LegacySchedule, MigrateDcaToIntents, RemainingAmounts, ScheduleIdsPerBlock, Schedules, DCA_RESERVE_ID,
-	MAX_DCA_KEYS, MAX_RESERVES_SCANNED, MAX_SCHEDULES,
+	MAX_DCA_KEYS, MAX_SCHEDULES,
 };
 use hydradx_runtime::{AssetRegistry, Currencies, Runtime, RuntimeOrigin, System, Tokens, Treasury};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
@@ -414,28 +412,17 @@ fn migration_should_release_whole_legacy_reserve_when_it_exceeds_remaining_amoun
 	});
 }
 
-fn assert_reserve_released_without_schedule(asset: AssetId) {
+#[test]
+fn migration_should_leave_legacy_reserve_when_owner_has_no_schedule() {
 	genesis(|| {
 		let stranger = owner();
-		endow(&stranger, asset, ENDOWMENT);
-		reserve_legacy(&stranger, asset, 7 * UNITS);
+		endow(&stranger, DOT, ENDOWMENT);
+		reserve_legacy(&stranger, DOT, 7 * UNITS);
 
-		migrate();
+		migrate_unchecked();
 
-		assert_eq!(reserved(&DCA_RESERVE_ID, asset, &stranger), 0);
-		assert_eq!(Currencies::reserved_balance(asset, &stranger), 0);
-		assert_eq!(Currencies::free_balance(asset, &stranger), ENDOWMENT);
+		assert_eq!(reserved(&DCA_RESERVE_ID, DOT, &stranger), 7 * UNITS);
 	});
-}
-
-#[test]
-fn migration_should_release_legacy_reserve_when_owner_of_orml_token_has_no_schedule() {
-	assert_reserve_released_without_schedule(DOT);
-}
-
-#[test]
-fn migration_should_release_legacy_reserve_when_owner_of_native_hdx_has_no_schedule() {
-	assert_reserve_released_without_schedule(HDX);
 }
 
 #[test]
@@ -657,24 +644,11 @@ fn migration_should_change_nothing_when_more_than_max_schedules_exist() {
 }
 
 #[test]
-fn migration_should_change_nothing_when_more_than_max_schedules_accounts_hold_a_legacy_reserve() {
-	genesis(|| {
-		for owner in (0..=MAX_SCHEDULES as u32).map(numbered_owner) {
-			endow(&owner, DOT, ENDOWMENT);
-			reserve_legacy(&owner, DOT, 7 * UNITS);
-		}
-		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
-
-		assert_migration_changes_nothing();
-	});
-}
-
-#[test]
-fn migration_should_change_nothing_when_reserve_entries_exceed_scan_limit() {
+fn migration_should_change_nothing_when_more_than_max_schedules_planned_blocks_exist() {
 	genesis(|| {
 		plant_convertible(1);
-		for i in 0..=MAX_RESERVES_SCANNED as u32 {
-			insert_filler_reserve(numbered_owner(i));
+		for block in 0..=MAX_SCHEDULES as u32 {
+			ScheduleIdsPerBlock::insert(START_BLOCK + block, vec![1]);
 		}
 		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
 
@@ -855,6 +829,12 @@ fn reserve_hollar_beyond_custody(owner: &AccountId) {
 		owner,
 		excess
 	));
+	plant(
+		u32::MAX - 2,
+		sell(owner.clone(), HOLLAR, HDX, 10 * ONE_HOLLAR, 0),
+		None,
+		None,
+	);
 }
 
 fn plant_healthy_hdx_schedule(owner: &AccountId) {
@@ -939,8 +919,46 @@ fn migration_should_keep_keys_under_dca_prefix_when_bound_erc20_release_fails() 
 
 		migrate_unchecked();
 
-		// `ScheduleOwnership` and `ScheduleIdSequencer`.
-		assert_eq!(dca_key_count(), 2);
+		// Both `Schedules`, `ScheduleOwnership` and `ScheduleIdSequencer`.
+		assert_eq!(dca_key_count(), 4);
+	});
+}
+
+#[test]
+fn migration_should_release_legacy_reserve_when_run_again_after_bound_erc20_release_failed() {
+	snapshot(|| {
+		let owner: AccountId = CHARLIE.into();
+		reserve_hollar_beyond_custody(&owner);
+		migrate_unchecked();
+		assert_ok!(Currencies::transfer(
+			RuntimeOrigin::signed(Treasury::account_id()),
+			custody(),
+			HOLLAR,
+			ONE_HOLLAR,
+		));
+
+		migrate();
+
+		assert_eq!(reserved(&DCA_RESERVE_ID, HOLLAR, &owner), 0);
+		assert_eq!(
+			Currencies::free_balance(HOLLAR, &owner),
+			SNAPSHOT_CUSTODY_HOLLAR + 51 * ONE_HOLLAR
+		);
+		assert_eq!(Currencies::free_balance(HOLLAR, &custody()), 0);
+	});
+}
+
+#[test]
+fn migration_should_not_convert_schedule_again_when_run_again_after_unfinished_run() {
+	snapshot(|| {
+		let alice: AccountId = ALICE.into();
+		plant_healthy_hdx_schedule(&alice);
+		reserve_hollar_beyond_custody(&CHARLIE.into());
+		migrate_unchecked();
+
+		migrate_unchecked();
+
+		assert_eq!(dca_intents_of(&alice).len(), 1);
 	});
 }
 
@@ -956,42 +974,28 @@ fn dca_key_count() -> usize {
 }
 
 #[test]
-fn migration_should_leave_keys_beyond_limit_under_dca_prefix_when_more_keys_exist_in_backend() {
+fn migration_should_change_nothing_when_more_than_max_dca_keys_exist() {
 	genesis(|| {
+		plant_convertible(1);
 		for id in 0..=MAX_DCA_KEYS {
 			ScheduleExecutionBlock::insert(id, START_BLOCK);
 		}
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
+
+		assert_migration_changes_nothing();
 	});
-	// `clear_prefix` only counts backend keys against its limit.
-	LOCAL_EXT_HYDRAPARACHAIN.with(|ext| ext.borrow_mut().commit_all().expect("no open transaction"));
-
-	Hydra::execute_with(|| {
-		migrate_unchecked();
-
-		assert_eq!(dca_key_count(), 1);
-	});
-}
-
-fn insert_filler_reserve(owner: AccountId) {
-	orml_tokens::Reserves::<Runtime>::insert(
-		owner,
-		BNC,
-		BoundedVec::truncate_from(vec![orml_tokens::ReserveData {
-			id: *b"filler__",
-			amount: 1,
-		}]),
-	);
 }
 
 #[test]
-fn migration_should_charge_proof_size_for_scanned_reserve_when_no_legacy_state_exists() {
+fn migration_should_charge_proof_size_per_read_when_retiring_an_orphan_schedule() {
 	genesis(|| {
-		insert_filler_reserve(owner());
+		plant(1, sell(owner(), DOT, HDX, 5 * UNITS, 100 * UNITS), None, None);
 
 		let weight = MigrateDcaToIntents::on_runtime_upgrade();
 
-		// One reserve entry read, one pause entry removed.
-		assert_eq!(weight, Weight::from_parts(125_000_000, 512));
+		// Five reads (schedule, two DCA keys, remaining amount, reserve) and two writes; `clear_prefix` counts
+		// only backend keys, and these sit in the overlay.
+		assert_eq!(weight, Weight::from_parts(325_000_000, 2_560));
 	});
 }
 

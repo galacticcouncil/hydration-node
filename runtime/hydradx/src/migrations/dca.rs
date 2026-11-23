@@ -6,10 +6,10 @@
 //! storage is read through aliases.
 
 use crate::evm::erc20_currency::GAS_LIMIT as ERC20_GAS_LIMIT;
-use crate::{AccountId, AssetRegistry, Balance, Currencies, Dispatcher, Intent, NativeAssetId, Runtime};
+use crate::{AccountId, AssetRegistry, Balance, Currencies, Dispatcher, Intent, Runtime};
 use codec::{Decode, Encode};
 use frame_support::{
-	storage::{unhashed, with_transaction},
+	storage::{unhashed, with_transaction, KeyPrefixIterator},
 	storage_alias,
 	traits::OnRuntimeUpgrade,
 	weights::Weight,
@@ -22,14 +22,12 @@ use pallet_evm::GasWeightMapping;
 use pallet_transaction_pause::{BoundedName, PausedTransactions};
 use primitives::AssetId;
 use sp_runtime::{DispatchError, Permill, TransactionOutcome};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 use sp_std::vec::Vec;
 
 pub const DCA_RESERVE_ID: [u8; 8] = *b"dcaorder";
 /// Above this the migration aborts; mainnet holds about half.
 pub const MAX_SCHEDULES: usize = 30;
-/// Mainnet holds about 1,400 reserve entries.
-pub const MAX_RESERVES_SCANNED: usize = 4_000;
 pub const MAX_DCA_KEYS: u32 = 1_000;
 /// Upper estimate for one entry's key, value and trie nodes.
 const PROOF_SIZE_PER_READ: u64 = 512;
@@ -104,24 +102,39 @@ impl MigrateDcaToIntents {
 			log::error!(target: LOG_TARGET, "DCA retirement aborted: more than {MAX_SCHEDULES} schedules, nothing changed");
 			return;
 		}
-		let Some(legacy) = Self::legacy_reserves(meter) else {
+		let planned_blocks: Vec<_> = ScheduleIdsPerBlock::iter().take(MAX_SCHEDULES + 1).collect();
+		meter.reads += planned_blocks.len() as u64;
+		if planned_blocks.len() > MAX_SCHEDULES {
+			log::error!(target: LOG_TARGET, "DCA retirement aborted: more than {MAX_SCHEDULES} planned blocks, nothing changed");
 			return;
-		};
+		}
+		let prefix = sp_io::hashing::twox_128(b"DCA").to_vec();
+		let dca_keys = KeyPrefixIterator::new(prefix.clone(), prefix, |_| Ok(()))
+			.take(MAX_DCA_KEYS as usize + 1)
+			.count();
+		meter.reads += dca_keys as u64;
+		if dca_keys > MAX_DCA_KEYS as usize {
+			log::error!(target: LOG_TARGET, "DCA retirement aborted: more than {MAX_DCA_KEYS} DCA keys, nothing changed");
+			return;
+		}
 
 		let mut planned = BTreeMap::<u32, u32>::new();
-		for (block, ids) in ScheduleIdsPerBlock::iter().take(MAX_SCHEDULES + 1) {
-			meter.reads += 1;
+		for (block, ids) in planned_blocks {
 			for id in ids {
 				planned.entry(id).and_modify(|b| *b = (*b).min(block)).or_insert(block);
 			}
 		}
 
+		let legacy: BTreeSet<_> = schedules
+			.iter()
+			.map(|(_, schedule)| (schedule.owner.clone(), schedule.order.asset_in()))
+			.collect();
 		schedules.sort_by_key(|(id, _)| *id);
 		for (id, schedule) in schedules {
 			Self::migrate_schedule(id, &schedule, planned.get(&id).copied(), meter);
-			Schedules::remove(id);
+			// The `Schedules` entry stays, so a re-run sees an orphan and still retries its reserve.
 			RemainingAmounts::remove(id);
-			meter.writes += 2;
+			meter.writes += 1;
 		}
 
 		if !Self::release_legacy_reserves(legacy, meter) {
@@ -143,7 +156,7 @@ impl MigrateDcaToIntents {
 	fn migrate_schedule(id: u32, schedule: &LegacySchedule, planned: Option<u32>, meter: &mut Meter) {
 		meter.reads += 1;
 		let Some(remaining) = RemainingAmounts::get(id) else {
-			log::info!(target: LOG_TARGET, "DCA schedule {id}: orphan without remaining amount, deleted");
+			log::info!(target: LOG_TARGET, "DCA schedule {id}: orphan without remaining amount, skipped");
 			return;
 		};
 
@@ -210,37 +223,8 @@ impl MigrateDcaToIntents {
 		log::info!(target: LOG_TARGET, "DCA schedule {id} cancelled ({reason:?}): refunded {refunded} of asset {asset} (extra gas used: {extra_gas})");
 	}
 
-	/// `None` when the scan hit its bound or found more than `MAX_SCHEDULES` holders.
-	fn legacy_reserves(meter: &mut Meter) -> Option<Vec<(AccountId, AssetId)>> {
-		let native = pallet_balances::Reserves::<Runtime>::iter().map(|(owner, reserves)| {
-			let held = reserves.iter().any(|r| r.id == DCA_RESERVE_ID);
-			(owner, NativeAssetId::get(), held)
-		});
-		let tokens = orml_tokens::Reserves::<Runtime>::iter().map(|(owner, asset, reserves)| {
-			let held = reserves.iter().any(|r| r.id == DCA_RESERVE_ID);
-			(owner, asset, held)
-		});
-		let mut scanned = 0;
-		let legacy: Vec<_> = native
-			.chain(tokens)
-			.take(MAX_RESERVES_SCANNED)
-			.inspect(|_| scanned += 1)
-			.filter_map(|(owner, asset, held)| held.then_some((owner, asset)))
-			.collect();
-		meter.reads += scanned as u64;
-		if scanned >= MAX_RESERVES_SCANNED {
-			log::error!(target: LOG_TARGET, "DCA retirement aborted: reserve scan reached {MAX_RESERVES_SCANNED} entries, nothing changed");
-			return None;
-		}
-		if legacy.len() > MAX_SCHEDULES {
-			log::error!(target: LOG_TARGET, "DCA retirement aborted: {} dcaorder reserves exceed {MAX_SCHEDULES}, nothing changed", legacy.len());
-			return None;
-		}
-		Some(legacy)
-	}
-
 	/// Returns whether every `dcaorder` reserve was released.
-	fn release_legacy_reserves(legacy: Vec<(AccountId, AssetId)>, meter: &mut Meter) -> bool {
+	fn release_legacy_reserves(legacy: BTreeSet<(AccountId, AssetId)>, meter: &mut Meter) -> bool {
 		let mut clean = true;
 		for (owner, asset) in legacy {
 			meter.reads += 1;
