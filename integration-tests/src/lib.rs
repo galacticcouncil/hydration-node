@@ -1,5 +1,5 @@
 #![cfg(test)]
-// DCA pallet uses dummy router for benchmarks and some tests fail when benchmarking feature is enabled
+// Benchmark builds wire dummy routers and price providers into the runtime, which breaks these tests
 #![cfg(not(feature = "runtime-benchmarks"))]
 mod aave_router;
 mod aave_simulator;
@@ -10,7 +10,7 @@ mod cerebro_diff;
 mod circuit_breaker;
 mod contracts;
 mod cross_chain_transfer;
-mod dca;
+mod dca_retirement;
 mod deposit_limiter;
 mod dispatcher;
 mod driver;

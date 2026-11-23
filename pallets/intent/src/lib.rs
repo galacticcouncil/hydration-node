@@ -499,19 +499,24 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::MaxIntentsReached
 		);
 
-		Self::do_add_intent(owner, input)
+		Self::do_add_intent(owner, input, 0)
 	}
 
-	/// Creates a DCA intent for a schedule converted from `pallet-dca`.
+	/// Creates a DCA intent for a converted legacy DCA schedule, first offered to the solver at
+	/// `max(first_eligible_block, current block)`.
 	///
-	/// The per-account cap is not enforced here — see `IntentMigrator`.
+	/// The per-account cap is not enforced: refusing would strand the already released reserve.
 	///
 	/// A sub-ED `amount_out` is lifted to the ED instead of rejected: it is only the user's hard
 	/// floor, and the enforced minimum stays `max(hard limit, oracle floor)`
 	/// (`compute_dca_effective_limit`), so lifting it cannot execute the schedule any worse.
 	/// `amount_in` is deliberately not clamped — raising the spend side would change the schedule.
 	#[require_transactional]
-	pub fn do_add_migrated_intent(owner: T::AccountId, mut params: DcaParams) -> Result<IntentId, DispatchError> {
+	pub fn do_add_migrated_intent(
+		owner: T::AccountId,
+		mut params: DcaParams,
+		first_eligible_block: u32,
+	) -> Result<IntentId, DispatchError> {
 		if let Some(ed_out) = T::RegistryHandler::existential_deposit(params.asset_out) {
 			params.amount_out = params.amount_out.max(ed_out);
 		}
@@ -528,6 +533,7 @@ impl<T: Config> Pallet<T> {
 				deadline: None,
 				on_resolved: None,
 			},
+			first_eligible_block,
 		)
 	}
 
@@ -540,7 +546,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[require_transactional]
-	fn do_add_intent(owner: T::AccountId, input: IntentInput) -> Result<IntentId, DispatchError> {
+	fn do_add_intent(
+		owner: T::AccountId,
+		input: IntentInput,
+		first_eligible_block: u32,
+	) -> Result<IntentId, DispatchError> {
 		let now = T::TimestampProvider::now();
 		if let Some(deadline) = input.deadline {
 			log::debug!(target: OCW_LOG_TARGET, "{:?}: add_intent(), deadline: {:?}, now: {:?}, max_deadline: {:?}",
@@ -602,9 +612,10 @@ impl<T: Config> Pallet<T> {
 				// Back-dated by one period so the first trade is due immediately: `period` is the gap
 				// between trades, not a delay before the first one. `resolve_dca_intent` stamps
 				// `max(last + period, current)`, so an early fill consumes its slot and the cadence stays exact.
+				let first_eligible = current_block.max(first_eligible_block);
 				IntentData::Dca(
 					data.clone()
-						.into_data(reserve_amount, current_block.saturating_sub(data.period)),
+						.into_data(reserve_amount, first_eligible.saturating_sub(data.period)),
 				)
 			}
 			IntentDataInput::MatchFirstSwap { ref swap, match_window } => {
@@ -1331,11 +1342,5 @@ impl<T: Config> Pallet<T> {
 			current_id
 		});
 		(deadline as u128) << 64 | incremental_id as u128
-	}
-}
-
-impl<T: Config> ice_support::IntentMigrator<T::AccountId> for Pallet<T> {
-	fn add_migrated_intent(owner: T::AccountId, params: DcaParams) -> Result<IntentId, DispatchError> {
-		Self::do_add_migrated_intent(owner, params)
 	}
 }

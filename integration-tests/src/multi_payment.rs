@@ -30,8 +30,8 @@ fn set_currency_should_fail_when_insufficient_asset_has_xyk_dot_pool() {
 			hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
 
 			//Arrange
-			crate::dca::init_omnipool_with_oracle_for_block_10();
-			crate::dca::add_dot_as_payment_currency();
+			crate::utils::pools::init_omnipool_with_oracle_for_block_10();
+			crate::utils::pools::add_dot_as_payment_currency();
 
 			let name = b"INSUF1".to_vec();
 			let insufficient_asset = AssetRegistry::register_insufficient_asset(
@@ -80,8 +80,8 @@ fn insufficient_asset_should_not_be_set_as_currency_when_pool_doesnt_exist() {
 			hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
 
 			//Arrange
-			crate::dca::init_omnipool_with_oracle_for_block_10();
-			//crate::dca::add_dot_as_payment_currency();
+			crate::utils::pools::init_omnipool_with_oracle_for_block_10();
+			//crate::utils::pools::add_dot_as_payment_currency();
 
 			let name = b"INSUF1".to_vec();
 			let insufficient_asset = AssetRegistry::register_insufficient_asset(
@@ -117,8 +117,8 @@ fn set_currency_should_fail_when_sufficient_asset_is_not_accepted() {
 			hydradx_runtime::AssetRegistry::set_location(DOT, DOT_ASSET_LOCATION).unwrap();
 
 			//Arrange
-			crate::dca::init_omnipool_with_oracle_for_block_10();
-			crate::dca::add_dot_as_payment_currency();
+			crate::utils::pools::init_omnipool_with_oracle_for_block_10();
+			crate::utils::pools::add_dot_as_payment_currency();
 
 			let name = b"INSUF1".to_vec();
 			let sufficient_but_not_accepted_asset = AssetRegistry::register_sufficient_asset(
@@ -224,7 +224,7 @@ fn set_currency_in_batch_should_fail_for_unaccepted_asset_with_oracle_price() {
 		let _ = with_transaction(|| {
 			// Arrange
 			let dot = DOT;
-			crate::dca::init_omnipool_with_oracle_for_block_10();
+			crate::utils::pools::init_omnipool_with_oracle_for_block_10();
 			assert_ok!(Currencies::update_balance(
 				hydradx_runtime::RuntimeOrigin::root(),
 				Omnipool::protocol_account(),

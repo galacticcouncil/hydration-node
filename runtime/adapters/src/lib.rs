@@ -18,7 +18,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{EncodeLike, FullCodec};
-use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
 	sp_runtime::{
 		traits::{AtLeast32BitUnsigned, Convert, Get, MaybeSerializeDeserialize, Saturating, Zero},
@@ -283,45 +282,6 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()
-	}
-}
-
-pub trait RelayChainBlockHashProvider {
-	fn parent_hash() -> Option<Hash>;
-}
-// The reason why there is difference between PROD and benchmark is that it is not possible
-// to set validation data in parachain system pallet in the benchmarks.
-// So for benchmarking, we mock it out and return some hardcoded parent hash
-pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::ValidationData::<Runtime>::get();
-		match validation_data {
-			Some(data) => Some(data.parent_head.hash()),
-			None => None,
-		}
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		// We use the same hash as for integration tests
-		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
-		let hash = [
-			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
-			135, 250, 171, 69, 205, 241, 47, 227, 168,
-		]
-		.into();
-		Some(hash)
 	}
 }
 
@@ -622,8 +582,8 @@ where
 				// executed swap, under their own source. Reading that (rather than the pool's
 				// live `slot0` price) is what keeps this provider manipulation-resistant: a
 				// spot-price arm would make the `LastBlock` and `Short` periods identical, which
-				// silently disables pallet-dca's price-stability check and would let a walkable
-				// AMM price reach `set_route` and everything priced off a default route.
+				// would let a walkable AMM price reach `set_route` and everything priced off a
+				// default route.
 				// A pool with no oracle history yet returns `None`, same as any cold pair.
 				PoolType::UniswapV3(_) => {
 					let price_result = AggregatedPriceGetter::get_price(asset_a, asset_b, period, UNISWAPV3_SOURCE);
