@@ -1,7 +1,5 @@
 #![cfg(test)]
 
-use crate::dca::create_schedule;
-use crate::dca::schedule_fake_with_sell_order;
 use crate::liquidation::{borrow, supply};
 use crate::polkadot_test_net::*;
 use crate::utils::accounts::*;
@@ -10,7 +8,7 @@ use frame_support::assert_ok;
 use frame_support::pallet_prelude::DispatchError::Other;
 use frame_support::pallet_prelude::ValidateUnsigned;
 use frame_support::storage::with_transaction;
-use frame_support::traits::{ExistenceRequirement, OnInitialize};
+use frame_support::traits::ExistenceRequirement;
 use frame_support::{assert_noop, BoundedVec};
 use hex_literal::hex;
 use hydradx_runtime::evm::aave_trade_executor::AaveTradeExecutor;
@@ -776,46 +774,6 @@ fn router_should_set_on_chain_route() {
 			route.clone().try_into().unwrap()
 		));
 		assert_eq!(Router::get_route(pair), route);
-	})
-}
-
-#[test]
-fn dca_schedule_buying_atokens_should_be_created() {
-	with_aave(|| {
-		create_schedule(
-			ALICE,
-			schedule_fake_with_sell_order(ALICE, Aave, 10 * ONE, DOT, ADOT, ONE),
-		);
-	})
-}
-
-#[test]
-fn dca_schedule_selling_atokens_should_be_created() {
-	with_aave(|| {
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::add_currency(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ADOT,
-			FixedU128::from_rational(1, 100000),
-		));
-		hydradx_runtime::MultiTransactionPayment::on_initialize(0);
-		assert_ok!(Router::buy(
-			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
-			DOT,
-			ADOT,
-			1000 * ONE,
-			1000 * ONE + 2,
-			vec![Trade {
-				pool: Aave,
-				asset_in: DOT,
-				asset_out: ADOT,
-			}]
-			.try_into()
-			.unwrap()
-		));
-		create_schedule(
-			ALICE,
-			schedule_fake_with_sell_order(ALICE, Aave, 10 * ONE, ADOT, DOT, ONE),
-		);
 	})
 }
 

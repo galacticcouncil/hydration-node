@@ -27,7 +27,6 @@ use frame_support::{
 	sp_runtime::traits::{One, PhantomData},
 	sp_runtime::{
 		app_crypto::sp_core::crypto::UncheckedFrom, traits::Zero, DispatchError, DispatchResult, FixedPointNumber,
-		Percent,
 	},
 	sp_runtime::{FixedU128, Perbill, Permill},
 	traits::{
@@ -40,8 +39,7 @@ use frame_system::{EnsureRoot, RawOrigin};
 use hydradx_adapters::{
 	stableswap_peg_oracle::PegOracle, AssetFeeOraclePriceProvider, EmaOraclePriceAdapter, FreezableNFT,
 	MultiCurrencyLockedBalance, OmnipoolHookAdapter, OmnipoolRawOracleAssetVolumeProvider, OraclePriceProvider,
-	PriceAdjustmentAdapter, RelayChainBlockHashProvider, RelayChainBlockNumberProvider, StableswapHooksAdapter,
-	VestingInfo,
+	PriceAdjustmentAdapter, RelayChainBlockNumberProvider, StableswapHooksAdapter, VestingInfo,
 };
 #[cfg(feature = "runtime-benchmarks")]
 use hydradx_traits::evm::CallContext;
@@ -70,7 +68,6 @@ use pallet_omnipool::{
 	traits::{EnsurePriceWithin, OmnipoolHooks},
 	weights::WeightInfo as OmnipoolWeights,
 };
-use pallet_otc::NamedReserveIdentifier;
 use pallet_route_executor::{weights::WeightInfo as RouterWeights, AmmTradeWeights};
 use pallet_stableswap::weights::WeightInfo as StableswapWeights;
 use sp_runtime::{traits::Verify, MultiSignature};
@@ -658,52 +655,10 @@ impl pallet_xyk_liquidity_mining::Config for Runtime {
 	type WeightInfo = weights::pallet_xyk_liquidity_mining::HydraWeight<Runtime>;
 }
 
-// The reason why there is difference between PROD and benchmark is that it is not possible
-// to set validation data in parachain system pallet in the benchmarks.
-// So for benchmarking, we mock it out and return some hardcoded parent hash
-pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::ValidationData::<Runtime>::get();
-		match validation_data {
-			Some(data) => Some(data.parent_head.hash()),
-			None => None,
-		}
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		None
-	}
-}
-
 use hydradx_traits::pools::SpotPriceProvider;
-#[cfg(feature = "runtime-benchmarks")]
-use hydradx_traits::PriceOracle;
 
 #[cfg(feature = "runtime-benchmarks")]
 use hydra_dx_math::ema::EmaPrice;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub struct DummyOraclePriceProvider;
-#[cfg(feature = "runtime-benchmarks")]
-impl PriceOracle<AssetId> for DummyOraclePriceProvider {
-	type Price = EmaPrice;
-
-	fn price(_route: &[Trade<AssetId>], _period: OraclePeriod) -> Option<Self::Price> {
-		Some(EmaPrice::one())
-	}
-}
 
 #[cfg(feature = "runtime-benchmarks")]
 pub struct DummySpotPriceProvider;
@@ -728,14 +683,7 @@ impl frame_system::offchain::SigningTypes for Runtime {
 }
 
 parameter_types! {
-	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
-	pub MaxSchedulesPerBlock: u32 = 6;
-	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
-	pub MaxConfigurablePriceDifference: Permill = Permill::from_percent(5);
 	pub MinimalPeriod: u32 = 15;
-	pub BumpChance: Percent = Percent::from_percent(17);
-	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
-	pub MaxNumberOfRetriesOnError: u8 = 3;
 	pub ShortOraclePeriod: OraclePeriod = OraclePeriod::Short;
 }
 
@@ -747,76 +695,6 @@ pub type FeePriceOracle = AssetFeeOraclePriceProvider<
 	MultiTransactionPayment,
 	ShortOraclePeriod,
 >;
-
-pub struct RetryOnErrorForDca;
-
-impl Contains<DispatchError> for RetryOnErrorForDca {
-	fn contains(t: &DispatchError) -> bool {
-		let errors: Vec<DispatchError> = vec![
-			pallet_omnipool::Error::<Runtime>::AssetNotFound.into(),
-			pallet_omnipool::Error::<Runtime>::NotAllowed.into(),
-			// Off-by-one rounding on aToken balanceOf can trip the omnipool's
-			// pre-trade ensure_can_withdraw. Retry on a later block — the aave
-			// liquidity index is timestamp-dependent, so the rounding boundary
-			// shifts and a later attempt may pass.
-			pallet_omnipool::Error::<Runtime>::InsufficientBalance.into(),
-			// same class as dca's own retriable TradeLimitReached — erc20/aToken rounding
-			// can undershoot the dry-run output passed as router min limit
-			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
-			pallet_dispatcher::Error::<Runtime>::EvmOutOfGas.into(),
-			pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity.into(),
-			pallet_circuit_breaker::Error::<Runtime>::DepositLimitExceededForWhitelistedAccount.into(),
-		];
-		errors.contains(t)
-	}
-}
-
-impl pallet_dca::Config for Runtime {
-	type AssetId = AssetId;
-	type TerminateOrigin = EitherOf<EnsureRoot<Self::AccountId>, EitherOf<TechCommitteeMajority, GeneralAdmin>>;
-	type Currencies = Currencies;
-	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
-	type RandomnessProvider = DCA;
-	type IntentMigrator = Intent;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type OraclePriceProvider = OraclePriceProvider<AssetId, EmaOracle, LRNA>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type OraclePriceProvider = DummyOraclePriceProvider;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type RouteExecutor = Router;
-	#[cfg(feature = "runtime-benchmarks")]
-	type RouteExecutor = pallet_route_executor::DummyRouter<Runtime>;
-	type RouteProvider = Router;
-	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
-	type MaxConfigurablePriceDifferenceBetweenBlocks = MaxConfigurablePriceDifference;
-	type MinimalPeriod = MinimalPeriod;
-	type BumpChance = BumpChance;
-	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
-	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
-	type NativeAssetId = NativeAssetId;
-	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
-	type MinimumTradingLimit = MinTradingLimit;
-	type FeeReceiver = TreasuryAccount;
-	type NamedReserveId = NamedReserveId;
-	type WeightToFee = WeightToFee;
-	type AmmTradeWeights = RouterWeightInfo;
-	type WeightInfo = weights::pallet_dca::HydraWeight<Runtime>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type NativePriceOracle = FeePriceOracle;
-	#[cfg(feature = "runtime-benchmarks")]
-	type NativePriceOracle = AssetFeeOraclePriceProvider<
-		NativeAssetId,
-		MultiTransactionPayment,
-		Router,
-		DummyOraclePriceProvider,
-		MultiTransactionPayment,
-		ShortOraclePeriod,
-	>;
-	type RetryOnError = RetryOnErrorForDca;
-	type AccountFeeCurrency = MultiTransactionPayment;
-	type ExtraGasSupport = Dispatcher;
-	type GasWeightMapping = evm::FixedHydraGasWeightMapping<Runtime>;
-}
 
 // Provides weight info for the router. Router extrinsics can be executed with different AMMs, so we split the router weights into two parts:
 // the router extrinsic overhead and the AMM weight.
@@ -952,7 +830,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		weight
 	}
 
-	// Used in DCA::schedule extrinsic, which calls Router::calculate_buy_trade_amounts
+	// Router::calculate_buy_trade_amounts
 	fn calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_buy is executed
@@ -985,7 +863,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		weight
 	}
 
-	// Used in DCA::on_initialize for Order::Sell, which calls Router::calculate_sell_trade_amounts and Router::sell.
+	// Router::calculate_sell_trade_amounts and Router::sell.
 	fn sell_and_calculate_sell_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 1; // number of times AMM::calculate_sell is executed
@@ -1017,7 +895,7 @@ impl AmmTradeWeights<Trade<AssetId>> for RouterWeightInfo {
 		weight
 	}
 
-	// Used in DCA::on_initialize for Order::Buy, which calls 2 * Router::calculate_buy_trade_amounts and Router::buy.
+	// 2 * Router::calculate_buy_trade_amounts and Router::buy.
 	fn buy_and_calculate_buy_trade_amounts_weight(route: &[Trade<AssetId>]) -> Weight {
 		let mut weight = Weight::zero();
 		let c = 3; // number of times AMM::calculate_buy is executed

@@ -441,9 +441,8 @@ where
 	/// Report an executed swap to the EMA oracle under `UNISWAPV3_SOURCE`.
 	///
 	/// Without this a v3 pool has no oracle history at all, and every consumer of
-	/// `OraclePriceProvider` treats that as a hard failure: `pallet-dca` reads it as
-	/// "price unstable" and terminates the schedule after its retries, and
-	/// `route-executor::set_route` rejects the route with `RouteHasNoOracle`.
+	/// `OraclePriceProvider` treats that as a hard failure: `route-executor::set_route`
+	/// rejects the route with `RouteHasNoOracle`.
 	///
 	/// Called after the swap has settled, so `slot0` and both balances are post-trade —
 	/// matching what pallet-xyk reports. Errors propagate: `Router::sell`/`buy` are
@@ -459,16 +458,16 @@ where
 		// The oracle DISCARDS entries for pairs it does not track, and returns `Ok` doing
 		// it (see `pallet_ema_oracle::Pallet::on_entry` — internal sources take that
 		// branch, and `UNISWAPV3_SOURCE` is one). So a swap on an untracked pair looks
-		// entirely successful while leaving the pool unpriceable: DCA keeps reporting
-		// `PriceUnstable` and `set_route` keeps rejecting the route, with no error, event
-		// or log anywhere to explain it. We do not fail the trade over this — the swap
-		// itself is legitimate — but the lost receipt must not be silent.
+		// entirely successful while leaving the pool unpriceable: `set_route` keeps
+		// rejecting the route, with no error, event or log anywhere to explain it. We do
+		// not fail the trade over this — the swap itself is legitimate — but the lost
+		// receipt must not be silent.
 		let pair = ordered_pair(asset_in, asset_out);
 		if !<T as pallet_ema_oracle::Config>::OracleWhitelist::contains(&(UNISWAPV3_SOURCE, pair.0, pair.1)) {
 			log::warn!(
 				target: "uniswapv3",
 				"pair ({}, {}) is not oracle-whitelisted: this trade will not be recorded, so \
-				 DCA and set_route through this pool will keep failing. Fix with \
+				 set_route through this pool will keep failing. Fix with \
 				 emaOracle.add_oracle(UNISWAPV3_SOURCE, ({}, {})), or check both assets are sufficient.",
 				pair.0, pair.1, pair.0, pair.1
 			);

@@ -1,7 +1,6 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 pub mod currencies;
-pub mod dca;
 pub mod duster;
 pub mod dynamic_evm_fee;
 pub mod ema_oracle;
@@ -183,7 +182,7 @@ pub fn set_period(to: u32) {
 fn setup_accepted_external_asset() -> Result<AssetId, BenchmarkError> {
 	let asset =
 		register_external_asset(b"FCA".to_vec()).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
-	crate::benchmarking::dca::MultiPaymentPallet::<Runtime>::add_currency(
+	pallet_transaction_multi_payment::Pallet::<Runtime>::add_currency(
 		RawOrigin::Root.into(),
 		asset,
 		FixedU128::from(1),

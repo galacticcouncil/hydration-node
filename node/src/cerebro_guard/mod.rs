@@ -621,7 +621,7 @@ struct CandidateRead {
 /// Trades of everything already in the block, when pass 1 decoded the whole events value.
 type Rebuilt = Option<Vec<Trade>>;
 
-fn trades_of(records: &[cerebro_hydration::decode::EventRecord]) -> Vec<Trade> {
+fn trades_of(records: &[cerebro_hydration::decode::Record]) -> Vec<Trade> {
 	map_records(records)
 		.into_iter()
 		.filter_map(|(_, e, _)| match e {

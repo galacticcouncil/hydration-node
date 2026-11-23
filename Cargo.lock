@@ -1770,7 +1770,7 @@ dependencies = [
 
 [[package]]
 name = "cerebro-hydration"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cerebro-core",
  "fp-evm",
@@ -1786,7 +1786,6 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-balances",
  "pallet-currencies",
- "pallet-dca",
  "pallet-ema-oracle",
  "pallet-evm",
  "pallet-evm-accounts",
@@ -5733,7 +5732,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.9.0"
+version = "15.9.1"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5843,10 +5842,9 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
- "cumulus-primitives-core",
  "ethabi",
  "evm",
  "frame-support",
@@ -5901,7 +5899,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "458.0.0"
+version = "459.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -5965,7 +5963,6 @@ dependencies = [
  "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
- "pallet-dca",
  "pallet-dispatcher",
  "pallet-dispenser",
  "pallet-duster",
@@ -6258,7 +6255,7 @@ dependencies = [
 
 [[package]]
 name = "ice-support"
-version = "1.7.0"
+version = "2.0.0"
 dependencies = [
  "frame-support",
  "hydra-dx-math",
@@ -9341,49 +9338,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-dca"
-version = "2.0.0"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-primitives-core",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydra-dx-math",
- "hydradx-adapters",
- "hydradx-traits",
- "ice-support",
- "lazy_static",
- "log",
- "orml-tokens",
- "orml-traits",
- "pallet-balances",
- "pallet-broadcast",
- "pallet-currencies",
- "pallet-dispatcher",
- "pallet-ema-oracle",
- "pallet-evm",
- "pallet-omnipool",
- "pallet-route-executor",
- "pallet-xyk",
- "parity-scale-codec",
- "pretty_assertions",
- "primitive-types 0.13.1",
- "primitives",
- "rand 0.8.5",
- "scale-info",
- "smallvec",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-tracing",
- "test-case",
- "test-utils",
-]
-
-[[package]]
 name = "pallet-delegated-staking"
 version = "8.0.0"
 source = "git+https://github.com/galacticcouncil/polkadot-sdk?branch=polkadot-stable2506-11-patch#d2a9224fcd363e20e0e7fcc1220d17eed777cb16"
@@ -10007,7 +9961,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ice"
-version = "1.14.0"
+version = "1.14.1"
 dependencies = [
  "amm-simulator",
  "frame-benchmarking",
@@ -10102,7 +10056,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-intent"
-version = "1.13.1"
+version = "1.14.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -14254,7 +14208,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.128.1"
+version = "1.129.0"
 dependencies = [
  "amm-simulator",
  "cerebro-core",
@@ -14312,7 +14266,6 @@ dependencies = [
  "pallet-conviction-voting",
  "pallet-currencies",
  "pallet-currencies-rpc-runtime-api",
- "pallet-dca",
  "pallet-dispatcher",
  "pallet-duster",
  "pallet-duster-rpc-runtime-api",

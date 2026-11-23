@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-adapters"
-version = "2.0.0"
+version = "3.0.0"
 description = "Structs and other generic types for building runtimes."
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -60,7 +60,6 @@ xcm-executor = { workspace = true }
 
 # Cumulus dependencies
 cumulus-pallet-parachain-system = { workspace = true }
-cumulus-primitives-core = { workspace = true }
 
 # ORML dependencies
 orml-xcm-support = { workspace = true }
@@ -99,7 +98,6 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
     "cumulus-pallet-parachain-system/runtime-benchmarks",
-    "cumulus-primitives-core/runtime-benchmarks",
     "orml-vesting/runtime-benchmarks",
     "orml-tokens/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",

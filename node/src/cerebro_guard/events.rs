@@ -1,7 +1,7 @@
 //! Incremental reader of `System.Events` for the block under construction: per extrinsic it reads
 //! only the records appended since the last committed one, so a full block costs O(n), not O(n²).
 
-use cerebro_hydration::decode::{decode_record_stream, EventRecord};
+use cerebro_hydration::decode::{decode_record_stream, Record};
 use codec::{Compact, Decode};
 use frame_system::Phase;
 use sp_storage::well_known_keys::EXTRINSIC_INDEX;
@@ -35,9 +35,9 @@ pub struct Mark {
 #[derive(Debug)]
 pub struct Applied {
 	pub ext_index: u32,
-	pub records: Vec<EventRecord>,
+	pub records: Vec<Record>,
 	/// Everything else in the block so far, when the whole value was decoded.
-	pub earlier: Option<Vec<EventRecord>>,
+	pub earlier: Option<Vec<Record>>,
 	pub mark: Mark,
 }
 
@@ -112,7 +112,7 @@ impl EventsReader {
 		let Ok(records) = decode_record_stream(&suffix) else {
 			return Err(self.desync());
 		};
-		if records.is_empty() || records.iter().any(|r| r.phase != Phase::ApplyExtrinsic(ext_index)) {
+		if records.is_empty() || records.iter().any(|r| *r.phase() != Phase::ApplyExtrinsic(ext_index)) {
 			return Err(self.desync());
 		}
 		Ok(Applied {
@@ -148,7 +148,7 @@ impl EventsReader {
 		}
 		let (records, earlier) = records
 			.into_iter()
-			.partition(|r| r.phase == Phase::ApplyExtrinsic(ext_index));
+			.partition(|r| *r.phase() == Phase::ApplyExtrinsic(ext_index));
 		Ok(Applied {
 			ext_index,
 			records,
@@ -182,6 +182,7 @@ impl EventsReader {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use cerebro_hydration::decode::EventRecord;
 	use codec::Encode;
 	use hydradx_runtime::RuntimeEvent;
 	use sp_core::H256;
@@ -277,15 +278,18 @@ mod tests {
 		assert_eq!(
 			first.earlier,
 			Some(vec![
-				record(Phase::Initialization, 0),
-				record(Phase::ApplyExtrinsic(0), 0),
-				record(Phase::ApplyExtrinsic(0), 1)
+				Record::Runtime(record(Phase::Initialization, 0)),
+				Record::Runtime(record(Phase::ApplyExtrinsic(0), 0)),
+				Record::Runtime(record(Phase::ApplyExtrinsic(0), 1))
 			])
 		);
 		assert_eq!(second.earlier, None);
 		assert_eq!(
 			second.records,
-			vec![record(Phase::ApplyExtrinsic(2), 0), record(Phase::ApplyExtrinsic(2), 1)]
+			vec![
+				Record::Runtime(record(Phase::ApplyExtrinsic(2), 0)),
+				Record::Runtime(record(Phase::ApplyExtrinsic(2), 1))
+			]
 		);
 		assert_eq!(reader.resyncs, 0);
 	}
@@ -339,7 +343,7 @@ mod tests {
 			assert_eq!(crossing.records.len(), 3, "boundary {boundary}");
 			assert_eq!(
 				after.records,
-				vec![record(Phase::ApplyExtrinsic(2), 0)],
+				vec![Record::Runtime(record(Phase::ApplyExtrinsic(2), 0))],
 				"boundary {boundary}"
 			);
 			assert_eq!(reader.width, width_before * 2, "boundary {boundary}");

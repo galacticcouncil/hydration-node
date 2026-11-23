@@ -21,7 +21,7 @@ use sp_runtime::{DispatchError, SaturatedConversion};
 use sp_std::vec::Vec;
 
 /// Execution gas limit.
-const GAS_LIMIT: u64 = 400_000;
+pub(crate) const GAS_LIMIT: u64 = 400_000;
 
 #[module_evm_utility_macro::generate_function_selector]
 #[derive(RuntimeDebug, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]

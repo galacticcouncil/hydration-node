@@ -17,6 +17,7 @@ use crate::Runtime;
 
 pub mod circuit_breaker;
 pub mod conviction_voting;
+pub mod dca;
 pub mod democracy;
 pub mod dynamic_fees;
 pub mod referenda;
@@ -24,7 +25,7 @@ pub mod scheduler;
 pub mod stableswap;
 
 // New migrations which need to be cleaned up after every Runtime upgrade
-pub type UnreleasedSingleBlockMigrations = (democracy::RemoveDemocracy,);
+pub type UnreleasedSingleBlockMigrations = (dca::MigrateDcaToIntents,);
 
 // These migrations can run on every runtime upgrade
 pub type PermanentSingleBlockMigrations = pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>;

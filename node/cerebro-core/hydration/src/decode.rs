@@ -4,7 +4,7 @@
 
 use cerebro_core::model::{ChainEvent, DebtLeg, Notable, Phase, Trade, TransferLeg};
 use cerebro_core::{AssetId, EvmAddress, NATIVE_ASSET};
-use codec::Decode;
+use codec::{Compact, Decode};
 use hydradx_runtime::RuntimeEvent;
 use primitives::AccountId;
 use sp_core::{H160, H256};
@@ -26,30 +26,73 @@ pub struct RawDebtLeg {
 /// Decode a block's events into `(Phase, ChainEvent)` in event order, plus the raw debt legs whose
 /// reserve→asset resolution the caller finishes with chain access. Debt legs are emitted as
 /// `ChainEvent::AavePosition` with `asset` filled by the caller (see `map_block`).
+///
+/// Records of the retired DCA pallet (pre-upgrade history) are decoded with `legacy_dca`.
 pub fn decode_events(events_raw: &[u8]) -> Result<Vec<Decoded>, String> {
 	let mut input = events_raw;
-	let records: Vec<EventRecord> = Decode::decode(&mut input).map_err(|e| format!("decode System.Events: {e}"))?;
+	let len = Compact::<u32>::decode(&mut input).map_err(|e| format!("decode System.Events: {e}"))?;
+	let records = (0..len.0)
+		.map(|_| decode_record(&mut input))
+		.collect::<Result<Vec<_>, _>>()?;
 	Ok(map_records(&records))
+}
+
+/// One `System.Events` record. Records of the retired DCA pallet are already mapped.
+// Unboxed: boxing would allocate per runtime record on the guard's hot path; legacy records are rare.
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Record {
+	Runtime(EventRecord),
+	LegacyDca(frame_system::Phase, ChainEvent),
+}
+
+impl Record {
+	pub fn phase(&self) -> &frame_system::Phase {
+		match self {
+			Record::Runtime(record) => &record.phase,
+			Record::LegacyDca(phase, _) => phase,
+		}
+	}
+}
+
+fn decode_record(input: &mut &[u8]) -> Result<Record, String> {
+	if let Some(record) = legacy_dca::decode_record(input)? {
+		return Ok(record);
+	}
+	EventRecord::decode(input)
+		.map(Record::Runtime)
+		.map_err(|e| format!("decode EventRecord: {e}"))
+}
+
+fn phase_of(phase: &frame_system::Phase) -> Phase {
+	match phase {
+		frame_system::Phase::ApplyExtrinsic(i) => Phase::ApplyExtrinsic(*i),
+		_ => Phase::Hook,
+	}
 }
 
 /// Decode records stored back to back with no length prefix, e.g. a suffix of `System.Events`.
 /// Every byte must belong to a whole record.
-pub fn decode_record_stream(mut bytes: &[u8]) -> Result<Vec<EventRecord>, String> {
+pub fn decode_record_stream(mut bytes: &[u8]) -> Result<Vec<Record>, String> {
 	let mut out = Vec::new();
 	while !bytes.is_empty() {
-		out.push(EventRecord::decode(&mut bytes).map_err(|e| format!("decode EventRecord: {e}"))?);
+		out.push(decode_record(&mut bytes)?);
 	}
 	Ok(out)
 }
 
 /// [`decode_events`] over already decoded records.
-pub fn map_records(records: &[EventRecord]) -> Vec<Decoded> {
+pub fn map_records(records: &[Record]) -> Vec<Decoded> {
 	let mut out = Vec::new();
 	for rec in records {
-		let phase = match rec.phase {
-			frame_system::Phase::ApplyExtrinsic(i) => Phase::ApplyExtrinsic(i),
-			_ => Phase::Hook,
+		let rec = match rec {
+			Record::Runtime(rec) => rec,
+			Record::LegacyDca(phase, event) => {
+				out.push((phase_of(phase), event.clone(), None));
+				continue;
+			}
 		};
+		let phase = phase_of(&rec.phase);
 		let mapped = chain_events(&rec.event);
 		let debt = raw_debt_leg(&rec.event);
 		// Every EventRecord must touch its extrinsic's per_ext entry so `n_ext` counts it (matching
@@ -136,23 +179,6 @@ fn chain_events(ev: &RuntimeEvent) -> Vec<ChainEvent> {
 			},
 			ChainEvent::Notable(Notable::Reward { venue: "xyk-lm" }),
 		];
-	}
-	// DCA lifecycle boundaries.
-	if let RuntimeEvent::DCA(e) = ev {
-		use pallet_dca::Event as E;
-		match e {
-			E::ExecutionStarted { id, .. } => return vec![ChainEvent::DcaStarted { schedule_id: *id }],
-			E::TradeExecuted { id, who, .. }
-			| E::TradeFailed { id, who, .. }
-			| E::Terminated { id, who, .. }
-			| E::Completed { id, who } => {
-				return vec![ChainEvent::DcaClosed {
-					schedule_id: *id,
-					owner: acc(who),
-				}]
-			}
-			_ => {}
-		}
 	}
 	// Trades (router = whole route, direct = a single hop). Emit the Trade (for the price graph)
 	// and a Notable (for labels).
@@ -462,4 +488,184 @@ fn u128_word(data: &[u8], word_index: usize) -> u128 {
 /// `primitives::AccountId` (AccountId32) → core's raw 32-byte id.
 fn acc(a: &AccountId) -> cerebro_core::AccountId {
 	a.clone().into()
+}
+
+/// Event layout of the retired DCA pallet (runtime index 66), kept so blocks from before its
+/// removal still decode. Only the lifecycle boundaries are mapped; the rest is decoded to be skipped.
+#[allow(dead_code)]
+mod legacy_dca {
+	use super::{acc, Record};
+	use cerebro_core::model::ChainEvent;
+	use codec::Decode;
+	use hydradx_traits::router::Trade;
+	use primitives::AccountId;
+	use sp_core::H256;
+	use sp_runtime::DispatchError;
+
+	const PALLET_INDEX: u8 = 66;
+
+	#[derive(Decode)]
+	enum Order {
+		Sell {
+			asset_in: u32,
+			asset_out: u32,
+			amount_in: u128,
+			min_amount_out: u128,
+			route: Vec<Trade<u32>>,
+		},
+		Buy {
+			asset_in: u32,
+			asset_out: u32,
+			amount_out: u128,
+			max_amount_in: u128,
+			route: Vec<Trade<u32>>,
+		},
+	}
+
+	#[derive(Decode)]
+	enum CancelReason {
+		BuyOrder,
+		BudgetBelowTrade,
+		UnreserveRemainder,
+		IntentCreationFailed(DispatchError),
+		ForceCancelled,
+	}
+
+	#[derive(Decode)]
+	enum Event {
+		ExecutionStarted {
+			id: u32,
+			block: u32,
+		},
+		Scheduled {
+			id: u32,
+			who: AccountId,
+			period: u32,
+			total_amount: u128,
+			order: Order,
+		},
+		ExecutionPlanned {
+			id: u32,
+			who: AccountId,
+			block: u32,
+		},
+		TradeExecuted {
+			id: u32,
+			who: AccountId,
+			amount_in: u128,
+			amount_out: u128,
+		},
+		TradeFailed {
+			id: u32,
+			who: AccountId,
+			error: DispatchError,
+		},
+		Terminated {
+			id: u32,
+			who: AccountId,
+			error: DispatchError,
+		},
+		Completed {
+			id: u32,
+			who: AccountId,
+		},
+		RandomnessGenerationFailed {
+			block: u32,
+			error: DispatchError,
+		},
+		ReserveUnlocked {
+			who: AccountId,
+			asset_id: u32,
+		},
+		Migrated {
+			id: u32,
+			who: AccountId,
+			intent_id: u128,
+		},
+		MigrationCancelled {
+			id: u32,
+			who: AccountId,
+			asset: u32,
+			refunded: u128,
+			reason: CancelReason,
+		},
+		MigrationEnabledSet {
+			enabled: bool,
+		},
+	}
+
+	/// Consumes the next record if it belongs to the retired pallet; leaves `input` untouched otherwise.
+	pub(super) fn decode_record(input: &mut &[u8]) -> Result<Option<Record>, String> {
+		let mut rest = *input;
+		let phase = frame_system::Phase::decode(&mut rest).map_err(|e| format!("decode EventRecord: {e}"))?;
+		let Some((&PALLET_INDEX, mut rest)) = rest.split_first() else {
+			return Ok(None);
+		};
+		let event = Event::decode(&mut rest).map_err(|e| format!("decode legacy DCA event: {e}"))?;
+		Vec::<H256>::decode(&mut rest).map_err(|e| format!("decode EventRecord topics: {e}"))?;
+		*input = rest;
+		let mapped = match event {
+			Event::ExecutionStarted { id, .. } => ChainEvent::DcaStarted { schedule_id: id },
+			Event::TradeExecuted { id, who, .. }
+			| Event::TradeFailed { id, who, .. }
+			| Event::Terminated { id, who, .. }
+			| Event::Completed { id, who } => ChainEvent::DcaClosed {
+				schedule_id: id,
+				owner: acc(&who),
+			},
+			_ => ChainEvent::Inert,
+		};
+		Ok(Some(Record::LegacyDca(phase, mapped)))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use codec::Encode;
+
+	fn legacy_dca_record_then_runtime_record() -> Vec<u8> {
+		let mut raw = frame_system::Phase::Initialization.encode();
+		raw.extend([66u8, 0u8]);
+		raw.extend((7u32, 9u32).encode());
+		raw.extend(Vec::<H256>::new().encode());
+		raw.extend(
+			EventRecord {
+				phase: frame_system::Phase::ApplyExtrinsic(1),
+				event: RuntimeEvent::System(frame_system::Event::ExtrinsicSuccess {
+					dispatch_info: Default::default(),
+				}),
+				topics: vec![],
+			}
+			.encode(),
+		);
+		raw
+	}
+
+	#[test]
+	fn decode_events_should_map_retired_dca_record_when_it_precedes_a_runtime_event() {
+		let mut raw = Compact(2u32).encode();
+		raw.extend(legacy_dca_record_then_runtime_record());
+
+		assert_started_then_inert(&decode_events(&raw).expect("decodes"));
+	}
+
+	#[test]
+	fn decode_record_stream_should_map_retired_dca_record_when_it_precedes_a_runtime_event() {
+		let records = decode_record_stream(&legacy_dca_record_then_runtime_record()).expect("decodes");
+
+		assert_started_then_inert(&map_records(&records));
+	}
+
+	fn assert_started_then_inert(decoded: &[Decoded]) {
+		assert_eq!(decoded.len(), 2);
+		assert!(matches!(
+			decoded[0],
+			(Phase::Hook, ChainEvent::DcaStarted { schedule_id: 7 }, None)
+		));
+		assert!(matches!(
+			decoded[1],
+			(Phase::ApplyExtrinsic(1), ChainEvent::Inert, None)
+		));
+	}
 }

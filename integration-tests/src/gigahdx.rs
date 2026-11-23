@@ -28,6 +28,8 @@ use primitives::{AccountId, AssetId, Balance, EvmAddress};
 use sp_core::{H160, H256, U256};
 use xcm_emulator::Network;
 
+const TEST_RESERVE_ID: [u8; 8] = *b"test_res";
+
 pub const PATH_TO_SNAPSHOT: &str = "snapshots/gigahdx/gigahdx";
 
 #[allow(dead_code)]
@@ -4005,12 +4007,7 @@ fn gigahdx_liquidation_e2e_should_seize_from_reserved_backing() {
 		let liq_evm = e2e_provision_liq_account(&liq_account, main_mm);
 
 		// Move the stake backing into `reserved`, leaving free at 0 behind the lock.
-		assert_ok!(Currencies::reserve_named(
-			&hydradx_runtime::NamedReserveId::get(),
-			HDX,
-			&alice,
-			stake_amount
-		));
+		assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, stake_amount));
 		assert_ok!(Balances::force_set_balance(RawOrigin::Root.into(), alice.clone(), 0));
 		assert_eq!(Balances::free_balance(&alice), 0);
 		assert_eq!(Currencies::reserved_balance(HDX, &alice), stake_amount);
@@ -4788,7 +4785,6 @@ fn full_unstake_should_reap_record_when_rate_causes_rounding() {
 // `set_lock`).
 mod reserve_leak {
 	use super::*;
-	use hydradx_runtime::NamedReserveId;
 	use orml_traits::NamedMultiReservableCurrency;
 
 	// With a reserve of X parked, a plain `transfer_allow_death` moves the whole
@@ -4821,8 +4817,8 @@ mod reserve_leak {
 			);
 			let total_locked_before = pallet_gigahdx::TotalLocked::<Runtime>::get();
 
-			// Park a reserve of X (as DCA::schedule does).
-			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			// Park a reserve of X.
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
 			assert_eq!(Balances::free_balance(&alice), x);
 
 			assert_ok!(Balances::transfer_allow_death(
@@ -4868,7 +4864,7 @@ mod reserve_leak {
 
 			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
 			let atoken_after_first = Currencies::free_balance(GIGAHDX, &alice);
-			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
 
 			// Raw free is now X, but the existing stake already claims X.
 			assert_noop!(
@@ -4902,7 +4898,7 @@ mod reserve_leak {
 
 			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
 			let atoken = Currencies::free_balance(GIGAHDX, &alice);
-			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
 			assert_ok!(Balances::transfer_allow_death(
 				RuntimeOrigin::signed(alice.clone()),
 				bob.clone(),
@@ -4931,7 +4927,6 @@ mod reserve_recovery_trace {
 	use super::*;
 	use frame_support::traits::tokens::fungible::Inspect as FungibleInspect;
 	use frame_support::traits::tokens::{Fortitude, Preservation};
-	use hydradx_runtime::NamedReserveId;
 	use orml_traits::NamedMultiReservableCurrency;
 
 	fn snap(who: &AccountId) -> (Balance, Balance, Balance, Balance, Balance) {
@@ -4972,10 +4967,10 @@ mod reserve_recovery_trace {
 			dump("step 1: giga_stake(100)", a1, snap(&bob));
 			assert_eq!(a1, (2 * x, 0, x, x, x)); // free 200, reserved 0, frozen 100, lock 100, spendable 100
 
-			// Step 2: reserve X (exactly what DCA::schedule does).
-			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			// Step 2: reserve X.
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
 			let a2 = snap(&alice);
-			dump("step 2: reserve 100 (DCA budget)", a2, snap(&bob));
+			dump("step 2: reserve 100", a2, snap(&bob));
 			assert_eq!(a2, (x, x, x, x, x)); // free 100, reserved 100, frozen 100, lock 100, spendable 100 (!)
 
 			// Step 3: move the entire (locked) stake HDX out to Bob.
@@ -4987,7 +4982,7 @@ mod reserve_recovery_trace {
 			assert_eq!(b3.0, x); // Bob got the 100 backing, fully spendable
 
 			// Step 4: unreserve -> back to free, but the lock (still 100) re-freezes it.
-			let leftover = Currencies::unreserve_named(&NamedReserveId::get(), HDX, &alice, x);
+			let leftover = Currencies::unreserve_named(&TEST_RESERVE_ID, HDX, &alice, x);
 			assert_eq!(leftover, 0, "whole reserve returned to free");
 			let a4 = snap(&alice);
 			dump("step 4: unreserve 100", a4, snap(&bob));
@@ -5007,7 +5002,6 @@ mod reserve_recovery_trace {
 mod liquidation_seize {
 	use super::*;
 	use crate::assert_reserved_balance;
-	use hydradx_runtime::NamedReserveId;
 	use hydradx_traits::gigahdx::Seize;
 	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
 
@@ -5032,7 +5026,7 @@ mod liquidation_seize {
 			// ends up entirely in `reserved`.
 			assert_ok!(GigaHdx::giga_stake(RuntimeOrigin::signed(alice.clone()), x));
 			let atoken = Currencies::free_balance(GIGAHDX, &alice);
-			assert_ok!(Currencies::reserve_named(&NamedReserveId::get(), HDX, &alice, x));
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
 			assert_ok!(Balances::transfer_allow_death(
 				RuntimeOrigin::signed(alice.clone()),
 				bob.clone(),
@@ -5052,6 +5046,295 @@ mod liquidation_seize {
 				recipient_before + x,
 				"recipient receives the seized backing"
 			);
+		});
+	}
+}
+
+// A named reserve lowers the fungible floor to `frozen - reserved`, so HDX held by
+// the `ghdxlock` becomes sellable/transferable up to the reserved amount.
+mod gigahdx_lock_reserve {
+	use super::*;
+	use crate::polkadot_test_net::{go_to_block, Hydra, DAI};
+	use crate::utils::pools::init_omnipool_with_oracle_for_block_10;
+	use crate::{assert_balance, assert_reserved_balance};
+	use frame_support::traits::tokens::fungible::Inspect as FungibleInspect;
+	use frame_support::traits::tokens::{Fortitude, Preservation};
+	use frame_support::traits::{LockIdentifier, LockableCurrency, WithdrawReasons};
+	use hydradx_runtime::Router;
+	use hydradx_traits::router::{PoolType, Trade};
+	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
+	use pallet_route_executor::MAX_NUMBER_OF_TRADES;
+	use sp_runtime::traits::ConstU32;
+	use sp_runtime::{BoundedVec, TokenError};
+	use xcm_emulator::TestExt;
+
+	// Same id a gigahdx stake installs via `set_lock`.
+	const GHDX_LOCK: LockIdentifier = *b"ghdxlock";
+
+	fn omnipool_route() -> BoundedVec<Trade<AssetId>, ConstU32<{ MAX_NUMBER_OF_TRADES }>> {
+		vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI,
+		}]
+		.try_into()
+		.unwrap()
+	}
+
+	fn reducible_hdx(who: &AccountId) -> Balance {
+		<Balances as FungibleInspect<AccountId>>::reducible_balance(who, Preservation::Expendable, Fortitude::Polite)
+	}
+
+	// With a 600 reserve, the fungible floor drops to `frozen - reserved = 0`, so
+	// the Router can sell HDX otherwise held by the 400 lock.
+	#[test]
+	fn router_sell_should_drain_ghdxlock_locked_hdx_when_account_holds_a_reserve() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				1000 * UNITS
+			));
+			// Reserve, then lock the remaining free (free == frozen == 400).
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, 600 * UNITS));
+			Balances::set_lock(GHDX_LOCK, &alice, 400 * UNITS, WithdrawReasons::all());
+
+			// Reducible is the whole free balance, not `free - frozen`.
+			assert_balance!(alice.clone(), HDX, 400 * UNITS);
+			assert_reserved_balance!(alice.clone(), HDX, 600 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 400 * UNITS);
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				300 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			// Free HDX drops below the 400 lock; the reserve is untouched.
+			assert_balance!(alice.clone(), HDX, 100 * UNITS);
+			assert_reserved_balance!(alice.clone(), HDX, 600 * UNITS);
+			assert!(
+				Currencies::free_balance(HDX, &alice) < 400 * UNITS,
+				"free HDX dropped below the lock"
+			);
+		});
+	}
+
+	// Same lock, no reserve: reducible is 0 and the Router sell is refused.
+	#[test]
+	fn router_sell_should_fail_to_touch_ghdxlock_when_no_reserve() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				400 * UNITS
+			));
+			Balances::set_lock(GHDX_LOCK, &alice, 400 * UNITS, WithdrawReasons::all());
+
+			assert_eq!(reducible_hdx(&alice), 0);
+
+			assert_noop!(
+				Router::sell(
+					RuntimeOrigin::signed(alice.clone()),
+					HDX,
+					DAI,
+					300 * UNITS,
+					0,
+					omnipool_route(),
+				),
+				TokenError::FundsUnavailable
+			);
+
+			assert_balance!(alice.clone(), HDX, 400 * UNITS);
+		});
+	}
+
+	// Free can be pushed down only to `frozen - reserved`, so with reserve 200 <
+	// lock 600 exactly 200 of locked HDX is sellable and the next unit is refused.
+	#[test]
+	fn router_sell_should_cap_sellable_locked_hdx_at_reserved_amount_when_reserve_is_below_lock() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				1000 * UNITS
+			));
+			// Stake/lock 600, then park a 200 reserve (< stake).
+			Balances::set_lock(GHDX_LOCK, &alice, 600 * UNITS, WithdrawReasons::all());
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, 200 * UNITS));
+
+			// free 800, frozen 600, reserved 200 -> reducible = 800 - (600 - 200) = 400.
+			assert_balance!(alice.clone(), HDX, 800 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 400 * UNITS);
+
+			// Sell the full reducible: 200 above the lock + 200 below it.
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				400 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			// free == `frozen - reserved`; the floor is reached, one more unit is refused.
+			assert_balance!(alice.clone(), HDX, 400 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 0);
+			assert_noop!(
+				Router::sell(
+					RuntimeOrigin::signed(alice.clone()),
+					HDX,
+					DAI,
+					UNITS,
+					0,
+					omnipool_route(),
+				),
+				TokenError::FundsUnavailable
+			);
+		});
+	}
+
+	// Reserve >= lock zeroes the floor, so the whole free balance is sellable:
+	// free drains to 0 while the full lock remains.
+	#[test]
+	fn router_sell_should_drain_whole_free_balance_when_reserve_at_least_matches_lock() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			let alice: AccountId = ALICE.into();
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				1000 * UNITS
+			));
+			// Stake/lock 400, then park a 500 reserve (>= stake).
+			Balances::set_lock(GHDX_LOCK, &alice, 400 * UNITS, WithdrawReasons::all());
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, 500 * UNITS));
+
+			// free 500, frozen 400, reserved 500 -> floor 0, whole free is reducible.
+			assert_balance!(alice.clone(), HDX, 500 * UNITS);
+			assert_eq!(reducible_hdx(&alice), 500 * UNITS);
+
+			assert_ok!(Router::sell(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				500 * UNITS,
+				0,
+				omnipool_route(),
+			));
+
+			// Free fully drained; the 400 lock remains, reserve untouched.
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_reserved_balance!(alice.clone(), HDX, 500 * UNITS);
+		});
+	}
+	// End to end with a reserve == lock. The reserve needs `free - budget >=
+	// frozen`, so it comes from unlocked HDX (account carries 2X); once it matches
+	// the lock the floor is 0 and a plain `transfer_allow_death` moves the locked X.
+	#[test]
+	fn transfer_allow_death_should_move_whole_locked_stake_when_reserve_matches_lock() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			let alice: AccountId = ALICE.into();
+			let bob: AccountId = BOB.into();
+
+			// Alice needs 2X.
+			let x = 1000 * UNITS;
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+			let bob_before = Currencies::free_balance(HDX, &bob);
+
+			// Lock X (stake).
+			Balances::set_lock(GHDX_LOCK, &alice, x, WithdrawReasons::all());
+			assert_balance!(alice.clone(), HDX, 2 * x);
+
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			assert_balance!(alice.clone(), HDX, x);
+			assert_eq!(reducible_hdx(&alice), x);
+
+			// A plain transfer moves the whole locked X to Bob.
+			assert_ok!(Balances::transfer_allow_death(
+				RuntimeOrigin::signed(alice.clone()),
+				bob.clone(),
+				x
+			));
+
+			// Free HDX 0 behind the live X lock; reserve untouched; Bob got X.
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			assert_eq!(Currencies::free_balance(HDX, &bob), bob_before + x);
+		});
+	}
+
+	// `Router::sell_all` sizes to `reducible_balance(.., Polite)`, which the reserve
+	// inflates to the full free balance — so one call sells all the locked HDX. The
+	// reserve stays trapped behind the lock afterwards.
+	#[test]
+	fn router_sell_all_should_drain_entire_locked_stake_when_reserve_matches_lock() {
+		TestNet::reset();
+		Hydra::execute_with(|| {
+			init_omnipool_with_oracle_for_block_10();
+			go_to_block(11);
+			let alice: AccountId = ALICE.into();
+			let x = 1000 * UNITS;
+
+			assert_ok!(Balances::force_set_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				2 * x
+			));
+
+			// Park the reserve, then lock X.
+			assert_ok!(Currencies::reserve_named(&TEST_RESERVE_ID, HDX, &alice, x));
+			Balances::set_lock(GHDX_LOCK, &alice, x, WithdrawReasons::all());
+			assert_balance!(alice.clone(), HDX, x);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+			assert_eq!(reducible_hdx(&alice), x);
+
+			let dai_before = Currencies::free_balance(DAI, &alice);
+
+			// One call, no amount: sizes to the full free balance.
+			assert_ok!(Router::sell_all(
+				RuntimeOrigin::signed(alice.clone()),
+				HDX,
+				DAI,
+				0,
+				omnipool_route(),
+			));
+
+			// All the locked HDX was sold; the reserve is untouched.
+			assert_balance!(alice.clone(), HDX, 0);
+			assert_eq!(Currencies::free_balance(DAI, &alice) - dai_before, 712_143_506_239_384);
+			assert_reserved_balance!(alice.clone(), HDX, x);
+
+			// Unreserving re-freezes it behind the lock.
+			assert_eq!(Currencies::unreserve_named(&TEST_RESERVE_ID, HDX, &alice, x), 0);
+			assert_balance!(alice.clone(), HDX, x);
+			assert_reserved_balance!(alice.clone(), HDX, 0);
+			assert_eq!(reducible_hdx(&alice), 0);
 		});
 	}
 }

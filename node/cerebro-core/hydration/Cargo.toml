@@ -1,6 +1,6 @@
 [package]
 name = "cerebro-hydration"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "Apache-2.0"
 description = "Hydration chain adapter: runtime-event decode, storage plumbing, reader-trait impls"
@@ -19,7 +19,6 @@ pallet-xyk = { workspace = true, features = ["std"] }
 pallet-omnipool-liquidity-mining = { workspace = true, features = ["std"] }
 pallet-xyk-liquidity-mining = { workspace = true, features = ["std"] }
 pallet-route-executor = { workspace = true, features = ["std"] }
-pallet-dca = { workspace = true, features = ["std"] }
 pallet-currencies = { workspace = true, features = ["std"] }
 pallet-staking = { workspace = true, features = ["std"] }
 pallet-otc = { workspace = true, features = ["std"] }

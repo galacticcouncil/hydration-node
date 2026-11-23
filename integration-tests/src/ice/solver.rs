@@ -7438,12 +7438,8 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 		});
 }
 
-/// Same setup as DCA's `dca_succeeds_after_extra_gas_increased_due_to_out_of_gas_error`:
-/// deploy a ConditionalGasEater ERC20 contract, add it to the omnipool, then try to
-/// sell it for HDX via an ICE intent instead of DCA.
-///
-/// The DCA test fails with out-of-gas on the first trade attempt. This test checks
-/// whether the same trade via ICE/intent also hits out-of-gas or not.
+/// Deploys a ConditionalGasEater ERC20, adds it to the omnipool, then sells it for HDX via an
+/// ICE intent to check whether the trade hits out-of-gas.
 #[test]
 fn ice_intent_with_evm_gas_eater_token() {
 	use crate::polkadot_test_net::{hydradx_run_to_block, HDX, LRNA, UNITS};
@@ -7457,13 +7453,13 @@ fn ice_intent_with_evm_gas_eater_token() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// ============================================================
-		// SETUP: same as the DCA out-of-gas test
+		// SETUP
 		// ============================================================
-		crate::dca::init_omnipool_with_oracle_for_block_10();
+		crate::utils::pools::init_omnipool_with_oracle_for_block_10();
 
 		let evm_address = EVMAccounts::evm_address(&Router::router_account());
 		let contract =
-			crate::dca::extra_gas_erc20::deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
+			crate::utils::contracts::deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
 		let erc20 = crate::erc20::bind_erc20(contract);
 		assert_ok!(EmaOracle::add_oracle(
 			RuntimeOrigin::root(),
@@ -7502,7 +7498,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 		);
 
 		// ============================================================
-		// INTENT: sell the gas-eater ERC20 for HDX (same trade as DCA)
+		// INTENT: sell the gas-eater ERC20 for HDX
 		// ============================================================
 		let sell_amount = 200_000 * UNITS;
 		let ts = hydradx_runtime::Timestamp::now();
