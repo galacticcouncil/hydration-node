@@ -838,6 +838,17 @@ fn validate_unsigned_should_accept_liquidation_when_valid_until_is_including_blo
 }
 
 #[test]
+fn validate_unsigned_should_keep_liquidation_in_pool_until_valid_until_when_it_is_blocks_ahead() {
+	ExtBuilder::default().build().execute_with(|| {
+		System::set_block_number(10);
+
+		let validity = Liquidation::validate_unsigned(TransactionSource::Local, &submit_liquidation_call(11));
+
+		assert_eq!(validity.map(|v| v.longevity), Ok(2));
+	});
+}
+
+#[test]
 fn validate_unsigned_should_return_stale_when_valid_until_has_passed() {
 	ExtBuilder::default().build().execute_with(|| {
 		System::set_block_number(11);

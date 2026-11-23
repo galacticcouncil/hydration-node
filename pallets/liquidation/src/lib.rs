@@ -35,7 +35,7 @@ use evm::{ExitReason, ExitSucceed};
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo},
 	pallet_prelude::*,
-	sp_runtime::{traits::AccountIdConversion, Saturating},
+	sp_runtime::{traits::AccountIdConversion, SaturatedConversion, Saturating},
 	traits::{
 		fungibles::{Inspect, Mutate},
 		tokens::{Fortitude, Precision, Preservation},
@@ -209,7 +209,7 @@ pub mod pallet {
 				TransactionSource::InBlock => {} // some other node included it in a block
 			};
 
-			fn valid_tx(provides: impl Encode, priority: Priority) -> TransactionValidity {
+			fn valid_tx(provides: impl Encode, priority: Priority, longevity: u64) -> TransactionValidity {
 				ValidTransaction::with_tag_prefix("liquidate_unsigned")
 					.priority(
 						BASE_UNSIGNED_LIQUIDATION_PRIORITY
@@ -217,7 +217,7 @@ pub mod pallet {
 							.min(MAX_UNSIGNED_LIQUIDATION_PRIORITY),
 					)
 					.and_provides(provides)
-					.longevity(1)
+					.longevity(longevity)
 					.propagate(false)
 					.build()
 			}
@@ -225,7 +225,7 @@ pub mod pallet {
 			match call {
 				// Legacy call — byte-identical to the pre-multi-MM release (no priority
 				// param): unsigned submissions get the base priority, exactly as before.
-				Call::liquidate { user, .. } => valid_tx(user, 0),
+				Call::liquidate { user, .. } => valid_tx(user, 0, 1),
 				// (user, pool): the same user underwater in two markets must not produce
 				// mutually-replacing transactions.
 				Call::liquidate_with_pool {
@@ -233,7 +233,7 @@ pub mod pallet {
 					pool,
 					unsigned_priority,
 					..
-				} => valid_tx((user, pool), unsigned_priority.unwrap_or(0)),
+				} => valid_tx((user, pool), unsigned_priority.unwrap_or(0), 1),
 				Call::submit_liquidation {
 					user,
 					pool,
@@ -250,7 +250,13 @@ pub mod pallet {
 					if *valid_until >= including_block.saturating_add(MAX_UNSIGNED_LIQUIDATION_LIFETIME.into()) {
 						return InvalidTransaction::Call.into();
 					}
-					valid_tx((user, pool), *priority)
+					// The pool counts longevity from the block it validates on, one before
+					// `including_block`, and drops the transaction once it runs out.
+					let longevity = valid_until
+						.saturating_sub(including_block)
+						.saturated_into::<u64>()
+						.saturating_add(1);
+					valid_tx((user, pool), *priority, longevity)
 				}
 				_ => InvalidTransaction::Call.into(),
 			}
