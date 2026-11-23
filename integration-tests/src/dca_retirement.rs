@@ -12,14 +12,16 @@ use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::{assert_ok, storage_alias, Blake2_128Concat, Twox64Concat};
 use hydradx_runtime::migrations::dca::{
 	LegacyOrder, LegacySchedule, MigrateDcaToIntents, RemainingAmounts, ScheduleIdsPerBlock, Schedules, DCA_RESERVE_ID,
+	MAX_SCHEDULES,
 };
-use hydradx_runtime::{AssetRegistry, Currencies, Runtime, RuntimeOrigin, System};
+use hydradx_runtime::{AssetRegistry, Currencies, Runtime, RuntimeOrigin, System, Tokens, Treasury};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
 use hydradx_traits::registry::Inspect;
 use hydradx_traits::router::{PoolType, Trade};
 use ice_solver::v4::Solver as IceSolver;
 use ice_support::{DcaData, IntentData, IntentId, Solution};
 use orml_traits::{MultiCurrency, MultiReservableCurrency, NamedMultiReservableCurrency};
+use pallet_transaction_pause::{BoundedName, PausedTransactions};
 use primitives::{AccountId, AssetId, Balance};
 use sp_runtime::{Permill, StateVersion};
 use xcm_emulator::{Network, TestExt};
@@ -29,6 +31,11 @@ const START_BLOCK: u32 = 10_000;
 const PERIOD: u32 = 600;
 const ENDOWMENT: Balance = 1_000 * UNITS;
 const SLIPPAGE: Permill = Permill::from_percent(3);
+const HOLLAR: AssetId = 222;
+const ONE_HOLLAR: Balance = 1_000_000_000_000_000_000;
+const BNC: AssetId = 14;
+/// HOLLAR held by `ReserveAccount` in the `mainnet_apr` snapshot.
+const SNAPSHOT_CUSTODY_HOLLAR: Balance = 27_967_822_764_337_836_667_721;
 
 #[storage_alias(verbatim)]
 type ScheduleOwnership = StorageDoubleMap<DCA, Blake2_128Concat, AccountId, Twox64Concat, u32, ()>;
@@ -102,8 +109,39 @@ fn ed(asset: AssetId) -> Balance {
 	<AssetRegistry as Inspect>::existential_deposit(asset).expect("asset is registered")
 }
 
-fn migrate() {
+fn migrate_unchecked() {
 	MigrateDcaToIntents::on_runtime_upgrade();
+}
+
+/// Runs the migration, then checks what its `post_upgrade` checks (that one only runs under try-runtime).
+fn migrate() {
+	migrate_unchecked();
+
+	let prefix = dca_prefix();
+	assert_eq!(
+		sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)),
+		None
+	);
+	let native: Vec<_> = pallet_balances::Reserves::<Runtime>::iter()
+		.filter(|(_, reserves)| reserves.iter().any(|r| r.id == DCA_RESERVE_ID && r.amount > 0))
+		.map(|(owner, _)| owner)
+		.collect();
+	assert_eq!(native, vec![]);
+	let tokens: Vec<_> = orml_tokens::Reserves::<Runtime>::iter()
+		.filter(|(_, _, reserves)| reserves.iter().any(|r| r.id == DCA_RESERVE_ID && r.amount > 0))
+		.map(|(owner, asset, _)| (owner, asset))
+		.collect();
+	assert_eq!(tokens, vec![]);
+	assert!(!PausedTransactions::<Runtime>::contains_key(pause_key(
+		"DCA", "schedule"
+	)));
+}
+
+fn pause_key(pallet: &str, call: &str) -> (BoundedName, BoundedName) {
+	(
+		BoundedName::truncate_from(pallet.as_bytes().to_vec()),
+		BoundedName::truncate_from(call.as_bytes().to_vec()),
+	)
 }
 
 fn dca_intents_of(owner: &AccountId) -> Vec<(IntentId, DcaData)> {
@@ -137,7 +175,24 @@ fn genesis(f: impl FnOnce()) {
 
 fn snapshot(f: impl FnOnce()) {
 	TestNet::reset();
-	HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(f);
+	HydrationTestDriver::with_snapshot(PATH_TO_SNAPSHOT).execute(|| {
+		// The slim snapshot keeps `dcaorder` reserves of accounts it does not carry; nothing backs them.
+		for owner in pallet_balances::Reserves::<Runtime>::iter_keys().collect::<Vec<_>>() {
+			if Currencies::reserved_balance(HDX, &owner) == 0 {
+				pallet_balances::Reserves::<Runtime>::mutate(&owner, |reserves| {
+					reserves.retain(|r| r.id != DCA_RESERVE_ID)
+				});
+			}
+		}
+		for (owner, asset) in orml_tokens::Reserves::<Runtime>::iter_keys().collect::<Vec<_>>() {
+			if orml_tokens::Accounts::<Runtime>::get(&owner, asset).reserved == 0 {
+				orml_tokens::Reserves::<Runtime>::mutate(&owner, asset, |reserves| {
+					reserves.retain(|r| r.id != DCA_RESERVE_ID)
+				});
+			}
+		}
+		f();
+	});
 }
 
 fn run_solver_and_submit() -> Solution {
@@ -386,21 +441,19 @@ fn migration_should_release_legacy_reserve_when_owner_of_native_hdx_has_no_sched
 
 #[test]
 fn migration_should_remove_only_dca_pause_entry_when_transactions_are_paused() {
-	use pallet_transaction_pause::{BoundedName, PausedTransactions};
-	let key = |pallet: &str, call: &str| {
-		(
-			BoundedName::truncate_from(pallet.as_bytes().to_vec()),
-			BoundedName::truncate_from(call.as_bytes().to_vec()),
-		)
-	};
 	genesis(|| {
-		PausedTransactions::<Runtime>::insert(key("DCA", "schedule"), ());
-		PausedTransactions::<Runtime>::insert(key("Stableswap", "buy"), ());
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
+		PausedTransactions::<Runtime>::insert(pause_key("Stableswap", "buy"), ());
 
 		migrate();
 
-		assert!(!PausedTransactions::<Runtime>::contains_key(key("DCA", "schedule")));
-		assert!(PausedTransactions::<Runtime>::contains_key(key("Stableswap", "buy")));
+		assert!(!PausedTransactions::<Runtime>::contains_key(pause_key(
+			"DCA", "schedule"
+		)));
+		assert!(PausedTransactions::<Runtime>::contains_key(pause_key(
+			"Stableswap",
+			"buy"
+		)));
 	});
 }
 
@@ -551,6 +604,110 @@ fn migration_should_change_nothing_when_run_twice() {
 	});
 }
 
+fn numbered_owner(i: u32) -> AccountId {
+	let mut raw = [0xa2; 32];
+	raw[..4].copy_from_slice(&i.to_le_bytes());
+	AccountId::from(raw)
+}
+
+/// One more convertible schedule than a run processes, ids 1..=MAX_SCHEDULES + 1, one owner each.
+fn plant_beyond_limit() -> Vec<AccountId> {
+	(0..=MAX_SCHEDULES as u32)
+		.map(|i| {
+			let owner = numbered_owner(i);
+			endow(&owner, DOT, ENDOWMENT);
+			reserve_legacy(&owner, DOT, 50 * UNITS);
+			plant(
+				i + 1,
+				sell(owner.clone(), DOT, HDX, 5 * UNITS, 100 * UNITS),
+				Some(50 * UNITS),
+				None,
+			);
+			owner
+		})
+		.collect()
+}
+
+fn dca_intent_count(owners: &[AccountId]) -> usize {
+	owners.iter().map(|owner| dca_intents_of(owner).len()).sum()
+}
+
+#[test]
+fn migration_should_convert_max_schedules_when_more_schedules_exist() {
+	genesis(|| {
+		let owners = plant_beyond_limit();
+
+		migrate_unchecked();
+
+		assert_eq!(dca_intent_count(&owners), MAX_SCHEDULES);
+	});
+}
+
+#[test]
+fn migration_should_leave_schedule_beyond_limit_untouched_when_more_schedules_exist() {
+	genesis(|| {
+		let owners = plant_beyond_limit();
+		let last = owners[MAX_SCHEDULES].clone();
+		let id = MAX_SCHEDULES as u32 + 1;
+
+		migrate_unchecked();
+
+		assert_eq!(
+			Schedules::get(id),
+			Some(sell(last.clone(), DOT, HDX, 5 * UNITS, 100 * UNITS))
+		);
+		assert_eq!(RemainingAmounts::get(id), Some(50 * UNITS));
+		assert_eq!(reserved(&DCA_RESERVE_ID, DOT, &last), 50 * UNITS);
+	});
+}
+
+#[test]
+fn migration_should_keep_dca_pause_entry_when_more_schedules_exist() {
+	genesis(|| {
+		plant_beyond_limit();
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
+
+		migrate_unchecked();
+
+		assert!(PausedTransactions::<Runtime>::contains_key(pause_key(
+			"DCA", "schedule"
+		)));
+	});
+}
+
+#[test]
+fn migration_should_finish_on_second_run_when_first_run_hit_the_limit() {
+	genesis(|| {
+		let owners = plant_beyond_limit();
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
+		migrate_unchecked();
+
+		migrate();
+
+		assert_eq!(dca_intent_count(&owners), MAX_SCHEDULES + 1);
+	});
+}
+
+#[test]
+fn migration_should_release_max_schedules_reserves_when_more_unscheduled_reserves_exist() {
+	genesis(|| {
+		let owners: Vec<_> = (0..=MAX_SCHEDULES as u32).map(numbered_owner).collect();
+		for owner in &owners {
+			endow(owner, DOT, ENDOWMENT);
+			reserve_legacy(owner, DOT, 7 * UNITS);
+		}
+
+		migrate_unchecked();
+
+		let still_reserved: Vec<_> = owners
+			.iter()
+			.map(|owner| reserved(&DCA_RESERVE_ID, DOT, owner))
+			.filter(|amount| *amount != 0)
+			.collect();
+		assert_eq!(still_reserved, vec![7 * UNITS]);
+	});
+}
+
 /// Raw mainnet values at block 17306764 (spec 458): 3734 is fixed with an empty route, 26214 an
 /// orphan, 30104 the Treasury's rolling H2O sale, 37590 the longest route on chain (UniswapV3 leg).
 #[test]
@@ -674,13 +831,11 @@ fn legacy_aliases_should_decode_mainnet_values_when_read_at_their_keys() {
 
 #[test]
 fn migration_should_convert_rolling_schedule_when_it_sells_a_bound_erc20() {
-	const HOLLAR: AssetId = 222;
-	const ONE_HOLLAR: Balance = 1_000_000_000_000_000_000;
 	snapshot(|| {
 		let owner: AccountId = CHARLIE.into();
 		assert!(<AssetRegistry as hydradx_traits::BoundErc20>::contract_address(HOLLAR).is_some());
 		assert_ok!(Currencies::transfer(
-			RuntimeOrigin::signed(hydradx_runtime::Treasury::account_id()),
+			RuntimeOrigin::signed(Treasury::account_id()),
 			owner.clone(),
 			HOLLAR,
 			50 * ONE_HOLLAR,
@@ -702,6 +857,107 @@ fn migration_should_convert_rolling_schedule_when_it_sells_a_bound_erc20() {
 		assert_eq!(reserved(&DCA_RESERVE_ID, HOLLAR, &owner), 0);
 		assert_eq!(reserved(&INTENT_RESERVE_ID, HOLLAR, &owner), 20 * ONE_HOLLAR);
 		assert_eq!(Currencies::free_balance(HOLLAR, &owner), 30 * ONE_HOLLAR);
+	});
+}
+
+fn custody() -> AccountId {
+	<Runtime as pallet_currencies::Config>::ReserveAccount::get()
+}
+
+/// 20 HOLLAR go into custody the regular way, then the `dcaorder` receipt alone grows past everything custody
+/// holds, so releasing it asks custody for 1 HOLLAR more than it has and the erc20 transfer reverts.
+fn reserve_hollar_beyond_custody(owner: &AccountId) {
+	assert_eq!(Currencies::free_balance(HOLLAR, &custody()), SNAPSHOT_CUSTODY_HOLLAR);
+	assert_ok!(Currencies::transfer(
+		RuntimeOrigin::signed(Treasury::account_id()),
+		owner.clone(),
+		HOLLAR,
+		50 * ONE_HOLLAR,
+	));
+	reserve_legacy(owner, HOLLAR, 20 * ONE_HOLLAR);
+	let excess = SNAPSHOT_CUSTODY_HOLLAR + ONE_HOLLAR;
+	assert_ok!(<Tokens as MultiCurrency<_>>::deposit(HOLLAR, owner, excess));
+	assert_ok!(<Tokens as NamedMultiReservableCurrency<_>>::reserve_named(
+		&DCA_RESERVE_ID,
+		HOLLAR,
+		owner,
+		excess
+	));
+}
+
+fn plant_healthy_hdx_schedule(owner: &AccountId) {
+	endow(owner, HDX, ENDOWMENT);
+	reserve_legacy(owner, HDX, 50 * UNITS);
+	plant(
+		u32::MAX - 1,
+		sell(owner.clone(), HDX, BNC, 5 * UNITS, 100 * UNITS),
+		Some(50 * UNITS),
+		None,
+	);
+}
+
+#[test]
+fn migration_should_keep_legacy_reserve_record_when_bound_erc20_release_fails() {
+	snapshot(|| {
+		let owner: AccountId = CHARLIE.into();
+		reserve_hollar_beyond_custody(&owner);
+
+		migrate_unchecked();
+
+		assert_eq!(
+			reserved(&DCA_RESERVE_ID, HOLLAR, &owner),
+			SNAPSHOT_CUSTODY_HOLLAR + 21 * ONE_HOLLAR
+		);
+	});
+}
+
+#[test]
+fn migration_should_keep_tokens_in_reserve_account_custody_when_bound_erc20_release_fails() {
+	snapshot(|| {
+		let owner: AccountId = CHARLIE.into();
+		reserve_hollar_beyond_custody(&owner);
+
+		migrate_unchecked();
+
+		assert_eq!(
+			Currencies::free_balance(HOLLAR, &custody()),
+			SNAPSHOT_CUSTODY_HOLLAR + 20 * ONE_HOLLAR
+		);
+		assert_eq!(Currencies::free_balance(HOLLAR, &owner), 30 * ONE_HOLLAR);
+	});
+}
+
+#[test]
+fn migration_should_convert_schedule_of_another_owner_when_bound_erc20_release_fails() {
+	snapshot(|| {
+		let alice: AccountId = ALICE.into();
+		plant_healthy_hdx_schedule(&alice);
+		reserve_hollar_beyond_custody(&CHARLIE.into());
+
+		migrate_unchecked();
+
+		let intents = dca_intents_of(&alice);
+		assert_eq!(intents.len(), 1);
+		assert_eq!(intents[0].1.remaining_budget, 50 * UNITS);
+		assert_eq!(reserved(&DCA_RESERVE_ID, HDX, &alice), 0);
+		assert_eq!(reserved(&INTENT_RESERVE_ID, HDX, &alice), 50 * UNITS);
+	});
+}
+
+#[test]
+fn migration_should_clear_dca_prefix_when_bound_erc20_release_fails() {
+	snapshot(|| {
+		plant_healthy_hdx_schedule(&ALICE.into());
+		reserve_hollar_beyond_custody(&CHARLIE.into());
+		let prefix = dca_prefix();
+		assert!(sp_io::storage::next_key(&prefix).is_some_and(|key| key.starts_with(&prefix)));
+
+		migrate_unchecked();
+
+		assert_eq!(
+			sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)),
+			None
+		);
 	});
 }
 
@@ -803,7 +1059,6 @@ fn migration_should_convert_atoken_schedule_when_owner_borrows_against_many_coll
 
 #[test]
 fn migrated_intent_should_settle_through_ice_when_its_period_has_elapsed() {
-	const BNC: AssetId = 14;
 	snapshot(|| {
 		let alice: AccountId = ALICE.into();
 		assert_ok!(hydradx_runtime::Omnipool::set_slip_fee(

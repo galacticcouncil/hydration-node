@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Retires legacy DCA (`DCA`, index 66): each schedule becomes a DCA intent or is cancelled and
-//! refunded, whatever is still reserved under `dcaorder` on any account is released, the paused
+//! refunded (at most `MAX_SCHEDULES` per run; beyond that the run stops and leaves the rest), whatever is still reserved under `dcaorder` on any account is released, the paused
 //! `DCA.schedule` entry is dropped and the `DCA` prefix is cleared.
 //! Reads the old storage through aliases because the pallet crate is gone.
 
@@ -27,6 +27,8 @@ use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
 pub const DCA_RESERVE_ID: [u8; 8] = *b"dcaorder";
+/// Block-weight safety stop per run, about twice what mainnet holds.
+pub const MAX_SCHEDULES: usize = 30;
 /// Legacy `MaxPriceDifferenceBetweenBlocks`, applied when a schedule set no slippage.
 const DEFAULT_SLIPPAGE: Permill = Permill::from_parts(15_000);
 /// On top of `ERC20_GAS_LIMIT` per reserve-moving step. Re-reserving an aToken runs Aave's health-factor
@@ -103,12 +105,21 @@ impl MigrateDcaToIntents {
 			}
 		}
 
-		let mut schedules: Vec<_> = Schedules::iter().collect();
+		let mut schedules: Vec<_> = Schedules::iter().take(MAX_SCHEDULES + 1).collect();
 		meter.reads += schedules.len() as u64;
 		schedules.sort_by_key(|(id, _)| *id);
+		let limit_hit = schedules.len() > MAX_SCHEDULES;
 
-		for (id, schedule) in schedules {
+		for (id, schedule) in schedules.into_iter().take(MAX_SCHEDULES) {
 			Self::migrate_schedule(id, &schedule, planned.get(&id).copied(), meter);
+			Schedules::remove(id);
+			RemainingAmounts::remove(id);
+			meter.writes += 2;
+		}
+
+		if limit_hit {
+			log::error!(target: LOG_TARGET, "DCA retirement stopped after {MAX_SCHEDULES} schedules: legacy DCA state remains, run the migration again");
+			return;
 		}
 
 		Self::release_legacy_reserves(meter);
@@ -208,7 +219,11 @@ impl MigrateDcaToIntents {
 			.inspect(|_| meter.reads += 1)
 			.filter_map(|(owner, asset, amount)| Some((owner, asset, amount?)))
 			.collect();
-		for (owner, asset, reserved) in legacy {
+		let skipped = legacy.len().saturating_sub(MAX_SCHEDULES);
+		if skipped > 0 {
+			log::error!(target: LOG_TARGET, "DCA reserve release stopped after {MAX_SCHEDULES}: {skipped} dcaorder reserves stay reserved");
+		}
+		for (owner, asset, reserved) in legacy.into_iter().take(MAX_SCHEDULES) {
 			let (left, _) = Self::with_extra_gas(asset, 1, meter, || {
 				Ok(Currencies::unreserve_named(&DCA_RESERVE_ID, asset, &owner, reserved))
 			});
