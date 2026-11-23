@@ -1602,6 +1602,7 @@ impl pallet_referrals::Config for Runtime {
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
+	pub RecordedProofSize: Option<u64> = cumulus_primitives_storage_weight_reclaim::get_proof_size();
 	pub BorrowingTreasuryAccount: AccountId = EVMAccounts::account_id(H160::from(hex!["E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"]));
 }
 
@@ -1652,6 +1653,7 @@ impl pallet_liquidation::Config for Runtime {
 	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type GigaHdx = crate::gigahdx::GigaHdxLiquidationSupport;
+	type RecordedProofSize = RecordedProofSize;
 }
 
 impl pallet_broadcast::Config for Runtime {}
