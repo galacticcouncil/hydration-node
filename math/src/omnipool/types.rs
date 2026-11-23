@@ -298,8 +298,8 @@ where
 
 /// Slip fee parameters for a two-asset trade.
 /// Single struct bundles both sides — either slip fees are fully enabled
-/// (both in and out) or fully disabled (None). No slip_factor field needed;
-/// s is either 0 (caller passes None) or 1 (caller passes Some).
+/// (both in and out) or fully disabled (None). Each side has its own cap so a
+/// per-asset slip fee level can switch one side off (cap zero).
 pub struct TradeSlipFees {
 	/// Q₀ for sell-side asset (hub reserve at block start)
 	pub asset_in_hub_reserve: Balance,
@@ -309,8 +309,8 @@ pub struct TradeSlipFees {
 	pub asset_out_hub_reserve: Balance,
 	/// Cumulative hub asset delta for buy-side asset before this trade
 	pub asset_out_delta: SignedBalance,
-	/// Maximum slip fee rate (per-side cap, shared)
-	pub max_slip_fee: Permill,
+	pub asset_in_max_slip_fee: Permill,
+	pub asset_out_max_slip_fee: Permill,
 }
 
 /// Slip fee parameters for a hub asset trade (one-sided — buy side only).

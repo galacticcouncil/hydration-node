@@ -90,6 +90,7 @@ use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::omnipool::apply_slip_fee_level;
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeSlipFees, SignedBalance, TradeSlipFees};
 use hydradx_traits::fee::GetDynamicFee;
 use hydradx_traits::registry::Inspect as RegistryInspect;
@@ -99,7 +100,7 @@ use primitive_types::U256;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
 use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Percent, Permill};
 use sp_std::prelude::*;
 
 #[cfg(test)]
@@ -279,6 +280,17 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type SlipFeeDelta<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, SignedBalance, ValueQuery>;
 
+	#[pallet::type_value]
+	pub fn DefaultSlipFeeLevel() -> Percent {
+		Percent::one()
+	}
+
+	/// Share of the full slip fee charged on an asset: 100% = full, 0% = off.
+	/// Only non-default levels are stored. `Percent::default()` is 0%, hence the explicit default.
+	#[pallet::storage]
+	pub type SlipFeeLevel<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, Percent, ValueQuery, DefaultSlipFeeLevel>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -383,6 +395,9 @@ pub mod pallet {
 
 		/// Slip fee configuration was updated.
 		SlipFeeSet { slip_fee: Option<SlipFeeConfig> },
+
+		/// Slip fee level of an asset was updated.
+		AssetSlipFeeLevelSet { asset_id: T::AssetId, level: Percent },
 	}
 
 	#[pallet::error]
@@ -1569,6 +1584,7 @@ pub mod pallet {
 				ExistenceRequirement::AllowDeath,
 			)?;
 			<Assets<T>>::remove(asset_id);
+			SlipFeeLevel::<T>::remove(asset_id);
 			Self::deposit_event(Event::TokenRemoved {
 				asset_id,
 				amount: asset_state.reserve,
@@ -1608,6 +1624,36 @@ pub mod pallet {
 
 			Self::deposit_event(Event::SlipFeeSet { slip_fee });
 
+			Ok(())
+		}
+
+		/// Set the slip fee level of a single asset.
+		///
+		/// The level is the share of the full slip fee charged on the asset: `100%` is the full fee,
+		/// `0%` switches the slip fee off for the asset. It has no effect while the global slip fee
+		/// is disabled.
+		///
+		/// Parameters:
+		/// - `origin`: Must be `T::UpdateTradabilityOrigin`
+		/// - `asset_id`: Omnipool asset to update
+		/// - `level`: New level
+		///
+		/// Emits `AssetSlipFeeLevelSet` event when successful.
+		///
+		#[pallet::call_index(18)]
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_slip_fee_level())]
+		pub fn set_asset_slip_fee_level(origin: OriginFor<T>, asset_id: T::AssetId, level: Percent) -> DispatchResult {
+			T::UpdateTradabilityOrigin::ensure_origin(origin)?;
+
+			ensure!(Assets::<T>::contains_key(asset_id), Error::<T>::AssetNotFound);
+
+			if level == Percent::one() {
+				SlipFeeLevel::<T>::remove(asset_id);
+			} else {
+				SlipFeeLevel::<T>::insert(asset_id, level);
+			}
+
+			Self::deposit_event(Event::AssetSlipFeeLevelSet { asset_id, level });
 			Ok(())
 		}
 	}
@@ -1710,13 +1756,24 @@ impl<T: Config> Pallet<T> {
 		asset_out_hub_reserve: Balance,
 	) -> Option<TradeSlipFees> {
 		let config = SlipFee::<T>::get()?;
+		let (asset_in_hub_reserve, asset_in_max_slip_fee) = Self::slip_fee_side(
+			asset_in,
+			Self::snapshot_q0(asset_in, asset_in_hub_reserve),
+			config.max_slip_fee,
+		);
+		let (asset_out_hub_reserve, asset_out_max_slip_fee) = Self::slip_fee_side(
+			asset_out,
+			Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			config.max_slip_fee,
+		);
 
 		Some(TradeSlipFees {
-			asset_in_hub_reserve: Self::snapshot_q0(asset_in, asset_in_hub_reserve),
+			asset_in_hub_reserve,
 			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
-			asset_out_hub_reserve: Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			asset_out_hub_reserve,
 			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
-			max_slip_fee: config.max_slip_fee,
+			asset_in_max_slip_fee,
+			asset_out_max_slip_fee,
 		})
 	}
 
@@ -1724,12 +1781,22 @@ impl<T: Config> Pallet<T> {
 	/// Returns None if slip fees are disabled.
 	fn load_hub_trade_slip_fees(asset_out: T::AssetId, asset_out_hub_reserve: Balance) -> Option<HubTradeSlipFees> {
 		let config = SlipFee::<T>::get()?;
+		let (asset_hub_reserve, max_slip_fee) = Self::slip_fee_side(
+			asset_out,
+			Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			config.max_slip_fee,
+		);
 
 		Some(HubTradeSlipFees {
-			asset_hub_reserve: Self::snapshot_q0(asset_out, asset_out_hub_reserve),
+			asset_hub_reserve,
 			asset_delta: SlipFeeDelta::<T>::get(asset_out),
-			max_slip_fee: config.max_slip_fee,
+			max_slip_fee,
 		})
+	}
+
+	/// Applies the asset's slip fee level to the raw Q₀ and the global cap.
+	fn slip_fee_side(asset_id: T::AssetId, q0: Balance, max_slip_fee: Permill) -> (Balance, Permill) {
+		apply_slip_fee_level(q0, max_slip_fee, SlipFeeLevel::<T>::get(asset_id))
 	}
 
 	/// Lazily snapshot Q₀ for an asset. Returns the snapshotted value.
@@ -1765,24 +1832,40 @@ impl<T: Config> Pallet<T> {
 		asset_out_hub_reserve: Balance,
 	) -> Option<TradeSlipFees> {
 		let config = SlipFee::<T>::get()?;
+		let (asset_in_hub_reserve, asset_in_max_slip_fee) = Self::slip_fee_side(
+			asset_in,
+			SlipFeeHubReserveAtBlockStart::<T>::get(asset_in).unwrap_or(asset_in_hub_reserve),
+			config.max_slip_fee,
+		);
+		let (asset_out_hub_reserve, asset_out_max_slip_fee) = Self::slip_fee_side(
+			asset_out,
+			SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			config.max_slip_fee,
+		);
 
 		Some(TradeSlipFees {
-			asset_in_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_in).unwrap_or(asset_in_hub_reserve),
+			asset_in_hub_reserve,
 			asset_in_delta: SlipFeeDelta::<T>::get(asset_in),
-			asset_out_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_out_hub_reserve,
 			asset_out_delta: SlipFeeDelta::<T>::get(asset_out),
-			max_slip_fee: config.max_slip_fee,
+			asset_in_max_slip_fee,
+			asset_out_max_slip_fee,
 		})
 	}
 
 	/// Read-only version of load_hub_trade_slip_fees for router quotes.
 	fn peek_hub_trade_slip_fees(asset_out: T::AssetId, asset_out_hub_reserve: Balance) -> Option<HubTradeSlipFees> {
 		let config = SlipFee::<T>::get()?;
+		let (asset_hub_reserve, max_slip_fee) = Self::slip_fee_side(
+			asset_out,
+			SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			config.max_slip_fee,
+		);
 
 		Some(HubTradeSlipFees {
-			asset_hub_reserve: SlipFeeHubReserveAtBlockStart::<T>::get(asset_out).unwrap_or(asset_out_hub_reserve),
+			asset_hub_reserve,
 			asset_delta: SlipFeeDelta::<T>::get(asset_out),
-			max_slip_fee: config.max_slip_fee,
+			max_slip_fee,
 		})
 	}
 
@@ -2239,6 +2322,7 @@ impl<T: Config> Pallet<T> {
 	/// No events emitted.
 	pub fn remove_asset(asset_id: T::AssetId) -> DispatchResult {
 		<Assets<T>>::remove(asset_id);
+		SlipFeeLevel::<T>::remove(asset_id);
 		Ok(())
 	}
 

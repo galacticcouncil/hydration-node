@@ -376,7 +376,7 @@ checksum = "4436e0292ab1bb631b42973c61205e704475fe8126af845c8d923c0996328127"
 
 [[package]]
 name = "amm-simulator"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "ethabi",
  "evm",
@@ -5711,7 +5711,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "13.2.4"
+version = "13.3.0"
 dependencies = [
  "approx",
  "criterion",
@@ -5733,7 +5733,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "15.9.0"
+version = "15.9.1"
 dependencies = [
  "amm-simulator",
  "async-trait",
@@ -5901,7 +5901,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "458.0.0"
+version = "459.0.0"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-sol-types 0.7.7",
@@ -10452,7 +10452,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "7.4.3"
+version = "7.5.0"
 dependencies = [
  "bitflags 1.3.2",
  "frame-benchmarking",
@@ -11596,7 +11596,7 @@ dependencies = [
 
 [[package]]
 name = "pepl-worker"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "amm-simulator",
  "clap",
@@ -11621,6 +11621,7 @@ dependencies = [
  "pallet-evm",
  "pallet-ice-runtime-api",
  "pallet-liquidation",
+ "pallet-omnipool",
  "parity-scale-codec",
  "pepl-worker-support",
  "pretty_assertions",
@@ -14254,7 +14255,7 @@ checksum = "48fd7bd8a6377e15ad9d42a8ec25371b94ddc67abe7c8b9127bec79bebaaae18"
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.128.1"
+version = "1.128.2"
 dependencies = [
  "amm-simulator",
  "cerebro-core",

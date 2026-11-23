@@ -87,6 +87,10 @@ impl<T: pallet_omnipool::Config<AssetId = AssetId>> OmnipoolDataProvider for Omn
 	fn slip_fee() -> Option<pallet_omnipool::types::SlipFeeConfig> {
 		pallet_omnipool::pallet::SlipFee::<T>::get()
 	}
+
+	fn slip_fee_levels() -> impl Iterator<Item = (AssetId, sp_runtime::Percent)> {
+		pallet_omnipool::pallet::SlipFeeLevel::<T>::iter()
+	}
 }
 
 use amm_simulator::stableswap::DataProvider as StableswapDataProvider;

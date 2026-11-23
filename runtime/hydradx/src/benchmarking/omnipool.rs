@@ -9,7 +9,7 @@ use frame_support::{
 	assert_ok,
 	sp_runtime::{
 		traits::{One, SaturatedConversion, Zero},
-		FixedU128, Permill,
+		FixedU128, Percent, Permill,
 	},
 	traits::{OnFinalize, OnInitialize},
 };
@@ -83,6 +83,21 @@ pub fn init() -> DispatchResult {
 
 	next_block();
 
+	Ok(())
+}
+
+/// Trades read the slip fee state only while it is enabled, so the trade benchmarks enable it and
+/// lower the level on both assets to measure the worst case.
+fn enable_slip_fee(assets: [AssetId; 2]) -> DispatchResult {
+	Omnipool::set_slip_fee(
+		RawOrigin::Root.into(),
+		Some(SlipFeeConfig {
+			max_slip_fee: Permill::from_percent(50),
+		}),
+	)?;
+	for asset_id in assets {
+		Omnipool::set_asset_slip_fee_level(RawOrigin::Root.into(), asset_id, Percent::from_percent(50))?;
+	}
 	Ok(())
 }
 
@@ -305,6 +320,8 @@ runtime_benchmarks! {
 		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
 		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
 
+		enable_slip_fee([token_id, DAI])?;
+
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
 
@@ -353,6 +370,8 @@ runtime_benchmarks! {
 		let buyer: AccountId = account("buyer", 2, 1);
 		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
 		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
+
+		enable_slip_fee([token_id, DAI])?;
 
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
@@ -433,6 +452,13 @@ runtime_benchmarks! {
 	}: { Omnipool::set_slip_fee(RawOrigin::Root.into(), Some(SlipFeeConfig { max_slip_fee: Permill::from_percent(50) }))? }
 	verify {
 		assert!(pallet_omnipool::SlipFee::<Runtime>::get().is_some());
+	}
+
+	set_asset_slip_fee_level {
+		init()?;
+	}: { Omnipool::set_asset_slip_fee_level(RawOrigin::Root.into(), DAI, Percent::from_percent(50))? }
+	verify {
+		assert_eq!(pallet_omnipool::SlipFeeLevel::<Runtime>::get(DAI), Percent::from_percent(50));
 	}
 
 	withdraw_protocol_liquidity {
@@ -544,6 +570,8 @@ runtime_benchmarks! {
 		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
 		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
 
+		enable_slip_fee([token_id, DAI])?;
+
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
 
@@ -596,6 +624,8 @@ runtime_benchmarks! {
 		let buyer: AccountId = account("buyer", 2, 1);
 		update_balance(DAI, &buyer, 500_000_000_000_000_u128);
 		Omnipool::buy(RawOrigin::Signed(buyer).into(), token_id, DAI, 30_000_000_000_000_u128, 100_000_000_000_000_u128)?;
+
+		enable_slip_fee([token_id, DAI])?;
 
 		let seller: AccountId = account("seller", 3, 1);
 		update_balance(token_id, &seller, 500_000_000_000_000_u128);
