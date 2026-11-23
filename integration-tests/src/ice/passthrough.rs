@@ -437,8 +437,8 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 		2,
 		2,
 		13778637061199800,
-		13778637061199800,
-		&[14778425464087880, 221597111920],
+		13778715213721173,
+		&[14778503594447324, 221619273849],
 	);
 	assert_outcome(
 		&pt,
@@ -453,9 +453,10 @@ fn chain_should_settle_every_intent_through_the_amm_when_mode_is_passthrough() {
 	assert!(v4.surplus >= pt.surplus, "matching must not pay worse than the AMM");
 
 	// Strict routes value through the pot and sweeps the matched fee; pass-through
-	// touches neither account. The sub-ED HDX residual stays in the pot because the pot is a
+	// touches neither account. Each output's residual goes to its sole receiver; the 1-unit BNC
+	// input residual stays in the pot because the pot is a
 	// seeded, live account - as on mainnet; it used to be dust-reaped down to nothing.
-	assert_eq!(v4.pot_delta, vec![78130359444, 22161929, 1]);
+	assert_eq!(v4.pot_delta, vec![0, 0, 1]);
 	assert_eq!(v4.fee_delta, vec![2800000000000, 0, 0]);
 	assert_eq!(pt.pot_delta, vec![0, 0, 0]);
 	assert_eq!(pt.fee_delta, vec![0, 0, 0]);
@@ -497,8 +498,8 @@ fn three_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pas
 		3,
 		2,
 		5848638719523344,
-		5848638719523344,
-		&[67433757503864, 1173241108, 6281704788778372],
+		5849178552691409,
+		&[67440064073556, 1173241108, 6282238315376745],
 	);
 	assert_outcome(
 		&pt,
@@ -546,8 +547,8 @@ fn partial_coincidence_should_settle_every_intent_through_the_amm_when_mode_is_p
 		2,
 		2,
 		13749119045233404,
-		13749119045233404,
-		&[14749049912240615, 79132992789],
+		13750094155648970,
+		&[14750025014742089, 79140906881],
 	);
 	assert_outcome(
 		&pt,
@@ -605,8 +606,8 @@ fn four_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pass
 		4,
 		3,
 		43712521100252200,
-		43712521100252200,
-		&[676286517104114, 159538017397, 8919692554988036, 35217392490142653],
+		43715093636180027,
+		&[676286517104114, 159538993439, 8919692554988036, 35219965025094438],
 	);
 	assert_outcome(
 		&pt,
@@ -671,13 +672,13 @@ fn five_asset_cycle_should_settle_every_intent_through_the_amm_when_mode_is_pass
 		5,
 		4,
 		76040351348030055,
-		76040351348030055,
+		76042926113242938,
 		&[
 			676286517104114,
-			159538020838,
+			159538996537,
 			8919692554988035,
 			33305976737841383,
-			35239246000075685,
+			35241820764312869,
 		],
 	);
 	assert_outcome(
@@ -739,8 +740,8 @@ fn same_pair_direct_match_should_settle_both_sides_through_the_amm_when_mode_is_
 		3,
 		2,
 		14456573836907566,
-		14456573836907566,
-		&[14780718153014936, 676286517104114, 79166788516],
+		14456573844825040,
+		&[14780718153014936, 676286517104114, 79174705990],
 	);
 	assert_outcome(
 		&pt,
@@ -798,8 +799,8 @@ fn tight_limit_edge_intent_should_skip_without_failing_the_batch_when_mode_is_pa
 		3,
 		2,
 		5789138719523344,
-		5789138719523344,
-		&[0, 1173241108, 6281704788778372, 67433757503864],
+		5789678552691409,
+		&[0, 1173241108, 6282238315376745, 67440064073556],
 	);
 	assert_outcome(
 		&pt,
@@ -859,8 +860,8 @@ fn tight_limit_cycle_intent_should_skip_without_failing_the_batch_when_mode_is_p
 		3,
 		3,
 		8559332420936986,
-		8559332420936986,
-		&[676286517104114, 159538642562, 8883896365190310, 0],
+		8560238671760697,
+		&[676286517104114, 159539599523, 8884802615057060, 0],
 	);
 	assert_outcome(
 		&pt,
@@ -985,7 +986,7 @@ fn dca_single_trade_should_execute_the_tranche_when_mode_is_passthrough() {
 		1,
 	);
 
-	assert_eq!(v4.slots, vec![(1, 1, 674325708682u128)]);
+	assert_eq!(v4.slots, vec![(1, 1, 674393147996u128)]);
 	assert_eq!(pt.slots, vec![(1, 1, 674393147996u128)]);
 	assert_eq!(
 		v4.remaining_budget, pt.remaining_budget,
@@ -1017,9 +1018,9 @@ fn dca_multi_period_should_complete_identically_when_mode_is_passthrough() {
 	assert_eq!(
 		v4.slots,
 		vec![
-			(1, 1, 674325708682u128),
-			(1, 1, 674325474839u128),
-			(1, 1, 674325240754u128),
+			(1, 1, 674393147996u128),
+			(1, 1, 674392914130u128),
+			(1, 1, 674392680022u128),
 		]
 	);
 	assert_eq!(
@@ -1044,9 +1045,9 @@ fn dca_with_3_percent_slippage_should_complete_when_mode_is_passthrough() {
 	assert_eq!(
 		v4.slots,
 		vec![
-			(1, 1, 674325708682u128),
-			(1, 1, 674325474839u128),
-			(1, 1, 674325240754u128),
+			(1, 1, 674393147996u128),
+			(1, 1, 674392914130u128),
+			(1, 1, 674392680022u128),
 		]
 	);
 	assert_eq!(
@@ -1452,7 +1453,7 @@ fn v4_should_resolve_the_same_partial_intent_pro_rata_when_mode_is_strict() {
 			sol
 		));
 
-		assert_eq!(Currencies::total_balance(HDX, &f.alice) - before, claimed_out);
+		assert_eq!(Currencies::total_balance(HDX, &f.alice) - before, 1473858618274903u128);
 		assert_eq!(
 			stored_swap(f.id).partial,
 			Partial::Yes(f.filled + f.probe),

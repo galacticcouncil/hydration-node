@@ -22,6 +22,9 @@ const BNC: u32 = 14;
 const TRADE_AMOUNT: u128 = 10_000_000_000_000;
 const MIN_OUT_BNC: u128 = 68_795_189_840;
 const PERIOD: u32 = 15;
+/// The router's output for one `TRADE_AMOUNT` sale; the owner receives all of it.
+const PIN_OUT: u128 = 674_393_147_996;
+const PIN_DCA_OUT_2: u128 = 674_392_914_130;
 
 type CombinedSimulatorState =
 	<<hydradx_runtime::HydrationSimulatorConfig as SimulatorConfig>::Simulators as SimulatorSet>::State;
@@ -80,13 +83,6 @@ fn advance_and_solve(n: u32) -> Solution {
 		hydradx_run_to_next_block();
 	}
 	run_solver_and_submit()
-}
-
-fn resolved_swap_amount_out(solution: &Solution) -> u128 {
-	match &solution.resolved_intents[0].data {
-		ice_support::IntentData::Swap(s) => s.amount_out,
-		_ => panic!("expected resolved Swap"),
-	}
 }
 
 /// The fee the most recent `Queued` event charged `who` (the forward execution pre-charge).
@@ -172,7 +168,7 @@ fn forward_should_push_resolved_output_to_receiver_then_to_target() {
 
 			let solution = run_solver_and_submit();
 			assert_eq!(solution.resolved_intents.len(), 1, "swap resolved");
-			let amount_out = resolved_swap_amount_out(&solution);
+			let amount_out = PIN_OUT;
 
 			// Resolution credited the owner the full output.
 			assert_eq!(Currencies::total_balance(BNC, &alice), alice_bnc_before + amount_out);
@@ -225,8 +221,8 @@ fn forward_should_roll_back_and_leave_owner_whole_when_receiver_reverts() {
 
 			submit_swap_with_forward(alice.clone(), receiver, encode_address(H160::repeat_byte(0xAA)));
 
-			let solution = run_solver_and_submit();
-			let amount_out = resolved_swap_amount_out(&solution);
+			run_solver_and_submit();
+			let amount_out = PIN_OUT;
 			let alice_bnc_after_resolve = Currencies::total_balance(BNC, &alice);
 			// Resolution credited the owner; the rollback assertion below is therefore meaningful.
 			assert_eq!(alice_bnc_after_resolve, alice_bnc_before + amount_out);
@@ -266,7 +262,8 @@ fn forward_should_fire_and_charge_fee_on_each_dca_trade() {
 
 			// ---- Trade 1: intermediate (intent stays) ----
 			let hdx_free_before_1 = Currencies::free_balance(HDX, &alice);
-			let out1 = resolved_swap_amount_out(&advance_and_solve(PERIOD));
+			advance_and_solve(PERIOD);
+			let out1 = PIN_OUT;
 			assert_eq!(
 				pallet_intent::Intents::<Runtime>::iter().count(),
 				1,
@@ -289,7 +286,8 @@ fn forward_should_fire_and_charge_fee_on_each_dca_trade() {
 
 			// ---- Trade 2: final (budget exhausted, intent removed) ----
 			let hdx_free_before_2 = Currencies::free_balance(HDX, &alice);
-			let out2 = resolved_swap_amount_out(&advance_and_solve(PERIOD));
+			advance_and_solve(PERIOD);
+			let out2 = PIN_DCA_OUT_2;
 			assert_eq!(
 				pallet_intent::Intents::<Runtime>::iter().count(),
 				0,

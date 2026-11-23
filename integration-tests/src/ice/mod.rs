@@ -17,3 +17,4 @@ mod slip_fee_level;
 mod solver;
 mod split;
 mod stuck_intents;
+mod whole_output;
