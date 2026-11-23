@@ -35,6 +35,7 @@ mod non_native_fee;
 mod omnipool_add_all_liquidity;
 mod omnipool_fixed_fees;
 mod omnipool_init;
+mod omnipool_liquidation_base_fee;
 mod omnipool_liquidity_mining;
 mod omnipool_remove_all_liquidity;
 mod omnipool_slip_fees;

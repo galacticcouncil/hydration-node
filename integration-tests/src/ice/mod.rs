@@ -13,6 +13,7 @@ mod node_solver;
 mod oracle_routes;
 mod passthrough;
 mod recorder;
+mod slip_fee_level;
 mod solver;
 mod split;
 mod stuck_intents;

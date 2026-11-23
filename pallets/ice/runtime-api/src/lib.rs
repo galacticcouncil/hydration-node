@@ -48,7 +48,12 @@ sp_api::decl_runtime_apis! {
 	}
 
 	/// Side-effect-free liquidity snapshot; unlike `IceSolverApi` it does not depend on pending intents.
+	#[api_version(2)]
 	pub trait LiquidityStateApi {
 		fn liquidity_state() -> LiquidityState;
+
+		/// Base (asset fee, protocol fee) of every Omnipool asset; liquidation sales pay these.
+		#[api_version(2)]
+		fn omnipool_base_fees() -> Vec<(AssetId, (Permill, Permill))>;
 	}
 }

@@ -268,6 +268,23 @@ where
 		}
 	}
 
+	fn base_fee(asset_id: T::AssetId) -> (T::Fee, T::Fee) {
+		match Self::asset_fee_config(asset_id) {
+			Some(AssetFeeConfig::Fixed {
+				asset_fee,
+				protocol_fee,
+			}) => (asset_fee, protocol_fee),
+			Some(AssetFeeConfig::Dynamic {
+				asset_fee_params,
+				protocol_fee_params,
+			}) => (asset_fee_params.min_fee, protocol_fee_params.min_fee),
+			None => (
+				T::AssetFeeParameters::get().min_fee,
+				T::ProtocolFeeParameters::get().min_fee,
+			),
+		}
+	}
+
 	/// Updates fee for an asset based on its configuration
 	///
 	/// This function determines the fee calculation method based on the asset's configuration:
@@ -435,5 +452,9 @@ where
 
 	fn get_and_store(k: (T::AssetId, Balance)) -> Self::Fee {
 		Pallet::<T>::update_fee(k.0, k.1, true)
+	}
+
+	fn get_base(k: (T::AssetId, Balance)) -> Self::Fee {
+		Pallet::<T>::base_fee(k.0)
 	}
 }

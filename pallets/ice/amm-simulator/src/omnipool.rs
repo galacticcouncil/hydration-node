@@ -3,6 +3,7 @@
 use codec::Decode;
 use codec::Encode;
 use core::marker::PhantomData;
+use hydra_dx_math::omnipool::apply_slip_fee_level;
 use hydra_dx_math::omnipool::types::HubTradeSlipFees;
 use hydra_dx_math::omnipool::types::SignedBalance;
 use hydra_dx_math::omnipool::types::TradeFee;
@@ -23,8 +24,9 @@ use pallet_omnipool::types::Tradability;
 use primitive_types::U256;
 use primitives::constants::chain::CORE_ASSET_ID;
 use sp_runtime::traits::Zero;
-use sp_runtime::Permill;
+use sp_runtime::{Percent, Permill};
 use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 pub trait DataProvider {
 	type AccountId;
@@ -46,6 +48,8 @@ pub trait DataProvider {
 	fn max_out_ratio() -> Balance;
 
 	fn slip_fee() -> Option<SlipFeeConfig>;
+
+	fn slip_fee_levels() -> impl Iterator<Item = (AssetId, Percent)>;
 }
 
 /// Snapshot of Omnipool state for simulation purposes.
@@ -77,6 +81,14 @@ pub struct OmnipoolSnapshot {
 	/// shipped: skipping it keeps the encoding the runtime produces unchanged.
 	#[codec(skip)]
 	pub hub_sells_disabled: bool,
+	/// Mirrors `Omnipool::SlipFeeLevel`; absent = full. Filled by `snapshot()` in-process and by
+	/// the node after decoding: skipping it keeps the encoding the runtime produces unchanged.
+	#[codec(skip)]
+	pub slip_fee_levels: BTreeMap<AssetId, Percent>,
+	/// Base (asset fee, protocol fee) per asset. When set, sells use these and no slip fee, as a
+	/// liquidation sale does on-chain. Set by the node, not shipped.
+	#[codec(skip)]
+	pub base_fees: Option<BTreeMap<AssetId, (Permill, Permill)>>,
 }
 
 impl OmnipoolSnapshot {
@@ -125,19 +137,18 @@ impl OmnipoolSnapshot {
 		asset_out_hub_reserve: Balance,
 	) -> Option<TradeSlipFees> {
 		let cfg = self.slip_fee.clone()?;
+		let (asset_in_hub_reserve, asset_in_max_slip_fee) =
+			self.slip_fee_side(asset_in, asset_in_hub_reserve, cfg.max_slip_fee);
+		let (asset_out_hub_reserve, asset_out_max_slip_fee) =
+			self.slip_fee_side(asset_out, asset_out_hub_reserve, cfg.max_slip_fee);
 
 		Some(TradeSlipFees {
-			asset_in_hub_reserve: *self
-				.slip_fee_hubreserve_at_block_start
-				.get(&asset_in)
-				.unwrap_or(&asset_in_hub_reserve),
+			asset_in_hub_reserve,
 			asset_in_delta: *self.slip_fee_delta.get(&asset_in).unwrap_or(&SignedBalance::default()),
-			asset_out_hub_reserve: *self
-				.slip_fee_hubreserve_at_block_start
-				.get(&asset_out)
-				.unwrap_or(&asset_out_hub_reserve),
+			asset_out_hub_reserve,
 			asset_out_delta: *self.slip_fee_delta.get(&asset_out).unwrap_or(&SignedBalance::default()),
-			max_slip_fee: cfg.max_slip_fee,
+			asset_in_max_slip_fee,
+			asset_out_max_slip_fee,
 		})
 	}
 
@@ -147,15 +158,51 @@ impl OmnipoolSnapshot {
 		asset_out_hub_reserve: Balance,
 	) -> Option<HubTradeSlipFees> {
 		let cfg = self.slip_fee.clone()?;
+		let (asset_hub_reserve, max_slip_fee) = self.slip_fee_side(asset_out, asset_out_hub_reserve, cfg.max_slip_fee);
 
 		Some(HubTradeSlipFees {
-			asset_hub_reserve: *self
-				.slip_fee_hubreserve_at_block_start
-				.get(&asset_out)
-				.unwrap_or(&asset_out_hub_reserve),
+			asset_hub_reserve,
 			asset_delta: *self.slip_fee_delta.get(&asset_out).unwrap_or(&SignedBalance::default()),
-			max_slip_fee: cfg.max_slip_fee,
+			max_slip_fee,
 		})
+	}
+
+	/// Raw block-start hub reserve. This, not the level-scaled value, is what gets written back,
+	/// otherwise the next trade on the same asset would scale it again.
+	fn q0(&self, asset_id: AssetId, current_hub_reserve: Balance) -> Balance {
+		*self
+			.slip_fee_hubreserve_at_block_start
+			.get(&asset_id)
+			.unwrap_or(&current_hub_reserve)
+	}
+
+	fn slip_fee_side(
+		&self,
+		asset_id: AssetId,
+		current_hub_reserve: Balance,
+		max_slip_fee: Permill,
+	) -> (Balance, Permill) {
+		// Not `unwrap_or_default()`: `Percent::default()` is 0%, which would switch the fee off.
+		let level = self.slip_fee_levels.get(&asset_id).copied().unwrap_or(Percent::one());
+		apply_slip_fee_level(self.q0(asset_id, current_hub_reserve), max_slip_fee, level)
+	}
+
+	/// Fills `slip_fee_levels` from raw `Omnipool::SlipFeeLevel` storage. `storage` returns the
+	/// value under a key, `None` when unset.
+	pub fn fill_slip_fee_levels<T>(&mut self, storage: impl Fn(&[u8]) -> Option<Vec<u8>>)
+	where
+		T: pallet_omnipool::Config<AssetId = AssetId>,
+	{
+		self.slip_fee_levels = self
+			.assets
+			.keys()
+			.filter_map(|asset_id| {
+				let key = pallet_omnipool::SlipFeeLevel::<T>::hashed_key_for(asset_id);
+				// A value above 100% does not decode and is dropped, which means full fee.
+				let level = Percent::decode(&mut &storage(&key)?[..]).ok()?;
+				Some((*asset_id, level))
+			})
+			.collect();
 	}
 
 	pub fn get_updated_fee_delta(
@@ -211,6 +258,8 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			slip_fee_hubreserve_at_block_start: BTreeMap::new(),
 			slip_fee_delta: BTreeMap::new(),
 			hub_sells_disabled: false,
+			slip_fee_levels: DP::slip_fee_levels().collect(),
+			base_fees: None,
 		}
 	}
 
@@ -259,8 +308,15 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			return Err(SimulatorError::TradeTooLarge);
 		}
 
-		let (asset_fee, _) = snapshot.get_fees(asset_out);
-		let (_, protocol_fee) = snapshot.get_fees(asset_in);
+		let fee_of = |asset| {
+			snapshot
+				.base_fees
+				.as_ref()
+				.and_then(|base| base.get(&asset).copied())
+				.unwrap_or_else(|| snapshot.get_fees(asset))
+		};
+		let (asset_fee, _) = fee_of(asset_out);
+		let (_, protocol_fee) = fee_of(asset_in);
 		let withdraw_fee = Permill::from_percent(0); // Not used in trades
 
 		let slip = snapshot.load_trade_slip_fees(
@@ -269,6 +325,11 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			asset_out,
 			asset_out_state.hub_reserve,
 		);
+		let charged_slip = if snapshot.base_fees.is_some() {
+			None
+		} else {
+			slip.as_ref()
+		};
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 			&asset_in_state.into(),
@@ -277,7 +338,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			asset_fee,
 			protocol_fee,
 			withdraw_fee,
-			slip.as_ref(),
+			charged_slip,
 		)
 		.ok_or(SimulatorError::MathError)?;
 
@@ -312,7 +373,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			.with_updated_asset(asset_in, new_asset_in_state)
 			.with_updated_asset(asset_out, new_asset_out_state);
 
-		if let Some(s_fees) = slip {
+		if slip.is_some() {
 			let (d_in, d_out) = snapshot
 				.get_updated_fee_delta(
 					asset_in,
@@ -323,8 +384,8 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 				.ok_or(SimulatorError::Other)?;
 
 			new_snapshot = new_snapshot
-				.with_q0(asset_in, s_fees.asset_in_hub_reserve)
-				.with_q0(asset_out, s_fees.asset_out_hub_reserve)
+				.with_q0(asset_in, snapshot.q0(asset_in, asset_in_state.hub_reserve))
+				.with_q0(asset_out, snapshot.q0(asset_out, asset_out_state.hub_reserve))
 				.with_slip_delta(asset_in, d_in)
 				.with_slip_delta(asset_out, d_out);
 		}
@@ -422,7 +483,7 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 			.with_updated_asset(asset_in, new_asset_in_state)
 			.with_updated_asset(asset_out, new_asset_out_state);
 
-		if let Some(s_fees) = slip {
+		if slip.is_some() {
 			let (d_in, d_out) = snapshot
 				.get_updated_fee_delta(
 					asset_in,
@@ -433,8 +494,8 @@ impl<DP: DataProvider> AmmSimulator for Simulator<DP> {
 				.ok_or(SimulatorError::Other)?;
 
 			new_snapshot = new_snapshot
-				.with_q0(asset_in, s_fees.asset_in_hub_reserve)
-				.with_q0(asset_out, s_fees.asset_out_hub_reserve)
+				.with_q0(asset_in, snapshot.q0(asset_in, asset_in_state.hub_reserve))
+				.with_q0(asset_out, snapshot.q0(asset_out, asset_out_state.hub_reserve))
 				.with_slip_delta(asset_in, d_in)
 				.with_slip_delta(asset_out, d_out);
 		}
@@ -575,7 +636,7 @@ fn sell_hub_asset(
 			.ok_or(SimulatorError::Other)?;
 
 		new_snapshot = new_snapshot
-			.with_q0(asset_out, s_fees.asset_hub_reserve)
+			.with_q0(asset_out, snapshot.q0(asset_out, asset_out_state.hub_reserve))
 			.with_slip_delta(asset_out, delta);
 	}
 

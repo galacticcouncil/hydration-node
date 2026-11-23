@@ -63,6 +63,7 @@ pub enum ExecutionType {
 	Omnipool(IncrementalIdType),
 	XcmExchange(IncrementalIdType),
 	Xcm([u8; 32], IncrementalIdType),
+	Liquidation(IncrementalIdType),
 }
 
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]

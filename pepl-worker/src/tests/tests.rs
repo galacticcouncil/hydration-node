@@ -139,6 +139,7 @@ fn map_decision_collateral_should_pass_through_when_market_is_generic() {
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	};
 
 	let mapped = map_decision_collateral(&decision, InstanceKind::Generic, &HashMap::new(), "test")
@@ -158,6 +159,7 @@ fn map_decision_collateral_should_replace_underlying_with_atoken_when_market_is_
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	};
 	let atoken_map = HashMap::from([(670u32, 67u32)]); // stHDX -> GIGAHDX aToken
 
@@ -183,6 +185,7 @@ fn map_decision_collateral_should_return_none_when_atoken_mapping_is_missing() {
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	};
 
 	assert_eq!(
@@ -216,6 +219,7 @@ fn encode_liquidation_opaque_should_encode_liquidate_with_pool_when_pool_is_give
 				asset_out: 10,
 			},
 		]),
+		valid_until: None,
 	};
 	let market_pool = H160::repeat_byte(0x77);
 
@@ -922,6 +926,7 @@ fn routable_decision(collateral_asset: AssetId, debt_asset: AssetId) -> Liquidat
 		priority: 7,
 		collateral_amount: 2_000,
 		route: Route::new(),
+		valid_until: None,
 	}
 }
 
@@ -934,6 +939,137 @@ fn route_decision_should_keep_empty_route_when_liquidity_state_is_unavailable() 
 	assert_eq!(
 		routing::route_decision(InstanceKind::Generic, None, decision.clone(), "test"),
 		Ok(decision)
+	);
+}
+
+/// Omnipool with assets 5 and 10 at price 1; every other venue empty.
+fn omnipool_liquidity_state(slip_fee_levels: &[(AssetId, u8)]) -> routing::LiquidityState {
+	use amm_simulator::omnipool::OmnipoolSnapshot;
+	use pallet_omnipool::types::{AssetReserveState, SlipFeeConfig, Tradability};
+	use std::sync::Arc;
+
+	let pool = AssetReserveState {
+		reserve: 1_000_000 * 10u128.pow(12),
+		hub_reserve: 1_000_000 * 10u128.pow(12),
+		shares: 1_000_000 * 10u128.pow(12),
+		protocol_shares: 0,
+		cap: u128::MAX,
+		tradable: Tradability::all(),
+	};
+	let omnipool = OmnipoolSnapshot {
+		assets: [(5, pool), (10, pool)].into_iter().collect(),
+		hub_asset_id: 1,
+		max_in_ratio: 3,
+		max_out_ratio: 3,
+		slip_fee: Some(SlipFeeConfig {
+			max_slip_fee: sp_runtime::Permill::from_percent(50),
+		}),
+		slip_fee_levels: slip_fee_levels
+			.iter()
+			.map(|(asset, level)| (*asset, sp_runtime::Percent::from_percent(*level)))
+			.collect(),
+		..Default::default()
+	};
+	(
+		Arc::new(omnipool),
+		Arc::default(),
+		Arc::new(amm_simulator::aave::Snapshot {
+			reserves: Default::default(),
+			contract: Default::default(),
+			pairs: Vec::new(),
+		}),
+		Arc::default(),
+		Arc::default(),
+	)
+}
+
+// The route check runs before the dry run: pricing a lowered asset at the full slip fee would
+// record a shortfall and halve a liquidation the chain accepts at full size.
+#[test]
+fn route_decision_should_accept_full_size_when_lowered_level_covers_debt() {
+	let collateral_amount = 100_000 * 10u128.pow(12);
+	let full = omnipool_liquidity_state(&[]);
+	let lowered = omnipool_liquidity_state(&[(5, 0), (10, 0)]);
+	let (_, out_full) = routing::best_sell_route(&full, 5, 10, collateral_amount).expect("route at full level");
+	let (route, out_lowered) =
+		routing::best_sell_route(&lowered, 5, 10, collateral_amount).expect("route at lowered level");
+	assert!(out_lowered > out_full);
+
+	let decision = LiquidationDecision {
+		debt_to_cover: (out_full + out_lowered) / 2,
+		collateral_amount,
+		..routable_decision(5, 10)
+	};
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&full), decision.clone(), "test"),
+		Err(routing::Unroutable::Shortfall)
+	);
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&lowered), decision.clone(), "test"),
+		Ok(LiquidationDecision { route, ..decision })
+	);
+}
+
+const RAISED_FEES: (sp_runtime::Permill, sp_runtime::Permill) = (
+	sp_runtime::Permill::from_percent(5),
+	sp_runtime::Permill::from_percent(1),
+);
+const BASE_FEES: (sp_runtime::Permill, sp_runtime::Permill) = (
+	sp_runtime::Permill::from_parts(2_500),
+	sp_runtime::Permill::from_parts(500),
+);
+const BASE_FEE_SALE_AMOUNT: Balance = 100_000 * 10u128.pow(12);
+
+/// `omnipool_liquidity_state` with the slip fee on and `fees` charged on assets 5 and 10.
+fn liquidity_state_with_fees(
+	fees: (sp_runtime::Permill, sp_runtime::Permill),
+	base_fees: Option<(sp_runtime::Permill, sp_runtime::Permill)>,
+) -> routing::LiquidityState {
+	let mut state = omnipool_liquidity_state(&[]);
+	let omnipool = std::sync::Arc::make_mut(&mut state.0);
+	omnipool.fees = [(5, fees), (10, fees)].into_iter().collect();
+	omnipool.base_fees = base_fees.map(|base| [(5, base), (10, base)].into_iter().collect());
+	state
+}
+
+/// The sale priced the way the chain executes a liquidation sale: base fees, no slip fee.
+fn base_fee_sale() -> (Route<AssetId>, Balance) {
+	let mut state = liquidity_state_with_fees(BASE_FEES, None);
+	std::sync::Arc::make_mut(&mut state.0).slip_fee = None;
+	routing::best_sell_route(&state, 5, 10, BASE_FEE_SALE_AMOUNT).expect("route at base fees")
+}
+
+#[test]
+fn route_decision_should_use_base_fees_when_snapshot_has_base_fees() {
+	let (route, base_fee_out) = base_fee_sale();
+	assert_eq!(base_fee_out, 83_086_899_454_143_922);
+	let decision = LiquidationDecision {
+		debt_to_cover: base_fee_out,
+		collateral_amount: BASE_FEE_SALE_AMOUNT,
+		..routable_decision(5, 10)
+	};
+	let state = liquidity_state_with_fees(RAISED_FEES, Some(BASE_FEES));
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&state), decision.clone(), "test"),
+		Ok(LiquidationDecision { route, ..decision })
+	);
+}
+
+#[test]
+fn route_decision_should_return_shortfall_when_snapshot_has_no_base_fees() {
+	let (_, base_fee_out) = base_fee_sale();
+	let decision = LiquidationDecision {
+		debt_to_cover: base_fee_out,
+		collateral_amount: BASE_FEE_SALE_AMOUNT,
+		..routable_decision(5, 10)
+	};
+	let state = liquidity_state_with_fees(RAISED_FEES, None);
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&state), decision, "test"),
+		Err(routing::Unroutable::Shortfall)
 	);
 }
 
@@ -1111,4 +1247,65 @@ fn next_block_timestamp_should_keep_now_while_the_extra_fill_block_is_available(
 	for blocks_at_now in 1..MAX_BLOCKS_PER_SLOT {
 		assert_eq!(next_block_timestamp(1_794_239_616, blocks_at_now), 1_794_239_616);
 	}
+}
+
+#[test]
+fn liquidation_valid_until_should_be_two_blocks_after_decision_when_runtime_has_expiring_call() {
+	assert_eq!(liquidation_valid_until(SUBMIT_LIQUIDATION_SPEC_VERSION, 100), Some(102));
+}
+
+#[test]
+fn liquidation_valid_until_should_be_none_when_runtime_predates_expiring_call() {
+	assert_eq!(liquidation_valid_until(SUBMIT_LIQUIDATION_SPEC_VERSION - 1, 100), None);
+}
+
+#[test]
+fn submit_cooldown_blocks_should_be_liquidation_lifetime_when_liquidation_expires() {
+	assert_eq!(submit_cooldown_blocks(Some(102)), 2);
+}
+
+#[test]
+fn submit_cooldown_blocks_should_be_four_when_liquidation_does_not_expire() {
+	assert_eq!(submit_cooldown_blocks(None), 4);
+}
+
+#[test]
+fn liquidation_call_should_be_submit_liquidation_when_decision_expires() {
+	let pool = sp_core::H160::repeat_byte(0x09);
+	let decision = LiquidationDecision {
+		valid_until: Some(102),
+		..routable_decision(5, 10)
+	};
+
+	assert_eq!(
+		liquidation_call(&decision, pool),
+		RuntimeCall::Liquidation(pallet_liquidation::Call::submit_liquidation {
+			pool,
+			collateral_asset: 5,
+			debt_asset: 10,
+			user: sp_core::H160::repeat_byte(0xAB),
+			debt_to_cover: 1_000,
+			route: Route::new(),
+			priority: 7,
+			valid_until: 102,
+		})
+	);
+}
+
+#[test]
+fn liquidation_call_should_be_liquidate_with_pool_when_decision_does_not_expire() {
+	let pool = sp_core::H160::repeat_byte(0x09);
+
+	assert_eq!(
+		liquidation_call(&routable_decision(5, 10), pool),
+		RuntimeCall::Liquidation(pallet_liquidation::Call::liquidate_with_pool {
+			pool,
+			collateral_asset: 5,
+			debt_asset: 10,
+			user: sp_core::H160::repeat_byte(0xAB),
+			debt_to_cover: 1_000,
+			route: Route::new(),
+			unsigned_priority: Some(7),
+		})
+	);
 }

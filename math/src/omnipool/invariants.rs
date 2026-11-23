@@ -389,3 +389,226 @@ proptest! {
 		}
 	}
 }
+
+mod slip_fee_level {
+	use super::*;
+	use crate::omnipool::types::{HubTradeSlipFees, SignedBalance, TradeSlipFees};
+	use sp_arithmetic::Percent;
+
+	/// The buy-side inverses round up by one unit; same allowance as `assert_buy_round_trip`.
+	const INVERSE_TOLERANCE: Balance = 5;
+
+	fn level() -> impl Strategy<Value = Percent> {
+		(0..=100u8).prop_map(Percent::from_percent)
+	}
+
+	fn nonzero_level() -> impl Strategy<Value = Percent> {
+		(1..=100u8).prop_map(Percent::from_percent)
+	}
+
+	fn cap() -> impl Strategy<Value = Permill> {
+		(1..=1_000_000u32).prop_map(Permill::from_parts)
+	}
+
+	/// Prior flow of either sign, up to half the smallest reserve the strategies produce.
+	fn prior_delta() -> impl Strategy<Value = SignedBalance> {
+		(0..BALANCE_RANGE.0 / 2, any::<bool>()).prop_map(|(v, positive)| {
+			if positive {
+				SignedBalance::Positive(v)
+			} else {
+				SignedBalance::Negative(v)
+			}
+		})
+	}
+
+	fn flow(amount: Balance, sell_side: bool) -> SignedBalance {
+		if sell_side {
+			SignedBalance::Negative(amount)
+		} else {
+			SignedBalance::Positive(amount)
+		}
+	}
+
+	fn fee_at(
+		q0: Balance,
+		prior: SignedBalance,
+		delta: SignedBalance,
+		cap: Permill,
+		level: Percent,
+	) -> Option<Balance> {
+		let (q0, cap) = apply_slip_fee_level(q0, cap, level);
+		calculate_slip_fee_amount(q0, prior, delta, cap, delta.abs())
+	}
+
+	fn trade_slip(
+		in_state: &AssetReserveState<Balance>,
+		level_in: Percent,
+		out_state: &AssetReserveState<Balance>,
+		level_out: Percent,
+		cap: Permill,
+	) -> TradeSlipFees {
+		let (asset_in_hub_reserve, asset_in_max_slip_fee) = apply_slip_fee_level(in_state.hub_reserve, cap, level_in);
+		let (asset_out_hub_reserve, asset_out_max_slip_fee) =
+			apply_slip_fee_level(out_state.hub_reserve, cap, level_out);
+		TradeSlipFees {
+			asset_in_hub_reserve,
+			asset_in_delta: SignedBalance::zero(),
+			asset_out_hub_reserve,
+			asset_out_delta: SignedBalance::zero(),
+			asset_in_max_slip_fee,
+			asset_out_max_slip_fee,
+		}
+	}
+
+	fn hub_slip(state: &AssetReserveState<Balance>, level: Percent, cap: Permill) -> HubTradeSlipFees {
+		let (asset_hub_reserve, max_slip_fee) = apply_slip_fee_level(state.hub_reserve, cap, level);
+		HubTradeSlipFees {
+			asset_hub_reserve,
+			asset_delta: SignedBalance::zero(),
+			max_slip_fee,
+		}
+	}
+
+	proptest! {
+		#![proptest_config(ProptestConfig::with_cases(1000))]
+
+		#[test]
+		fn apply_slip_fee_level_should_not_panic_when_inputs_are_arbitrary(
+			q0 in any::<u128>(),
+			cap in (0..=1_000_000u32).prop_map(Permill::from_parts),
+			level in level(),
+		) {
+			let (_, returned_cap) = apply_slip_fee_level(q0, cap, level);
+			if level.is_zero() {
+				prop_assert_eq!(apply_slip_fee_level(q0, cap, level), (q0, Permill::zero()));
+			} else {
+				prop_assert_eq!(returned_cap, cap);
+			}
+		}
+
+		#[test]
+		fn apply_slip_fee_level_should_never_shrink_reserve(
+			q0 in any::<u128>(),
+			cap in cap(),
+			level in level(),
+		) {
+			let (reserve, _) = apply_slip_fee_level(q0, cap, level);
+			prop_assert!(reserve >= q0);
+			if level == Percent::one() {
+				prop_assert_eq!(reserve, q0);
+			}
+		}
+
+		#[test]
+		fn calculate_slip_fee_amount_should_not_grow_when_level_is_lowered(
+			state in asset_state(),
+			amount in trade_amount(),
+			prior in prior_delta(),
+			sell_side in any::<bool>(),
+			cap in cap(),
+			a in nonzero_level(),
+			b in nonzero_level(),
+		) {
+			let (low, high) = if a <= b { (a, b) } else { (b, a) };
+			let delta = flow(amount, sell_side);
+			if let Some(fee_high) = fee_at(state.hub_reserve, prior, delta, cap, high) {
+				let fee_low = fee_at(state.hub_reserve, prior, delta, cap, low);
+				prop_assert!(fee_low.is_some());
+				prop_assert!(fee_low.unwrap() <= fee_high, "{:?} > {}", fee_low, fee_high);
+			}
+		}
+
+		#[test]
+		fn calculate_slip_fee_amount_should_return_zero_at_zero_level_when_full_level_succeeds(
+			state in asset_state(),
+			amount in trade_amount(),
+			prior in prior_delta(),
+			sell_side in any::<bool>(),
+			cap in cap(),
+		) {
+			let delta = flow(amount, sell_side);
+			let full = fee_at(state.hub_reserve, prior, delta, cap, Percent::one());
+			let off = fee_at(state.hub_reserve, prior, delta, cap, Percent::zero());
+			prop_assert_eq!(full.is_some(), off.is_some());
+			if off.is_some() {
+				prop_assert_eq!(off, Some(0));
+			}
+		}
+
+		#[test]
+		fn calculate_sell_state_changes_should_not_panic_when_levels_are_arbitrary(
+			in_state in asset_state(),
+			out_state in asset_state(),
+			amount in trade_amount(),
+			asset_fee in fee(),
+			protocol_fee in fee(),
+			cap in cap(),
+			level_in in level(),
+			level_out in level(),
+		) {
+			let sell = |level_in, level_out| {
+				let slip = trade_slip(&in_state, level_in, &out_state, level_out, cap);
+				calculate_sell_state_changes(&in_state, &out_state, amount, asset_fee, protocol_fee, Permill::zero(), Some(&slip))
+			};
+			let lowered = sell(level_in, level_out);
+			if let Some(full) = sell(Percent::one(), Percent::one()) {
+				prop_assert!(lowered.is_some());
+				prop_assert!(*lowered.unwrap().asset_out.delta_reserve >= *full.asset_out.delta_reserve);
+			}
+		}
+
+		#[test]
+		fn calculate_buy_state_changes_should_not_panic_when_levels_are_arbitrary(
+			in_state in asset_state(),
+			out_state in asset_state(),
+			amount in trade_amount(),
+			asset_fee in fee(),
+			protocol_fee in fee(),
+			cap in cap(),
+			level_in in level(),
+			level_out in level(),
+		) {
+			let buy = |level_in, level_out| {
+				let slip = trade_slip(&in_state, level_in, &out_state, level_out, cap);
+				calculate_buy_state_changes(&in_state, &out_state, amount, asset_fee, protocol_fee, Permill::zero(), Some(&slip))
+			};
+			let lowered = buy(level_in, level_out);
+			if let Some(full) = buy(Percent::one(), Percent::one()) {
+				prop_assert!(lowered.is_some());
+				prop_assert!(*lowered.unwrap().asset_in.delta_reserve <= *full.asset_in.delta_reserve + INVERSE_TOLERANCE);
+			}
+		}
+
+		#[test]
+		fn calculate_sell_hub_state_changes_should_not_panic_when_level_is_arbitrary(
+			out_state in asset_state(),
+			amount in trade_amount(),
+			asset_fee in fee(),
+			cap in cap(),
+			level in level(),
+		) {
+			let sell = |level| calculate_sell_hub_state_changes(&out_state, amount, asset_fee, Some(&hub_slip(&out_state, level, cap)));
+			let lowered = sell(level);
+			if let Some(full) = sell(Percent::one()) {
+				prop_assert!(lowered.is_some());
+				prop_assert!(*lowered.unwrap().asset.delta_reserve >= *full.asset.delta_reserve);
+			}
+		}
+
+		#[test]
+		fn calculate_buy_for_hub_asset_state_changes_should_not_panic_when_level_is_arbitrary(
+			out_state in asset_state(),
+			amount in trade_amount(),
+			asset_fee in fee(),
+			cap in cap(),
+			level in level(),
+		) {
+			let buy = |level| calculate_buy_for_hub_asset_state_changes(&out_state, amount, asset_fee, Some(&hub_slip(&out_state, level, cap)));
+			let lowered = buy(level);
+			if let Some(full) = buy(Percent::one()) {
+				prop_assert!(lowered.is_some());
+				prop_assert!(*lowered.unwrap().asset.delta_hub_reserve <= *full.asset.delta_hub_reserve + INVERSE_TOLERANCE);
+			}
+		}
+	}
+}
