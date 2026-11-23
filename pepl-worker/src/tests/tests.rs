@@ -1011,6 +1011,68 @@ fn route_decision_should_accept_full_size_when_lowered_level_covers_debt() {
 	);
 }
 
+const RAISED_FEES: (sp_runtime::Permill, sp_runtime::Permill) = (
+	sp_runtime::Permill::from_percent(5),
+	sp_runtime::Permill::from_percent(1),
+);
+const BASE_FEES: (sp_runtime::Permill, sp_runtime::Permill) = (
+	sp_runtime::Permill::from_parts(2_500),
+	sp_runtime::Permill::from_parts(500),
+);
+const BASE_FEE_SALE_AMOUNT: Balance = 100_000 * 10u128.pow(12);
+
+/// `omnipool_liquidity_state` with the slip fee on and `fees` charged on assets 5 and 10.
+fn liquidity_state_with_fees(
+	fees: (sp_runtime::Permill, sp_runtime::Permill),
+	base_fees: Option<(sp_runtime::Permill, sp_runtime::Permill)>,
+) -> routing::LiquidityState {
+	let mut state = omnipool_liquidity_state(&[]);
+	let omnipool = std::sync::Arc::make_mut(&mut state.0);
+	omnipool.fees = [(5, fees), (10, fees)].into_iter().collect();
+	omnipool.base_fees = base_fees.map(|base| [(5, base), (10, base)].into_iter().collect());
+	state
+}
+
+/// The sale priced the way the chain executes a liquidation sale: base fees, no slip fee.
+fn base_fee_sale() -> (Route<AssetId>, Balance) {
+	let mut state = liquidity_state_with_fees(BASE_FEES, None);
+	std::sync::Arc::make_mut(&mut state.0).slip_fee = None;
+	routing::best_sell_route(&state, 5, 10, BASE_FEE_SALE_AMOUNT).expect("route at base fees")
+}
+
+#[test]
+fn route_decision_should_use_base_fees_when_snapshot_has_base_fees() {
+	let (route, base_fee_out) = base_fee_sale();
+	assert_eq!(base_fee_out, 83_086_899_454_143_922);
+	let decision = LiquidationDecision {
+		debt_to_cover: base_fee_out,
+		collateral_amount: BASE_FEE_SALE_AMOUNT,
+		..routable_decision(5, 10)
+	};
+	let state = liquidity_state_with_fees(RAISED_FEES, Some(BASE_FEES));
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&state), decision.clone(), "test"),
+		Ok(LiquidationDecision { route, ..decision })
+	);
+}
+
+#[test]
+fn route_decision_should_return_shortfall_when_snapshot_has_no_base_fees() {
+	let (_, base_fee_out) = base_fee_sale();
+	let decision = LiquidationDecision {
+		debt_to_cover: base_fee_out,
+		collateral_amount: BASE_FEE_SALE_AMOUNT,
+		..routable_decision(5, 10)
+	};
+	let state = liquidity_state_with_fees(RAISED_FEES, None);
+
+	assert_eq!(
+		routing::route_decision(InstanceKind::Generic, Some(&state), decision, "test"),
+		Err(routing::Unroutable::Shortfall)
+	);
+}
+
 #[test]
 fn decode_liquidity_state_should_return_none_when_snapshot_is_malformed() {
 	assert!(routing::decode_liquidity_state(&[0xFF, 0x01], "test").is_none());

@@ -311,15 +311,12 @@ fn liquidation_should_work() {
 	});
 }
 
-/// Sets up the money market from the snapshot, registers the pool as the borrowing
-/// contract and pushes ALICE's WETH-collateral/DOT-debt position under HF < 1.
-/// Returns the pool contract, ALICE's EVM address and the borrowed DOT amount.
-fn arrange_unhealthy_mm_position() -> (EvmAddress, EvmAddress, Balance) {
+/// Sets up the money market from the snapshot and registers the pool as the borrowing
+/// contract. Returns the pool contract and ALICE's EVM address.
+pub(crate) fn arrange_mm_pool() -> (EvmAddress, EvmAddress) {
 	deposit_hdx_to_protocol_account();
 
 	let pallet_acc = Liquidation::account_id();
-	let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
-	let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
 
 	assert_ok!(Currencies::deposit(DOT, &ALICE.into(), ALICE_INITIAL_DOT_BALANCE));
 	assert_ok!(Currencies::deposit(WETH, &ALICE.into(), ALICE_INITIAL_WETH_BALANCE));
@@ -343,6 +340,17 @@ fn arrange_unhealthy_mm_position() -> (EvmAddress, EvmAddress, Balance) {
 	));
 
 	assert_ok!(EVMAccounts::approve_contract(RuntimeOrigin::root(), pool_contract));
+
+	(pool_contract, alice_evm_address)
+}
+
+/// Sets up the money market from the snapshot, registers the pool as the borrowing
+/// contract and pushes ALICE's WETH-collateral/DOT-debt position under HF < 1.
+/// Returns the pool contract, ALICE's EVM address and the borrowed DOT amount.
+pub(crate) fn arrange_unhealthy_mm_position() -> (EvmAddress, EvmAddress, Balance) {
+	let (pool_contract, alice_evm_address) = arrange_mm_pool();
+	let dot_asset_address = HydraErc20Mapping::encode_evm_address(DOT);
+	let weth_asset_address = HydraErc20Mapping::encode_evm_address(WETH);
 
 	let collateral_weth_amount: Balance = 10 * WETH_UNIT;
 	let collateral_dot_amount = 5_000 * DOT_UNIT;
@@ -1753,7 +1761,7 @@ fn calculate_debt_to_liquidate_with_three_different_assets() {
 	});
 }
 
-fn deposit_hdx_to_protocol_account() {
+pub(crate) fn deposit_hdx_to_protocol_account() {
 	// We need to deposit HDX to omnipool account since the snapshot doesn't include System pallet
 	// (native HDX balance is stored in frame_system::Account, not orml_tokens)
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();

@@ -557,6 +557,7 @@ fn stable_origin_tag(origin: &ExecutionType) -> u64 {
 			low[3..].copy_from_slice(&message_hash[27..32]);
 			0x0600_0000_0000 | u64::from_be_bytes(low)
 		}
+		ExecutionType::Liquidation(id) => 0x0700_0000_0000 | (*id as u64),
 	}
 }
 
@@ -568,6 +569,7 @@ fn origin_tag(origin: &ExecutionType) -> u64 {
 		ExecutionType::Omnipool(id) => 0x0400_0000_0000 | (*id as u64),
 		ExecutionType::XcmExchange(id) => 0x0500_0000_0000 | (*id as u64),
 		ExecutionType::Xcm(_, id) => 0x0600_0000_0000 | (*id as u64),
+		ExecutionType::Liquidation(id) => 0x0700_0000_0000 | (*id as u64),
 	}
 }
 

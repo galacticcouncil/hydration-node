@@ -63,6 +63,7 @@ use orml_traits::{
 	currency::{MultiCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Handler, NamedMultiReservableCurrency,
 };
+use pallet_broadcast::types::ExecutionType;
 use pallet_currencies::{AssetTotalIssuance, BasicCurrencyAdapter};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
@@ -403,7 +404,20 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type BaseFeeOnly = LiquidationCollateralSale;
 	type BurnProtocolFee = BurnProtocolFee;
+}
+
+pub struct LiquidationCollateralSale;
+
+impl Contains<AccountId> for LiquidationCollateralSale {
+	fn contains(signer: &AccountId) -> bool {
+		*signer == Router::router_account()
+			&& matches!(
+				Broadcast::get_context().as_slice(),
+				[.., ExecutionType::Liquidation(_), ExecutionType::Router(_)]
+			)
+	}
 }
 
 pub struct CircuitBreakerWhitelist;

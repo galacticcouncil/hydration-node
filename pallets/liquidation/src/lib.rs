@@ -56,6 +56,7 @@ use hydradx_traits::{
 	router::{AmmTradeWeights, AmountInAndOut, Route, RouteProvider, RouterT, Trade},
 };
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pallet_broadcast::types::ExecutionType;
 use pallet_evm::GasWeightMapping;
 use precompile_utils::evm::{
 	writer::{EvmDataReader, EvmDataWriter},
@@ -123,7 +124,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_broadcast::Config {
 		/// Multi currency.
 		type Currency: Mutate<Self::AccountId, AssetId = AssetId, Balance = Balance>;
 
@@ -324,6 +325,8 @@ pub mod pallet {
 		/// The `pool` provided to `liquidate_with_pool` is not the pool this liquidation
 		/// would execute against.
 		PoolAddressMismatch,
+		/// The execution context stack was not as left by the collateral sale.
+		UnbalancedExecutionContext,
 	}
 
 	#[pallet::call]
@@ -336,6 +339,7 @@ pub mod pallet {
 		///
 		/// Performs a flash loan to get funds to pay for the debt.
 		/// Received collateral is swapped and the profit is transferred to `FeeReceiver`.
+		/// Omnipool hops of the collateral sale pay only the base asset and protocol fees and no slip fee.
 		///
 		/// Permissionless and caller-supplied `route` are intentional. This call exists
 		/// only to keep the money market solvent: the goal is that the position is
@@ -393,6 +397,7 @@ pub mod pallet {
 		/// borrowing contract otherwise), or the call fails with `PoolAddressMismatch`.
 		/// This lets a multi-money-market worker state which market a decision was made
 		/// against and guarantees the liquidation can never execute against a different one.
+		/// Omnipool hops of the collateral sale pay only the base asset and protocol fees and no slip fee.
 		///
 		/// Unlike `liquidate`, this call is not publicly dispatchable: the origin must be
 		/// none, and `ValidateUnsigned` rejects externally received transactions, so only
@@ -437,6 +442,7 @@ pub mod pallet {
 		/// The transaction is valid up to block `valid_until` and is rejected as stale after it,
 		/// in the transaction pool and at inclusion, so a liquidation decided on an old state can
 		/// never be executed later. Supersedes `liquidate_with_pool`, which never expires.
+		/// Omnipool hops of the collateral sale pay only the base asset and protocol fees and no slip fee.
 		///
 		/// Parameters:
 		/// - `origin`: Must be none (unsigned transaction).
@@ -500,7 +506,7 @@ impl<T: Config> Pallet<T> {
 		let branch_weight = if collateral_asset == T::GigaHdx::gigahdx_asset_id() {
 			T::GigaHdx::seize_weight().saturating_add(T::GigaHdx::clear_weight_for(user))
 		} else {
-			T::RouterWeightInfo::sell_weight(route)
+			T::RouterWeightInfo::sell_weight(route).saturating_add(T::DbWeight::get().reads_writes(1, 1))
 		};
 		<T as Config>::WeightInfo::liquidate()
 			.saturating_add(branch_weight)
@@ -910,12 +916,11 @@ impl<T: Config> Pallet<T> {
 			log::trace!(target: "liquidation",
 				"Collateral earned: {collateral_earned:?} for asset: {collateral_asset:?}");
 
-			T::Router::sell(
-				RawOrigin::Signed(liquidator_account.clone()).into(),
+			Self::sell_collateral(
+				liquidator_account.clone(),
 				collateral_asset,
 				debt_asset,
 				collateral_earned,
-				1,
 				route,
 			)?;
 		}
@@ -948,6 +953,34 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Ok(())
+	}
+
+	/// Omnipool hops of this sale pay base fees only; see `LiquidationCollateralSale` in the runtime.
+	#[frame_support::transactional]
+	fn sell_collateral(
+		liquidator_account: T::AccountId,
+		collateral_asset: AssetId,
+		debt_asset: AssetId,
+		amount: Balance,
+		route: Route<AssetId>,
+	) -> DispatchResult {
+		let id = pallet_broadcast::Pallet::<T>::add_to_context(ExecutionType::Liquidation)?;
+
+		T::Router::sell(
+			RawOrigin::Signed(liquidator_account).into(),
+			collateral_asset,
+			debt_asset,
+			amount,
+			1,
+			route,
+		)?;
+
+		// A stray `Liquidation` entry would exempt later router trades in the block.
+		ensure!(
+			pallet_broadcast::Pallet::<T>::get_context().last() == Some(&ExecutionType::Liquidation(id)),
+			Error::<T>::UnbalancedExecutionContext
+		);
+		pallet_broadcast::Pallet::<T>::remove_from_context()
 	}
 
 	/// Liquidates an existing money market position.
