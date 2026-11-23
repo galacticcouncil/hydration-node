@@ -1,18 +1,18 @@
-//! The one-shot runtime upgrade that retires legacy DCA (`migrations::dca`).
-//!
-//! Legacy state is planted through the migration's own storage aliases plus a real
-//! `dcaorder` named reserve, so nothing here depends on the removed pallet crate.
+//! Legacy DCA state is planted through the migration's own storage aliases: the pallet crate is gone.
 
 use crate::driver::HydrationTestDriver;
 use crate::ice::PATH_TO_SNAPSHOT;
-use crate::polkadot_test_net::{hydradx_run_to_next_block, Hydra, TestNet, ALICE, BOB, CHARLIE, DOT, HDX, LRNA, UNITS};
+use crate::polkadot_test_net::{
+	hydradx_run_to_next_block, Hydra, TestNet, ALICE, BOB, CHARLIE, DOT, HDX, LOCAL_EXT_HYDRAPARACHAIN, LRNA, UNITS,
+};
 use amm_simulator::HydrationSimulator;
 use codec::Decode;
 use frame_support::traits::OnRuntimeUpgrade;
-use frame_support::{assert_ok, storage_alias, Blake2_128Concat, Twox64Concat};
+use frame_support::weights::Weight;
+use frame_support::{assert_ok, storage_alias, Blake2_128Concat, BoundedVec, Twox64Concat};
 use hydradx_runtime::migrations::dca::{
 	LegacyOrder, LegacySchedule, MigrateDcaToIntents, RemainingAmounts, ScheduleIdsPerBlock, Schedules, DCA_RESERVE_ID,
-	MAX_SCHEDULES,
+	MAX_DCA_KEYS, MAX_RESERVES_SCANNED, MAX_SCHEDULES,
 };
 use hydradx_runtime::{AssetRegistry, Currencies, Runtime, RuntimeOrigin, System, Tokens, Treasury};
 use hydradx_traits::amm::{SimulatorConfig, SimulatorSet};
@@ -68,8 +68,7 @@ fn sell(owner: AccountId, asset_in: AssetId, asset_out: AssetId, amount_in: Bala
 	}
 }
 
-/// Writes what the legacy pallet kept per schedule. `remaining: None` plants an orphan: a bare
-/// `Schedules` entry, as on mainnet for 26214, 26216 and 26500.
+/// `remaining: None` plants an orphan: a bare `Schedules` entry.
 fn plant(id: u32, schedule: LegacySchedule, remaining: Option<Balance>, planned: Option<u32>) {
 	if let Some(remaining) = remaining {
 		RemainingAmounts::insert(id, remaining);
@@ -113,7 +112,7 @@ fn migrate_unchecked() {
 	MigrateDcaToIntents::on_runtime_upgrade();
 }
 
-/// Runs the migration, then checks what its `post_upgrade` checks (that one only runs under try-runtime).
+/// Also asserts what `post_upgrade` checks, which only runs under try-runtime.
 fn migrate() {
 	migrate_unchecked();
 
@@ -473,7 +472,7 @@ fn migrated_intent_should_first_be_offered_at_legacy_planned_block_when_it_is_in
 		migrate();
 
 		let (id, dca) = dca_intents_of(&alice).remove(0);
-		// Offered from block P-1's state, so the solution lands in block P - where the schedule traded.
+		// Offered at P - 1, so it settles in P, where the schedule traded.
 		assert_eq!(dca.last_execution_block, planned - 1 - 30);
 		// Beyond the early window (min(150, period / 2) = 15 blocks) nothing can offer it.
 		System::set_block_number(planned - 1 - 16);
@@ -610,9 +609,8 @@ fn numbered_owner(i: u32) -> AccountId {
 	AccountId::from(raw)
 }
 
-/// One more convertible schedule than a run processes, ids 1..=MAX_SCHEDULES + 1, one owner each.
-fn plant_beyond_limit() -> Vec<AccountId> {
-	(0..=MAX_SCHEDULES as u32)
+fn plant_convertible(count: u32) -> Vec<AccountId> {
+	(0..count)
 		.map(|i| {
 			let owner = numbered_owner(i);
 			endow(&owner, DOT, ENDOWMENT);
@@ -628,88 +626,63 @@ fn plant_beyond_limit() -> Vec<AccountId> {
 		.collect()
 }
 
-fn dca_intent_count(owners: &[AccountId]) -> usize {
-	owners.iter().map(|owner| dca_intents_of(owner).len()).sum()
+fn assert_migration_changes_nothing() {
+	let root = sp_io::storage::root(StateVersion::V1);
+
+	migrate_unchecked();
+
+	assert_eq!(sp_io::storage::root(StateVersion::V1), root);
 }
 
 #[test]
-fn migration_should_convert_max_schedules_when_more_schedules_exist() {
+fn migration_should_convert_every_schedule_when_exactly_max_schedules_exist() {
 	genesis(|| {
-		let owners = plant_beyond_limit();
-
-		migrate_unchecked();
-
-		assert_eq!(dca_intent_count(&owners), MAX_SCHEDULES);
-	});
-}
-
-#[test]
-fn migration_should_leave_schedule_beyond_limit_untouched_when_more_schedules_exist() {
-	genesis(|| {
-		let owners = plant_beyond_limit();
-		let last = owners[MAX_SCHEDULES].clone();
-		let id = MAX_SCHEDULES as u32 + 1;
-
-		migrate_unchecked();
-
-		assert_eq!(
-			Schedules::get(id),
-			Some(sell(last.clone(), DOT, HDX, 5 * UNITS, 100 * UNITS))
-		);
-		assert_eq!(RemainingAmounts::get(id), Some(50 * UNITS));
-		assert_eq!(reserved(&DCA_RESERVE_ID, DOT, &last), 50 * UNITS);
-	});
-}
-
-#[test]
-fn migration_should_keep_dca_pause_entry_when_more_schedules_exist() {
-	genesis(|| {
-		plant_beyond_limit();
-		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
-
-		migrate_unchecked();
-
-		assert!(PausedTransactions::<Runtime>::contains_key(pause_key(
-			"DCA", "schedule"
-		)));
-	});
-}
-
-#[test]
-fn migration_should_finish_on_second_run_when_first_run_hit_the_limit() {
-	genesis(|| {
-		let owners = plant_beyond_limit();
-		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
-		migrate_unchecked();
+		let owners = plant_convertible(MAX_SCHEDULES as u32);
 
 		migrate();
 
-		assert_eq!(dca_intent_count(&owners), MAX_SCHEDULES + 1);
+		let intents: usize = owners.iter().map(|owner| dca_intents_of(owner).len()).sum();
+		assert_eq!(intents, MAX_SCHEDULES);
 	});
 }
 
 #[test]
-fn migration_should_release_max_schedules_reserves_when_more_unscheduled_reserves_exist() {
+fn migration_should_change_nothing_when_more_than_max_schedules_exist() {
 	genesis(|| {
-		let owners: Vec<_> = (0..=MAX_SCHEDULES as u32).map(numbered_owner).collect();
-		for owner in &owners {
-			endow(owner, DOT, ENDOWMENT);
-			reserve_legacy(owner, DOT, 7 * UNITS);
-		}
+		plant_convertible(MAX_SCHEDULES as u32 + 1);
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
 
-		migrate_unchecked();
-
-		let still_reserved: Vec<_> = owners
-			.iter()
-			.map(|owner| reserved(&DCA_RESERVE_ID, DOT, owner))
-			.filter(|amount| *amount != 0)
-			.collect();
-		assert_eq!(still_reserved, vec![7 * UNITS]);
+		assert_migration_changes_nothing();
 	});
 }
 
-/// Raw mainnet values at block 17306764 (spec 458): 3734 is fixed with an empty route, 26214 an
-/// orphan, 30104 the Treasury's rolling H2O sale, 37590 the longest route on chain (UniswapV3 leg).
+#[test]
+fn migration_should_change_nothing_when_more_than_max_schedules_accounts_hold_a_legacy_reserve() {
+	genesis(|| {
+		for owner in (0..=MAX_SCHEDULES as u32).map(numbered_owner) {
+			endow(&owner, DOT, ENDOWMENT);
+			reserve_legacy(&owner, DOT, 7 * UNITS);
+		}
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
+
+		assert_migration_changes_nothing();
+	});
+}
+
+#[test]
+fn migration_should_change_nothing_when_reserve_entries_exceed_scan_limit() {
+	genesis(|| {
+		plant_convertible(1);
+		for i in 0..=MAX_RESERVES_SCANNED as u32 {
+			insert_filler_reserve(numbered_owner(i));
+		}
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
+
+		assert_migration_changes_nothing();
+	});
+}
+
+/// Raw mainnet values at block 17306764.
 #[test]
 fn legacy_aliases_should_decode_mainnet_values_when_read_at_their_keys() {
 	const RAW: [(&str, &str); 10] = [
@@ -864,8 +837,7 @@ fn custody() -> AccountId {
 	<Runtime as pallet_currencies::Config>::ReserveAccount::get()
 }
 
-/// 20 HOLLAR go into custody the regular way, then the `dcaorder` receipt alone grows past everything custody
-/// holds, so releasing it asks custody for 1 HOLLAR more than it has and the erc20 transfer reverts.
+/// Grows the `dcaorder` receipt past what custody holds, so the erc20 transfer back reverts.
 fn reserve_hollar_beyond_custody(owner: &AccountId) {
 	assert_eq!(Currencies::free_balance(HOLLAR, &custody()), SNAPSHOT_CUSTODY_HOLLAR);
 	assert_ok!(Currencies::transfer(
@@ -945,24 +917,85 @@ fn migration_should_convert_schedule_of_another_owner_when_bound_erc20_release_f
 }
 
 #[test]
-fn migration_should_clear_dca_prefix_when_bound_erc20_release_fails() {
+fn migration_should_keep_dca_pause_entry_when_bound_erc20_release_fails() {
 	snapshot(|| {
 		plant_healthy_hdx_schedule(&ALICE.into());
 		reserve_hollar_beyond_custody(&CHARLIE.into());
-		let prefix = dca_prefix();
-		assert!(sp_io::storage::next_key(&prefix).is_some_and(|key| key.starts_with(&prefix)));
+		PausedTransactions::<Runtime>::insert(pause_key("DCA", "schedule"), ());
 
 		migrate_unchecked();
 
-		assert_eq!(
-			sp_io::storage::next_key(&prefix).filter(|key| key.starts_with(&prefix)),
-			None
-		);
+		assert!(PausedTransactions::<Runtime>::contains_key(pause_key(
+			"DCA", "schedule"
+		)));
 	});
 }
 
-/// Mirrors mainnet's indebted aToken sellers: the owner -> reserve-account aToken transfer runs Aave's
-/// health-factor walk over every collateral reserve and costs more than `Erc20Currency`'s 400k.
+#[test]
+fn migration_should_keep_keys_under_dca_prefix_when_bound_erc20_release_fails() {
+	snapshot(|| {
+		plant_healthy_hdx_schedule(&ALICE.into());
+		reserve_hollar_beyond_custody(&CHARLIE.into());
+
+		migrate_unchecked();
+
+		// `ScheduleOwnership` and `ScheduleIdSequencer`.
+		assert_eq!(dca_key_count(), 2);
+	});
+}
+
+fn dca_key_count() -> usize {
+	let prefix = dca_prefix();
+	let mut at = prefix.clone();
+	let mut count = 0;
+	while let Some(next) = sp_io::storage::next_key(&at).filter(|key| key.starts_with(&prefix)) {
+		count += 1;
+		at = next;
+	}
+	count
+}
+
+#[test]
+fn migration_should_leave_keys_beyond_limit_under_dca_prefix_when_more_keys_exist_in_backend() {
+	genesis(|| {
+		for id in 0..=MAX_DCA_KEYS {
+			ScheduleExecutionBlock::insert(id, START_BLOCK);
+		}
+	});
+	// `clear_prefix` only counts backend keys against its limit.
+	LOCAL_EXT_HYDRAPARACHAIN.with(|ext| ext.borrow_mut().commit_all().expect("no open transaction"));
+
+	Hydra::execute_with(|| {
+		migrate_unchecked();
+
+		assert_eq!(dca_key_count(), 1);
+	});
+}
+
+fn insert_filler_reserve(owner: AccountId) {
+	orml_tokens::Reserves::<Runtime>::insert(
+		owner,
+		BNC,
+		BoundedVec::truncate_from(vec![orml_tokens::ReserveData {
+			id: *b"filler__",
+			amount: 1,
+		}]),
+	);
+}
+
+#[test]
+fn migration_should_charge_proof_size_for_scanned_reserve_when_no_legacy_state_exists() {
+	genesis(|| {
+		insert_filler_reserve(owner());
+
+		let weight = MigrateDcaToIntents::on_runtime_upgrade();
+
+		// One reserve entry read, one pause entry removed.
+		assert_eq!(weight, Weight::from_parts(125_000_000, 512));
+	});
+}
+
+/// Like mainnet's indebted aToken sellers: the transfer runs Aave's health-factor check, over 400k gas.
 #[test]
 fn migration_should_convert_atoken_schedule_when_owner_borrows_against_many_collateral_reserves() {
 	use crate::liquidation::{borrow, supply};
@@ -1099,7 +1132,6 @@ fn migrated_intent_should_settle_through_ice_when_its_period_has_elapsed() {
 	});
 }
 
-/// The Treasury's mainnet schedule 30104 sells H2O, the Omnipool hub asset, into HDX.
 #[test]
 fn migrated_hub_asset_intent_should_settle_through_ice_when_schedule_sells_h2o() {
 	snapshot(|| {

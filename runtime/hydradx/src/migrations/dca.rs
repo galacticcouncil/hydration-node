@@ -1,10 +1,9 @@
 // Copyright (C) 2020-2026 Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
-//! Retires legacy DCA (`DCA`, index 66): each schedule becomes a DCA intent or is cancelled and
-//! refunded (at most `MAX_SCHEDULES` per run; beyond that the run stops and leaves the rest), whatever is still reserved under `dcaorder` on any account is released, the paused
-//! `DCA.schedule` entry is dropped and the `DCA` prefix is cleared.
-//! Reads the old storage through aliases because the pallet crate is gone.
+//! Retires legacy DCA (`DCA`, index 66): schedules become DCA intents or are refunded, `dcaorder`
+//! reserves are released and the `DCA` prefix is cleared. The pallet crate is gone, so the old
+//! storage is read through aliases.
 
 use crate::evm::erc20_currency::GAS_LIMIT as ERC20_GAS_LIMIT;
 use crate::{AccountId, AssetRegistry, Balance, Currencies, Dispatcher, Intent, NativeAssetId, Runtime};
@@ -27,13 +26,16 @@ use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 
 pub const DCA_RESERVE_ID: [u8; 8] = *b"dcaorder";
-/// Block-weight safety stop per run, about twice what mainnet holds.
+/// Above this the migration aborts; mainnet holds about half.
 pub const MAX_SCHEDULES: usize = 30;
+/// Mainnet holds about 1,400 reserve entries.
+pub const MAX_RESERVES_SCANNED: usize = 4_000;
+pub const MAX_DCA_KEYS: u32 = 1_000;
+/// Upper estimate for one entry's key, value and trie nodes.
+const PROOF_SIZE_PER_READ: u64 = 512;
 /// Legacy `MaxPriceDifferenceBetweenBlocks`, applied when a schedule set no slippage.
 const DEFAULT_SLIPPAGE: Permill = Permill::from_parts(15_000);
-/// On top of `ERC20_GAS_LIMIT` per reserve-moving step. Re-reserving an aToken runs Aave's health-factor
-/// walk over the owner's reserves: measured ~598k gas in total (400k base + ~198k extra) for mainnet's
-/// indebted owner with 12 reserves.
+/// Moving an indebted owner's aToken runs Aave's health-factor check: ~600k gas against the 400k limit.
 const EXTRA_GAS: u64 = 1_000_000;
 const LOG_TARGET: &str = "runtime::migration";
 
@@ -48,8 +50,7 @@ pub struct LegacySchedule {
 	pub order: LegacyOrder,
 }
 
-// Routes and per-block id lists are decoded unbounded: same encoding as the legacy `BoundedVec`s,
-// but a value over the old bound must not make a schedule unreadable here.
+// `Vec` where legacy had `BoundedVec`: same encoding, and an over-bound value still decodes.
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 pub enum LegacyOrder {
 	Sell {
@@ -82,7 +83,7 @@ pub type Schedules = StorageMap<DCA, Blake2_128Concat, u32, LegacySchedule>;
 #[storage_alias(verbatim)]
 pub type RemainingAmounts = StorageMap<DCA, Blake2_128Concat, u32, Balance>;
 
-/// What legacy `on_initialize` executed from; `ScheduleExecutionBlock` is only the per-id index of it.
+/// What legacy `on_initialize` executed from.
 #[storage_alias(verbatim)]
 pub type ScheduleIdsPerBlock = StorageMap<DCA, Blake2_128Concat, u32, Vec<u32>>;
 
@@ -97,39 +98,46 @@ struct Meter {
 
 impl MigrateDcaToIntents {
 	fn migrate(meter: &mut Meter) {
+		let mut schedules: Vec<_> = Schedules::iter().take(MAX_SCHEDULES + 1).collect();
+		meter.reads += schedules.len() as u64;
+		if schedules.len() > MAX_SCHEDULES {
+			log::error!(target: LOG_TARGET, "DCA retirement aborted: more than {MAX_SCHEDULES} schedules, nothing changed");
+			return;
+		}
+		let Some(legacy) = Self::legacy_reserves(meter) else {
+			return;
+		};
+
 		let mut planned = BTreeMap::<u32, u32>::new();
-		for (block, ids) in ScheduleIdsPerBlock::iter() {
+		for (block, ids) in ScheduleIdsPerBlock::iter().take(MAX_SCHEDULES + 1) {
 			meter.reads += 1;
 			for id in ids {
 				planned.entry(id).and_modify(|b| *b = (*b).min(block)).or_insert(block);
 			}
 		}
 
-		let mut schedules: Vec<_> = Schedules::iter().take(MAX_SCHEDULES + 1).collect();
-		meter.reads += schedules.len() as u64;
 		schedules.sort_by_key(|(id, _)| *id);
-		let limit_hit = schedules.len() > MAX_SCHEDULES;
-
-		for (id, schedule) in schedules.into_iter().take(MAX_SCHEDULES) {
+		for (id, schedule) in schedules {
 			Self::migrate_schedule(id, &schedule, planned.get(&id).copied(), meter);
 			Schedules::remove(id);
 			RemainingAmounts::remove(id);
 			meter.writes += 2;
 		}
 
-		if limit_hit {
-			log::error!(target: LOG_TARGET, "DCA retirement stopped after {MAX_SCHEDULES} schedules: legacy DCA state remains, run the migration again");
+		if !Self::release_legacy_reserves(legacy, meter) {
+			log::error!(target: LOG_TARGET, "DCA retirement not finalised: dcaorder reserves may remain, run the migration again");
 			return;
 		}
-
-		Self::release_legacy_reserves(meter);
 
 		PausedTransactions::<Runtime>::remove(dca_pause_key());
 		meter.writes += 1;
 
-		let removed = unhashed::clear_prefix(&sp_io::hashing::twox_128(b"DCA"), None, None).unique;
-		meter.writes += removed as u64;
-		log::info!(target: LOG_TARGET, "DCA retired: {removed} keys removed");
+		let cleared = unhashed::clear_prefix(&sp_io::hashing::twox_128(b"DCA"), Some(MAX_DCA_KEYS), None);
+		meter.writes += cleared.unique as u64;
+		if cleared.maybe_cursor.is_some() {
+			log::error!(target: LOG_TARGET, "DCA keys remain after removing {MAX_DCA_KEYS}, run the migration again");
+		}
+		log::info!(target: LOG_TARGET, "DCA retired: {} keys removed", cleared.unique);
 	}
 
 	fn migrate_schedule(id: u32, schedule: &LegacySchedule, planned: Option<u32>, meter: &mut Meter) {
@@ -162,8 +170,7 @@ impl MigrateDcaToIntents {
 			budget,
 			period: schedule.period,
 		};
-		// A schedule planned at P traded inside block P. An intent is offered from block X's state and
-		// settles in X + 1, so X = P - 1 keeps the trade in the same block.
+		// A schedule planned at P traded in P; an intent offered at P - 1 settles in P.
 		let first_eligible = planned.map_or(0, |block| block.saturating_sub(1));
 
 		let (result, extra_gas) = Self::with_extra_gas(asset_in, 2, meter, || {
@@ -203,40 +210,57 @@ impl MigrateDcaToIntents {
 		log::info!(target: LOG_TARGET, "DCA schedule {id} cancelled ({reason:?}): refunded {refunded} of asset {asset} (extra gas used: {extra_gas})");
 	}
 
-	/// Walks every account: `unlock_reserves` is gone with the pallet, so a `dcaorder` reserve no
-	/// schedule accounted for (or an erc20 unreserve that failed above) would otherwise stay locked.
-	fn release_legacy_reserves(meter: &mut Meter) {
+	/// `None` when the scan hit its bound or found more than `MAX_SCHEDULES` holders.
+	fn legacy_reserves(meter: &mut Meter) -> Option<Vec<(AccountId, AssetId)>> {
 		let native = pallet_balances::Reserves::<Runtime>::iter().map(|(owner, reserves)| {
-			let amount = reserves.iter().find(|r| r.id == DCA_RESERVE_ID).map(|r| r.amount);
-			(owner, NativeAssetId::get(), amount)
+			let held = reserves.iter().any(|r| r.id == DCA_RESERVE_ID);
+			(owner, NativeAssetId::get(), held)
 		});
 		let tokens = orml_tokens::Reserves::<Runtime>::iter().map(|(owner, asset, reserves)| {
-			let amount = reserves.iter().find(|r| r.id == DCA_RESERVE_ID).map(|r| r.amount);
-			(owner, asset, amount)
+			let held = reserves.iter().any(|r| r.id == DCA_RESERVE_ID);
+			(owner, asset, held)
 		});
+		let mut scanned = 0;
 		let legacy: Vec<_> = native
 			.chain(tokens)
-			.inspect(|_| meter.reads += 1)
-			.filter_map(|(owner, asset, amount)| Some((owner, asset, amount?)))
+			.take(MAX_RESERVES_SCANNED)
+			.inspect(|_| scanned += 1)
+			.filter_map(|(owner, asset, held)| held.then_some((owner, asset)))
 			.collect();
-		let skipped = legacy.len().saturating_sub(MAX_SCHEDULES);
-		if skipped > 0 {
-			log::error!(target: LOG_TARGET, "DCA reserve release stopped after {MAX_SCHEDULES}: {skipped} dcaorder reserves stay reserved");
+		meter.reads += scanned as u64;
+		if scanned >= MAX_RESERVES_SCANNED {
+			log::error!(target: LOG_TARGET, "DCA retirement aborted: reserve scan reached {MAX_RESERVES_SCANNED} entries, nothing changed");
+			return None;
 		}
-		for (owner, asset, reserved) in legacy.into_iter().take(MAX_SCHEDULES) {
+		if legacy.len() > MAX_SCHEDULES {
+			log::error!(target: LOG_TARGET, "DCA retirement aborted: {} dcaorder reserves exceed {MAX_SCHEDULES}, nothing changed", legacy.len());
+			return None;
+		}
+		Some(legacy)
+	}
+
+	/// Returns whether every `dcaorder` reserve was released.
+	fn release_legacy_reserves(legacy: Vec<(AccountId, AssetId)>, meter: &mut Meter) -> bool {
+		let mut clean = true;
+		for (owner, asset) in legacy {
+			meter.reads += 1;
+			let reserved = Currencies::reserved_balance_named(&DCA_RESERVE_ID, asset, &owner);
+			if reserved == 0 {
+				continue;
+			}
 			let (left, _) = Self::with_extra_gas(asset, 1, meter, || {
 				Ok(Currencies::unreserve_named(&DCA_RESERVE_ID, asset, &owner, reserved))
 			});
 			let left = left.unwrap_or(reserved);
 			if left != 0 {
+				clean = false;
 				log::error!(target: LOG_TARGET, "DCA reserve could not be released: {left} of asset {asset} stays reserved under dcaorder for {owner:?}");
 			}
 		}
+		clean
 	}
 
-	/// Runs `f` in its own storage layer with `EXTRA_GAS` on top of each EVM call's limit. Charges
-	/// `evm_calls` bound-erc20 calls at their base limit plus the extra gas consumed, which is read
-	/// before a rollback would erase it.
+	/// Runs `f` in a storage layer with `EXTRA_GAS`; the gas used is read before a rollback erases it.
 	fn with_extra_gas<R>(
 		asset: AssetId,
 		evm_calls: u64,
@@ -273,7 +297,8 @@ impl OnRuntimeUpgrade for MigrateDcaToIntents {
 			.reads_writes(meter.reads, meter.writes)
 			.saturating_add(<Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(
 				meter.gas, false,
-			));
+			))
+			.saturating_add(Weight::from_parts(0, meter.reads.saturating_mul(PROOF_SIZE_PER_READ)));
 		log::info!(target: LOG_TARGET, "DCA retirement weight: {weight:?} (gas charged: {})", meter.gas);
 		weight
 	}

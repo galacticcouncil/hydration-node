@@ -26,8 +26,6 @@ pub struct RawDebtLeg {
 /// Decode a block's events into `(Phase, ChainEvent)` in event order, plus the raw debt legs whose
 /// reserve→asset resolution the caller finishes with chain access. Debt legs are emitted as
 /// `ChainEvent::AavePosition` with `asset` filled by the caller (see `map_block`).
-///
-/// Records of the retired DCA pallet (pre-upgrade history) are decoded with `legacy_dca`.
 pub fn decode_events(events_raw: &[u8]) -> Result<Vec<Decoded>, String> {
 	let mut input = events_raw;
 	let len = Compact::<u32>::decode(&mut input).map_err(|e| format!("decode System.Events: {e}"))?;
@@ -37,8 +35,7 @@ pub fn decode_events(events_raw: &[u8]) -> Result<Vec<Decoded>, String> {
 	Ok(map_records(&records))
 }
 
-/// One `System.Events` record. Records of the retired DCA pallet are already mapped.
-// Unboxed: boxing would allocate per runtime record on the guard's hot path; legacy records are rare.
+// Unboxed: boxing would allocate per record on the guard's hot path.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Record {
@@ -490,8 +487,7 @@ fn acc(a: &AccountId) -> cerebro_core::AccountId {
 	a.clone().into()
 }
 
-/// Event layout of the retired DCA pallet (runtime index 66), kept so blocks from before its
-/// removal still decode. Only the lifecycle boundaries are mapped; the rest is decoded to be skipped.
+/// Event layout of the retired DCA pallet (index 66), kept so older blocks still decode.
 #[allow(dead_code)]
 mod legacy_dca {
 	use super::{acc, Record};
@@ -594,7 +590,7 @@ mod legacy_dca {
 		},
 	}
 
-	/// Consumes the next record if it belongs to the retired pallet; leaves `input` untouched otherwise.
+	/// `None` leaves `input` untouched.
 	pub(super) fn decode_record(input: &mut &[u8]) -> Result<Option<Record>, String> {
 		let mut rest = *input;
 		let phase = frame_system::Phase::decode(&mut rest).map_err(|e| format!("decode EventRecord: {e}"))?;

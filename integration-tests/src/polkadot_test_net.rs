@@ -1005,8 +1005,7 @@ pub fn hydra_live_ext(
 
 			let mut p = builder.build().await.unwrap();
 			p.execute_with(|| {
-				// The snapshot block's events can hold variants of retired pallets (e.g. DCA) that no
-				// longer decode, which would make every `System::events()` read come back empty.
+				// Snapshot events of retired pallets (e.g. DCA) no longer decode and would empty `System::events()`.
 				hydradx_runtime::System::reset_events();
 				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();

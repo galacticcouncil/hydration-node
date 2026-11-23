@@ -502,18 +502,15 @@ impl<T: Config> Pallet<T> {
 		Self::do_add_intent(owner, input, 0)
 	}
 
-	/// Creates a DCA intent for a schedule converted from the retired legacy DCA pallet.
+	/// Creates a DCA intent for a converted legacy DCA schedule, first offered to the solver at
+	/// `max(first_eligible_block, current block)`.
 	///
-	/// The per-account cap is not enforced: the schedule already existed and its reserve has been
-	/// released, so refusing here would strand the owner's funds.
+	/// The per-account cap is not enforced: refusing would strand the already released reserve.
 	///
 	/// A sub-ED `amount_out` is lifted to the ED instead of rejected: it is only the user's hard
 	/// floor, and the enforced minimum stays `max(hard limit, oracle floor)`
 	/// (`compute_dca_effective_limit`), so lifting it cannot execute the schedule any worse.
 	/// `amount_in` is deliberately not clamped — raising the spend side would change the schedule.
-	///
-	/// The intent is first offered to the solver at `max(first_eligible_block, current block)`, so a
-	/// schedule keeps its planned slot instead of trading at conversion.
 	#[require_transactional]
 	pub fn do_add_migrated_intent(
 		owner: T::AccountId,
