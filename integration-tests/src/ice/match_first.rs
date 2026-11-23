@@ -42,10 +42,12 @@ const PIN_BOB_AMM_IN: Balance = 9_323_578_198_535;
 const PIN_BOB_OUT: Balance = 147_407_011_313_812;
 /// AMM fill of 10 HDX → BNC alone, one block after the window closed.
 const PIN_OUT_AFTER_WINDOW: Balance = 674_325_708_682;
+/// The router's output for that fill; the owner receives all of it.
+const PIN_DELIVERED_AFTER_WINDOW: Balance = 674_393_147_996;
 const PIN_OUT_AFTER_WINDOW_WITH_RESTING_ORDER: Balance = 674_325_708_682;
 const PIN_FEE_HDX: Balance = 0;
 const PIN_FEE_BNC: Balance = 0;
-const PIN_POT_HDX: Balance = 15_742_275_358;
+const PIN_POT_HDX: Balance = 2_000_000_000;
 const PIN_POT_BNC: Balance = 135_284_360;
 
 const PARTIAL_AMOUNT: Balance = 1_000 * HDX_UNIT;
@@ -347,7 +349,7 @@ fn match_first_intent_should_fill_through_the_amm_once_the_window_closes() {
 			let out = swap(resolved(&sol, id)).amount_out;
 			println!("PIN window_closed: out={out}");
 			assert_eq!(out, PIN_OUT_AFTER_WINDOW);
-			assert_eq!(balances(&alice).1 - alice_before.1, out);
+			assert_eq!(balances(&alice).1 - alice_before.1, PIN_DELIVERED_AFTER_WINDOW);
 			assert_eq!(reserved(&alice, HDX), 0);
 			assert_eq!(match_until(id), None);
 			assert_eq!(resolved_ids(), vec![id]);

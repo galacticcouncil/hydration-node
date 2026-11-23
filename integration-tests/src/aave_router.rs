@@ -1762,15 +1762,14 @@ mod ice_settlement_atoken {
 				solution_for(id)
 			));
 
-			assert_eq!(Currencies::free_balance(DOT, &alice), alice_dot + PAID_OUT);
+			// The pool paid 2 units over the aToken face value (aave's scaled-balance rounding).
+			assert_eq!(Currencies::free_balance(DOT, &alice), alice_dot + AMOUNT_IN + 2);
 			// The settlement never put the input back into her position.
 			assert_eq!(Currencies::free_balance(ADOT, &alice), alice_adot);
 			assert_eq!(reserved(ADOT, &alice), 0);
 			assert_eq!(Currencies::free_balance(ADOT, &reserve_account()), 0);
 			assert_eq!(Currencies::free_balance(ADOT, &pot()), 0);
-			// The pool paid 2 units over the aToken face value (aave's scaled-balance rounding),
-			// and everything the intent did not claim stays in the pot.
-			assert_eq!(Currencies::free_balance(DOT, &pot()), AMOUNT_IN - PAID_OUT + 2);
+			assert_eq!(Currencies::free_balance(DOT, &pot()), 0);
 			assert!(pallet_intent::Pallet::<Runtime>::get_intent(id).is_none());
 		});
 	}
@@ -1788,9 +1787,8 @@ mod ice_settlement_atoken {
 
 			println!("reserve_sent {reserve_sent}, owner_sent {owner_sent}");
 
-			// Both snapshot-bound. The gap is aave's solvency walk over ALICE's reserves, and it
-			// is what settlement used to pay for every intent - here with a single borrowed
-			// reserve, which is the smallest walk there is.
+			// Both snapshot-bound. The gap is aave's solvency walk over ALICE's reserves - here
+			// with a single borrowed reserve, which is the smallest walk there is.
 			assert_eq!(reserve_sent, 141_490);
 			assert_eq!(owner_sent, 208_156);
 		});

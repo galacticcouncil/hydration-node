@@ -2225,7 +2225,8 @@ fn liquidate_gigahdx_should_refuse_when_debt_asset_is_not_hollar() {
 				alice_evm,
 				1_000 * UNITS,
 				route,
-			),
+			)
+			.map_err(|e| e.error),
 			pallet_liquidation::Error::<Runtime>::UnsupportedDebtAsset
 		);
 	});
@@ -2247,7 +2248,8 @@ fn liquidate_gigahdx_should_refuse_when_borrower_has_no_position() {
 				alice_evm,
 				1_000 * UNITS,
 				route,
-			),
+			)
+			.map_err(|e| e.error),
 			pallet_liquidation::Error::<Runtime>::NoGigaHdxPosition
 		);
 	});

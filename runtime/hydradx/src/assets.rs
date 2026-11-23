@@ -61,6 +61,7 @@ use orml_traits::{
 	currency::{MultiCurrency, MutationHooks, OnDeposit, OnTransfer},
 	GetByKey, Handler, NamedMultiReservableCurrency,
 };
+use pallet_broadcast::types::ExecutionType;
 use pallet_currencies::{AssetTotalIssuance, BasicCurrencyAdapter};
 use pallet_dynamic_fees::types::FeeParams;
 use pallet_lbp::weights::WeightInfo as LbpWeights;
@@ -400,7 +401,20 @@ impl pallet_omnipool::Config for Runtime {
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
+	type BaseFeeOnly = LiquidationCollateralSale;
 	type BurnProtocolFee = BurnProtocolFee;
+}
+
+pub struct LiquidationCollateralSale;
+
+impl Contains<AccountId> for LiquidationCollateralSale {
+	fn contains(signer: &AccountId) -> bool {
+		*signer == Router::router_account()
+			&& matches!(
+				Broadcast::get_context().as_slice(),
+				[.., ExecutionType::Liquidation(_), ExecutionType::Router(_)]
+			)
+	}
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -1480,6 +1494,7 @@ impl pallet_referrals::Config for Runtime {
 
 parameter_types! {
 	pub const LiquidationGasLimit: u64 = 4_000_000;
+	pub RecordedProofSize: Option<u64> = cumulus_primitives_storage_weight_reclaim::get_proof_size();
 	pub BorrowingTreasuryAccount: AccountId = EVMAccounts::account_id(H160::from(hex!["E52567fF06aCd6CBe7BA94dc777a3126e180B6d9"]));
 }
 
@@ -1530,6 +1545,7 @@ impl pallet_liquidation::Config for Runtime {
 	type EvmErrorDecoder = EvmErrorDecoder;
 	type AuthorityOrigin = EitherOf<EnsureRoot<Self::AccountId>, GeneralAdmin>;
 	type GigaHdx = crate::gigahdx::GigaHdxLiquidationSupport;
+	type RecordedProofSize = RecordedProofSize;
 }
 
 impl pallet_broadcast::Config for Runtime {}

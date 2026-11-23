@@ -29,16 +29,24 @@ type Simulator = HydrationSimulator<PeplSimulatorConfig>;
 
 /// `None` when the runtime predates `LiquidityStateApi` or the snapshot does not decode with this
 /// binary's types — callers then fall back to the router's stored routes.
-pub fn fetch_liquidity_state<B, Api>(api: &Api, at: B::Hash, log_prefix: &str) -> Option<LiquidityState>
+///
+/// `read_storage` reads a raw storage value at `at`; the snapshot does not ship
+/// `Omnipool::SlipFeeLevel`, so it is filled from storage after decoding.
+pub fn fetch_liquidity_state<B, Api>(
+	api: &Api,
+	at: B::Hash,
+	read_storage: impl Fn(&[u8]) -> Option<Vec<u8>>,
+	log_prefix: &str,
+) -> Option<LiquidityState>
 where
 	B: Block,
 	Api: LiquidityStateApi<B> + ApiExt<B>,
 {
 	let timer = Instant::now();
-	if !api.has_api::<dyn LiquidityStateApi<B>>(at).unwrap_or(false) {
+	let Some(api_version) = api.api_version::<dyn LiquidityStateApi<B>>(at).ok().flatten() else {
 		log::debug!(target: LOG_TARGET, "{log_prefix:?} fetch_liquidity_state(): runtime has no LiquidityStateApi, using stored routes");
 		return None;
-	}
+	};
 	let raw = api
 		.liquidity_state(at)
 		.inspect_err(|e| {
@@ -46,7 +54,16 @@ where
 		})
 		.ok()?;
 	let fetched = timer.elapsed();
-	let state = decode_liquidity_state(&raw.state, log_prefix)?;
+	let mut state = decode_liquidity_state(&raw.state, log_prefix)?;
+	std::sync::Arc::make_mut(&mut state.0).fill_slip_fee_levels::<hydradx_runtime::Runtime>(read_storage);
+	if api_version >= 2 {
+		match api.omnipool_base_fees(at) {
+			Ok(fees) => std::sync::Arc::make_mut(&mut state.0).base_fees = Some(fees.into_iter().collect()),
+			Err(e) => {
+				log::error!(target: LOG_TARGET, "{log_prefix:?} fetch_liquidity_state(): omnipool_base_fees failed, simulating full fees, err: {e:?}")
+			}
+		}
+	}
 	log::debug!(target: LOG_TARGET, "{log_prefix:?} fetch_liquidity_state(): {} bytes, fetch {:?}, decode {:?}", raw.state.len(), fetched, timer.elapsed().saturating_sub(fetched));
 	Some(state)
 }

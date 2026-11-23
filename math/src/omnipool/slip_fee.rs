@@ -4,9 +4,23 @@ use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
 use num_traits::One;
 use primitive_types::U256;
-use sp_arithmetic::Permill;
+use sp_arithmetic::{Percent, Permill};
 
 const PERMILL_SCALE: u128 = 1_000_000;
+
+/// Block-start hub reserve and cap to use for one side of a trade at the given slip fee level.
+///
+/// A level below 100% treats the asset as deeper (`floor(q0 * 100 / level)`), which lowers the
+/// rate without touching the formulas. The reserve never shrinks, so no new failure path opens.
+pub fn apply_slip_fee_level(q0: Balance, max_slip_fee: Permill, level: Percent) -> (Balance, Permill) {
+	if level.is_zero() {
+		// Scaling cannot express "off": a zero cap makes the fee zero, forward and inverse.
+		// Must stay in front of the division, which panics on 0%.
+		(q0, Permill::zero())
+	} else {
+		(level.saturating_reciprocal_mul_floor(q0), max_slip_fee)
+	}
+}
 
 /// Calculate the slip fee *amount* at full U256 precision, avoiding Permill truncation.
 ///

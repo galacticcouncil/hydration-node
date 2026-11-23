@@ -64,6 +64,9 @@ frame_support::construct_runtime!(
 );
 
 parameter_types! {
+	pub static EvmGasUsed: u64 = 0;
+	pub static EvmProofSize: u64 = 0;
+	pub static RecordedProofSize: Option<u64> = None;
 	pub const LiquidationGasLimit: u64 = 1_000_000;
 	pub const HollarId: u32 = 222;
 }
@@ -98,6 +101,7 @@ fn decode_liquidation_call_data(data: Vec<u8>) -> Option<(EvmAddress, EvmAddress
 pub struct EvmMock;
 impl EVM<CallResult> for EvmMock {
 	fn call(context: CallContext, data: Vec<u8>, _value: U256, _gas: u64) -> CallResult {
+		RecordedProofSize::mutate(|recorded| *recorded = recorded.map(|size| size + EvmProofSize::get()));
 		let maybe_data = decode_liquidation_call_data(data);
 		match maybe_data {
 			Some(data) => {
@@ -109,7 +113,7 @@ impl EVM<CallResult> for EvmMock {
 						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 						value: vec![],
 						contract: context.contract,
-						gas_used: U256::zero(),
+						gas_used: EvmGasUsed::get().into(),
 						gas_limit: U256::zero(),
 					};
 				};
@@ -139,7 +143,7 @@ impl EVM<CallResult> for EvmMock {
 						exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 						value: vec![],
 						contract: context.contract,
-						gas_used: U256::zero(),
+						gas_used: EvmGasUsed::get().into(),
 						gas_limit: U256::zero(),
 					};
 				}
@@ -149,7 +153,7 @@ impl EVM<CallResult> for EvmMock {
 					exit_reason: ExitReason::Error(ExitError::DesignatedInvalid),
 					value: vec![],
 					contract: context.contract,
-					gas_used: U256::zero(),
+					gas_used: EvmGasUsed::get().into(),
 					gas_limit: U256::zero(),
 				}
 			}
@@ -159,7 +163,7 @@ impl EVM<CallResult> for EvmMock {
 			exit_reason: ExitReason::Succeed(ExitSucceed::Returned),
 			value: vec![],
 			contract: context.contract,
-			gas_used: U256::zero(),
+			gas_used: EvmGasUsed::get().into(),
 			gas_limit: U256::zero(),
 		}
 	}
@@ -215,8 +219,8 @@ pub fn is_asset_address(address: H160) -> bool {
 
 pub struct DummyGasWeightMapping;
 impl pallet_evm::GasWeightMapping for DummyGasWeightMapping {
-	fn gas_to_weight(_gas: u64, _without_base_weight: bool) -> Weight {
-		Weight::zero()
+	fn gas_to_weight(gas: u64, _without_base_weight: bool) -> Weight {
+		Weight::from_parts(gas, gas / 4)
 	}
 	fn weight_to_gas(_weight: Weight) -> u64 {
 		0
@@ -239,6 +243,7 @@ impl Config for Test {
 	type EvmErrorDecoder = EvmErrorDecodeMock;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type GigaHdx = GigaHdxSupportMock;
+	type RecordedProofSize = RecordedProofSize;
 }
 
 /// Liquidation unit tests never reach the gigahdx seize path (they bail on the
@@ -485,6 +490,7 @@ impl pallet_omnipool::Config for Test {
 	type MinWithdrawalFee = ();
 	type ExternalPriceOracle = WithdrawFeePriceOracle;
 	type Fee = FeeProvider;
+	type BaseFeeOnly = frame_support::traits::Nothing;
 	type BurnProtocolFee = BurnFee;
 }
 

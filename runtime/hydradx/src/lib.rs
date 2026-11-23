@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 459,
+	spec_version: 462,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1236,6 +1236,13 @@ impl_runtime_apis! {
 		fn liquidity_state() -> pallet_ice_runtime_api::LiquidityState {
 			let (state, existential_deposits) = pallet_ice::Pallet::<Runtime>::liquidity_state();
 			pallet_ice_runtime_api::LiquidityState { state, existential_deposits }
+		}
+
+		fn omnipool_base_fees() -> Vec<(AssetId, (Permill, Permill))> {
+			use hydradx_traits::fee::GetDynamicFee;
+			pallet_omnipool::Assets::<Runtime>::iter_keys()
+				.map(|asset| (asset, <Runtime as pallet_omnipool::Config>::Fee::get_base((asset, 0))))
+				.collect()
 		}
 	}
 

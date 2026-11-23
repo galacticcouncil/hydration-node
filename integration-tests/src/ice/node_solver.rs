@@ -106,7 +106,7 @@ fn node_path_solution_should_equal_runtime_path_solution() {
 
 #[test]
 fn liquidity_state_should_ship_snapshot_and_pool_eds_when_no_intents_exist() {
-	use pallet_ice_runtime_api::runtime_decl_for_liquidity_state_api::LiquidityStateApiV1;
+	use pallet_ice_runtime_api::runtime_decl_for_liquidity_state_api::LiquidityStateApi;
 
 	TestNet::reset();
 

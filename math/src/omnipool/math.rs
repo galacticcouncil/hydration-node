@@ -45,7 +45,7 @@ pub fn calculate_sell_state_changes(
 			slip.asset_in_hub_reserve,
 			slip.asset_in_delta,
 			SignedBalance::Negative(delta_hub_reserve_in),
-			slip.max_slip_fee,
+			slip.asset_in_max_slip_fee,
 			delta_hub_reserve_in,
 		)?
 	} else {
@@ -62,7 +62,7 @@ pub fn calculate_sell_state_changes(
 			slip.asset_out_hub_reserve,
 			slip.asset_out_delta,
 			SignedBalance::Positive(d_gross),
-			slip.max_slip_fee,
+			slip.asset_out_max_slip_fee,
 			d_gross,
 		)?
 	} else {
@@ -281,7 +281,7 @@ pub fn calculate_buy_state_changes(
 			d_net,
 			slip.asset_out_hub_reserve,
 			slip.asset_out_delta,
-			slip.max_slip_fee,
+			slip.asset_out_max_slip_fee,
 		)?
 	} else {
 		d_net
@@ -294,7 +294,7 @@ pub fn calculate_buy_state_changes(
 			protocol_fee,
 			slip.asset_in_hub_reserve,
 			slip.asset_in_delta,
-			slip.max_slip_fee,
+			slip.asset_in_max_slip_fee,
 		)?
 	} else {
 		// No slip — original inversion
@@ -326,7 +326,7 @@ pub fn calculate_buy_state_changes(
 			slip.asset_in_hub_reserve,
 			slip.asset_in_delta,
 			SignedBalance::Negative(delta_hub_reserve_in),
-			slip.max_slip_fee,
+			slip.asset_in_max_slip_fee,
 			delta_hub_reserve_in,
 		)?
 	} else {
@@ -342,7 +342,7 @@ pub fn calculate_buy_state_changes(
 			slip.asset_out_hub_reserve,
 			slip.asset_out_delta,
 			SignedBalance::Positive(d_gross_forward),
-			slip.max_slip_fee,
+			slip.asset_out_max_slip_fee,
 			d_gross_forward,
 		)?
 	} else {

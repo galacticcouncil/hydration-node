@@ -2,6 +2,7 @@ use super::*;
 use crate::types::SlipFeeConfig;
 use crate::FixedU128;
 use proptest::prelude::*;
+use sp_runtime::Percent;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -34,6 +35,21 @@ fn withdrawal_fee() -> impl Strategy<Value = Permill> {
 
 fn max_slip_fee() -> impl Strategy<Value = Permill> {
 	(1u32..=50u32).prop_map(Permill::from_percent)
+}
+
+/// One level per pool asset: HDX, DAI and the four tokens. Half the cases keep every asset at
+/// the default, which independent draws would practically never produce.
+fn slip_fee_levels() -> impl Strategy<Value = [Percent; 6]> {
+	prop_oneof![
+		Just([Percent::one(); 6]),
+		prop::array::uniform6((0..=100u8).prop_map(Percent::from_percent)),
+	]
+}
+
+fn set_slip_fee_levels(levels: [Percent; 6]) {
+	for (asset_id, level) in [HDX, DAI, 100, 200, 300, 400].into_iter().zip(levels) {
+		SlipFeeLevel::<Test>::insert(asset_id, level);
+	}
 }
 
 fn sum_asset_hub_liquidity() -> Balance {
@@ -73,6 +89,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -107,6 +124,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -149,6 +167,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -184,6 +203,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -228,6 +248,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -262,6 +283,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -302,6 +324,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -337,6 +360,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -381,6 +405,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -415,6 +440,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -450,6 +476,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -485,6 +512,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -524,6 +552,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -558,6 +587,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -594,6 +624,7 @@ proptest! {
 		asset_fee in fee(),
 		protocol_fee in fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -629,6 +660,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -670,6 +702,7 @@ proptest! {
 		protocol_fee in fee(),
 		withdraw_fee in withdrawal_fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -706,6 +739,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -747,6 +781,7 @@ proptest! {
 		protocol_fee in fee(),
 		withdraw_fee in withdrawal_fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -783,6 +818,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -824,6 +860,7 @@ proptest! {
 		protocol_fee in fee(),
 		withdraw_fee in withdrawal_fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -860,6 +897,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -901,6 +939,7 @@ proptest! {
 		protocol_fee in fee(),
 		withdraw_fee in withdrawal_fee(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -937,6 +976,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -982,6 +1022,7 @@ proptest! {
 		protocol_fee in fee(),
 		buy_amount in trade_amount(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -1023,6 +1064,7 @@ proptest! {
 				assert_ok!(Omnipool::add_token(RuntimeOrigin::root(), token_4.asset_id, token_4.price, Permill::from_percent(100), lp4));
 
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(buyer), 300, LRNA, buy_amount, Balance::MAX));
 
@@ -1054,6 +1096,7 @@ proptest! {
 		protocol_fee in fee(),
 		buy_amount in trade_amount(),
 		slip_max in max_slip_fee(),
+		levels in slip_fee_levels(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -1090,6 +1133,7 @@ proptest! {
 			.build()
 			.execute_with(|| {
 				SlipFee::<Test>::put(SlipFeeConfig { max_slip_fee: slip_max });
+				set_slip_fee_levels(levels);
 
 				let position_id = <NextPositionId<Test>>::get();
 				assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(seller), 200, amount));

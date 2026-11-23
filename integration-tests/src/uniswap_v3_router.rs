@@ -879,8 +879,10 @@ fn intent_should_settle_through_omnipool_and_uniswap_v3_when_amount_exceeds_v3_c
 		assert_eq!(trade_shapes(&solution), split_sale_trades());
 		assert_eq!(paid_out(&solution), 96_680_578_191_874);
 		assert_eq!(solution.score, 6_680_578_191_874);
+		// ALICE is the only receiver, so she is paid the trades' whole output.
+		let delivered = paid_out(&solution) + 11_205_332_886;
 		assert!(
-			received >= paid_out(&solution) && received <= paid_out(&solution).saturating_add(2),
+			received >= delivered && received <= delivered.saturating_add(2),
 			"aToken balance rounding may credit at most two units above the nominal payout"
 		);
 		assert_eq!(
