@@ -19,7 +19,6 @@ use hydradx_traits::{OraclePeriod, Source};
 use orml_traits::MultiCurrency;
 use primitives::EvmAddress;
 use scale_info::TypeInfo;
-use sp_core::RuntimeDebug;
 use sp_runtime::DispatchResult;
 
 pub(crate) type Balance = u128;
@@ -28,7 +27,7 @@ pub(crate) type Balance = u128;
 /// `assets`: pool assets
 /// `amplification`: amp parameter
 /// `fee`: trade fee to be withdrawn on sell/buy
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct PoolInfo<AssetId, BlockNumber> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
@@ -155,7 +154,7 @@ pub type PegType = (Balance, Balance);
 
 pub type BoundedPegs = BoundedVec<PegType, ConstU32<MAX_ASSETS_IN_POOL>>;
 
-#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 pub enum PegSource<AssetId = ()> {
 	Value(PegType),
 	Oracle((Source, OraclePeriod, AssetId)),
@@ -164,7 +163,7 @@ pub enum PegSource<AssetId = ()> {
 
 pub type BoundedPegSources<AssetId> = BoundedVec<PegSource<AssetId>, ConstU32<MAX_ASSETS_IN_POOL>>;
 
-#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Eq, PartialEq, Clone, Debug, TypeInfo, MaxEncodedLen)]
 pub struct PoolPegInfo<BlockNumber, AssetId = ()> {
 	pub source: BoundedPegSources<AssetId>,
 	pub updated_at: BlockNumber,
@@ -184,7 +183,7 @@ impl<BlockNumber, AssetId> PoolPegInfo<BlockNumber, AssetId> {
 	}
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, Debug, TypeInfo, MaxEncodedLen)]
 pub struct PoolSnapshot<AssetId> {
 	pub assets: BoundedVec<AssetId, ConstU32<MAX_ASSETS_IN_POOL>>,
 	pub reserves: BoundedVec<AssetReserve, ConstU32<MAX_ASSETS_IN_POOL>>,

@@ -68,10 +68,11 @@ pub struct DropResult {
 }
 
 /// What the RPC needs from the transaction pool and chain.
+#[async_trait]
 pub trait PoolControl: Send + Sync {
 	fn best(&self) -> (H256, u32);
 	/// Remove `hash` (and its dependents) from the pool; returns what was removed.
-	fn remove(&self, at: H256, hash: H256) -> Vec<H256>;
+	async fn remove(&self, at: H256, hash: H256) -> Vec<H256>;
 }
 
 pub struct NodePool<C, P> {
@@ -79,6 +80,7 @@ pub struct NodePool<C, P> {
 	pub pool: Arc<P>,
 }
 
+#[async_trait]
 impl<C, P> PoolControl for NodePool<C, P>
 where
 	C: HeaderBackend<Block> + Send + Sync,
@@ -89,9 +91,10 @@ where
 		(info.best_hash, info.best_number)
 	}
 
-	fn remove(&self, at: H256, hash: H256) -> Vec<H256> {
+	async fn remove(&self, at: H256, hash: H256) -> Vec<H256> {
 		self.pool
 			.report_invalid(Some(at), TxInvalidityReportMap::from_iter([(hash, None)]))
+			.await
 			.into_iter()
 			.map(|tx| *tx.hash())
 			.collect()
@@ -205,12 +208,12 @@ impl CerebroGuardRpcImpl {
 		})
 	}
 
-	pub fn drop_tx(&self, hash: H256, reason: String) -> Result<DropResult, ErrorObjectOwned> {
+	pub async fn drop_tx(&self, hash: H256, reason: String) -> Result<DropResult, ErrorObjectOwned> {
 		if !lock(&self.shared.holds).forget(&hash) {
 			return Err(unknown(hash));
 		}
 		let (best_hash, best) = self.pool.best();
-		let removed = self.pool.remove(best_hash, hash);
+		let removed = self.pool.remove(best_hash, hash).await;
 		self.shared.audit(shadow::audit(
 			"drop",
 			&hash,
@@ -259,7 +262,7 @@ impl CerebroGuardRpcServer for CerebroGuardRpcImpl {
 
 	async fn drop_tx(&self, ext: &Extensions, hash: H256, reason: String) -> RpcResult<DropResult> {
 		check_if_safe(ext)?;
-		CerebroGuardRpcImpl::drop_tx(self, hash, reason)
+		CerebroGuardRpcImpl::drop_tx(self, hash, reason).await
 	}
 }
 
@@ -276,11 +279,12 @@ mod tests {
 		removed: Mutex<Vec<H256>>,
 	}
 
+	#[async_trait]
 	impl PoolControl for FakePool {
 		fn best(&self) -> (H256, u32) {
 			(H256::repeat_byte(0xbb), 200)
 		}
-		fn remove(&self, _at: H256, hash: H256) -> Vec<H256> {
+		async fn remove(&self, _at: H256, hash: H256) -> Vec<H256> {
 			self.removed.lock().unwrap().push(hash);
 			vec![hash]
 		}
@@ -351,7 +355,7 @@ mod tests {
 		let hash = H256::repeat_byte(1);
 		lock(&shared.holds).hold(hash, held(190));
 
-		let res = rpc.drop_tx(hash, "spam".into()).unwrap();
+		let res = futures::executor::block_on(rpc.drop_tx(hash, "spam".into())).unwrap();
 
 		assert_eq!(
 			res,
@@ -367,7 +371,7 @@ mod tests {
 	fn drop_should_fail_when_hash_is_unknown() {
 		let (rpc, _) = rpc(GuardMode::Hold);
 
-		assert!(rpc.drop_tx(H256::repeat_byte(3), "x".into()).is_err());
+		assert!(futures::executor::block_on(rpc.drop_tx(H256::repeat_byte(3), "x".into())).is_err());
 	}
 
 	#[test]

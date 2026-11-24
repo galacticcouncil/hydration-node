@@ -11,7 +11,6 @@ use codec::Encode;
 use core::marker::PhantomData;
 use evm::ExitReason;
 use evm::ExitSucceed;
-use frame_support::pallet_prelude::RuntimeDebug;
 use hydra_dx_math::support::rational::{round_u512_to_rational, Rounding};
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
@@ -76,7 +75,7 @@ pub trait DataProvider {
 ///
 /// Samples are `(cumulative_amount_in, cumulative_amount_out)` in ascending
 /// order and are read only from the origin, never from a mid-curve offset.
-#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq)]
 pub struct PoolCurve {
 	/// `token0` of the pool, which sorts first by EVM address.
 	pub asset_a: AssetId,
@@ -94,7 +93,7 @@ pub struct PoolCurve {
 	pub traded: bool,
 }
 
-#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq, Default)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, Default)]
 pub struct Snapshot {
 	pub pools: BTreeMap<EvmAddress, PoolCurve>,
 }

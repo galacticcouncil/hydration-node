@@ -8,7 +8,6 @@
 
 use codec::{Decode, Encode};
 use core::marker::PhantomData;
-use frame_support::pallet_prelude::RuntimeDebug;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::amm::{AmmSimulator, SimulatorError, TradeResult};
 use hydradx_traits::router::{PoolEdge, PoolType};
@@ -31,7 +30,7 @@ pub trait DataProvider {
 	fn max_out_ratio() -> u128;
 }
 
-#[derive(Clone, Encode, Decode, RuntimeDebug, PartialEq, Eq, Default)]
+#[derive(Clone, Encode, Decode, Debug, PartialEq, Eq, Default)]
 pub struct Snapshot {
 	/// Reserves keyed by the asset pair sorted ascending, values in that same order.
 	pub pools: BTreeMap<(AssetId, AssetId), (Balance, Balance)>,

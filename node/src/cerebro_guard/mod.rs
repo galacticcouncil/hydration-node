@@ -518,7 +518,10 @@ impl<C> CerebroGuard<C> {
 
 impl<C: CallApiAt<Block>> CerebroGuard<C> {
 	fn readiness(&self, parent: H256) -> (Readiness, u32) {
-		let version = match self.client.runtime_version_at(parent) {
+		let version = match self
+			.client
+			.runtime_version_at(parent, sp_core::traits::CallContext::Onchain)
+		{
 			Ok(v) => v,
 			Err(e) => return (Readiness::Unsupported(format!("runtime version: {e}")), 0),
 		};
