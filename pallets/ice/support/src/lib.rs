@@ -389,7 +389,7 @@ pub trait IntentMigrator<AccountId> {
 	fn add_migrated_intent(owner: AccountId, params: DcaParams) -> Result<IntentId, DispatchError>;
 }
 
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct DcaData {
 	/// Asset being sold per trade
 	pub asset_in: AssetId,
