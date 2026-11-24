@@ -455,7 +455,7 @@ fn solver_should_settle_an_intent_selling_h2o() {
 				RuntimeOrigin::none(),
 				solution,
 			));
-			assert_eq!(Currencies::total_balance(usdt, &alice) - usdt_before, 181295418);
+			assert_eq!(Currencies::total_balance(usdt, &alice) - usdt_before, 181312826);
 			assert_eq!(Currencies::total_balance(h2o, &alice), 0);
 		});
 }
@@ -502,8 +502,8 @@ fn solver_should_settle_an_intent_selling_h2o_alongside_other_intents() {
 				RuntimeOrigin::none(),
 				solution,
 			));
-			assert_eq!(Currencies::total_balance(usdt, &alice) - usdt_before, 181295418);
-			assert_eq!(Currencies::total_balance(dot, &bob) - dot_before, 158342490417);
+			assert_eq!(Currencies::total_balance(usdt, &alice) - usdt_before, 181312826);
+			assert_eq!(Currencies::total_balance(dot, &bob) - dot_before, 158358326251);
 			assert_eq!(Currencies::total_balance(h2o, &alice), 0);
 		});
 }
@@ -733,7 +733,7 @@ fn stableswap_intent() {
 		let alice_a_after = Currencies::total_balance(asset_a, &ALICE.into());
 		let alice_b_after = Currencies::total_balance(asset_b, &ALICE.into());
 		assert_eq!(alice_a_after, 9000000u128);
-		assert_eq!(alice_b_after, 1002924625843771142u128);
+		assert_eq!(alice_b_after, 1002925628769399913u128);
 
 		assert!(alice_a_after < alice_a_before, "Alice should have less asset_a");
 		assert!(alice_b_after > alice_b_before, "Alice should have more asset_b");
@@ -957,7 +957,7 @@ fn solver_execute_solution1() {
 			let bob_balance_b_after = Currencies::total_balance(asset_b, &bob);
 			assert_eq!(alice_balance_a_after, 90000000000000u128);
 			assert_eq!(alice_balance_b_after, 676286517105u128);
-			assert_eq!(bob_balance_a_after, 147407011313812u128);
+			assert_eq!(bob_balance_a_after, 147420753589170u128);
 			assert_eq!(bob_balance_b_after, 90000000000000u128);
 
 			// Verify balance changes direction
@@ -1007,11 +1007,14 @@ fn solver_execute_solution1() {
 				panic!("expected Swap");
 			};
 
-			// New model: each user receives the full resolved amount_out.
+			// An asset's only receiver is paid the whole output of that asset.
 			assert_eq!(alice_balance_a_before - alice_balance_a_after, alice_swap.amount_in);
 			assert_eq!(alice_balance_b_after - alice_balance_b_before, alice_swap.amount_out);
 			assert_eq!(bob_balance_b_before - bob_balance_b_after, bob_swap.amount_in);
-			assert_eq!(bob_balance_a_after - bob_balance_a_before, bob_swap.amount_out);
+			assert_eq!(
+				bob_balance_a_after - bob_balance_a_before,
+				bob_swap.amount_out + 13_742_275_358
+			);
 		});
 }
 
@@ -1118,7 +1121,7 @@ fn solver_execute_solution_with_buy_intents() {
 			let alice_balance_a_after = Currencies::total_balance(asset_a, &alice);
 			let alice_balance_b_after = Currencies::total_balance(asset_b, &alice);
 			assert_eq!(alice_balance_a_after, 18000000000000000u128);
-			assert_eq!(alice_balance_b_after, 134855833027664u128);
+			assert_eq!(alice_balance_b_after, 134869319959659u128);
 
 			// Verify balance changes
 			assert!(
@@ -1131,13 +1134,14 @@ fn solver_execute_solution_with_buy_intents() {
 			);
 
 			// Single intent → no matched volume → no protocol fee. User
-			// receives the full resolved amount_out; FeeReceiver gains nothing.
+			// receives the whole trade output; FeeReceiver gains nothing.
 			let paid = alice_balance_a_before - alice_balance_a_after;
 			let received = alice_balance_b_after - alice_balance_b_before;
 			assert_eq!(paid, swap_data.amount_in, "Paid amount should match solution");
 			assert_eq!(
-				received, swap_data.amount_out,
-				"Received amount should equal the full resolved amount_out (no fee on unmatched volume)"
+				received,
+				swap_data.amount_out + 13_486_931_995,
+				"Received amount should equal the whole trade output (no fee on unmatched volume)"
 			);
 			assert_eq!(
 				Currencies::free_balance(asset_b, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -1473,10 +1477,10 @@ fn solver_v1_single_intent() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
 			assert_eq!(alice_hdx_after, 90000000000000u128);
-			assert_eq!(alice_bnc_after, 674325708682u128);
+			assert_eq!(alice_bnc_after, 674393147996u128);
 
 			// Single intent → fully AMM-routed → zero matched volume → no
-			// protocol fee. User receives the full resolved amount_out, and
+			// protocol fee. User receives the whole trade output, and
 			// the FeeReceiver gains nothing.
 			let hdx_spent = alice_hdx_before - alice_hdx_after;
 			let bnc_received = alice_bnc_after - alice_bnc_before;
@@ -1486,8 +1490,9 @@ fn solver_v1_single_intent() {
 				"HDX spent should equal resolved amount_in"
 			);
 			assert_eq!(
-				bnc_received, swap_data.amount_out,
-				"BNC received should equal the full resolved amount_out (no fee on unmatched volume)"
+				bnc_received,
+				swap_data.amount_out + 67_439_314,
+				"BNC received should equal the whole trade output (no fee on unmatched volume)"
 			);
 			let receiver = <Runtime as pallet_ice::Config>::FeeReceiver::get();
 			assert_eq!(
@@ -1590,7 +1595,7 @@ fn solver_v1_two_intents_partial_match() {
 			let bob_hdx_after = Currencies::total_balance(hdx, &bob);
 			let bob_bnc_after = Currencies::total_balance(bnc, &bob);
 			assert_eq!(alice_hdx_after, 9000000000000000u128);
-			assert_eq!(alice_bnc_after, 67431738964548u128);
+			assert_eq!(alice_bnc_after, 67438432817829u128);
 			assert_eq!(bob_hdx_after, 7390359076508u128);
 			assert_eq!(bob_bnc_after, 4500000000000u128);
 
@@ -1608,14 +1613,14 @@ fn solver_v1_two_intents_partial_match() {
 			assert!(bob_bnc_after < bob_bnc_before, "Bob should have less BNC after selling");
 			assert!(bob_hdx_after > bob_hdx_before, "Bob should have more HDX after selling");
 
-			// New model: each user receives the full resolved amount_out.
+			// An asset's only receiver is paid the whole output of that asset.
 			for resolved in solution.resolved_intents.iter() {
 				let ice_support::IntentData::Swap(ref swap_data) = resolved.data else {
 					panic!("expected Swap");
 				};
 				if swap_data.asset_in == hdx {
 					assert_eq!(alice_hdx_before - alice_hdx_after, swap_data.amount_in);
-					assert_eq!(alice_bnc_after - alice_bnc_before, swap_data.amount_out);
+					assert_eq!(alice_bnc_after - alice_bnc_before, swap_data.amount_out + 6_693_853_281);
 				} else {
 					assert_eq!(bob_bnc_before - bob_bnc_after, swap_data.amount_in);
 					assert_eq!(bob_hdx_after - bob_hdx_before, swap_data.amount_out);
@@ -2227,7 +2232,7 @@ fn usdt_weth_single_intent() {
 			let alice_usdt_after = Currencies::total_balance(usdt, &alice);
 			let alice_weth_after = Currencies::total_balance(weth, &alice);
 			assert_eq!(alice_usdt_after, 900000000u128);
-			assert_eq!(alice_weth_after, 46095500987639355u128);
+			assert_eq!(alice_weth_after, 46100250235418617u128);
 
 			// Verify balances changed correctly
 			assert!(
@@ -2240,13 +2245,14 @@ fn usdt_weth_single_intent() {
 			);
 
 			// Single intent → no matched volume → no protocol fee. User gets
-			// the full resolved amount_out; FeeReceiver gains nothing.
+			// the whole trade output; FeeReceiver gains nothing.
 			let usdt_spent = alice_usdt_before - alice_usdt_after;
 			let weth_received = alice_weth_after - alice_weth_before;
 			assert_eq!(usdt_spent, swap_data.amount_in, "USDT spent should match solution");
 			assert_eq!(
-				weth_received, swap_data.amount_out,
-				"WETH received should equal the full resolved amount_out (no fee on unmatched volume)"
+				weth_received,
+				swap_data.amount_out + 4_749_247_779_262,
+				"WETH received should equal the whole trade output (no fee on unmatched volume)"
 			);
 			assert_eq!(
 				Currencies::free_balance(weth, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -2527,12 +2533,13 @@ fn usdt_weth_two_opposing_intents() {
 				solution,
 			));
 
-			// Users receive the full solver-resolved amount (no post-hoc fee).
+			// An asset's only receiver is paid the whole output of that asset.
 			let alice_weth_received = Currencies::total_balance(weth, &alice) - alice_weth_before;
 			let bob_usdt_received = Currencies::total_balance(usdt, &bob) - bob_usdt_before;
 			assert_eq!(
-				alice_weth_received, alice_resolved_weth,
-				"Alice must receive the full resolved WETH"
+				alice_weth_received,
+				alice_resolved_weth + 3_723_825_387_993,
+				"Alice must receive the whole WETH output"
 			);
 			assert_eq!(
 				bob_usdt_received, bob_resolved_usdt,
@@ -2626,7 +2633,7 @@ fn eth_3pool_single_intent() {
 			let alice_eth_after = Currencies::total_balance(eth, &alice);
 			let alice_3pool_after = Currencies::total_balance(pool3, &alice);
 			assert_eq!(alice_eth_after, 900000000000000000u128);
-			assert_eq!(alice_3pool_after, 212074414967125501078u128);
+			assert_eq!(alice_3pool_after, 212095200741587024228u128);
 
 			let eth_spent = alice_eth_before - alice_eth_after;
 			let pool3_received = alice_3pool_after - alice_3pool_before;
@@ -2937,7 +2944,7 @@ fn solver_ring_trade_triangle_execute() {
 			assert!(Currencies::total_balance(dot, &charlie) < charlie_dot_before);
 			assert!(Currencies::total_balance(hdx, &charlie) > charlie_hdx_before);
 
-			// New model: each user receives the full resolved amount_out.
+			// An asset's only receiver is paid the whole output of that asset.
 			for ri in solution.resolved_intents.iter() {
 				let ice_support::IntentData::Swap(ref s) = ri.data else {
 					panic!("expected Swap");
@@ -2945,7 +2952,10 @@ fn solver_ring_trade_triangle_execute() {
 				match (s.asset_in, s.asset_out) {
 					(0, 14) => {
 						assert_eq!(alice_hdx_before - Currencies::total_balance(hdx, &alice), s.amount_in);
-						assert_eq!(Currencies::total_balance(bnc, &alice) - alice_bnc_before, s.amount_out);
+						assert_eq!(
+							Currencies::total_balance(bnc, &alice) - alice_bnc_before,
+							s.amount_out + 6_119_145_563
+						);
 					}
 					(14, 5) => {
 						assert_eq!(bob_bnc_before - Currencies::total_balance(bnc, &bob), s.amount_in);
@@ -2958,7 +2968,7 @@ fn solver_ring_trade_triangle_execute() {
 						);
 						assert_eq!(
 							Currencies::total_balance(hdx, &charlie) - charlie_hdx_before,
-							s.amount_out
+							s.amount_out + 517_671_014_381
 						);
 					}
 					_ => panic!("Unexpected direction"),
@@ -3160,15 +3170,20 @@ fn solver_ring_trade_vs_direct_trades() {
 					solution,
 				));
 
-				// Users receive the full solver-resolved (net) amounts.
+				// An asset's only receiver is paid the whole output of that asset.
 				let solver_alice = Currencies::total_balance(bnc, &alice) - alice_bnc_before;
 				let solver_bob = Currencies::total_balance(dot, &bob) - bob_dot_before;
 				let solver_charlie = Currencies::total_balance(hdx, &charlie) - charlie_hdx_before;
-				assert_eq!(solver_alice, alice_resolved_bnc, "Alice receives full resolved BNC");
+				assert_eq!(
+					solver_alice,
+					alice_resolved_bnc + 6_119_145_563,
+					"Alice receives the whole BNC output"
+				);
 				assert_eq!(solver_bob, bob_resolved_dot, "Bob receives full resolved DOT");
 				assert_eq!(
-					solver_charlie, charlie_resolved_hdx,
-					"Charlie receives full resolved HDX"
+					solver_charlie,
+					charlie_resolved_hdx + 517_671_014_381,
+					"Charlie receives the whole HDX output"
 				);
 
 				// Ring/matched volume fee landed in FeeReceiver.
@@ -4531,7 +4546,7 @@ fn solver_ice_fee_lands_in_fee_receiver() {
 				solution,
 			));
 
-			// 1. Users receive the FULL solver-resolved amount — no deduction.
+			// 1. An asset's only receiver is paid the whole output of that asset — no deduction.
 			let alice_bnc_received = Currencies::free_balance(bnc, &alice) - alice_bnc_before;
 			let bob_hdx_received = Currencies::free_balance(hdx, &bob) - bob_hdx_before;
 			assert_eq!(
@@ -4539,8 +4554,9 @@ fn solver_ice_fee_lands_in_fee_receiver() {
 				"Alice must receive the full resolved amount_out (no post-hoc fee)"
 			);
 			assert_eq!(
-				bob_hdx_received, bob_resolved_hdx,
-				"Bob must receive the full resolved amount_out (no post-hoc fee)"
+				bob_hdx_received,
+				bob_resolved_hdx + 47_692_506_690,
+				"Bob must receive the whole HDX output (no post-hoc fee)"
 			);
 
 			// 2. The matched-volume fee landed in the dedicated FeeReceiver.
@@ -4974,7 +4990,7 @@ fn solver_v2_single_partial_whale() {
 			let dave_hdx_after = Currencies::total_balance(hdx, &dave);
 			let dave_bnc_after = Currencies::total_balance(bnc, &dave);
 			assert_eq!(dave_hdx_after, 8921766472234833724u128);
-			assert_eq!(dave_bnc_after, 70085179304735809u128);
+			assert_eq!(dave_bnc_after, 70092188523588167u128);
 			let hdx_spent = dave_hdx_before.saturating_sub(dave_hdx_after);
 			let bnc_received = dave_bnc_after.saturating_sub(dave_bnc_before);
 
@@ -4987,8 +5003,9 @@ fn solver_v2_single_partial_whale() {
 			);
 			// Single whale intent → no matched volume → no protocol fee.
 			assert_eq!(
-				bnc_received, expected_bnc_out,
-				"Dave should receive the full resolved amount_out: expected {expected_bnc_out}, got {bnc_received}"
+				bnc_received,
+				expected_bnc_out + 7_009_218_852_358,
+				"Dave should receive the whole trade output: resolved {expected_bnc_out}, got {bnc_received}"
 			);
 			assert_eq!(
 				Currencies::free_balance(bnc, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -5428,15 +5445,16 @@ fn solver_v2_small_partial_fully_filled() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_bnc_after = Currencies::total_balance(bnc, &alice);
 			assert_eq!(alice_hdx_after, 9000000000000000u128);
-			assert_eq!(alice_bnc_after, 67430255289688u128);
+			assert_eq!(alice_bnc_after, 67436998989586u128);
 			let hdx_spent = alice_hdx_before.saturating_sub(alice_hdx_after);
 			let bnc_received = alice_bnc_after.saturating_sub(alice_bnc_before);
 
 			assert_eq!(hdx_spent, amount, "Alice should spend exactly the fill amount");
 			// Single intent → no matched volume → no protocol fee.
 			assert_eq!(
-				bnc_received, expected_bnc_out,
-				"Alice should receive the full resolved amount_out (no fee on unmatched volume)"
+				bnc_received,
+				expected_bnc_out + 6_743_699_898,
+				"Alice should receive the whole trade output (no fee on unmatched volume)"
 			);
 			assert_eq!(
 				Currencies::free_balance(bnc, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -5799,7 +5817,7 @@ fn solver_v2_all_partial_opposing_directions() {
 			let bob_hdx_after = Currencies::total_balance(hdx, &bob);
 			let bob_bnc_after = Currencies::total_balance(bnc, &bob);
 			assert_eq!(alice_hdx_after, 500000000000000000u128);
-			assert_eq!(alice_bnc_after, 33677289309145788u128);
+			assert_eq!(alice_bnc_after, 33678657574903278u128);
 			assert_eq!(bob_hdx_after, 295614363060298723u128);
 			assert_eq!(bob_bnc_after, 20000000000000000u128);
 
@@ -6376,8 +6394,9 @@ fn solver_v2_cancel_after_partial_fill() {
 			// Single whale partial → no matched volume → no protocol fee.
 			let bnc_received = dave_bnc_after_fill.saturating_sub(dave_bnc_before);
 			assert_eq!(
-				bnc_received, fill_bnc_out,
-				"BNC received should equal the full resolved amount_out"
+				bnc_received,
+				fill_bnc_out + 7_009_218_852_358,
+				"BNC received should equal the whole trade output"
 			);
 			assert_eq!(
 				Currencies::free_balance(bnc, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -6710,16 +6729,17 @@ fn solver_v2_single_intent_hdx_to_hydrated_tether() {
 			let alice_hdx_after = Currencies::total_balance(hdx, &alice);
 			let alice_husdt_after = Currencies::total_balance(husdt, &alice);
 			assert_eq!(alice_hdx_after, 90000000000000000u128);
-			assert_eq!(alice_husdt_after, 20122529505052763301u128);
+			assert_eq!(alice_husdt_after, 20124461206935762509u128);
 			let hdx_spent = alice_hdx_before.saturating_sub(alice_hdx_after);
 			let husdt_received = alice_husdt_after.saturating_sub(alice_husdt_before);
 
 			assert_eq!(hdx_spent, amount_in, "HDX spent should match");
 			// Single intent → no matched volume → no protocol fee. User gets
-			// the full resolved amount_out; FeeReceiver gains nothing.
+			// the whole trade output; FeeReceiver gains nothing.
 			assert_eq!(
-				husdt_received, expected_out,
-				"hUSDT received should equal the full resolved amount_out (no fee on unmatched volume)"
+				husdt_received,
+				expected_out + 1_931_701_882_999_208,
+				"hUSDT received should equal the whole trade output (no fee on unmatched volume)"
 			);
 			assert_eq!(
 				Currencies::free_balance(husdt, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),
@@ -6976,10 +6996,17 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 			));
 			println!("\nsubmit_solution: OK");
 
-			// New model: each user receives the full resolved amount_out.
+			// An asset's only receiver is paid the whole output of that asset.
 			for ri in solution.resolved_intents.iter() {
 				let ice_support::IntentData::Swap(ref s) = ri.data else {
 					continue;
+				};
+				let extra = match s.asset_out {
+					1110 => 1_934_582_872_688_527,
+					1111 => 1_931_428_104_202_087,
+					1112 => 1_929_779_517_503_721,
+					1113 => 1_929_250_413_736_271,
+					_ => 0,
 				};
 				let setup = setups.iter().find(|setup| setup.asset_out == s.asset_out);
 				let Some(setup) = setup else { continue };
@@ -6998,9 +7025,11 @@ fn solver_v2_four_intents_hdx_to_different_atokens() {
 
 				assert_eq!(hdx_spent, s.amount_in, "{}: HDX spent should match fill", setup.label);
 				assert_eq!(
-					out_received, s.amount_out,
-					"{}: {} received should equal the full resolved amount_out",
-					setup.label, setup.asset_name
+					out_received,
+					s.amount_out + extra,
+					"{}: {} received should equal the whole trade output",
+					setup.label,
+					setup.asset_name
 				);
 
 				println!(
@@ -7438,12 +7467,8 @@ fn solver_v2_cross_atoken_trades_with_matching() {
 		});
 }
 
-/// Same setup as DCA's `dca_succeeds_after_extra_gas_increased_due_to_out_of_gas_error`:
-/// deploy a ConditionalGasEater ERC20 contract, add it to the omnipool, then try to
-/// sell it for HDX via an ICE intent instead of DCA.
-///
-/// The DCA test fails with out-of-gas on the first trade attempt. This test checks
-/// whether the same trade via ICE/intent also hits out-of-gas or not.
+/// Deploys a ConditionalGasEater ERC20, adds it to the omnipool, then sells it for HDX via an
+/// ICE intent to check whether the trade hits out-of-gas.
 #[test]
 fn ice_intent_with_evm_gas_eater_token() {
 	use crate::polkadot_test_net::{hydradx_run_to_block, HDX, LRNA, UNITS};
@@ -7457,13 +7482,13 @@ fn ice_intent_with_evm_gas_eater_token() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		// ============================================================
-		// SETUP: same as the DCA out-of-gas test
+		// SETUP
 		// ============================================================
-		crate::dca::init_omnipool_with_oracle_for_block_10();
+		crate::utils::pools::init_omnipool_with_oracle_for_block_10();
 
 		let evm_address = EVMAccounts::evm_address(&Router::router_account());
 		let contract =
-			crate::dca::extra_gas_erc20::deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
+			crate::utils::contracts::deploy_conditional_gas_eater(evm_address, 400_000, crate::erc20::deployer());
 		let erc20 = crate::erc20::bind_erc20(contract);
 		assert_ok!(EmaOracle::add_oracle(
 			RuntimeOrigin::root(),
@@ -7502,7 +7527,7 @@ fn ice_intent_with_evm_gas_eater_token() {
 		);
 
 		// ============================================================
-		// INTENT: sell the gas-eater ERC20 for HDX (same trade as DCA)
+		// INTENT: sell the gas-eater ERC20 for HDX
 		// ============================================================
 		let sell_amount = 200_000 * UNITS;
 		let ts = hydradx_runtime::Timestamp::now();
@@ -7596,14 +7621,15 @@ fn ice_intent_with_evm_gas_eater_token() {
 		);
 
 		// Single intent → no matched volume → no protocol fee. Alice
-		// receives the full resolved amount_out; FeeReceiver gains nothing.
+		// receives the whole trade output; FeeReceiver gains nothing.
 		let alice_hdx_after = Currencies::free_balance(HDX, &ALICE.into());
-		assert_eq!(alice_hdx_after, 2993802295599997u128);
+		assert_eq!(alice_hdx_after, 2994001695769573u128);
 		let hdx_received = alice_hdx_after.saturating_sub(alice_hdx_before);
 
 		assert_eq!(
-			hdx_received, expected_hdx_out,
-			"Alice should receive the full resolved amount_out: expected {expected_hdx_out}, got {hdx_received}"
+			hdx_received,
+			expected_hdx_out + 199_400_169_576,
+			"Alice should receive the whole trade output: resolved {expected_hdx_out}, got {hdx_received}"
 		);
 		assert_eq!(
 			Currencies::free_balance(HDX, &<Runtime as pallet_ice::Config>::FeeReceiver::get()),

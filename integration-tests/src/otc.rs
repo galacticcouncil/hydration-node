@@ -153,9 +153,8 @@ fn settle_otc_order_should_not_over_mint_shares_when_maker_underpays_for_stables
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		let _ = with_transaction(|| {
-			// StableSwap pool set up the same way as the router/DCA integration tests. `pool_id` is the
-			// pool's share token; `asset_b` is one of the pooled stablecoins.
-			let (pool_id, _asset_a, asset_b) = crate::dca::init_stableswap().unwrap();
+			// `pool_id` is the pool's share token; `asset_b` is one of the pooled stablecoins.
+			let (pool_id, _asset_a, asset_b) = crate::utils::pools::init_stableswap().unwrap();
 
 			// The route the settlement buys shares through: depositing `asset_b` into the pool. It is an
 			// add-liquidity because the output asset is the share token `pool_id`.

@@ -4,7 +4,7 @@
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::{ConstU32, Get, TypeInfo};
 use frame_support::sp_runtime::traits::CheckedConversion;
-use frame_support::sp_runtime::{DispatchError, Permill};
+use frame_support::sp_runtime::Permill;
 use frame_support::BoundedVec;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::Route;
@@ -389,7 +389,7 @@ pub trait IntentMigrator<AccountId> {
 	fn add_migrated_intent(owner: AccountId, params: DcaParams) -> Result<IntentId, DispatchError>;
 }
 
-#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, Debug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct DcaData {
 	/// Asset being sold per trade
 	pub asset_in: AssetId,

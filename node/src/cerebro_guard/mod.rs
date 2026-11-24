@@ -580,7 +580,9 @@ fn always_include(xt: &[u8]) -> bool {
 		&& matches!(
 			ext.0.function,
 			RuntimeCall::Liquidation(
-				pallet_liquidation::Call::liquidate { .. } | pallet_liquidation::Call::liquidate_with_pool { .. }
+				pallet_liquidation::Call::liquidate { .. }
+					| pallet_liquidation::Call::liquidate_with_pool { .. }
+					| pallet_liquidation::Call::submit_liquidation { .. }
 			)
 		)
 }
@@ -624,7 +626,7 @@ struct CandidateRead {
 /// Trades of everything already in the block, when pass 1 decoded the whole events value.
 type Rebuilt = Option<Vec<Trade>>;
 
-fn trades_of(records: &[cerebro_hydration::decode::EventRecord]) -> Vec<Trade> {
+fn trades_of(records: &[cerebro_hydration::decode::Record]) -> Vec<Trade> {
 	map_records(records)
 		.into_iter()
 		.filter_map(|(_, e, _)| match e {
@@ -1314,6 +1316,22 @@ mod tests {
 			user: Default::default(),
 			debt_to_cover: 1,
 			route: Default::default(),
+		});
+
+		assert!(always_include(&bare(call)));
+	}
+
+	#[test]
+	fn always_include_should_match_expiring_unsigned_liquidation() {
+		let call = hydradx_runtime::RuntimeCall::Liquidation(pallet_liquidation::Call::submit_liquidation {
+			pool: Default::default(),
+			collateral_asset: 5,
+			debt_asset: 10,
+			user: Default::default(),
+			debt_to_cover: 1,
+			route: Default::default(),
+			priority: 0,
+			valid_until: 100,
 		});
 
 		assert!(always_include(&bare(call)));

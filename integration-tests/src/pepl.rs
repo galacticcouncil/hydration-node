@@ -1300,7 +1300,8 @@ fn liquidate_with_pool_should_fail_when_pool_is_wrong() {
 				decision.debt_to_cover,
 				BoundedVec::new(),
 				Some(decision.priority),
-			),
+			)
+			.map_err(|e| e.error),
 			pallet_liquidation::Error::<Runtime>::PoolAddressMismatch
 		);
 	});

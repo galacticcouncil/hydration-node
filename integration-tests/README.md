@@ -35,7 +35,7 @@ This produces `integration-tests/<pallet>-snapshot/SNAPSHOT_<block_number>`.
 
 ### 4. Write a test that loads the snapshot
 
-Use `hydra_live_ext` to spin up the runtime against the snapshot. Canonical example: `src/dca.rs:4872`.
+Use `hydra_live_ext` to spin up the runtime against the snapshot. Canonical example: `src/aave_simulator.rs:27`.
 
 ```rust
 const PATH_TO_SNAPSHOT: &str = "<pallet>-snapshot/SNAPSHOT_<block_number>";

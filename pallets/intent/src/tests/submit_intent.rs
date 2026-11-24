@@ -449,7 +449,7 @@ fn migration_should_still_convert_when_settlement_is_disabled() {
 			};
 
 			let _ = frame_support::storage::with_transaction(|| {
-				assert_ok!(crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params.clone()));
+				assert_ok!(crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params.clone(), 0));
 				assert_eq!(Intents::<Test>::iter().count(), 1);
 				sp_runtime::TransactionOutcome::Commit(sp_runtime::DispatchResult::Ok(()))
 			});

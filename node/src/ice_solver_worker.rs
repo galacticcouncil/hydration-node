@@ -154,6 +154,7 @@ pub(crate) fn build_extrinsic(
 	built_at: u32,
 	options: &SolverOptions,
 	hub_sells_allowed: bool,
+	read_storage: impl Fn(&[u8]) -> Option<Vec<u8>>,
 ) -> Option<(sp_runtime::OpaqueExtrinsic, u128, u128)> {
 	let mode = input.mode;
 	// Before the decode: nothing this block produces can be accepted, so the
@@ -173,7 +174,9 @@ pub(crate) fn build_extrinsic(
 			return None;
 		}
 	};
-	Arc::make_mut(&mut state.0).hub_sells_disabled = !hub_sells_allowed;
+	let omnipool = Arc::make_mut(&mut state.0);
+	omnipool.hub_sells_disabled = !hub_sells_allowed;
+	omnipool.fill_slip_fee_levels::<hydradx_runtime::Runtime>(read_storage);
 	// Reseed every solve — blocking-pool threads are reused.
 	ED_TL.with(|m| {
 		let mut m = m.borrow_mut();
@@ -362,7 +365,18 @@ where
 				let state_query_ms = t_state.elapsed().as_millis();
 				let intents = input.intents.len() as u32;
 
-				let Some((opaque_tx, decode_ms, solve_ms)) = build_extrinsic(input, block_no, &options, hub_sells_allowed) else {
+				// A failed read leaves that asset at the full slip fee.
+				let read_storage = |key: &[u8]| {
+					client
+						.storage(hash, &StorageKey(key.to_vec()))
+						.inspect_err(|e| tracing::error!(target: LOG_TARGET, "reading Omnipool::SlipFeeLevel failed at block {block_no}: {e:?}"))
+						.ok()
+						.flatten()
+						.map(|data| data.0)
+				};
+				let Some((opaque_tx, decode_ms, solve_ms)) =
+					build_extrinsic(input, block_no, &options, hub_sells_allowed, read_storage)
+				else {
 					tracing::debug!(target: LOG_TARGET, "no solution for block {block_no}");
 					return;
 				};
@@ -469,7 +483,7 @@ mod tests {
 	#[test]
 	fn build_extrinsic_should_return_none_when_state_cannot_be_decoded() {
 		let input = input_with(SolverMode::V4, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true, |_| None).is_none());
 	}
 
 	#[test]
@@ -477,7 +491,44 @@ mod tests {
 		// Same undecodable state as the test above: reaching the decode at all
 		// would have to log an error, so `None` here proves the mode check runs first.
 		let input = input_with(SolverMode::Disabled, vec![0xff, 0xff, 0xff]);
-		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true).is_none());
+		assert!(build_extrinsic(input, 1, &SolverOptions::default(), true, |_| None).is_none());
+	}
+
+	fn snapshot_with_assets(assets: &[AssetId]) -> amm_simulator::omnipool::OmnipoolSnapshot {
+		amm_simulator::omnipool::OmnipoolSnapshot {
+			assets: assets.iter().map(|id| (*id, Default::default())).collect(),
+			..Default::default()
+		}
+	}
+
+	fn level_key(asset_id: AssetId) -> Vec<u8> {
+		pallet_omnipool::SlipFeeLevel::<hydradx_runtime::Runtime>::hashed_key_for(asset_id)
+	}
+
+	#[test]
+	fn fill_slip_fee_levels_should_read_level_when_storage_has_a_value() {
+		let mut snapshot = snapshot_with_assets(&[5, 15]);
+		let key = level_key(15);
+		snapshot.fill_slip_fee_levels::<hydradx_runtime::Runtime>(|k| (k == key).then(|| 50u8.encode()));
+		assert_eq!(
+			snapshot.slip_fee_levels,
+			BTreeMap::from([(15, sp_runtime::Percent::from_percent(50))])
+		);
+	}
+
+	#[test]
+	fn fill_slip_fee_levels_should_skip_asset_when_storage_has_no_value() {
+		let mut snapshot = snapshot_with_assets(&[5, 15]);
+		snapshot.fill_slip_fee_levels::<hydradx_runtime::Runtime>(|_| None);
+		assert!(snapshot.slip_fee_levels.is_empty());
+	}
+
+	#[test]
+	fn fill_slip_fee_levels_should_skip_asset_when_value_is_above_one_hundred_percent() {
+		let mut snapshot = snapshot_with_assets(&[5, 15]);
+		let key = level_key(15);
+		snapshot.fill_slip_fee_levels::<hydradx_runtime::Runtime>(|k| (k == key).then(|| 101u8.encode()));
+		assert!(snapshot.slip_fee_levels.is_empty());
 	}
 
 	#[test]

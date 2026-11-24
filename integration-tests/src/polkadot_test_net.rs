@@ -854,7 +854,6 @@ pub fn go_to_block(number: BlockNumber) {
 		hydradx_runtime::TransactionPayment::on_finalize(current_block);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(current_block);
 		hydradx_runtime::CircuitBreaker::on_finalize(current_block);
-		hydradx_runtime::DCA::on_finalize(current_block);
 		hydradx_runtime::Dispatcher::on_finalize(current_block);
 		hydradx_runtime::EmaOracle::on_finalize(current_block);
 		hydradx_runtime::EVM::on_finalize(current_block);
@@ -914,7 +913,6 @@ pub fn go_to_block(number: BlockNumber) {
 	hydradx_runtime::MultiTransactionPayment::on_initialize(number);
 	hydradx_runtime::CircuitBreaker::on_initialize(number);
 	hydradx_runtime::DynamicEvmFee::on_initialize(number);
-	hydradx_runtime::DCA::on_initialize(number);
 	hydradx_runtime::EmaOracle::on_initialize(number);
 	hydradx_runtime::EVM::on_initialize(number);
 	hydradx_runtime::Ethereum::on_initialize(number);
@@ -946,29 +944,6 @@ pub fn hydradx_finalize_block() {
 
 	hydradx_runtime::System::on_finalize(b);
 	hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-}
-
-pub fn rococo_run_to_block(to: BlockNumber) {
-	use frame_support::traits::OnFinalize;
-
-	while hydradx_runtime::System::block_number() < to {
-		let b = hydradx_runtime::System::block_number();
-
-		hydradx_runtime::System::on_finalize(b);
-		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::CircuitBreaker::on_finalize(b);
-		hydradx_runtime::DCA::on_finalize(b);
-		hydradx_runtime::EmaOracle::on_finalize(b);
-
-		hydradx_runtime::System::on_initialize(b + 1);
-		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
-		hydradx_runtime::DynamicEvmFee::on_initialize(b + 1);
-		hydradx_runtime::DCA::on_initialize(b + 1);
-		hydradx_runtime::EmaOracle::on_initialize(b + 1);
-
-		hydradx_runtime::System::set_block_number(b + 1);
-	}
 }
 
 /// Opt every Aave reserve on the snapshot into the solver's routing.
@@ -1030,6 +1005,8 @@ pub fn hydra_live_ext(
 
 			let mut p = builder.build().await.unwrap();
 			p.execute_with(|| {
+				// Snapshot events of retired pallets (e.g. DCA) no longer decode and would empty `System::events()`.
+				hydradx_runtime::System::reset_events();
 				hydradx_runtime::Parameters::set_relay_parent_offset_override(true);
 				pallet_ema_oracle::migrations::v1::MigrateV0ToV1::<hydradx_runtime::Runtime>::on_runtime_upgrade();
 				pallet_stableswap::migrations::v2::MigrateV1ToV2::<hydradx_runtime::Runtime>::on_runtime_upgrade();

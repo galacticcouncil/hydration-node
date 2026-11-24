@@ -9,7 +9,7 @@ use cerebro_core::model::StateDelta;
 use cerebro_core::value::Usd6;
 use cerebro_core::BlockHash;
 use cerebro_hydration::balance::call_output;
-use cerebro_hydration::decode::map_records;
+use cerebro_hydration::decode::{map_records, Record};
 use cerebro_hydration::guard::{
 	self, candidate_of, is_candidate, read_oracle, read_point, with_state, Accumulators, GuardCtx, InconclusiveReason,
 	Judgement, Thresholds, Verdict, POST, PRE,
@@ -168,7 +168,11 @@ fn guarded(signer: Option<[u8; 32]>, call: impl FnOnce()) -> Guarded {
 			.filter(|k| before.get(*k) != after.get(*k))
 			.map(|k| (k.clone(), (before.get(k).cloned(), after.get(k).cloned())))
 			.collect();
-		let records = ext.execute_with(System::events);
+		let records: Vec<_> = ext
+			.execute_with(System::events)
+			.into_iter()
+			.map(Record::Runtime)
+			.collect();
 
 		let t = ExtTransport(RefCell::new(&mut ext));
 		let protocol = accounts::fetch(&t, H256(POST)).expect("protocol accounts read");

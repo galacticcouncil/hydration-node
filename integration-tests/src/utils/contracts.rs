@@ -46,3 +46,15 @@ pub fn deploy_contract_code(code: Vec<u8>, deployer: EvmAddress) -> EvmAddress {
 pub fn deploy_contract(name: &str, deployer: EvmAddress) -> EvmAddress {
 	deploy_contract_code(get_contract_bytecode(name), deployer)
 }
+
+/// ERC20 that burns `gas_to_waste` gas on every transfer to `router_address`.
+pub fn deploy_conditional_gas_eater(router_address: EvmAddress, gas_to_waste: u64, deployer: EvmAddress) -> EvmAddress {
+	use ethabi::{encode, Token};
+
+	let mut bytecode = get_contract_bytecode("ConditionalGasEater");
+	bytecode.extend(encode(&[
+		Token::Address(router_address),
+		Token::Uint(gas_to_waste.into()),
+	]));
+	deploy_contract_code(bytecode, deployer)
+}

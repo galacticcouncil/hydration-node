@@ -29,7 +29,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod tests;
 
 mod benchmarking;
-mod migrations;
+pub mod migrations;
 pub mod weights;
 
 mod assets;
@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("hydradx"),
 	impl_name: Cow::Borrowed("hydradx"),
 	authoring_version: 1,
-	spec_version: 458,
+	spec_version: 462,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -229,9 +229,7 @@ construct_runtime!(
 		XYKWarehouseLM: warehouse_liquidity_mining::<Instance2> = 96,
 
 		RelayChainInfo: pallet_relaychain_info = 201,
-		//NOTE: DCA pallet should be declared before ParachainSystem pallet,
-		//otherwise there is no data about relay chain parent hash
-		DCA: pallet_dca = 66,
+		// NOTE 66 is retired (was used by DCA), must not be reused
 		//NOTE: Scheduler must be before ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
 		Scheduler: pallet_scheduler = 5,
@@ -385,7 +383,6 @@ mod benches {
 		[pallet_duster, benchmarking::duster::Benchmark]
 		[pallet_omnipool, benchmarking::omnipool::Benchmark]
 		[pallet_route_executor, benchmarking::route_executor::Benchmark]
-		[pallet_dca, benchmarking::dca::Benchmark]
 		[pallet_fee_processor, benchmarking::fee_processor::Benchmark]
 		[pallet_xyk, benchmarking::xyk::Benchmark]
 		[pallet_dynamic_evm_fee, benchmarking::dynamic_evm_fee::Benchmark]
@@ -1216,6 +1213,13 @@ impl_runtime_apis! {
 		fn liquidity_state() -> pallet_ice_runtime_api::LiquidityState {
 			let (state, existential_deposits) = pallet_ice::Pallet::<Runtime>::liquidity_state();
 			pallet_ice_runtime_api::LiquidityState { state, existential_deposits }
+		}
+
+		fn omnipool_base_fees() -> Vec<(AssetId, (Permill, Permill))> {
+			use hydradx_traits::fee::GetDynamicFee;
+			pallet_omnipool::Assets::<Runtime>::iter_keys()
+				.map(|asset| (asset, <Runtime as pallet_omnipool::Config>::Fee::get_base((asset, 0))))
+				.collect()
 		}
 	}
 

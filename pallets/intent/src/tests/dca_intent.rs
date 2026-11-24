@@ -801,7 +801,7 @@ fn do_add_migrated_intent_should_clamp_amount_out_when_below_existential_deposit
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ED - 1))
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ED - 1), 0)
 					.expect("should work");
 
 				assert_eq!(stored_dca(id).amount_out, ED);
@@ -818,7 +818,7 @@ fn do_add_migrated_intent_should_clamp_amount_out_when_amount_out_is_zero() {
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, 0))
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, 0), 0)
 					.expect("should work");
 
 				assert_eq!(stored_dca(id).amount_out, ED);
@@ -835,10 +835,11 @@ fn do_add_migrated_intent_should_keep_amount_out_when_at_or_above_existential_de
 		.build()
 		.execute_with(|| {
 			let _ = with_transaction(|| {
-				let at_ed = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ED))
+				let at_ed = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ED), 0)
 					.expect("should work");
-				let above_ed = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ONE_DOT))
-					.expect("should work");
+				let above_ed =
+					crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ONE_DOT), 0)
+						.expect("should work");
 
 				assert_eq!(stored_dca(at_ed).amount_out, ED);
 				assert_eq!(stored_dca(above_ed).amount_out, ONE_DOT);
@@ -856,7 +857,7 @@ fn do_add_migrated_intent_should_fail_when_amount_in_is_below_existential_deposi
 		.execute_with(|| {
 			let _ = with_transaction(|| {
 				assert_noop!(
-					crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ED - 1, ONE_DOT)),
+					crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ED - 1, ONE_DOT), 0),
 					Error::<Test>::InvalidIntent
 				);
 
@@ -959,7 +960,7 @@ fn do_add_migrated_intent_should_clamp_slippage_when_it_exceeds_the_cap() {
 				let mut params = migrated_params(ONE_HDX, ONE_DOT);
 				params.slippage = Permill::from_percent(80);
 
-				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params).expect("must not be refused");
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params, 0).expect("must not be refused");
 
 				assert_eq!(stored_dca(id).slippage, MaxDcaSlippage::get());
 
@@ -978,9 +979,45 @@ fn do_add_migrated_intent_should_keep_slippage_when_within_the_cap() {
 				let mut params = migrated_params(ONE_HDX, ONE_DOT);
 				params.slippage = Permill::from_percent(2);
 
-				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params).expect("should work");
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, params, 0).expect("should work");
 
 				assert_eq!(stored_dca(id).slippage, Permill::from_percent(2));
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_first_be_eligible_at_given_block_when_it_is_in_the_future() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			set_block_number(100);
+			let _ = with_transaction(|| {
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ONE_DOT), 250)
+					.expect("should work");
+
+				assert_eq!(stored_dca(id).last_execution_block, 240);
+
+				TransactionOutcome::Commit(DispatchResult::Ok(()))
+			});
+		});
+}
+
+#[test]
+fn do_add_migrated_intent_should_be_eligible_immediately_when_given_block_is_in_the_past() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE_HDX)])
+		.build()
+		.execute_with(|| {
+			set_block_number(100);
+			let _ = with_transaction(|| {
+				let id = crate::Pallet::<Test>::do_add_migrated_intent(ALICE, migrated_params(ONE_HDX, ONE_DOT), 50)
+					.expect("should work");
+
+				assert_eq!(stored_dca(id).last_execution_block, 90);
 
 				TransactionOutcome::Commit(DispatchResult::Ok(()))
 			});

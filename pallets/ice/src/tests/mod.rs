@@ -7,3 +7,4 @@ mod solver_input;
 mod solver_mode;
 mod submit_solution;
 mod validate_price_consistency;
+mod whole_output;

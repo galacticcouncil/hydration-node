@@ -185,12 +185,27 @@ impl<T: Config> hydradx_traits::lazy_executor::Mutate<AccountId> for DummyLazyEx
 	type Error = DispatchError;
 
 	fn queue(
-		_src: hydradx_traits::lazy_executor::Source,
-		_origin: AccountId,
-		_forward: hydradx_traits::lazy_executor::ForwardAction,
+		src: hydradx_traits::lazy_executor::Source,
+		origin: AccountId,
+		forward: hydradx_traits::lazy_executor::ForwardAction,
 	) -> Result<(), Self::Error> {
+		QUEUED_FORWARDS.with(|v| v.borrow_mut().push((src, origin, forward)));
 		Ok(())
 	}
+}
+
+pub(crate) type QueuedForward = (
+	hydradx_traits::lazy_executor::Source,
+	AccountId,
+	hydradx_traits::lazy_executor::ForwardAction,
+);
+
+thread_local! {
+	static QUEUED_FORWARDS: RefCell<Vec<QueuedForward>> = RefCell::new(Vec::default());
+}
+
+pub(crate) fn queued_forwards() -> Vec<QueuedForward> {
+	QUEUED_FORWARDS.with(|v| v.borrow().clone())
 }
 
 pub struct DummyRegistry;
@@ -571,6 +586,7 @@ impl Default for ExtBuilder {
 		ROUTER_SETTLEMENTS.with(|v| {
 			v.borrow_mut().clear();
 		});
+		QUEUED_FORWARDS.with(|v| v.borrow_mut().clear());
 
 		Self {
 			endowed_accounts: vec![],

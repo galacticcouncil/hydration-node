@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use crate::dca::schedule_fake_with_sell_order;
 use crate::polkadot_test_net::*;
 use frame_support::assert_noop;
 use frame_support::assert_ok;
@@ -8,7 +7,7 @@ use hex_literal::hex;
 use hydradx_runtime::evm::uniswap_v3_trade_executor::UniswapV3;
 use hydradx_runtime::{
 	AssetId, AssetRegistry, Currencies, Dispatcher, Parameters, Router, Runtime, RuntimeCall, RuntimeEvent,
-	RuntimeOrigin, System, Treasury, DCA,
+	RuntimeOrigin, System, Treasury,
 };
 use hydradx_traits::router::{ExecutorError, PoolType, Trade};
 use hydradx_traits::OraclePeriod;
@@ -45,10 +44,6 @@ const FEE_TIER: u32 = 3000;
 const SELL_AMOUNT: Balance = 1_000_000_000;
 /// 100 aDOT — well inside what the treasury holds in the snapshot (~361).
 const FUND_ASSET_IN: Balance = 1_000_000_000_000;
-/// DCA enforces `amount_in >= transaction_fee * 20` and a total budget of at
-/// least `MinBudgetInNativeCurrency` (1000 HDX), both converted into the sold
-/// asset — so a DCA leg needs far more than `SELL_AMOUNT`. 5 aDOT per trade.
-const DCA_SELL_AMOUNT: Balance = 50_000_000_000;
 /// 100 HOLLAR (18 decimals).
 const FUND_ASSET_OUT: Balance = 100_000_000_000_000_000_000;
 const FUND_GAS: Balance = 1_000_000_000_000_000_000;
@@ -292,9 +287,8 @@ fn router_sell_should_emit_uniswap_v3_filler_event() {
 /// A swap through a v3 pool must leave an EMA-oracle entry behind it.
 ///
 /// Without one, `OraclePriceProvider` has nothing to return for a `UniswapV3` leg and
-/// every consumer reads that as failure: `pallet-dca` treats it as "price unstable"
-/// and terminates the schedule, and `route-executor::set_route` rejects the route with
-/// `RouteHasNoOracle`. Reading a live `slot0` price instead would satisfy both callers
+/// every consumer reads that as failure: `route-executor::set_route` rejects the route with
+/// `RouteHasNoOracle`. Reading a live `slot0` price instead would satisfy its callers
 /// while quietly removing the manipulation resistance they exist to provide, so the
 /// executor reports to the oracle and this is the test that it does.
 #[test]
@@ -330,117 +324,6 @@ fn swap_should_feed_the_ema_oracle_under_the_uniswap_v3_source() {
 			entry.price.n != 0 && entry.price.d != 0,
 			"oracle price should be non-zero"
 		);
-	});
-}
-
-/// The whole point of the oracle wiring: a DCA schedule routed through a v3 pool has to
-/// survive execution. Before the `UniswapV3` arm existed it was terminated after
-/// `MaxNumberOfRetriesOnError` retries, reporting `PriceUnstable` — which was never true,
-/// the price simply could not be looked up.
-#[test]
-fn dca_should_execute_through_a_uniswap_v3_leg_once_the_pool_has_oracle_history() {
-	with_uniswap_v3(|| {
-		// Prime the oracle: a DCA leg cannot be priced until the pair has traded.
-		assert_ok!(Router::sell(
-			RuntimeOrigin::signed(ALICE.into()),
-			ASSET_IN,
-			ASSET_OUT,
-			SELL_AMOUNT,
-			0,
-			uniswap_route().try_into().unwrap(),
-		));
-		hydradx_run_to_next_block();
-
-		let budget = DCA_SELL_AMOUNT * 10;
-		let schedule = schedule_fake_with_sell_order(
-			ALICE,
-			PoolType::UniswapV3(FEE_TIER),
-			budget,
-			ASSET_IN,
-			ASSET_OUT,
-			DCA_SELL_AMOUNT,
-		);
-		// A mainnet snapshot already carries schedules, so id 0 is not ours.
-		let schedule_id = DCA::next_schedule_id();
-		assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule, None));
-
-		// A mainnet snapshot's near-term blocks are already full of real schedules,
-		// so the first execution can be pushed well past the next block. Take the
-		// planned block from the event rather than guessing how long to run.
-		let planned_at = System::events()
-			.into_iter()
-			.find_map(|record| match record.event {
-				RuntimeEvent::DCA(pallet_dca::Event::ExecutionPlanned { id, block, .. }) if id == schedule_id => {
-					Some(block)
-				}
-				_ => None,
-			})
-			.expect("schedule should have been planned");
-
-		let before = Currencies::free_balance(ASSET_OUT, &ALICE.into());
-		// Step block by block: `hydradx_run_to_block` jumps straight to the target,
-		// which skips `on_initialize` for every block in between — including the one
-		// the execution was planned for.
-		while System::block_number() <= planned_at {
-			hydradx_run_to_next_block();
-		}
-		let after = Currencies::free_balance(ASSET_OUT, &ALICE.into());
-
-		// Executed at least once, and the schedule was not terminated.
-		assert!(after > before, "DCA should have executed through the v3 leg");
-		assert!(
-			DCA::schedules(schedule_id).is_some(),
-			"schedule should still exist — it used to be terminated with PriceUnstable"
-		);
-	});
-}
-
-#[test]
-fn dca_should_retry_when_uniswap_v3_pool_cannot_take_the_full_amount() {
-	with_uniswap_v3(|| {
-		assert_ok!(alice_sells_hollar(1_000_000_000_000_000_000));
-		hydradx_run_to_next_block();
-
-		let per_trade = oversized_hollar_sell() / 2;
-		fund_alice_from_treasury(ASSET_OUT, per_trade * 3);
-		let mut schedule = schedule_fake_with_sell_order(
-			ALICE,
-			PoolType::UniswapV3(FEE_TIER),
-			per_trade * 3,
-			ASSET_OUT,
-			ASSET_IN,
-			per_trade,
-		);
-		schedule.slippage = Some(sp_runtime::Permill::from_percent(100));
-		let schedule_id = DCA::next_schedule_id();
-		assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE.into()), schedule, None));
-		let planned_at = System::events()
-			.into_iter()
-			.find_map(|record| match record.event {
-				RuntimeEvent::DCA(pallet_dca::Event::ExecutionPlanned { id, block, .. }) if id == schedule_id => {
-					Some(block)
-				}
-				_ => None,
-			})
-			.expect("schedule should have been planned");
-
-		while System::block_number() < planned_at {
-			hydradx_run_to_next_block();
-		}
-
-		let trade_error = System::events().into_iter().find_map(|record| match record.event {
-			RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, error, .. }) if id == schedule_id => Some(error),
-			_ => None,
-		});
-		assert_eq!(
-			trade_error,
-			Some(pallet_dispatcher::Error::<Runtime>::UniswapV3InsufficientLiquidity.into())
-		);
-		assert!(
-			DCA::schedules(schedule_id).is_some(),
-			"schedule was terminated instead of retried"
-		);
-		assert_eq!(DCA::retries_on_error(schedule_id), 1);
 	});
 }
 
@@ -996,8 +879,10 @@ fn intent_should_settle_through_omnipool_and_uniswap_v3_when_amount_exceeds_v3_c
 		assert_eq!(trade_shapes(&solution), split_sale_trades());
 		assert_eq!(paid_out(&solution), 96_680_578_191_874);
 		assert_eq!(solution.score, 6_680_578_191_874);
+		// ALICE is the only receiver, so she is paid the trades' whole output.
+		let delivered = paid_out(&solution) + 11_205_332_886;
 		assert!(
-			received >= paid_out(&solution) && received <= paid_out(&solution).saturating_add(2),
+			received >= delivered && received <= delivered.saturating_add(2),
 			"aToken balance rounding may credit at most two units above the nominal payout"
 		);
 		assert_eq!(
